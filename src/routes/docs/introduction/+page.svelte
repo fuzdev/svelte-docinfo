@@ -50,7 +50,7 @@
 		</p>
 		<p class="panel p_md">
 			<strong>AI disclosure:</strong> the code and docs beyond the intro were written by Claude Code with
-			uneven human guidance.
+			uneven human guidance. The first release took about 5 months and 500 manual commits.
 		</p>
 		<TomeSection>
 			<TomeSectionHeader text="Install" />

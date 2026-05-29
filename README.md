@@ -6,13 +6,13 @@
 > [**svelte-docinfo.fuz.dev**](https://svelte-docinfo.fuz.dev/)
 
 **svelte-docinfo** extracts JSON describing the exports
-of TypeScript and Svelte modules for open ended use cases
+of TypeScript and Svelte modules for open-ended use cases
 like docs, code search, and dev tools.
 It uses
 [svelte2tsx](https://github.com/sveltejs/language-tools/tree/master/packages/svelte2tsx)
 and the TypeScript compiler API to resolve types, track exports, and extract semantic details.
-The [npm package](https://www.npmjs.com/package/svelte-docinfo)
-has a Vite plugin, CLI, and programmatic API.
+It includes a Vite plugin, CLI, and programmatic API
+in the [npm package](https://www.npmjs.com/package/svelte-docinfo).
 
 ```bash
 npm install svelte-docinfo -D
@@ -45,6 +45,7 @@ and [discussions](https://github.com/fuzdev/svelte-docinfo/discussions)
 for everything else!
 
 **AI disclosure:** the code and docs beyond the intro were written by Claude Code with uneven human guidance.
+The first release took about 5 months and 500 manual commits.
 
 ## Quick start
 
