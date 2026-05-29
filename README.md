@@ -330,7 +330,9 @@ Known gaps: standalone `namespace Foo {}` declarations and decorators are not ye
 
 ## Credits
 
-[`sveld`](https://github.com/carbon-design-system/sveld) was the main inspiration.
+[`sveld`](https://github.com/carbon-design-system/sveld)
+(by Eric Liu, [@metonym](https://github.com/metonym))
+was this project's main inspiration.
 
 Extracted from [fuz_ui](https://github.com/fuzdev/fuz_ui),
 which has example components using the data for docs websites.
