@@ -1,0 +1,11 @@
+{
+	"text": "Description.",
+	"params": {
+		"a": "Description 1",
+		"b": "Description 2"
+	},
+	"mutates": {
+		"a": "Description 3",
+		"b": "Description 4"
+	}
+}

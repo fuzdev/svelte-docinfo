@@ -1,0 +1,23 @@
+{
+	"name": "A",
+	"kind": "enum",
+	"docComment": "Description.",
+	"typeSignature": "A",
+	"members": [
+		{
+			"name": "a",
+			"kind": "variable",
+			"typeSignature": "A.a"
+		},
+		{
+			"name": "b",
+			"kind": "variable",
+			"typeSignature": "A.b"
+		},
+		{
+			"name": "c",
+			"kind": "variable",
+			"typeSignature": "A.c"
+		}
+	]
+}

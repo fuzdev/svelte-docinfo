@@ -1,0 +1,13 @@
+[
+	{
+		"name": "ComponentModuleComment",
+		"kind": "component",
+		"props": [
+			{
+				"name": "prop1",
+				"type": "string"
+			}
+		],
+		"sourceLine": 1
+	}
+]

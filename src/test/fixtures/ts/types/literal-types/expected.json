@@ -1,0 +1,28 @@
+{
+	"name": "A",
+	"kind": "type",
+	"docComment": "Literal types.",
+	"typeSignature": "A",
+	"members": [
+		{
+			"name": "a",
+			"kind": "variable",
+			"typeSignature": "\"value\""
+		},
+		{
+			"name": "b",
+			"kind": "variable",
+			"typeSignature": "123"
+		},
+		{
+			"name": "c",
+			"kind": "variable",
+			"typeSignature": "true"
+		},
+		{
+			"name": "d",
+			"kind": "variable",
+			"typeSignature": "false"
+		}
+	]
+}

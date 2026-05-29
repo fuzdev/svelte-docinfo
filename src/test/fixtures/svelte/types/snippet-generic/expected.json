@@ -1,0 +1,30 @@
+[
+	{
+		"name": "TypesSnippetGeneric",
+		"kind": "component",
+		"props": [
+			{
+				"name": "data",
+				"type": "T[]",
+				"description": "Description 1"
+			},
+			{
+				"name": "row",
+				"type": "Snippet<[d: T]>",
+				"description": "Description 2",
+				"parameters": [
+					{
+						"name": "d",
+						"type": "T"
+					}
+				]
+			}
+		],
+		"genericParams": [
+			{
+				"name": "T"
+			}
+		],
+		"sourceLine": 1
+	}
+]

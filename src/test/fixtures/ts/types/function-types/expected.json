@@ -1,0 +1,50 @@
+{
+	"name": "A",
+	"kind": "type",
+	"docComment": "Function types.",
+	"typeSignature": "A",
+	"members": [
+		{
+			"name": "a",
+			"kind": "function",
+			"typeSignature": "(x: string): void",
+			"parameters": [
+				{
+					"name": "x",
+					"type": "string"
+				}
+			],
+			"returnType": "void"
+		},
+		{
+			"name": "b",
+			"kind": "function",
+			"typeSignature": "(x: number, y?: boolean): string",
+			"parameters": [
+				{
+					"name": "x",
+					"type": "number"
+				},
+				{
+					"name": "y",
+					"type": "boolean",
+					"optional": true
+				}
+			],
+			"returnType": "string"
+		},
+		{
+			"name": "c",
+			"kind": "function",
+			"typeSignature": "(...args: Array<number>): number",
+			"parameters": [
+				{
+					"name": "args",
+					"type": "Array<number>",
+					"rest": true
+				}
+			],
+			"returnType": "number"
+		}
+	]
+}

@@ -1,0 +1,78 @@
+{
+	"name": "A",
+	"kind": "class",
+	"members": [
+		{
+			"name": "a",
+			"kind": "variable",
+			"typeSignature": "string | number"
+		},
+		{
+			"name": "constructor",
+			"kind": "constructor",
+			"typeSignature": "(a: string): A",
+			"parameters": [
+				{
+					"name": "a",
+					"type": "string"
+				}
+			],
+			"overloads": [
+				{
+					"typeSignature": "(a: string): A",
+					"parameters": [
+						{
+							"name": "a",
+							"type": "string"
+						}
+					],
+					"returnType": "A"
+				},
+				{
+					"typeSignature": "(a: number): A",
+					"parameters": [
+						{
+							"name": "a",
+							"type": "number"
+						}
+					],
+					"returnType": "A"
+				}
+			]
+		},
+		{
+			"name": "fn1",
+			"kind": "function",
+			"typeSignature": "(a: string): string",
+			"parameters": [
+				{
+					"name": "a",
+					"type": "string"
+				}
+			],
+			"overloads": [
+				{
+					"typeSignature": "(a: string): string",
+					"parameters": [
+						{
+							"name": "a",
+							"type": "string"
+						}
+					],
+					"returnType": "string"
+				},
+				{
+					"typeSignature": "(a: number): number",
+					"parameters": [
+						{
+							"name": "a",
+							"type": "number"
+						}
+					],
+					"returnType": "number"
+				}
+			],
+			"returnType": "string"
+		}
+	]
+}

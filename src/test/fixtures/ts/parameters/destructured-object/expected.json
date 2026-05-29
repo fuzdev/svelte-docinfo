@@ -1,0 +1,14 @@
+{
+	"name": "fn",
+	"kind": "function",
+	"docComment": "A function with destructured object parameters.",
+	"typeSignature": "({ a, b }: { a: string; b: number; }): string",
+	"parameters": [
+		{
+			"name": "__0",
+			"type": "{ a: string; b: number; }"
+		}
+	],
+	"returnType": "string",
+	"returnDescription": "Description 2"
+}

@@ -1,0 +1,26 @@
+{
+	"text": "Description.\n\nAdditional description line.",
+	"params": {
+		"a": "Description 1",
+		"b": "Description 2"
+	},
+	"returns": "Description 3",
+	"throws": [
+		{
+			"type": "TypeError",
+			"description": "Description 4"
+		},
+		{
+			"type": "RangeError",
+			"description": "Description 5"
+		}
+	],
+	"examples": [
+		"const a = fn('value', {c: true});"
+	],
+	"deprecatedMessage": "Description 6",
+	"seeAlso": [
+		"{@link https://fuz.dev}"
+	],
+	"since": "1.0.0"
+}

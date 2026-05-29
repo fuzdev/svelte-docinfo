@@ -1,0 +1,30 @@
+{
+	"name": "A",
+	"kind": "class",
+	"docComment": "A class with optional fields.",
+	"members": [
+		{
+			"name": "a",
+			"kind": "variable",
+			"docComment": "Description 1",
+			"typeSignature": "string",
+			"optional": true
+		},
+		{
+			"name": "b",
+			"kind": "variable",
+			"docComment": "Description 2",
+			"typeSignature": "number"
+		},
+		{
+			"name": "c",
+			"kind": "variable",
+			"docComment": "Description 3",
+			"typeSignature": "boolean",
+			"modifiers": [
+				"readonly"
+			],
+			"optional": true
+		}
+	]
+}

@@ -1,0 +1,26 @@
+{
+	"name": "A",
+	"kind": "class",
+	"docComment": "A class with getter and setter properties.",
+	"members": [
+		{
+			"name": "a",
+			"kind": "variable",
+			"docComment": "Description 1",
+			"typeSignature": "string",
+			"modifiers": [
+				"getter",
+				"setter"
+			]
+		},
+		{
+			"name": "b",
+			"kind": "variable",
+			"docComment": "Description 3",
+			"typeSignature": "number",
+			"modifiers": [
+				"getter"
+			]
+		}
+	]
+}

@@ -1,0 +1,49 @@
+{
+	"name": "A",
+	"kind": "type",
+	"docComment": "Description 1.",
+	"typeSignature": "A",
+	"members": [
+		{
+			"name": "(call)",
+			"kind": "function",
+			"docComment": "Description 2",
+			"typeSignature": "(a: string): void",
+			"parameters": [
+				{
+					"name": "a",
+					"type": "string"
+				}
+			],
+			"overloads": [
+				{
+					"typeSignature": "(a: string): void",
+					"parameters": [
+						{
+							"name": "a",
+							"type": "string"
+						}
+					],
+					"returnType": "void",
+					"docComment": "Description 2"
+				},
+				{
+					"typeSignature": "(a: number, b: string): boolean",
+					"parameters": [
+						{
+							"name": "a",
+							"type": "number"
+						},
+						{
+							"name": "b",
+							"type": "string"
+						}
+					],
+					"returnType": "boolean",
+					"docComment": "Description 3"
+				}
+			],
+			"returnType": "void"
+		}
+	]
+}

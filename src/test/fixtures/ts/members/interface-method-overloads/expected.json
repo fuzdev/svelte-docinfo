@@ -1,0 +1,63 @@
+{
+	"name": "A",
+	"kind": "interface",
+	"docComment": "An interface with overloaded and generic method signatures.",
+	"typeSignature": "A",
+	"members": [
+		{
+			"name": "fn1",
+			"kind": "function",
+			"docComment": "Description 1",
+			"typeSignature": "(a: string): void",
+			"parameters": [
+				{
+					"name": "a",
+					"type": "string"
+				}
+			],
+			"overloads": [
+				{
+					"typeSignature": "(a: string): void",
+					"parameters": [
+						{
+							"name": "a",
+							"type": "string"
+						}
+					],
+					"returnType": "void",
+					"docComment": "Description 1"
+				},
+				{
+					"typeSignature": "(a: number): void",
+					"parameters": [
+						{
+							"name": "a",
+							"type": "number"
+						}
+					],
+					"returnType": "void",
+					"docComment": "Description 2"
+				}
+			],
+			"returnType": "void"
+		},
+		{
+			"name": "fn2",
+			"kind": "function",
+			"docComment": "Description 3",
+			"typeSignature": "<T>(a: T): T",
+			"genericParams": [
+				{
+					"name": "T"
+				}
+			],
+			"parameters": [
+				{
+					"name": "a",
+					"type": "T"
+				}
+			],
+			"returnType": "T"
+		}
+	]
+}

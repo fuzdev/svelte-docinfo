@@ -1,0 +1,48 @@
+{
+	"name": "A",
+	"kind": "interface",
+	"docComment": "An interface with optional method signatures.",
+	"typeSignature": "A",
+	"members": [
+		{
+			"name": "fn1",
+			"kind": "function",
+			"docComment": "Description 1",
+			"typeSignature": "(): void",
+			"returnType": "void"
+		},
+		{
+			"name": "fn2",
+			"kind": "function",
+			"docComment": "Description 2",
+			"typeSignature": "(a: string): number",
+			"parameters": [
+				{
+					"name": "a",
+					"type": "string"
+				}
+			],
+			"returnType": "number",
+			"optional": true
+		},
+		{
+			"name": "fn3",
+			"kind": "function",
+			"docComment": "Description 3",
+			"typeSignature": "<T>(a: T): T",
+			"genericParams": [
+				{
+					"name": "T"
+				}
+			],
+			"parameters": [
+				{
+					"name": "a",
+					"type": "T"
+				}
+			],
+			"returnType": "T",
+			"optional": true
+		}
+	]
+}

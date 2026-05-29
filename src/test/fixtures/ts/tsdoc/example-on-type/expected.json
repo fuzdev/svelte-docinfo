@@ -1,0 +1,10 @@
+{
+	"name": "A",
+	"kind": "type",
+	"docComment": "Description.",
+	"typeSignature": "A",
+	"examples": [
+		"const a: A = 'a';",
+		"const b: A = 'b';"
+	]
+}

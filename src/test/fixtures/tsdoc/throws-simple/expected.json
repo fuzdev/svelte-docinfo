@@ -1,0 +1,12 @@
+{
+	"text": "Description.",
+	"params": {
+		"a": "Description 1"
+	},
+	"throws": [
+		{
+			"type": "Error",
+			"description": "Description 2"
+		}
+	]
+}

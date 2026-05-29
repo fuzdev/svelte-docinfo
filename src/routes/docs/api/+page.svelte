@@ -6,4 +6,8 @@
 	const at_root = $derived(page.url.pathname === DOCS_PATH);
 </script>
 
+<svelte:head>
+	<title>API - svelte-docinfo</title>
+</svelte:head>
+
 <ApiIndex minimal={at_root} />

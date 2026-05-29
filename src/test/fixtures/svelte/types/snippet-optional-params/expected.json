@@ -1,0 +1,25 @@
+[
+	{
+		"name": "TypesSnippetOptionalParams",
+		"kind": "component",
+		"props": [
+			{
+				"name": "content",
+				"type": "Snippet<[a: string, b?: number | undefined]>",
+				"description": "Description 1",
+				"parameters": [
+					{
+						"name": "a",
+						"type": "string"
+					},
+					{
+						"name": "b",
+						"type": "number | undefined",
+						"optional": true
+					}
+				]
+			}
+		],
+		"sourceLine": 1
+	}
+]

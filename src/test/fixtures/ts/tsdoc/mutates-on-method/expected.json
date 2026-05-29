@@ -1,0 +1,29 @@
+{
+	"name": "A",
+	"kind": "class",
+	"docComment": "Description 1.",
+	"members": [
+		{
+			"name": "a",
+			"kind": "variable",
+			"typeSignature": "string"
+		},
+		{
+			"name": "fn",
+			"kind": "function",
+			"docComment": "Description 2.",
+			"typeSignature": "(b: string): void",
+			"mutates": {
+				"this": "Description 4"
+			},
+			"parameters": [
+				{
+					"name": "b",
+					"type": "string",
+					"description": "Description 3"
+				}
+			],
+			"returnType": "void"
+		}
+	]
+}

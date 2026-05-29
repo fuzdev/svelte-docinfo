@@ -1,0 +1,27 @@
+{
+	"name": "A",
+	"kind": "type",
+	"typeSignature": "A",
+	"members": [
+		{
+			"name": "a",
+			"kind": "variable",
+			"typeSignature": "string"
+		},
+		{
+			"name": "b",
+			"kind": "variable",
+			"typeSignature": "number"
+		},
+		{
+			"name": "c",
+			"kind": "variable",
+			"typeSignature": "boolean"
+		},
+		{
+			"name": "d",
+			"kind": "variable",
+			"typeSignature": "Array<string>"
+		}
+	]
+}

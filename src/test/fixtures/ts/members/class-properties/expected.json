@@ -1,0 +1,61 @@
+{
+	"name": "A",
+	"kind": "class",
+	"docComment": "A class with various property modifiers.",
+	"members": [
+		{
+			"name": "a",
+			"kind": "variable",
+			"typeSignature": "string"
+		},
+		{
+			"name": "c",
+			"kind": "variable",
+			"typeSignature": "boolean",
+			"modifiers": [
+				"protected"
+			]
+		},
+		{
+			"name": "d",
+			"kind": "variable",
+			"typeSignature": "string",
+			"modifiers": [
+				"readonly"
+			]
+		},
+		{
+			"name": "e",
+			"kind": "variable",
+			"typeSignature": "number",
+			"modifiers": [
+				"static"
+			]
+		},
+		{
+			"name": "f",
+			"kind": "variable",
+			"typeSignature": "boolean",
+			"modifiers": [
+				"public"
+			]
+		},
+		{
+			"name": "constructor",
+			"kind": "constructor",
+			"typeSignature": "(a: string): A",
+			"parameters": [
+				{
+					"name": "a",
+					"type": "string"
+				}
+			]
+		},
+		{
+			"name": "fn",
+			"kind": "function",
+			"typeSignature": "(): number",
+			"returnType": "number"
+		}
+	]
+}

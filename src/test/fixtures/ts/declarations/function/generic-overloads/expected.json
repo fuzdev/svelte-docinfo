@@ -1,0 +1,58 @@
+{
+	"name": "fn",
+	"kind": "function",
+	"docComment": "Description.",
+	"typeSignature": "<T>(a: T): T",
+	"genericParams": [
+		{
+			"name": "T"
+		}
+	],
+	"parameters": [
+		{
+			"name": "a",
+			"type": "T"
+		}
+	],
+	"overloads": [
+		{
+			"typeSignature": "<T>(a: T): T",
+			"parameters": [
+				{
+					"name": "a",
+					"type": "T"
+				}
+			],
+			"returnType": "T",
+			"genericParams": [
+				{
+					"name": "T"
+				}
+			],
+			"docComment": "Description."
+		},
+		{
+			"typeSignature": "<T, U>(a: T, b: U): [T, U]",
+			"parameters": [
+				{
+					"name": "a",
+					"type": "T"
+				},
+				{
+					"name": "b",
+					"type": "U"
+				}
+			],
+			"returnType": "[T, U]",
+			"genericParams": [
+				{
+					"name": "T"
+				},
+				{
+					"name": "U"
+				}
+			]
+		}
+	],
+	"returnType": "T"
+}

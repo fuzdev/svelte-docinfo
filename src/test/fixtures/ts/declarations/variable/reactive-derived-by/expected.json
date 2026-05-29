@@ -1,0 +1,7 @@
+{
+	"name": "a",
+	"kind": "variable",
+	"docComment": "A derived reactive variable computed by a function.",
+	"typeSignature": "number",
+	"reactivity": "$derived.by"
+}

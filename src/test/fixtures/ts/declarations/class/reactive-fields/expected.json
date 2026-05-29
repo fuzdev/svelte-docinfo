@@ -1,0 +1,19 @@
+{
+	"name": "A",
+	"kind": "class",
+	"docComment": "A class with reactive rune fields.",
+	"members": [
+		{
+			"name": "a",
+			"kind": "variable",
+			"typeSignature": "number",
+			"reactivity": "$state"
+		},
+		{
+			"name": "b",
+			"kind": "variable",
+			"typeSignature": "number",
+			"reactivity": "$derived"
+		}
+	]
+}

@@ -1,0 +1,37 @@
+{
+	"name": "A",
+	"kind": "type",
+	"docComment": "Description 1.",
+	"typeSignature": "A",
+	"members": [
+		{
+			"name": "a",
+			"kind": "variable",
+			"typeSignature": "string"
+		},
+		{
+			"name": "fn",
+			"kind": "function",
+			"typeSignature": "(a: number): void",
+			"parameters": [
+				{
+					"name": "a",
+					"type": "number"
+				}
+			],
+			"returnType": "void"
+		},
+		{
+			"name": "fn2",
+			"kind": "function",
+			"typeSignature": "(a: string): boolean",
+			"parameters": [
+				{
+					"name": "a",
+					"type": "string"
+				}
+			],
+			"returnType": "boolean"
+		}
+	]
+}

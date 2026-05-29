@@ -1,0 +1,17 @@
+{
+	"name": "A",
+	"kind": "interface",
+	"typeSignature": "A",
+	"extends": [
+		"B",
+		"C"
+	],
+	"members": [
+		{
+			"name": "c",
+			"kind": "variable",
+			"docComment": "Description 1",
+			"typeSignature": "boolean"
+		}
+	]
+}

@@ -1,0 +1,7 @@
+{
+	"name": "fn",
+	"kind": "function",
+	"docComment": "Test kind inference for function declarations.",
+	"typeSignature": "(): void",
+	"returnType": "void"
+}

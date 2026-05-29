@@ -1,0 +1,870 @@
+{
+	"viewbox": {"width": 2869, "height": 1100},
+	"layer_count": 11,
+	"nodes": [
+		{"id": "analyze-core.ts", "layer": 6, "x": 1596.5, "y": 432, "width": 156, "height": 36},
+		{"id": "analyze.ts", "layer": 8, "x": 1482, "y": 232, "width": 113, "height": 36},
+		{"id": "cli.ts", "layer": 9, "x": 1395, "y": 132, "width": 79, "height": 36},
+		{"id": "concurrency.ts", "layer": 0, "x": 1708, "y": 1032, "width": 147, "height": 36},
+		{"id": "declaration-build.ts", "layer": 0, "x": 603, "y": 1032, "width": 198, "height": 36},
+		{"id": "declaration-helpers.ts", "layer": 0, "x": 1040, "y": 1032, "width": 215, "height": 36},
+		{"id": "dep-resolver.ts", "layer": 0, "x": 1279, "y": 1032, "width": 156, "height": 36},
+		{"id": "diagnostics.ts", "layer": 0, "x": 1879, "y": 1032, "width": 147, "height": 36},
+		{"id": "discovery.ts", "layer": 2, "x": 1031, "y": 832, "width": 130, "height": 36},
+		{"id": "exports.ts", "layer": 1, "x": 1400.5, "y": 932, "width": 113, "height": 36},
+		{"id": "files.ts", "layer": 1, "x": 1537.5, "y": 932, "width": 96, "height": 36},
+		{"id": "log.ts", "layer": 0, "x": 825, "y": 1032, "width": 79, "height": 36},
+		{"id": "logo.ts", "layer": 0, "x": 928, "y": 1032, "width": 88, "height": 36},
+		{"id": "main.ts", "layer": 10, "x": 1390.5, "y": 32, "width": 88, "height": 36},
+		{"id": "paths.ts", "layer": 0, "x": 1459, "y": 1032, "width": 96, "height": 36},
+		{"id": "postprocess.ts", "layer": 1, "x": 897.5, "y": 932, "width": 147, "height": 36},
+		{"id": "session.ts", "layer": 7, "x": 1378, "y": 332, "width": 113, "height": 36},
+		{"id": "source-config.ts", "layer": 1, "x": 1212.5, "y": 932, "width": 164, "height": 36},
+		{"id": "source.ts", "layer": 0, "x": 1579, "y": 1032, "width": 105, "height": 36},
+		{"id": "svelte.ts", "layer": 5, "x": 1430, "y": 532, "width": 105, "height": 36},
+		{"id": "tsdoc.ts", "layer": 0, "x": 2050, "y": 1032, "width": 96, "height": 36},
+		{"id": "types.ts", "layer": 0, "x": 2170, "y": 1032, "width": 96, "height": 36},
+		{"id": "typescript-exports.ts", "layer": 4, "x": 1691, "y": 632, "width": 207, "height": 36},
+		{
+			"id": "typescript-extract-class.ts",
+			"layer": 2,
+			"x": 1473,
+			"y": 832,
+			"width": 258,
+			"height": 36
+		},
+		{
+			"id": "typescript-extract-function.ts",
+			"layer": 2,
+			"x": 1755,
+			"y": 832,
+			"width": 283,
+			"height": 36
+		},
+		{
+			"id": "typescript-extract-shared.ts",
+			"layer": 1,
+			"x": 1849.5,
+			"y": 932,
+			"width": 266,
+			"height": 36
+		},
+		{
+			"id": "typescript-extract-type-properties.ts",
+			"layer": 2,
+			"x": 2206,
+			"y": 832,
+			"width": 343,
+			"height": 36
+		},
+		{
+			"id": "typescript-extract-type.ts",
+			"layer": 3,
+			"x": 1838,
+			"y": 732,
+			"width": 249,
+			"height": 36
+		},
+		{"id": "typescript-program.ts", "layer": 2, "x": 800, "y": 832, "width": 207, "height": 36},
+		{"id": "vite.ts", "layer": 8, "x": 1274, "y": 232, "width": 88, "height": 36}
+	],
+	"edges": [
+		{
+			"src": "analyze-core.ts",
+			"tgt": "diagnostics.ts",
+			"waypoints": [
+				{"x": 1674.5, "y": 468},
+				{"x": 1571, "y": 550},
+				{"x": 1559, "y": 650},
+				{"x": 1370, "y": 750},
+				{"x": 1197, "y": 850},
+				{"x": 1669.5, "y": 950},
+				{"x": 1952.5, "y": 1032}
+			],
+			"reversed": false
+		},
+		{
+			"src": "analyze-core.ts",
+			"tgt": "paths.ts",
+			"waypoints": [
+				{"x": 1674.5, "y": 468},
+				{"x": 1859, "y": 550},
+				{"x": 2030, "y": 650},
+				{"x": 2219, "y": 750},
+				{"x": 2681, "y": 850},
+				{"x": 2343.5, "y": 950},
+				{"x": 1507, "y": 1032}
+			],
+			"reversed": false
+		},
+		{
+			"src": "analyze-core.ts",
+			"tgt": "postprocess.ts",
+			"waypoints": [
+				{"x": 1674.5, "y": 468},
+				{"x": 1619, "y": 550},
+				{"x": 1607, "y": 650},
+				{"x": 1418, "y": 750},
+				{"x": 1245, "y": 850},
+				{"x": 971, "y": 932}
+			],
+			"reversed": false
+		},
+		{
+			"src": "analyze-core.ts",
+			"tgt": "source-config.ts",
+			"waypoints": [
+				{"x": 1674.5, "y": 468},
+				{"x": 1667, "y": 550},
+				{"x": 1655, "y": 650},
+				{"x": 1466, "y": 750},
+				{"x": 1293, "y": 850},
+				{"x": 1294.5, "y": 932}
+			],
+			"reversed": false
+		},
+		{
+			"src": "analyze-core.ts",
+			"tgt": "source.ts",
+			"waypoints": [
+				{"x": 1674.5, "y": 468},
+				{"x": 1715, "y": 550},
+				{"x": 1934, "y": 650},
+				{"x": 2123, "y": 750},
+				{"x": 2585, "y": 850},
+				{"x": 2247.5, "y": 950},
+				{"x": 1631.5, "y": 1032}
+			],
+			"reversed": false
+		},
+		{
+			"src": "analyze-core.ts",
+			"tgt": "svelte.ts",
+			"waypoints": [
+				{"x": 1674.5, "y": 468},
+				{"x": 1482.5, "y": 532}
+			],
+			"reversed": false
+		},
+		{
+			"src": "analyze-core.ts",
+			"tgt": "types.ts",
+			"waypoints": [
+				{"x": 1674.5, "y": 468},
+				{"x": 1763, "y": 550},
+				{"x": 1982, "y": 650},
+				{"x": 2171, "y": 750},
+				{"x": 2633, "y": 850},
+				{"x": 2295.5, "y": 950},
+				{"x": 2218, "y": 1032}
+			],
+			"reversed": false
+		},
+		{
+			"src": "analyze-core.ts",
+			"tgt": "typescript-exports.ts",
+			"waypoints": [
+				{"x": 1674.5, "y": 468},
+				{"x": 1811, "y": 550},
+				{"x": 1794.5, "y": 632}
+			],
+			"reversed": false
+		},
+		{
+			"src": "analyze.ts",
+			"tgt": "analyze-core.ts",
+			"waypoints": [
+				{"x": 1538.5, "y": 268},
+				{"x": 1575, "y": 350},
+				{"x": 1674.5, "y": 432}
+			],
+			"reversed": false
+		},
+		{
+			"src": "analyze.ts",
+			"tgt": "dep-resolver.ts",
+			"waypoints": [
+				{"x": 1538.5, "y": 268},
+				{"x": 1623, "y": 350},
+				{"x": 1788.5, "y": 450},
+				{"x": 1907, "y": 550},
+				{"x": 2078, "y": 650},
+				{"x": 2267, "y": 750},
+				{"x": 2729, "y": 850},
+				{"x": 2391.5, "y": 950},
+				{"x": 1357, "y": 1032}
+			],
+			"reversed": false
+		},
+		{
+			"src": "analyze.ts",
+			"tgt": "diagnostics.ts",
+			"waypoints": [
+				{"x": 1538.5, "y": 268},
+				{"x": 1671, "y": 350},
+				{"x": 1836.5, "y": 450},
+				{"x": 1955, "y": 550},
+				{"x": 2126, "y": 650},
+				{"x": 2315, "y": 750},
+				{"x": 2777, "y": 850},
+				{"x": 2439.5, "y": 950},
+				{"x": 1952.5, "y": 1032}
+			],
+			"reversed": false
+		},
+		{
+			"src": "analyze.ts",
+			"tgt": "discovery.ts",
+			"waypoints": [
+				{"x": 1538.5, "y": 268},
+				{"x": 1719, "y": 350},
+				{"x": 1884.5, "y": 450},
+				{"x": 2003, "y": 550},
+				{"x": 2174, "y": 650},
+				{"x": 2363, "y": 750},
+				{"x": 1096, "y": 832}
+			],
+			"reversed": false
+		},
+		{
+			"src": "analyze.ts",
+			"tgt": "session.ts",
+			"waypoints": [
+				{"x": 1538.5, "y": 268},
+				{"x": 1434.5, "y": 332}
+			],
+			"reversed": false
+		},
+		{
+			"src": "analyze.ts",
+			"tgt": "source-config.ts",
+			"waypoints": [
+				{"x": 1538.5, "y": 268},
+				{"x": 1767, "y": 350},
+				{"x": 1932.5, "y": 450},
+				{"x": 2051, "y": 550},
+				{"x": 2222, "y": 650},
+				{"x": 2411, "y": 750},
+				{"x": 2825, "y": 850},
+				{"x": 1294.5, "y": 932}
+			],
+			"reversed": false
+		},
+		{
+			"src": "cli.ts",
+			"tgt": "analyze.ts",
+			"waypoints": [
+				{"x": 1434.5, "y": 168},
+				{"x": 1538.5, "y": 232}
+			],
+			"reversed": false
+		},
+		{
+			"src": "cli.ts",
+			"tgt": "declaration-helpers.ts",
+			"waypoints": [
+				{"x": 1434.5, "y": 168},
+				{"x": 1398, "y": 250},
+				{"x": 1342, "y": 350},
+				{"x": 1176.5, "y": 450},
+				{"x": 1058, "y": 550},
+				{"x": 887, "y": 650},
+				{"x": 698, "y": 750},
+				{"x": 236, "y": 850},
+				{"x": 573.5, "y": 950},
+				{"x": 1147.5, "y": 1032}
+			],
+			"reversed": false
+		},
+		{
+			"src": "cli.ts",
+			"tgt": "diagnostics.ts",
+			"waypoints": [
+				{"x": 1434.5, "y": 168},
+				{"x": 1446, "y": 250},
+				{"x": 1527, "y": 350},
+				{"x": 1560.5, "y": 450},
+				{"x": 1394, "y": 550},
+				{"x": 1223, "y": 650},
+				{"x": 1034, "y": 750},
+				{"x": 524, "y": 850},
+				{"x": 765.5, "y": 950},
+				{"x": 1952.5, "y": 1032}
+			],
+			"reversed": false
+		},
+		{
+			"src": "discovery.ts",
+			"tgt": "exports.ts",
+			"waypoints": [
+				{"x": 1096, "y": 868},
+				{"x": 1457, "y": 932}
+			],
+			"reversed": false
+		},
+		{
+			"src": "discovery.ts",
+			"tgt": "files.ts",
+			"waypoints": [
+				{"x": 1096, "y": 868},
+				{"x": 1585.5, "y": 932}
+			],
+			"reversed": false
+		},
+		{
+			"src": "discovery.ts",
+			"tgt": "source-config.ts",
+			"waypoints": [
+				{"x": 1096, "y": 868},
+				{"x": 1294.5, "y": 932}
+			],
+			"reversed": false
+		},
+		{
+			"src": "exports.ts",
+			"tgt": "concurrency.ts",
+			"waypoints": [
+				{"x": 1457, "y": 968},
+				{"x": 1781.5, "y": 1032}
+			],
+			"reversed": false
+		},
+		{
+			"src": "exports.ts",
+			"tgt": "paths.ts",
+			"waypoints": [
+				{"x": 1457, "y": 968},
+				{"x": 1507, "y": 1032}
+			],
+			"reversed": false
+		},
+		{
+			"src": "files.ts",
+			"tgt": "concurrency.ts",
+			"waypoints": [
+				{"x": 1585.5, "y": 968},
+				{"x": 1781.5, "y": 1032}
+			],
+			"reversed": false
+		},
+		{
+			"src": "files.ts",
+			"tgt": "paths.ts",
+			"waypoints": [
+				{"x": 1585.5, "y": 968},
+				{"x": 1507, "y": 1032}
+			],
+			"reversed": false
+		},
+		{
+			"src": "main.ts",
+			"tgt": "cli.ts",
+			"waypoints": [
+				{"x": 1434.5, "y": 68},
+				{"x": 1434.5, "y": 132}
+			],
+			"reversed": false
+		},
+		{
+			"src": "postprocess.ts",
+			"tgt": "paths.ts",
+			"waypoints": [
+				{"x": 971, "y": 968},
+				{"x": 1507, "y": 1032}
+			],
+			"reversed": false
+		},
+		{
+			"src": "session.ts",
+			"tgt": "analyze-core.ts",
+			"waypoints": [
+				{"x": 1434.5, "y": 368},
+				{"x": 1674.5, "y": 432}
+			],
+			"reversed": false
+		},
+		{
+			"src": "session.ts",
+			"tgt": "concurrency.ts",
+			"waypoints": [
+				{"x": 1434.5, "y": 368},
+				{"x": 1272.5, "y": 450},
+				{"x": 1154, "y": 550},
+				{"x": 983, "y": 650},
+				{"x": 794, "y": 750},
+				{"x": 284, "y": 850},
+				{"x": 621.5, "y": 950},
+				{"x": 1781.5, "y": 1032}
+			],
+			"reversed": false
+		},
+		{
+			"src": "session.ts",
+			"tgt": "dep-resolver.ts",
+			"waypoints": [
+				{"x": 1434.5, "y": 368},
+				{"x": 1320.5, "y": 450},
+				{"x": 1202, "y": 550},
+				{"x": 1031, "y": 650},
+				{"x": 842, "y": 750},
+				{"x": 332, "y": 850},
+				{"x": 669.5, "y": 950},
+				{"x": 1357, "y": 1032}
+			],
+			"reversed": false
+		},
+		{
+			"src": "session.ts",
+			"tgt": "paths.ts",
+			"waypoints": [
+				{"x": 1434.5, "y": 368},
+				{"x": 1368.5, "y": 450},
+				{"x": 1250, "y": 550},
+				{"x": 1079, "y": 650},
+				{"x": 890, "y": 750},
+				{"x": 380, "y": 850},
+				{"x": 717.5, "y": 950},
+				{"x": 1507, "y": 1032}
+			],
+			"reversed": false
+		},
+		{
+			"src": "session.ts",
+			"tgt": "postprocess.ts",
+			"waypoints": [
+				{"x": 1434.5, "y": 368},
+				{"x": 1416.5, "y": 450},
+				{"x": 1298, "y": 550},
+				{"x": 1127, "y": 650},
+				{"x": 938, "y": 750},
+				{"x": 428, "y": 850},
+				{"x": 971, "y": 932}
+			],
+			"reversed": false
+		},
+		{
+			"src": "session.ts",
+			"tgt": "source-config.ts",
+			"waypoints": [
+				{"x": 1434.5, "y": 368},
+				{"x": 1464.5, "y": 450},
+				{"x": 1346, "y": 550},
+				{"x": 1175, "y": 650},
+				{"x": 986, "y": 750},
+				{"x": 476, "y": 850},
+				{"x": 1294.5, "y": 932}
+			],
+			"reversed": false
+		},
+		{
+			"src": "session.ts",
+			"tgt": "svelte.ts",
+			"waypoints": [
+				{"x": 1434.5, "y": 368},
+				{"x": 1512.5, "y": 450},
+				{"x": 1482.5, "y": 532}
+			],
+			"reversed": false
+		},
+		{
+			"src": "session.ts",
+			"tgt": "typescript-program.ts",
+			"waypoints": [
+				{"x": 1434.5, "y": 368},
+				{"x": 1224.5, "y": 450},
+				{"x": 1106, "y": 550},
+				{"x": 935, "y": 650},
+				{"x": 746, "y": 750},
+				{"x": 903.5, "y": 832}
+			],
+			"reversed": false
+		},
+		{
+			"src": "source-config.ts",
+			"tgt": "paths.ts",
+			"waypoints": [
+				{"x": 1294.5, "y": 968},
+				{"x": 1507, "y": 1032}
+			],
+			"reversed": false
+		},
+		{
+			"src": "source-config.ts",
+			"tgt": "source.ts",
+			"waypoints": [
+				{"x": 1294.5, "y": 968},
+				{"x": 1631.5, "y": 1032}
+			],
+			"reversed": false
+		},
+		{
+			"src": "svelte.ts",
+			"tgt": "paths.ts",
+			"waypoints": [
+				{"x": 1482.5, "y": 568},
+				{"x": 1271, "y": 650},
+				{"x": 1082, "y": 750},
+				{"x": 572, "y": 850},
+				{"x": 813.5, "y": 950},
+				{"x": 1507, "y": 1032}
+			],
+			"reversed": false
+		},
+		{
+			"src": "svelte.ts",
+			"tgt": "source-config.ts",
+			"waypoints": [
+				{"x": 1482.5, "y": 568},
+				{"x": 1319, "y": 650},
+				{"x": 1130, "y": 750},
+				{"x": 620, "y": 850},
+				{"x": 1294.5, "y": 932}
+			],
+			"reversed": false
+		},
+		{
+			"src": "svelte.ts",
+			"tgt": "source.ts",
+			"waypoints": [
+				{"x": 1482.5, "y": 568},
+				{"x": 1367, "y": 650},
+				{"x": 1178, "y": 750},
+				{"x": 668, "y": 850},
+				{"x": 861.5, "y": 950},
+				{"x": 1631.5, "y": 1032}
+			],
+			"reversed": false
+		},
+		{
+			"src": "svelte.ts",
+			"tgt": "tsdoc.ts",
+			"waypoints": [
+				{"x": 1482.5, "y": 568},
+				{"x": 1415, "y": 650},
+				{"x": 1226, "y": 750},
+				{"x": 716, "y": 850},
+				{"x": 1080.5, "y": 950},
+				{"x": 2098, "y": 1032}
+			],
+			"reversed": false
+		},
+		{
+			"src": "svelte.ts",
+			"tgt": "typescript-exports.ts",
+			"waypoints": [
+				{"x": 1482.5, "y": 568},
+				{"x": 1794.5, "y": 632}
+			],
+			"reversed": false
+		},
+		{
+			"src": "svelte.ts",
+			"tgt": "typescript-extract-shared.ts",
+			"waypoints": [
+				{"x": 1482.5, "y": 568},
+				{"x": 1463, "y": 650},
+				{"x": 1274, "y": 750},
+				{"x": 764, "y": 850},
+				{"x": 1982.5, "y": 932}
+			],
+			"reversed": false
+		},
+		{
+			"src": "svelte.ts",
+			"tgt": "typescript-program.ts",
+			"waypoints": [
+				{"x": 1482.5, "y": 568},
+				{"x": 1511, "y": 650},
+				{"x": 1322, "y": 750},
+				{"x": 903.5, "y": 832}
+			],
+			"reversed": false
+		},
+		{
+			"src": "typescript-exports.ts",
+			"tgt": "source-config.ts",
+			"waypoints": [
+				{"x": 1794.5, "y": 668},
+				{"x": 1514, "y": 750},
+				{"x": 1341, "y": 850},
+				{"x": 1294.5, "y": 932}
+			],
+			"reversed": false
+		},
+		{
+			"src": "typescript-exports.ts",
+			"tgt": "source.ts",
+			"waypoints": [
+				{"x": 1794.5, "y": 668},
+				{"x": 1562, "y": 750},
+				{"x": 1389, "y": 850},
+				{"x": 1717.5, "y": 950},
+				{"x": 1631.5, "y": 1032}
+			],
+			"reversed": false
+		},
+		{
+			"src": "typescript-exports.ts",
+			"tgt": "tsdoc.ts",
+			"waypoints": [
+				{"x": 1794.5, "y": 668},
+				{"x": 1610, "y": 750},
+				{"x": 1437, "y": 850},
+				{"x": 1765.5, "y": 950},
+				{"x": 2098, "y": 1032}
+			],
+			"reversed": false
+		},
+		{
+			"src": "typescript-exports.ts",
+			"tgt": "typescript-extract-class.ts",
+			"waypoints": [
+				{"x": 1794.5, "y": 668},
+				{"x": 1658, "y": 750},
+				{"x": 1602, "y": 832}
+			],
+			"reversed": false
+		},
+		{
+			"src": "typescript-exports.ts",
+			"tgt": "typescript-extract-function.ts",
+			"waypoints": [
+				{"x": 1794.5, "y": 668},
+				{"x": 1706, "y": 750},
+				{"x": 1896.5, "y": 832}
+			],
+			"reversed": false
+		},
+		{
+			"src": "typescript-exports.ts",
+			"tgt": "typescript-extract-shared.ts",
+			"waypoints": [
+				{"x": 1794.5, "y": 668},
+				{"x": 1754, "y": 750},
+				{"x": 2074, "y": 850},
+				{"x": 1982.5, "y": 932}
+			],
+			"reversed": false
+		},
+		{
+			"src": "typescript-exports.ts",
+			"tgt": "typescript-extract-type.ts",
+			"waypoints": [
+				{"x": 1794.5, "y": 668},
+				{"x": 1962.5, "y": 732}
+			],
+			"reversed": false
+		},
+		{
+			"src": "typescript-exports.ts",
+			"tgt": "typescript-program.ts",
+			"waypoints": [
+				{"x": 1794.5, "y": 668},
+				{"x": 1802, "y": 750},
+				{"x": 903.5, "y": 832}
+			],
+			"reversed": false
+		},
+		{
+			"src": "typescript-extract-class.ts",
+			"tgt": "tsdoc.ts",
+			"waypoints": [
+				{"x": 1602, "y": 868},
+				{"x": 1813.5, "y": 950},
+				{"x": 2098, "y": 1032}
+			],
+			"reversed": false
+		},
+		{
+			"src": "typescript-extract-class.ts",
+			"tgt": "typescript-extract-shared.ts",
+			"waypoints": [
+				{"x": 1602, "y": 868},
+				{"x": 1982.5, "y": 932}
+			],
+			"reversed": false
+		},
+		{
+			"src": "typescript-extract-function.ts",
+			"tgt": "typescript-extract-shared.ts",
+			"waypoints": [
+				{"x": 1896.5, "y": 868},
+				{"x": 1982.5, "y": 932}
+			],
+			"reversed": false
+		},
+		{
+			"src": "typescript-extract-shared.ts",
+			"tgt": "tsdoc.ts",
+			"waypoints": [
+				{"x": 1982.5, "y": 968},
+				{"x": 2098, "y": 1032}
+			],
+			"reversed": false
+		},
+		{
+			"src": "typescript-extract-type-properties.ts",
+			"tgt": "tsdoc.ts",
+			"waypoints": [
+				{"x": 2377.5, "y": 868},
+				{"x": 2199.5, "y": 950},
+				{"x": 2098, "y": 1032}
+			],
+			"reversed": false
+		},
+		{
+			"src": "typescript-extract-type-properties.ts",
+			"tgt": "typescript-extract-shared.ts",
+			"waypoints": [
+				{"x": 2377.5, "y": 868},
+				{"x": 1982.5, "y": 932}
+			],
+			"reversed": false
+		},
+		{
+			"src": "typescript-extract-type.ts",
+			"tgt": "tsdoc.ts",
+			"waypoints": [
+				{"x": 1962.5, "y": 768},
+				{"x": 2122, "y": 850},
+				{"x": 2151.5, "y": 950},
+				{"x": 2098, "y": 1032}
+			],
+			"reversed": false
+		},
+		{
+			"src": "typescript-extract-type.ts",
+			"tgt": "typescript-extract-shared.ts",
+			"waypoints": [
+				{"x": 1962.5, "y": 768},
+				{"x": 2170, "y": 850},
+				{"x": 1982.5, "y": 932}
+			],
+			"reversed": false
+		},
+		{
+			"src": "typescript-extract-type.ts",
+			"tgt": "typescript-extract-type-properties.ts",
+			"waypoints": [
+				{"x": 1962.5, "y": 768},
+				{"x": 2377.5, "y": 832}
+			],
+			"reversed": false
+		},
+		{
+			"src": "typescript-program.ts",
+			"tgt": "paths.ts",
+			"waypoints": [
+				{"x": 903.5, "y": 868},
+				{"x": 1128.5, "y": 950},
+				{"x": 1507, "y": 1032}
+			],
+			"reversed": false
+		},
+		{
+			"src": "typescript-program.ts",
+			"tgt": "source-config.ts",
+			"waypoints": [
+				{"x": 903.5, "y": 868},
+				{"x": 1294.5, "y": 932}
+			],
+			"reversed": false
+		},
+		{
+			"src": "typescript-program.ts",
+			"tgt": "source.ts",
+			"waypoints": [
+				{"x": 903.5, "y": 868},
+				{"x": 1176.5, "y": 950},
+				{"x": 1631.5, "y": 1032}
+			],
+			"reversed": false
+		},
+		{
+			"src": "vite.ts",
+			"tgt": "declaration-helpers.ts",
+			"waypoints": [
+				{"x": 1318, "y": 268},
+				{"x": 1102, "y": 350},
+				{"x": 936.5, "y": 450},
+				{"x": 818, "y": 550},
+				{"x": 647, "y": 650},
+				{"x": 458, "y": 750},
+				{"x": 44, "y": 850},
+				{"x": 429.5, "y": 950},
+				{"x": 1147.5, "y": 1032}
+			],
+			"reversed": false
+		},
+		{
+			"src": "vite.ts",
+			"tgt": "dep-resolver.ts",
+			"waypoints": [
+				{"x": 1318, "y": 268},
+				{"x": 1150, "y": 350},
+				{"x": 984.5, "y": 450},
+				{"x": 866, "y": 550},
+				{"x": 695, "y": 650},
+				{"x": 506, "y": 750},
+				{"x": 92, "y": 850},
+				{"x": 477.5, "y": 950},
+				{"x": 1357, "y": 1032}
+			],
+			"reversed": false
+		},
+		{
+			"src": "vite.ts",
+			"tgt": "discovery.ts",
+			"waypoints": [
+				{"x": 1318, "y": 268},
+				{"x": 1198, "y": 350},
+				{"x": 1032.5, "y": 450},
+				{"x": 914, "y": 550},
+				{"x": 743, "y": 650},
+				{"x": 554, "y": 750},
+				{"x": 1096, "y": 832}
+			],
+			"reversed": false
+		},
+		{
+			"src": "vite.ts",
+			"tgt": "paths.ts",
+			"waypoints": [
+				{"x": 1318, "y": 268},
+				{"x": 1246, "y": 350},
+				{"x": 1080.5, "y": 450},
+				{"x": 962, "y": 550},
+				{"x": 791, "y": 650},
+				{"x": 602, "y": 750},
+				{"x": 140, "y": 850},
+				{"x": 525.5, "y": 950},
+				{"x": 1507, "y": 1032}
+			],
+			"reversed": false
+		},
+		{
+			"src": "vite.ts",
+			"tgt": "session.ts",
+			"waypoints": [
+				{"x": 1318, "y": 268},
+				{"x": 1434.5, "y": 332}
+			],
+			"reversed": false
+		},
+		{
+			"src": "vite.ts",
+			"tgt": "source-config.ts",
+			"waypoints": [
+				{"x": 1318, "y": 268},
+				{"x": 1294, "y": 350},
+				{"x": 1128.5, "y": 450},
+				{"x": 1010, "y": 550},
+				{"x": 839, "y": 650},
+				{"x": 650, "y": 750},
+				{"x": 188, "y": 850},
+				{"x": 1294.5, "y": 932}
+			],
+			"reversed": false
+		}
+	]
+}

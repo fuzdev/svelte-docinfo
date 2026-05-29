@@ -1,0 +1,28 @@
+{
+	"name": "A",
+	"kind": "type",
+	"docComment": "Various array type forms.",
+	"typeSignature": "A",
+	"members": [
+		{
+			"name": "a",
+			"kind": "variable",
+			"typeSignature": "{}"
+		},
+		{
+			"name": "b",
+			"kind": "variable",
+			"typeSignature": "Array<number>"
+		},
+		{
+			"name": "c",
+			"kind": "variable",
+			"typeSignature": "ReadonlyArray<boolean>"
+		},
+		{
+			"name": "d",
+			"kind": "variable",
+			"typeSignature": "{}"
+		}
+	]
+}

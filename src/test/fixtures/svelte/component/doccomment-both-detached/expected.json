@@ -1,0 +1,14 @@
+[
+	{
+		"name": "ComponentDoccommentBothDetached",
+		"kind": "component",
+		"props": [
+			{
+				"name": "prop1",
+				"type": "string"
+			}
+		],
+		"docComment": "Detached JSDoc description.",
+		"sourceLine": 6
+	}
+]

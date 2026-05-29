@@ -1,0 +1,34 @@
+{
+	"name": "A",
+	"kind": "class",
+	"extends": "B",
+	"members": [
+		{
+			"name": "b",
+			"kind": "variable",
+			"typeSignature": "number"
+		},
+		{
+			"name": "constructor",
+			"kind": "constructor",
+			"typeSignature": "(a: string, b: number): A",
+			"parameters": [
+				{
+					"name": "a",
+					"type": "string"
+				},
+				{
+					"name": "b",
+					"type": "number"
+				}
+			]
+		},
+		{
+			"name": "fn1",
+			"kind": "function",
+			"docComment": "Description 1",
+			"typeSignature": "(): string",
+			"returnType": "string"
+		}
+	]
+}

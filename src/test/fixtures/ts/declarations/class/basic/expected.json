@@ -1,0 +1,5 @@
+{
+	"name": "A",
+	"kind": "class",
+	"docComment": "Test kind inference for class declarations."
+}

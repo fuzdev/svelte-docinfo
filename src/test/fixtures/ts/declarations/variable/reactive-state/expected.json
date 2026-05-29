@@ -1,0 +1,7 @@
+{
+	"name": "a",
+	"kind": "variable",
+	"docComment": "A reactive state variable.",
+	"typeSignature": "number",
+	"reactivity": "$state"
+}

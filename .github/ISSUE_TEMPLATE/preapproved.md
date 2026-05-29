@@ -5,4 +5,4 @@ about: bugs
 ---
 
 tip: use discussions for everything except bugs:
-https://github.com/fuzdev/fuz_template/discussions/new/choose
+https://github.com/fuzdev/svelte-docinfo/discussions/new/choose

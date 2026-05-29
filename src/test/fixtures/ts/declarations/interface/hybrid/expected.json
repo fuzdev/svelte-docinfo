@@ -1,0 +1,33 @@
+{
+	"name": "A",
+	"kind": "interface",
+	"docComment": "An interface with properties and call signature.",
+	"typeSignature": "A",
+	"members": [
+		{
+			"name": "a",
+			"kind": "variable",
+			"docComment": "Description 1",
+			"typeSignature": "string"
+		},
+		{
+			"name": "b",
+			"kind": "variable",
+			"docComment": "Description 2",
+			"typeSignature": "number"
+		},
+		{
+			"name": "(call)",
+			"kind": "function",
+			"docComment": "Description 3",
+			"typeSignature": "(c: boolean): void",
+			"parameters": [
+				{
+					"name": "c",
+					"type": "boolean"
+				}
+			],
+			"returnType": "void"
+		}
+	]
+}

@@ -1,0 +1,43 @@
+[
+	{
+		"name": "PropsJsdocTags",
+		"kind": "component",
+		"props": [
+			{
+				"name": "prop1",
+				"type": "string",
+				"description": "Description 1",
+				"defaultValue": "\"value\"",
+				"examples": [
+					"const a = 'text';"
+				],
+				"deprecatedMessage": "Description 2",
+				"seeAlso": [
+					"https://fuz.dev"
+				],
+				"since": "1.0.0"
+			},
+			{
+				"name": "prop2",
+				"type": "number",
+				"optional": true,
+				"description": "Description 3",
+				"seeAlso": [
+					"{@link https://fuz.dev}",
+					"fn1"
+				],
+				"throws": [
+					{
+						"type": "TypeError",
+						"description": "Description 4"
+					},
+					{
+						"type": "RangeError",
+						"description": "Description 5"
+					}
+				]
+			}
+		],
+		"sourceLine": 1
+	}
+]

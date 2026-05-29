@@ -1,0 +1,21 @@
+[
+	{
+		"name": "PropsInterfaceNamed",
+		"kind": "component",
+		"props": [
+			{
+				"name": "prop1",
+				"type": "string",
+				"description": "Description 1"
+			},
+			{
+				"name": "prop2",
+				"type": "number",
+				"optional": true,
+				"description": "Description 2"
+			}
+		],
+		"docComment": "Description.",
+		"sourceLine": 6
+	}
+]

@@ -1,0 +1,19 @@
+{
+	"name": "A",
+	"kind": "type",
+	"docComment": "Description 1.",
+	"typeSignature": "A",
+	"members": [
+		{
+			"name": "a",
+			"kind": "variable",
+			"docComment": "Description 2",
+			"typeSignature": "string"
+		},
+		{
+			"name": "[key: string]",
+			"kind": "variable",
+			"typeSignature": "string | number"
+		}
+	]
+}

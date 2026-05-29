@@ -1,0 +1,20 @@
+{
+	"text": "Description.",
+	"params": {
+		"a": "Description 1"
+	},
+	"throws": [
+		{
+			"type": "TypeError",
+			"description": "Description 2"
+		},
+		{
+			"type": "RangeError",
+			"description": "Description 3"
+		},
+		{
+			"type": "Error",
+			"description": "Description 4"
+		}
+	]
+}

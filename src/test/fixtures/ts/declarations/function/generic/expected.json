@@ -1,0 +1,26 @@
+{
+	"name": "fn",
+	"kind": "function",
+	"docComment": "A generic function with type constraints.",
+	"typeSignature": "<T extends { id: number; }>(a: Array<T>, b: (x: T) => boolean): T",
+	"genericParams": [
+		{
+			"name": "T",
+			"constraint": "{id: number}"
+		}
+	],
+	"parameters": [
+		{
+			"name": "a",
+			"type": "Array<T>",
+			"description": "Description 1"
+		},
+		{
+			"name": "b",
+			"type": "(x: T) => boolean",
+			"description": "Description 2"
+		}
+	],
+	"returnType": "T",
+	"returnDescription": "Description 3"
+}

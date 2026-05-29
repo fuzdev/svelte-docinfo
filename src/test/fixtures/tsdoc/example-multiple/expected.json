@@ -1,0 +1,11 @@
+{
+	"text": "Description.",
+	"params": {
+		"a": "Description 1"
+	},
+	"examples": [
+		"fn('a'); // \"A\"",
+		"fn('b'); // \"B\"",
+		"fn(''); // \"\""
+	]
+}

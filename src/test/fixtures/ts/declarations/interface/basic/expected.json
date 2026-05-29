@@ -1,0 +1,29 @@
+{
+	"name": "A",
+	"kind": "interface",
+	"docComment": "A basic interface.",
+	"typeSignature": "A",
+	"members": [
+		{
+			"name": "a",
+			"kind": "variable",
+			"docComment": "Description 1",
+			"typeSignature": "number"
+		},
+		{
+			"name": "b",
+			"kind": "variable",
+			"docComment": "Description 2",
+			"typeSignature": "string"
+		},
+		{
+			"name": "c",
+			"kind": "variable",
+			"docComment": "Description 3",
+			"typeSignature": "string",
+			"modifiers": [
+				"readonly"
+			]
+		}
+	]
+}

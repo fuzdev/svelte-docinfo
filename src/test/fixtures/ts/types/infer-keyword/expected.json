@@ -1,0 +1,11 @@
+{
+	"name": "A",
+	"kind": "type",
+	"docComment": "Infer keyword in conditional types.",
+	"typeSignature": "A<T>",
+	"genericParams": [
+		{
+			"name": "T"
+		}
+	]
+}

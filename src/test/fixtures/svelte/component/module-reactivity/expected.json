@@ -1,0 +1,21 @@
+[
+	{
+		"name": "ComponentModuleReactivity",
+		"kind": "component",
+		"sourceLine": 10
+	},
+	{
+		"name": "a",
+		"kind": "variable",
+		"sourceLine": 8,
+		"typeSignature": "number",
+		"reactivity": "$state"
+	},
+	{
+		"name": "b",
+		"kind": "variable",
+		"sourceLine": 9,
+		"typeSignature": "number",
+		"reactivity": "$state.raw"
+	}
+]

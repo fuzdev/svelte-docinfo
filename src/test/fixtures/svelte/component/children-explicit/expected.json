@@ -1,0 +1,15 @@
+[
+	{
+		"name": "ComponentChildrenExplicit",
+		"kind": "component",
+		"props": [
+			{
+				"name": "children",
+				"type": "Snippet<[]>",
+				"description": "Description 1"
+			}
+		],
+		"acceptsChildren": true,
+		"sourceLine": 1
+	}
+]

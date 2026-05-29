@@ -1,0 +1,7 @@
+{
+	"name": "max_retries",
+	"kind": "variable",
+	"docComment": "Maximum number of retries before giving up.",
+	"typeSignature": "number",
+	"defaultValue": "3"
+}

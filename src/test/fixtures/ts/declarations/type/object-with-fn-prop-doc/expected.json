@@ -1,0 +1,27 @@
+{
+	"name": "A",
+	"kind": "type",
+	"typeSignature": "A",
+	"members": [
+		{
+			"name": "add",
+			"kind": "function",
+			"docComment": "Adds two numbers.",
+			"typeSignature": "(a: number, b: number): number",
+			"parameters": [
+				{
+					"name": "a",
+					"type": "number",
+					"description": "the first addend"
+				},
+				{
+					"name": "b",
+					"type": "number",
+					"description": "the second addend"
+				}
+			],
+			"returnType": "number",
+			"returnDescription": "the sum of `a` and `b`"
+		}
+	]
+}

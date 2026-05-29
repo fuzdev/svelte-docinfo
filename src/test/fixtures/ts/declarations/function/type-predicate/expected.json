@@ -1,0 +1,15 @@
+{
+	"name": "fn",
+	"kind": "function",
+	"docComment": "A function with type predicate.",
+	"typeSignature": "(a: unknown): a is string",
+	"parameters": [
+		{
+			"name": "a",
+			"type": "unknown",
+			"description": "Description 1"
+		}
+	],
+	"returnType": "boolean",
+	"returnDescription": "Description 2"
+}

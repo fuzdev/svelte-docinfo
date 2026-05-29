@@ -1,0 +1,52 @@
+[
+	{
+		"name": "PropsDefaultComplexTypes",
+		"kind": "component",
+		"props": [
+			{
+				"name": "prop1",
+				"type": "A",
+				"optional": true,
+				"description": "Description 1",
+				"defaultValue": "{a: 1}"
+			},
+			{
+				"name": "prop2",
+				"type": "Record<string, never>",
+				"optional": true,
+				"description": "Description 2",
+				"defaultValue": "{}"
+			},
+			{
+				"name": "prop3",
+				"type": "number[]",
+				"optional": true,
+				"description": "Description 3",
+				"defaultValue": "[1, 2, 3]"
+			},
+			{
+				"name": "prop4",
+				"type": "string[]",
+				"optional": true,
+				"description": "Description 4",
+				"defaultValue": "[]"
+			},
+			{
+				"name": "prop5",
+				"type": "string",
+				"optional": true,
+				"description": "Description 5",
+				"defaultValue": "`text`"
+			},
+			{
+				"name": "prop6",
+				"type": "string",
+				"optional": true,
+				"description": "Description 6",
+				"defaultValue": "null",
+				"bindable": true
+			}
+		],
+		"sourceLine": 1
+	}
+]

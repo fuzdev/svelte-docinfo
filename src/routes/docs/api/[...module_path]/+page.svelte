@@ -6,4 +6,8 @@
 	const module_path = $derived(params.module_path ?? '');
 </script>
 
+<svelte:head>
+	<title>{module_path} - svelte-docinfo</title>
+</svelte:head>
+
 <ApiModule {module_path} />

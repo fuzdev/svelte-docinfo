@@ -1,0 +1,13 @@
+[
+	{
+		"name": "ComponentExportedSnippetParameterless",
+		"kind": "component",
+		"sourceLine": 3
+	},
+	{
+		"name": "greet",
+		"kind": "snippet",
+		"sourceLine": 5,
+		"typeSignature": "Snippet<[]>"
+	}
+]

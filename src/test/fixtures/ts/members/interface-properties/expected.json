@@ -1,0 +1,30 @@
+{
+	"name": "A",
+	"kind": "interface",
+	"docComment": "An interface with property variations.",
+	"typeSignature": "A",
+	"members": [
+		{
+			"name": "a",
+			"kind": "variable",
+			"docComment": "Description 1",
+			"typeSignature": "string"
+		},
+		{
+			"name": "b",
+			"kind": "variable",
+			"docComment": "Description 2",
+			"typeSignature": "number",
+			"optional": true
+		},
+		{
+			"name": "c",
+			"kind": "variable",
+			"docComment": "Description 3",
+			"typeSignature": "boolean",
+			"modifiers": [
+				"readonly"
+			]
+		}
+	]
+}

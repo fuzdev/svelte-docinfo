@@ -1,0 +1,40 @@
+{
+	"name": "fn",
+	"kind": "function",
+	"docComment": "A function with overloads.",
+	"typeSignature": "(a: string): string",
+	"parameters": [
+		{
+			"name": "a",
+			"type": "string",
+			"description": "Description 1"
+		}
+	],
+	"overloads": [
+		{
+			"typeSignature": "(a: string): string",
+			"parameters": [
+				{
+					"name": "a",
+					"type": "string",
+					"description": "Description 1"
+				}
+			],
+			"returnType": "string",
+			"docComment": "A function with overloads.",
+			"returnDescription": "Description 2"
+		},
+		{
+			"typeSignature": "(a: number): number",
+			"parameters": [
+				{
+					"name": "a",
+					"type": "number"
+				}
+			],
+			"returnType": "number"
+		}
+	],
+	"returnType": "string",
+	"returnDescription": "Description 2"
+}

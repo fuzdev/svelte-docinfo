@@ -1,3 +1,8 @@
 import {configs} from '@ryanatkn/eslint-config';
 
-export default configs;
+export default [
+	...configs,
+	{
+		ignores: ['examples/**/*'],
+	},
+];

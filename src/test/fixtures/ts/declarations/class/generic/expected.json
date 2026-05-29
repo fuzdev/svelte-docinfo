@@ -1,0 +1,61 @@
+{
+	"name": "A",
+	"kind": "class",
+	"docComment": "A generic class with type parameters.",
+	"genericParams": [
+		{
+			"name": "T"
+		},
+		{
+			"name": "U",
+			"defaultType": "string"
+		}
+	],
+	"members": [
+		{
+			"name": "a",
+			"kind": "variable",
+			"typeSignature": "T"
+		},
+		{
+			"name": "b",
+			"kind": "variable",
+			"typeSignature": "U"
+		},
+		{
+			"name": "constructor",
+			"kind": "constructor",
+			"typeSignature": "<T, U = string>(a: T, b: U): A<T, U>",
+			"parameters": [
+				{
+					"name": "a",
+					"type": "T"
+				},
+				{
+					"name": "b",
+					"type": "U"
+				}
+			]
+		},
+		{
+			"name": "fn1",
+			"kind": "function",
+			"docComment": "Description 1",
+			"typeSignature": "(): T",
+			"returnType": "T"
+		},
+		{
+			"name": "fn2",
+			"kind": "function",
+			"docComment": "Description 2",
+			"typeSignature": "(a: T): void",
+			"parameters": [
+				{
+					"name": "a",
+					"type": "T"
+				}
+			],
+			"returnType": "void"
+		}
+	]
+}

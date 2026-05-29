@@ -1,0 +1,44 @@
+{
+	"name": "A",
+	"kind": "interface",
+	"docComment": "An interface with construct signatures.",
+	"typeSignature": "A",
+	"members": [
+		{
+			"name": "(construct)",
+			"kind": "constructor",
+			"docComment": "Description 1",
+			"typeSignature": "(a: string): { b: number; }",
+			"parameters": [
+				{
+					"name": "a",
+					"type": "string"
+				}
+			],
+			"overloads": [
+				{
+					"typeSignature": "(a: string): { b: number; }",
+					"parameters": [
+						{
+							"name": "a",
+							"type": "string"
+						}
+					],
+					"returnType": "{ b: number; }",
+					"docComment": "Description 1"
+				},
+				{
+					"typeSignature": "(a: number): { b: string; }",
+					"parameters": [
+						{
+							"name": "a",
+							"type": "number"
+						}
+					],
+					"returnType": "{ b: string; }",
+					"docComment": "Description 2"
+				}
+			]
+		}
+	]
+}

@@ -1,0 +1,36 @@
+{
+	"name": "A",
+	"kind": "class",
+	"docComment": "A class with detailed constructor.",
+	"members": [
+		{
+			"name": "a",
+			"kind": "variable",
+			"typeSignature": "string"
+		},
+		{
+			"name": "b",
+			"kind": "variable",
+			"typeSignature": "number"
+		},
+		{
+			"name": "constructor",
+			"kind": "constructor",
+			"docComment": "Constructor description.",
+			"typeSignature": "(a: string, b?: number): A",
+			"parameters": [
+				{
+					"name": "a",
+					"type": "string",
+					"description": "Description 1"
+				},
+				{
+					"name": "b",
+					"type": "number",
+					"description": "Description 2",
+					"defaultValue": "1"
+				}
+			]
+		}
+	]
+}

@@ -1,0 +1,33 @@
+{
+	"name": "A",
+	"kind": "class",
+	"docComment": "Description.",
+	"deprecatedMessage": "Description 1",
+	"members": [
+		{
+			"name": "a",
+			"kind": "variable",
+			"typeSignature": "string"
+		},
+		{
+			"name": "b",
+			"kind": "variable",
+			"typeSignature": "number"
+		},
+		{
+			"name": "constructor",
+			"kind": "constructor",
+			"typeSignature": "(a: string, b: number): A",
+			"parameters": [
+				{
+					"name": "a",
+					"type": "string"
+				},
+				{
+					"name": "b",
+					"type": "number"
+				}
+			]
+		}
+	]
+}

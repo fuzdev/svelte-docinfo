@@ -1,0 +1,32 @@
+[
+	{
+		"name": "ComponentExportedSnippetWithFunction",
+		"kind": "component",
+		"sourceLine": 4
+	},
+	{
+		"name": "greet",
+		"kind": "snippet",
+		"sourceLine": 6,
+		"typeSignature": "Snippet<[a: string]>",
+		"parameters": [
+			{
+				"name": "a",
+				"type": "string"
+			}
+		]
+	},
+	{
+		"name": "fn1",
+		"kind": "function",
+		"sourceLine": 3,
+		"typeSignature": "(a: string): number",
+		"returnType": "number",
+		"parameters": [
+			{
+				"name": "a",
+				"type": "string"
+			}
+		]
+	}
+]

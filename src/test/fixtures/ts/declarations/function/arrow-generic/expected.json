@@ -1,0 +1,21 @@
+{
+	"name": "fn",
+	"kind": "function",
+	"docComment": "A generic arrow function assigned to a const.",
+	"typeSignature": "<T extends { id: number; }>(a: Array<T>): T",
+	"genericParams": [
+		{
+			"name": "T",
+			"constraint": "{id: number}"
+		}
+	],
+	"parameters": [
+		{
+			"name": "a",
+			"type": "Array<T>",
+			"description": "Description 1"
+		}
+	],
+	"returnType": "T",
+	"returnDescription": "Description 2"
+}

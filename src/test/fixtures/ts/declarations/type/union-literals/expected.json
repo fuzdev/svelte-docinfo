@@ -1,0 +1,6 @@
+{
+	"name": "A",
+	"kind": "type",
+	"docComment": "A simple type alias.",
+	"typeSignature": "A"
+}

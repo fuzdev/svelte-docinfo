@@ -1,7 +1,6 @@
 <script lang="ts">
 	import '$routes/fuz.css';
 	import '@fuzdev/fuz_code/theme.css';
-	import '$routes/style.css';
 
 	import ThemeRoot from '@fuzdev/fuz_ui/ThemeRoot.svelte';
 	import type {Snippet} from 'svelte';
@@ -14,7 +13,7 @@
 </script>
 
 <svelte:head>
-	<title>@fuzdev/fuz_template</title>
+	<title>svelte-docinfo</title>
 </svelte:head>
 
 <ThemeRoot>

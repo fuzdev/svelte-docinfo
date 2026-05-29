@@ -1,0 +1,23 @@
+{
+	"name": "A",
+	"kind": "type",
+	"docComment": "Promise types.",
+	"typeSignature": "A",
+	"members": [
+		{
+			"name": "a",
+			"kind": "variable",
+			"typeSignature": "Promise<string>"
+		},
+		{
+			"name": "b",
+			"kind": "variable",
+			"typeSignature": "Promise<void>"
+		},
+		{
+			"name": "c",
+			"kind": "variable",
+			"typeSignature": "Promise<{ d: number; }>"
+		}
+	]
+}

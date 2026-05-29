@@ -1,0 +1,13 @@
+[
+	{
+		"name": "ErrorsUntyped",
+		"kind": "component",
+		"props": [
+			{
+				"name": "untyped_prop",
+				"type": "any"
+			}
+		],
+		"sourceLine": 1
+	}
+]

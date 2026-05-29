@@ -1,0 +1,37 @@
+[
+	{
+		"name": "TypesMultipleKinds",
+		"kind": "component",
+		"props": [
+			{
+				"name": "prop1",
+				"type": "A",
+				"description": "Description 1"
+			},
+			{
+				"name": "prop2",
+				"type": "B | null",
+				"description": "Description 2"
+			},
+			{
+				"name": "prop3",
+				"type": "(event: MouseEvent) => void",
+				"optional": true,
+				"description": "Description 3"
+			},
+			{
+				"name": "prop4",
+				"type": "Snippet<[]>",
+				"optional": true,
+				"description": "Description 4"
+			},
+			{
+				"name": "prop5",
+				"type": "string[]",
+				"optional": true,
+				"description": "Description 5"
+			}
+		],
+		"sourceLine": 1
+	}
+]

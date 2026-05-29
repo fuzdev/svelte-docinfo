@@ -1,0 +1,19 @@
+[
+	{
+		"name": "TypesNestedComplex",
+		"kind": "component",
+		"props": [
+			{
+				"name": "prop1",
+				"type": "A",
+				"description": "Description 1"
+			},
+			{
+				"name": "prop2",
+				"type": "{ id: number; values: string[]; }[][]",
+				"description": "Description 2"
+			}
+		],
+		"sourceLine": 1
+	}
+]

@@ -1,0 +1,14 @@
+{
+	"name": "fn",
+	"kind": "function",
+	"docComment": "A function with destructured array parameters.",
+	"typeSignature": "([a, b]: [string, number]): string",
+	"parameters": [
+		{
+			"name": "__0",
+			"type": "[string, number]"
+		}
+	],
+	"returnType": "string",
+	"returnDescription": "Description 2"
+}

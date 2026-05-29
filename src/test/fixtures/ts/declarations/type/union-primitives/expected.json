@@ -1,0 +1,6 @@
+{
+	"name": "A",
+	"kind": "type",
+	"docComment": "Test kind inference for type aliases.",
+	"typeSignature": "A"
+}

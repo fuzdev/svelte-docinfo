@@ -1,0 +1,22 @@
+[
+	{
+		"name": "PropsBindableOptional",
+		"kind": "component",
+		"props": [
+			{
+				"name": "prop1",
+				"type": "string",
+				"description": "Description 1",
+				"bindable": true
+			},
+			{
+				"name": "prop2",
+				"type": "number",
+				"optional": true,
+				"description": "Description 2",
+				"bindable": true
+			}
+		],
+		"sourceLine": 1
+	}
+]

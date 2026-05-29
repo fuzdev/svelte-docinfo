@@ -1,0 +1,11 @@
+{
+	"name": "A",
+	"kind": "type",
+	"docComment": "A conditional type.",
+	"typeSignature": "A<T>",
+	"genericParams": [
+		{
+			"name": "T"
+		}
+	]
+}

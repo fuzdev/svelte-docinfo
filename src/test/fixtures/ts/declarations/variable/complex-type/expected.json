@@ -1,0 +1,6 @@
+{
+	"name": "a",
+	"kind": "variable",
+	"docComment": "A variable with a complex type.",
+	"typeSignature": "{ b: number; c: number; d: Array<string>; }"
+}

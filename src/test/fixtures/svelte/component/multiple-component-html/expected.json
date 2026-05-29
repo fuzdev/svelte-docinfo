@@ -1,0 +1,14 @@
+[
+	{
+		"name": "ComponentMultipleComponentHtml",
+		"kind": "component",
+		"props": [
+			{
+				"name": "prop1",
+				"type": "string"
+			}
+		],
+		"docComment": "Second description.",
+		"sourceLine": 11
+	}
+]

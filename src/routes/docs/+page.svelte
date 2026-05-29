@@ -9,6 +9,10 @@
 	const library = library_context.get();
 </script>
 
+<svelte:head>
+	<title>docs - svelte-docinfo</title>
+</svelte:head>
+
 <div class="pt_xl3">
 	<DocsContent {tomes} {library}></DocsContent>
 </div>

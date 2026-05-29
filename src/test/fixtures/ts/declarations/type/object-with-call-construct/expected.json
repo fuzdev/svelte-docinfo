@@ -1,0 +1,35 @@
+{
+	"name": "A",
+	"kind": "type",
+	"typeSignature": "A",
+	"members": [
+		{
+			"name": "a",
+			"kind": "variable",
+			"typeSignature": "string"
+		},
+		{
+			"name": "(call)",
+			"kind": "function",
+			"typeSignature": "(a: number): void",
+			"parameters": [
+				{
+					"name": "a",
+					"type": "number"
+				}
+			],
+			"returnType": "void"
+		},
+		{
+			"name": "(construct)",
+			"kind": "constructor",
+			"typeSignature": "(a: string): object",
+			"parameters": [
+				{
+					"name": "a",
+					"type": "string"
+				}
+			]
+		}
+	]
+}

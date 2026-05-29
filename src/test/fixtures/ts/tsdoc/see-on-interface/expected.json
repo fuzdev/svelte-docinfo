@@ -1,0 +1,22 @@
+{
+	"name": "A",
+	"kind": "interface",
+	"docComment": "Description.",
+	"typeSignature": "A",
+	"seeAlso": [
+		"{@link https://fuz.dev}",
+		"B"
+	],
+	"members": [
+		{
+			"name": "a",
+			"kind": "variable",
+			"typeSignature": "string"
+		},
+		{
+			"name": "b",
+			"kind": "variable",
+			"typeSignature": "number"
+		}
+	]
+}

@@ -1,0 +1,14 @@
+[
+	{
+		"name": "ComponentDoccommentBoth",
+		"kind": "component",
+		"props": [
+			{
+				"name": "prop1",
+				"type": "string"
+			}
+		],
+		"docComment": "JSDoc component description.",
+		"sourceLine": 6
+	}
+]

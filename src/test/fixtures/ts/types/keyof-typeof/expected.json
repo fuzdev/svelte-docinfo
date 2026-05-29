@@ -1,0 +1,17 @@
+{
+	"name": "A",
+	"kind": "type",
+	"typeSignature": "A",
+	"members": [
+		{
+			"name": "a",
+			"kind": "variable",
+			"typeSignature": "keyof C"
+		},
+		{
+			"name": "b",
+			"kind": "variable",
+			"typeSignature": "{ readonly a: \"value\"; readonly c: 1; }"
+		}
+	]
+}

@@ -1,0 +1,14 @@
+[
+	{
+		"name": "ComponentComponentHtmlModuleHtml",
+		"kind": "component",
+		"props": [
+			{
+				"name": "prop1",
+				"type": "string"
+			}
+		],
+		"docComment": "Component description from HTML.",
+		"sourceLine": 11
+	}
+]

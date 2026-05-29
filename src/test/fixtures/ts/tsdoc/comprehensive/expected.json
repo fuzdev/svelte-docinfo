@@ -1,0 +1,42 @@
+{
+	"name": "fn",
+	"kind": "function",
+	"docComment": "Description.\n\nAdditional description line.",
+	"typeSignature": "(a: string, b: { c?: boolean; }): string",
+	"examples": [
+		"const result = fn('value', {c: true});"
+	],
+	"deprecatedMessage": "Description 6",
+	"seeAlso": [
+		"{@link https://fuz.dev}",
+		"fn1"
+	],
+	"throws": [
+		{
+			"type": "TypeError",
+			"description": "Description 4"
+		},
+		{
+			"type": "RangeError",
+			"description": "Description 5"
+		}
+	],
+	"since": "1.0.0",
+	"mutates": {
+		"b": "Description 7"
+	},
+	"parameters": [
+		{
+			"name": "a",
+			"type": "string",
+			"description": "Description 1"
+		},
+		{
+			"name": "b",
+			"type": "{ c?: boolean; }",
+			"description": "Description 2"
+		}
+	],
+	"returnType": "string",
+	"returnDescription": "Description 3"
+}

@@ -1,0 +1,7 @@
+{
+	"text": "Description.",
+	"params": {},
+	"examples": [
+		"const a = fn('b', 'c');\nconsole.log(a); // \"c, b\""
+	]
+}

@@ -1,0 +1,6 @@
+{
+	"name": "A",
+	"kind": "type",
+	"docComment": "A template literal type.",
+	"typeSignature": "`prefix_${string}_suffix`"
+}

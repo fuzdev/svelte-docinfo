@@ -1,0 +1,22 @@
+{
+	"name": "A",
+	"kind": "type",
+	"typeSignature": "A",
+	"members": [
+		{
+			"name": "a",
+			"kind": "variable",
+			"typeSignature": "Array<B[K]>"
+		},
+		{
+			"name": "b",
+			"kind": "variable",
+			"typeSignature": "Array<B[K]>"
+		},
+		{
+			"name": "c",
+			"kind": "variable",
+			"typeSignature": "Array<B[K]>"
+		}
+	]
+}

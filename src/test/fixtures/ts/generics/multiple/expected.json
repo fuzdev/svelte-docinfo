@@ -1,0 +1,34 @@
+{
+	"name": "A",
+	"kind": "type",
+	"docComment": "A type with multiple generic parameters.",
+	"typeSignature": "A<T, U, V>",
+	"genericParams": [
+		{
+			"name": "T"
+		},
+		{
+			"name": "U"
+		},
+		{
+			"name": "V"
+		}
+	],
+	"members": [
+		{
+			"name": "a",
+			"kind": "variable",
+			"typeSignature": "T"
+		},
+		{
+			"name": "b",
+			"kind": "variable",
+			"typeSignature": "U"
+		},
+		{
+			"name": "c",
+			"kind": "variable",
+			"typeSignature": "V"
+		}
+	]
+}

@@ -1,0 +1,20 @@
+[
+	{
+		"name": "ComponentGeneric",
+		"kind": "component",
+		"props": [
+			{
+				"name": "prop1",
+				"type": "T[]",
+				"description": "Description 1"
+			}
+		],
+		"genericParams": [
+			{
+				"name": "T"
+			}
+		],
+		"docComment": "Description.",
+		"sourceLine": 6
+	}
+]

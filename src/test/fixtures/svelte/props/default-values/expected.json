@@ -1,0 +1,23 @@
+[
+	{
+		"name": "PropsDefaultValues",
+		"kind": "component",
+		"props": [
+			{
+				"name": "prop1",
+				"type": "string",
+				"optional": true,
+				"description": "Description 1",
+				"defaultValue": "'value'"
+			},
+			{
+				"name": "prop2",
+				"type": "number",
+				"optional": true,
+				"description": "Description 2",
+				"defaultValue": "1"
+			}
+		],
+		"sourceLine": 1
+	}
+]

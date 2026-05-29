@@ -1,0 +1,42 @@
+{
+	"name": "A",
+	"kind": "class",
+	"members": [
+		{
+			"name": "fn1",
+			"kind": "function",
+			"docComment": "Description 1",
+			"typeSignature": "(a: string): string",
+			"parameters": [
+				{
+					"name": "a",
+					"type": "string"
+				}
+			],
+			"overloads": [
+				{
+					"typeSignature": "(a: string): string",
+					"parameters": [
+						{
+							"name": "a",
+							"type": "string"
+						}
+					],
+					"returnType": "string",
+					"docComment": "Description 1"
+				},
+				{
+					"typeSignature": "(a: number): number",
+					"parameters": [
+						{
+							"name": "a",
+							"type": "number"
+						}
+					],
+					"returnType": "number"
+				}
+			],
+			"returnType": "string"
+		}
+	]
+}

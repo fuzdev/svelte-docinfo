@@ -1,0 +1,8 @@
+{
+	"name": "fn",
+	"kind": "function",
+	"docComment": "Description.",
+	"typeSignature": "(): string",
+	"deprecatedMessage": "",
+	"returnType": "string"
+}

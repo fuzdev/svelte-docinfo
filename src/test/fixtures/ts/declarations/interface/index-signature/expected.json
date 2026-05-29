@@ -1,0 +1,26 @@
+{
+	"name": "A",
+	"kind": "interface",
+	"docComment": "An interface with index signatures.",
+	"typeSignature": "A",
+	"members": [
+		{
+			"name": "a",
+			"kind": "variable",
+			"docComment": "Description 1",
+			"typeSignature": "string"
+		},
+		{
+			"name": "[key: string]",
+			"kind": "variable",
+			"docComment": "Description 2",
+			"typeSignature": "string | number"
+		},
+		{
+			"name": "[index: number]",
+			"kind": "variable",
+			"docComment": "Description 3",
+			"typeSignature": "string"
+		}
+	]
+}

@@ -1,0 +1,36 @@
+[
+	{
+		"name": "TypesSnippetParameters",
+		"kind": "component",
+		"props": [
+			{
+				"name": "content",
+				"type": "Snippet<[text: string, index: number]>",
+				"description": "Description 1",
+				"parameters": [
+					{
+						"name": "text",
+						"type": "string"
+					},
+					{
+						"name": "index",
+						"type": "number"
+					}
+				]
+			},
+			{
+				"name": "header",
+				"type": "Snippet<[title: string]>",
+				"optional": true,
+				"description": "Description 2",
+				"parameters": [
+					{
+						"name": "title",
+						"type": "string"
+					}
+				]
+			}
+		],
+		"sourceLine": 1
+	}
+]

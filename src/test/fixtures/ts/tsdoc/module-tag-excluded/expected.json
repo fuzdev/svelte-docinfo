@@ -1,0 +1,6 @@
+{
+	"name": "fn",
+	"kind": "function",
+	"typeSignature": "(): void",
+	"returnType": "void"
+}

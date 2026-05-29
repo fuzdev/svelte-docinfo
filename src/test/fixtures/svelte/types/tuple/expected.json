@@ -1,0 +1,19 @@
+[
+	{
+		"name": "TypesTuple",
+		"kind": "component",
+		"props": [
+			{
+				"name": "coordinates",
+				"type": "[number, number]",
+				"description": "Description 1"
+			},
+			{
+				"name": "rgb",
+				"type": "[number, number, number]",
+				"description": "Description 2"
+			}
+		],
+		"sourceLine": 1
+	}
+]

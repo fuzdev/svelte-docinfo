@@ -1,0 +1,25 @@
+[
+	{
+		"name": "ComponentExportedSnippetWithProps",
+		"kind": "component",
+		"props": [
+			{
+				"name": "prop1",
+				"type": "string"
+			}
+		],
+		"sourceLine": 5
+	},
+	{
+		"name": "greet",
+		"kind": "snippet",
+		"sourceLine": 9,
+		"typeSignature": "Snippet<[a: string]>",
+		"parameters": [
+			{
+				"name": "a",
+				"type": "string"
+			}
+		]
+	}
+]

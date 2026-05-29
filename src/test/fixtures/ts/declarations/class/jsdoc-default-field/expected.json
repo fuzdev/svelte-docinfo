@@ -1,0 +1,13 @@
+{
+	"name": "Worker",
+	"kind": "class",
+	"members": [
+		{
+			"name": "status",
+			"kind": "variable",
+			"docComment": "Worker status.",
+			"typeSignature": "string",
+			"defaultValue": "'idle'"
+		}
+	]
+}

@@ -1,0 +1,44 @@
+{
+	"name": "A",
+	"kind": "class",
+	"docComment": "A class with various method types.",
+	"members": [
+		{
+			"name": "fn1",
+			"kind": "function",
+			"docComment": "Description 1",
+			"typeSignature": "(): void",
+			"returnType": "void"
+		},
+		{
+			"name": "fn3",
+			"kind": "function",
+			"docComment": "Description 3",
+			"typeSignature": "(): void",
+			"modifiers": [
+				"protected"
+			],
+			"returnType": "void"
+		},
+		{
+			"name": "fn4",
+			"kind": "function",
+			"docComment": "Description 4",
+			"typeSignature": "(): void",
+			"modifiers": [
+				"static"
+			],
+			"returnType": "void"
+		},
+		{
+			"name": "fn5",
+			"kind": "function",
+			"docComment": "Description 5",
+			"typeSignature": "(): void",
+			"modifiers": [
+				"public"
+			],
+			"returnType": "void"
+		}
+	]
+}

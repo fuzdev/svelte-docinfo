@@ -1,0 +1,6 @@
+{
+	"name": "a",
+	"kind": "variable",
+	"docComment": "A variable with const assertion.",
+	"typeSignature": "{ readonly b: \"value\"; readonly c: 1; readonly d: readonly [\"a\", \"b\", \"c\"]; }"
+}

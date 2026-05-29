@@ -1,0 +1,14 @@
+[
+	{
+		"name": "ComponentChildrenNonSnippet",
+		"kind": "component",
+		"props": [
+			{
+				"name": "children",
+				"type": "string",
+				"description": "Description 1"
+			}
+		],
+		"sourceLine": 1
+	}
+]

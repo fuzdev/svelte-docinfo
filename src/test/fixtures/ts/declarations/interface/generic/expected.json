@@ -1,0 +1,39 @@
+{
+	"name": "A",
+	"kind": "interface",
+	"docComment": "A generic type with constraints and defaults.",
+	"typeSignature": "A<T, E>",
+	"genericParams": [
+		{
+			"name": "T",
+			"constraint": "object",
+			"defaultType": "Record<string, unknown>"
+		},
+		{
+			"name": "E",
+			"defaultType": "Error"
+		}
+	],
+	"members": [
+		{
+			"name": "a",
+			"kind": "variable",
+			"docComment": "Description 1",
+			"typeSignature": "boolean"
+		},
+		{
+			"name": "b",
+			"kind": "variable",
+			"docComment": "Description 2",
+			"typeSignature": "T",
+			"optional": true
+		},
+		{
+			"name": "c",
+			"kind": "variable",
+			"docComment": "Description 3",
+			"typeSignature": "E",
+			"optional": true
+		}
+	]
+}

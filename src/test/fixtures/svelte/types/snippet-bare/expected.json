@@ -1,0 +1,20 @@
+[
+	{
+		"name": "TypesSnippetBare",
+		"kind": "component",
+		"props": [
+			{
+				"name": "prop1",
+				"type": "Snippet<[]>",
+				"description": "Description 1"
+			},
+			{
+				"name": "prop2",
+				"type": "Snippet<[]>",
+				"optional": true,
+				"description": "Description 2"
+			}
+		],
+		"sourceLine": 1
+	}
+]

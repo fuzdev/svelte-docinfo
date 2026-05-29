@@ -1,0 +1,13 @@
+[
+	{
+		"name": "ErrorsTypeResolutionFailed",
+		"kind": "component",
+		"props": [
+			{
+				"name": "prop1",
+				"type": "NonExistent"
+			}
+		],
+		"sourceLine": 1
+	}
+]

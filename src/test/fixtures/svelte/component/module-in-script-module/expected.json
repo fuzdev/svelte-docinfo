@@ -1,0 +1,19 @@
+[
+	{
+		"name": "ComponentModuleInScriptModule",
+		"kind": "component",
+		"props": [
+			{
+				"name": "prop1",
+				"type": "string"
+			}
+		],
+		"sourceLine": 10
+	},
+	{
+		"name": "HELPER",
+		"kind": "variable",
+		"sourceLine": 7,
+		"typeSignature": "\"value\""
+	}
+]

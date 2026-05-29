@@ -1,0 +1,24 @@
+{
+	"name": "A",
+	"kind": "type",
+	"docComment": "Description 1.",
+	"typeSignature": "A",
+	"members": [
+		{
+			"name": "a",
+			"kind": "variable",
+			"typeSignature": "string",
+			"modifiers": [
+				"readonly"
+			]
+		},
+		{
+			"name": "b",
+			"kind": "variable",
+			"typeSignature": "string",
+			"modifiers": [
+				"readonly"
+			]
+		}
+	]
+}

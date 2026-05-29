@@ -1,0 +1,7 @@
+{
+	"name": "a",
+	"kind": "variable",
+	"docComment": "A derived reactive variable.",
+	"typeSignature": "number",
+	"reactivity": "$derived"
+}
