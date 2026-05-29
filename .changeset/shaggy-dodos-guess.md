@@ -1,5 +1,0 @@
----
-'svelte-docinfo': minor
----
-
-init

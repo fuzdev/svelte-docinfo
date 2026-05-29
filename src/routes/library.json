@@ -6,12 +6,12 @@
 	"homepage_url": "https://svelte-docinfo.fuz.dev/",
 	"logo_url": "https://svelte-docinfo.fuz.dev/logo.svg",
 	"logo_alt": "a cyan scroll with curling ends",
-	"npm_url": null,
-	"changelog_url": null,
-	"published": false,
+	"npm_url": "https://www.npmjs.com/package/svelte-docinfo",
+	"changelog_url": "https://github.com/fuzdev/svelte-docinfo/blob/main/CHANGELOG.md",
+	"published": true,
 	"package_json": {
 		"name": "svelte-docinfo",
-		"version": "0.0.1",
+		"version": "0.1.0",
 		"description": "static analysis for TypeScript and Svelte",
 		"glyph": "📜",
 		"logo": "logo.svg",
@@ -137,7 +137,7 @@
 	},
 	"source_json": {
 		"name": "svelte-docinfo",
-		"version": "0.0.1",
+		"version": "0.1.0",
 		"modules": [
 			{
 				"path": "analyze-core.ts",
