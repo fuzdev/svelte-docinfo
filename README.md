@@ -18,8 +18,6 @@ has a Vite plugin, CLI, and programmatic API.
 npm install svelte-docinfo -D
 ```
 
-[npm](https://www.npmjs.com/package/svelte-docinfo)
-
 - [Quick start](#quick-start)
 - [Vite plugin](#vite-plugin)
 - [CLI](#cli)
