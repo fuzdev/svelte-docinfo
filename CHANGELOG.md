@@ -4,4 +4,4 @@
 
 ### Minor Changes
 
-- init ([cdc74ab](https://github.com/fuzdev/svelte-docinfo/commit/cdc74ab))
+- init ([7ededbf](https://github.com/fuzdev/svelte-docinfo/commit/7ededbf))
