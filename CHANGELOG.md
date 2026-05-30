@@ -1,5 +1,11 @@
 # svelte-docinfo
 
+## 0.2.1
+
+### Patch Changes
+
+- fix: use `Object.create(null)` to avoid prototype issues ([7b79be8](https://github.com/fuzdev/svelte-docinfo/commit/7b79be8))
+
 ## 0.2.0
 
 ### Minor Changes
