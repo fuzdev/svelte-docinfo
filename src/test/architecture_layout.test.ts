@@ -11,7 +11,7 @@ import {test, assert, describe} from 'vitest';
 
 import {compute_layout, type LayoutInput} from '$routes/docs/architecture/graph_layout.js';
 import {dependency_graph} from '$routes/docs/architecture/dependency_graph.js';
-import {library_json} from '$routes/library.js';
+import {analyzeFromFiles} from 'svelte-docinfo';
 
 describe('compute_layout', () => {
 	test('synthetic acyclic graph assigns layers from sinks upward', () => {
@@ -121,8 +121,11 @@ describe('compute_layout', () => {
 });
 
 describe('dependency_graph artifact', () => {
-	test('every module in library.json appears as a node', () => {
-		const modules = library_json.source_json.modules ?? [];
+	test('every analyzed module appears as a node', async () => {
+		const {modules} = await analyzeFromFiles({
+			projectRoot: process.cwd(),
+			exclude: ['**/*.test.ts', '**/index.ts'],
+		});
 		const node_ids = new Set(dependency_graph.nodes.map((n) => n.id));
 		for (const m of modules) {
 			assert(node_ids.has(m.path), `module ${m.path} missing from layout`);

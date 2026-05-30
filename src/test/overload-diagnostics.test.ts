@@ -282,6 +282,44 @@ export function fn(a: string, b: number): string { return a + b; }
 			});
 		});
 
+		test('dotted @param keys for object-parameter properties produce no warnings', async () => {
+			const files = {
+				'src/lib/fn.ts': `
+/**
+ * Description.
+ * @param ctx - the context object
+ * @param ctx.node - parent node
+ * @param ctx.kindLabel - label
+ */
+export function fn(ctx: {node: string; kindLabel: string}): string { return ctx.kindLabel; }
+`,
+			};
+
+			await withTestProject(files, async (projectRoot) => {
+				const {diagnostics} = await analyze(setup(projectRoot, files));
+				assert.deepStrictEqual(unknownParam(diagnostics), []);
+			});
+		});
+
+		test('dotted @param key whose root is not a real parameter emits a warning', async () => {
+			const files = {
+				'src/lib/fn.ts': `
+/**
+ * @param wrong.node - root "wrong" is not a parameter
+ */
+export function fn(ctx: {node: string}): string { return ctx.node; }
+`,
+			};
+
+			await withTestProject(files, async (projectRoot) => {
+				const {diagnostics} = await analyze(setup(projectRoot, files));
+				const warnings = unknownParam(diagnostics);
+				assert.strictEqual(warnings.length, 1);
+				assert.strictEqual(warnings[0]?.paramName, 'wrong.node');
+				assert.strictEqual(warnings[0]?.functionName, 'fn');
+			});
+		});
+
 		test('typo on a class method emits a warning', async () => {
 			const files = {
 				'src/lib/cls.ts': `

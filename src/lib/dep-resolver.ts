@@ -27,6 +27,7 @@
  * @module
  */
 
+import {isBuiltin} from 'node:module';
 import ts from 'typescript';
 import {init as esModuleLexerInit, parse as esModuleLexerParse} from 'es-module-lexer';
 
@@ -138,6 +139,17 @@ export const lexImports = (content: string, fileId: string): Array<string> => {
 	}
 	return specifiers;
 };
+
+/**
+ * Whether a lexed specifier names a Node builtin (`fs`, `node:fs/promises`, …).
+ *
+ * Builtins can never be a project source file, so resolving them is pointless —
+ * and routing them through a host resolver (Vite/Rollup) makes that host emit
+ * "externalized for browser compatibility" warnings for browser-targeted
+ * configs. Callers skip resolution for these and treat them as unresolved
+ * (`null`), which the downstream `isSource` filter would do anyway.
+ */
+export const isNodeBuiltin = (specifier: string): boolean => isBuiltin(specifier);
 
 /**
  * Create the default `ImportResolver` (TypeScript + tsconfig).

@@ -1,19 +1,21 @@
 import type {Gen} from '@fuzdev/gro/gen.js';
-import type {LibraryJson} from '@fuzdev/fuz_util/library_json.js';
-import {readFile} from 'node:fs/promises';
+import {analyzeFromFiles} from 'svelte-docinfo/analyze.js';
 import {dirname, join} from 'node:path';
 
 import {compute_layout, type LayoutInput} from './graph_layout.js';
 
 export const gen: Gen = async ({origin_id, log}) => {
 	const here = dirname(origin_id);
-	const library_json_path = join(here, '..', '..', 'library.json');
-	const raw = await readFile(library_json_path, 'utf8');
-	const data: LibraryJson = JSON.parse(raw);
+	const project_root = join(here, '..', '..', '..', '..');
 
-	const modules = data.source_json.modules ?? [];
+	const {modules} = await analyzeFromFiles({
+		projectRoot: project_root,
+		exclude: ['**/*.test.ts', '**/index.ts'],
+		log,
+	});
+
 	if (modules.length === 0) {
-		log.warn(`no modules in ${library_json_path}; emitting empty layout`);
+		log.warn(`no modules found at ${project_root}; emitting empty layout`);
 	}
 
 	const input: LayoutInput = {

@@ -131,7 +131,9 @@ export const extractSignatureParameters = (
  * Emit `unknown_param` warnings for `@param` keys that don't reference a real
  * parameter. Catches typos (`@param argz` for `args`) and stale doc after a
  * rename. The description is dropped silently by `extractSignatureParameters`;
- * this surfaces the drop without halting.
+ * this surfaces the drop without halting. Dotted keys (`@param obj.prop`) that
+ * document a property of an object parameter are accepted when `obj` is a real
+ * parameter.
  *
  * @internal Helper for `extractOverloads` and other `@param`-extracting sites.
  */
@@ -145,7 +147,10 @@ const validateParamKeys = (
 	if (!tsdocParams) return;
 	const known = new Set(parameters.map((p) => p.name));
 	for (const key of Object.keys(tsdocParams)) {
-		if (!known.has(key)) {
+		// Dotted keys (`@param obj.prop`) document a property of an object/destructured
+		// parameter — valid JSDoc/TSDoc. Treat as known when the root segment is a real param.
+		const root = key.includes('.') ? key.slice(0, key.indexOf('.')) : key;
+		if (!known.has(key) && !known.has(root)) {
 			const loc = getNodeLocation(declNode);
 			diagnostics.push({
 				kind: 'unknown_param',

@@ -43,6 +43,7 @@ import {
 	type ResolveImport,
 	createDefaultResolver,
 	ensureLexerReady,
+	isNodeBuiltin,
 	lexImports,
 	normalizeResolveImport,
 } from './dep-resolver.js';
@@ -669,6 +670,11 @@ export const createAnalysisSession = (options: AnalysisSessionOptions): Analysis
 			const p = pendings[pi]!;
 			if (p.cacheHit) continue;
 			for (let si = 0; si < p.specifiers.length; si++) {
+				// Skip Node builtins — never a source file, and routing them
+				// through a host resolver (Vite/Rollup) provokes spurious
+				// "externalized for browser compatibility" warnings. The
+				// resolved slot stays `null` (its pre-filled default).
+				if (isNodeBuiltin(p.specifiers[si]!)) continue;
 				tasks.push({pendingIdx: pi, specIdx: si, specifier: p.specifiers[si]!});
 			}
 		}

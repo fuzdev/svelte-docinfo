@@ -60,8 +60,8 @@
   "devDependencies": {
     "@fuzdev/fuz_code": "^0.45.1",
     "@fuzdev/fuz_css": "^0.60.0",
-    "@fuzdev/fuz_ui": "^0.194.0",
-    "@fuzdev/fuz_util": "^0.61.1",
+    "@fuzdev/fuz_ui": "^0.195.1",
+    "@fuzdev/fuz_util": "^0.62.0",
     "@fuzdev/gro": "^0.199.1",
     "@ryanatkn/eslint-config": "^0.12.1",
     "@sveltejs/acorn-typescript": "^1.0.9",

@@ -1,8 +1,9 @@
 import {defineConfig} from 'vitest/config';
 import {sveltekit} from '@sveltejs/kit/vite';
+import svelte_docinfo from 'svelte-docinfo/vite.js';
 
 export default defineConfig({
-	plugins: [sveltekit()],
+	plugins: [sveltekit(), svelte_docinfo()],
 	optimizeDeps: {exclude: ['@fuzdev/blake3_wasm']},
 	test: {
 		// svelte.test.ts has ~50 cases at 1.3–2.3s wall each due to inherent

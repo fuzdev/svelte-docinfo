@@ -10,9 +10,8 @@ Conventions: [fuz-stack skill](https://github.com/fuzdev/fuz_docs).
 
 ## Committing
 
-`git add` and `git commit` are pre-approved here — commit short 1-liners
-at sensible stopping points (`fix:` / `docs:` / `test:` / `feat:` /
-`refactor:` / `chore:` prefix, no body, no trailers, no `Co-Authored-By`).
+`git add` and `git commit` are denied by `.claude/settings.local.json` in
+this repo — make the edits and stop, the user commits.
 
 **Examples**: `examples/vite/`, `examples/api/`, `examples/cli/`
 
