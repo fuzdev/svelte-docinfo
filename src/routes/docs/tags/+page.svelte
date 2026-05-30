@@ -39,7 +39,9 @@
 						<td><code>@param</code></td>
 						<td>
 							<DeclarationLink name="ParameterJson" />.<code>description</code> on the matching
-							parameter. Unmatched keys emit <code>unknown_param</code>
+							parameter. Dotted keys (<code>obj.prop</code>) land in
+							<code>propertyDescriptions</code>. Keys matching no parameter emit
+							<code>unknown_param</code>
 						</td>
 					</tr>
 					<tr>
@@ -153,14 +155,23 @@ export function double(n: number | bigint): number | bigint {
 			<TomeSectionHeader text="@param matching and unknown_param" />
 			<p>
 				<code>@param</code> keys are matched against actual parameter names. The leading
-				<code>-</code> separator is stripped (TypeScript's parser keeps it as syntax, not content). Destructured
-				parameters match the outer binding name, not inner properties.
+				<code>-</code> separator is stripped (TypeScript's parser keeps it as syntax, not content).
+				A bare key matches the parameter name; a dotted key (<code>obj.prop</code>) documents a
+				property of a named object parameter.
 			</p>
 			<p>
-				When a key doesn't match any parameter (a typo, a stale doc after a rename, or a description
-				of a destructured property), the description is dropped and an
-				<code>unknown_param</code> diagnostic fires with the orphaned key. Fix the JSDoc rather than relying
-				on the silent fallback.
+				Dotted keys whose root segment is a real parameter (<code>obj</code> in
+				<code>obj.prop</code>) land in <DeclarationLink name="ParameterJson" />'s
+				<code>propertyDescriptions</code> record, keyed by the sub-path (<code>obj.prop</code> →
+				<code>prop</code>, <code>obj.a.b</code> → <code>a.b</code>). The property segment is not
+				validated against the parameter's type. Matching is by parameter name, so destructured
+				parameters (<code>{`fn({a, b}: T)`}</code>, which TypeScript names <code>__0</code>) are not
+				covered.
+			</p>
+			<p>
+				A key matching no parameter — or a dotted key whose root segment matches none — drops its
+				description and fires an <code>unknown_param</code> diagnostic with the orphaned key, usually
+				a typo or stale doc after a rename. Fix the JSDoc rather than relying on the silent fallback.
 			</p>
 		</TomeSection>
 

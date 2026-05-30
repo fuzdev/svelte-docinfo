@@ -142,6 +142,22 @@ export const ParameterJson = z.strictObject({
 	description: z.string().optional(),
 	/** Default value expression from the source (e.g., `'hello'`, `42`). */
 	defaultValue: z.string().optional(),
+	/**
+	 * Descriptions for properties of a named object parameter, from dotted
+	 * `@param` tags (`@param obj.prop - ...`).
+	 *
+	 * Keyed by the sub-path relative to this parameter — `@param obj.prop`
+	 * becomes `{prop: '...'}`, `@param obj.a.b` becomes `{'a.b': '...'}`.
+	 * Keys are unvalidated against the parameter's actual type (matching the
+	 * `@mutates` philosophy); absent when no dotted `@param` tags reference
+	 * this parameter. Only populated for function/method/constructor
+	 * signature parameters.
+	 *
+	 * Matching is by the parameter's name, so destructured parameters
+	 * (`fn({a, b}: T)`) are not covered — TypeScript names them `__0`, with no
+	 * author-facing identifier for a `@param` key to reference.
+	 */
+	propertyDescriptions: z.record(z.string(), z.string()).optional(),
 });
 export type ParameterJson = z.infer<typeof ParameterJson>;
 export type ParameterJsonInput = z.input<typeof ParameterJson>;

@@ -256,8 +256,8 @@
 					>@throws</code
 				>
 				belong on the enclosing function symbol per the TSDoc spec. Per-parameter content lives on
-				<code>ParameterJson.description</code>
-				from <code>@param</code> only.
+				<code>ParameterJson.description</code> (and <code>propertyDescriptions</code> for
+				object-property docs) from <code>@param</code> only.
 			</p>
 		</TomeSection>
 
@@ -276,6 +276,11 @@
 				<li><code>rest</code>: whether the parameter uses rest syntax (<code>...args</code>)</li>
 				<li><code>description</code>: from <code>@param</code> JSDoc</li>
 				<li><code>defaultValue</code>: default value expression from the source, if present</li>
+				<li>
+					<code>propertyDescriptions</code>: for named object parameters, a record of sub-path →
+					description from dotted <code>@param obj.prop</code> tags, if present (destructured
+					params, named <code>__0</code> by TypeScript, are not covered)
+				</li>
 			</ul>
 		</TomeSection>
 

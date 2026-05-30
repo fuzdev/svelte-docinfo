@@ -1,0 +1,20 @@
+{
+	"name": "fn",
+	"kind": "function",
+	"docComment": "A function with documented object-parameter properties.",
+	"typeSignature": "(ctx: { node: string; label: string; nested: { deep: boolean; }; }): string",
+	"parameters": [
+		{
+			"name": "ctx",
+			"type": "{ node: string; label: string; nested: { deep: boolean; }; }",
+			"description": "the context object",
+			"propertyDescriptions": {
+				"node": "the parent node",
+				"label": "the display label",
+				"nested.deep": "a deeply nested property"
+			}
+		}
+	],
+	"returnType": "string",
+	"returnDescription": "the label"
+}

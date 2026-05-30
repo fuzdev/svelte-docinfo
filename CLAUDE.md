@@ -18,7 +18,7 @@ this repo — make the edits and stop, the user commits.
 ## Capabilities
 
 - **Full type resolution** — imported types, generics, complex inferred types
-- **TSDoc/JSDoc** — standard tags (`@param`, `@returns`, `@throws`, `@example`, `@deprecated`, `@see`, `@since`, `@default`, `@module`) plus `@nodocs` and `@mutates`. `@mutates` keys are unvalidated — typically a parameter name; compound paths (`this.foo`) and external state references accepted as-is
+- **TSDoc/JSDoc** — standard tags (`@param`, `@returns`, `@throws`, `@example`, `@deprecated`, `@see`, `@since`, `@default`, `@module`) plus `@nodocs` and `@mutates`. `@mutates` keys are unvalidated — typically a parameter name; compound paths (`this.foo`) and external state references accepted as-is. Dotted `@param obj.prop` tags for named object parameters surface as `ParameterJson.propertyDescriptions` (keyed by sub-path: `obj.prop` → `prop`, `obj.a.b` → `a.b`); the property segment is unvalidated like `@mutates`. Matching is by parameter name, so destructured params (`__0` synthetic names) are not covered
 - **Svelte 5 components** — props via svelte2tsx, generics, snippet parameter extraction
 - **Reactivity runes** — detects `$state`, `$state.raw`, `$derived`, `$derived.by` initializers (variables and class fields, `reactivity` field)
 - **Re-export tracking** — `alsoExportedFrom` for same-name, `aliasOf` for renames, star exports tracked separately; default slot uses `name === 'default'` (see Re-Export Philosophy)
@@ -256,7 +256,7 @@ Lock-in tests at `src/test/analyze.reexport-edges.test.ts`.
 
 - Standalone `namespace Foo {}` declarations (low priority). Note: `export * as ns from './x'` namespace re-exports _are_ supported as `NamespaceDeclarationJson`
 - Decorators (low priority)
-- Per-parameter doc fields — `ParameterJson` captures `name`/`type`/`optional`/`rest`/`description`/`defaultValue` only; `ComponentPropJson` includes `docFields` (`examples`, `deprecatedMessage`, `seeAlso`, `throws`, `since`), `ParameterJson` deliberately does not (function parameters rarely carry per-parameter doc tags; component props commonly do).
+- Per-parameter doc fields — `ParameterJson` captures `name`/`type`/`optional`/`rest`/`description`/`defaultValue`/`propertyDescriptions` only; `ComponentPropJson` includes `docFields` (`examples`, `deprecatedMessage`, `seeAlso`, `throws`, `since`), `ParameterJson` deliberately does not (function parameters rarely carry the richer per-parameter doc tags; component props commonly do). Object-property descriptions from dotted `@param obj.prop` tags _are_ captured — see `propertyDescriptions` below.
 
 ## API
 

@@ -214,6 +214,44 @@ export function fn(a: string | number): string | number { return a; }
 				assert.strictEqual(fn.overloads[1]?.parameters[0]?.description, 'number form');
 			});
 		});
+
+		test('each overload carries its own object-property @param descriptions', async () => {
+			const files = {
+				'src/lib/fn.ts': `
+/**
+ * Description.
+ * @param o - primary
+ * @param o.a - primary a
+ */
+export function fn(o: {a: string}): string;
+/**
+ * @param o - secondary
+ * @param o.b - secondary b
+ */
+export function fn(o: {b: number}): number;
+export function fn(o: {a: string} | {b: number}): string | number {
+	return 'a' in o ? o.a : o.b;
+}
+`,
+			};
+
+			await withTestProject(files, async (projectRoot) => {
+				const {modules, diagnostics} = await analyze(setup(projectRoot, files));
+				assert.deepStrictEqual(misplaced(diagnostics), []);
+				assert.deepStrictEqual(unknownParam(diagnostics), []);
+
+				const fn = modules.find((m) => m.path === 'fn.ts')?.declarations[0];
+				assert.ok(fn && fn.kind === 'function' && fn.overloads);
+				// each overload sources propertyDescriptions from its own JSDoc only,
+				// never bleeding from the parent or the sibling overload
+				assert.deepStrictEqual(fn.overloads[0]?.parameters[0]?.propertyDescriptions, {
+					a: 'primary a',
+				});
+				assert.deepStrictEqual(fn.overloads[1]?.parameters[0]?.propertyDescriptions, {
+					b: 'secondary b',
+				});
+			});
+		});
 	});
 
 	describe('unknown_param — @param key with no matching parameter', () => {
@@ -298,6 +336,67 @@ export function fn(ctx: {node: string; kindLabel: string}): string { return ctx.
 			await withTestProject(files, async (projectRoot) => {
 				const {diagnostics} = await analyze(setup(projectRoot, files));
 				assert.deepStrictEqual(unknownParam(diagnostics), []);
+			});
+		});
+
+		test('dotted @param descriptions surface as propertyDescriptions on the parameter', async () => {
+			const files = {
+				'src/lib/fn.ts': `
+/**
+ * Description.
+ * @param ctx - the context object
+ * @param ctx.node - parent node
+ * @param ctx.nested.deep - a deeply nested property
+ */
+export function fn(ctx: {node: string; nested: {deep: boolean}}): string { return ctx.node; }
+`,
+			};
+
+			await withTestProject(files, async (projectRoot) => {
+				const {modules, diagnostics} = await analyze(setup(projectRoot, files));
+				assert.deepStrictEqual(unknownParam(diagnostics), []);
+				const decl = modules[0]?.declarations[0];
+				assert(decl?.kind === 'function');
+				const param = decl.parameters[0];
+				assert(param);
+				assert.strictEqual(param.name, 'ctx');
+				assert.strictEqual(param.description, 'the context object');
+				assert.deepStrictEqual(param.propertyDescriptions, {
+					node: 'parent node',
+					'nested.deep': 'a deeply nested property',
+				});
+			});
+		});
+
+		test('dotted @param on a destructured parameter is not matched (known limitation)', async () => {
+			// TypeScript names destructured params `__0`, so a `@param options.a` key
+			// has no parameter name to match — propertyDescriptions stays empty and
+			// the dotted key (and its bare root) emit unknown_param. Lock-in so the
+			// "named object params only" docs can't silently drift.
+			const files = {
+				'src/lib/fn.ts': `
+/**
+ * @param options - the options
+ * @param options.a - the a value
+ */
+export function fn({a, b}: {a: string; b: number}): string { return a + String(b); }
+`,
+			};
+
+			await withTestProject(files, async (projectRoot) => {
+				const {modules, diagnostics} = await analyze(setup(projectRoot, files));
+				const decl = modules[0]?.declarations[0];
+				assert(decl?.kind === 'function');
+				const param = decl.parameters[0];
+				assert(param);
+				assert.strictEqual(param.name, '__0');
+				assert.strictEqual(param.propertyDescriptions, undefined);
+				assert.deepStrictEqual(
+					unknownParam(diagnostics)
+						.map((d) => d.paramName)
+						.sort(),
+					['options', 'options.a'],
+				);
 			});
 		});
 

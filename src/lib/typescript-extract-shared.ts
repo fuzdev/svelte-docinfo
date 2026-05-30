@@ -107,6 +107,19 @@ export const extractSignatureParameters = (
 		// Get TSDoc description for this parameter
 		const description = tsdocParams?.[param.name];
 
+		// Collect dotted `@param obj.prop` descriptions for object/destructured
+		// parameters, keyed by the sub-path relative to this parameter
+		// (`obj.prop` → `prop`, `obj.a.b` → `a.b`).
+		let propertyDescriptions: Record<string, string> | undefined;
+		if (tsdocParams) {
+			const prefix = param.name + '.';
+			for (const [key, value] of Object.entries(tsdocParams)) {
+				if (key.startsWith(prefix)) {
+					(propertyDescriptions ??= {})[key.slice(prefix.length)] = value;
+				}
+			}
+		}
+
 		// Extract default value from AST
 		let defaultValue: string | undefined;
 		if (paramDecl && ts.isParameter(paramDecl) && paramDecl.initializer) {
@@ -123,6 +136,7 @@ export const extractSignatureParameters = (
 			rest,
 			description,
 			defaultValue,
+			propertyDescriptions,
 		};
 	});
 };
