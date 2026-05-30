@@ -16,9 +16,9 @@
 
 	const library_json = library_json_from_modules(package_json, modules);
 
-	const library = library_context.set(new Library(library_json));
+	library_context.set(new Library(library_json));
 </script>
 
-<Docs {tomes} {library}>
+<Docs {tomes}>
 	{@render children()}
 </Docs>

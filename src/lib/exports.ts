@@ -139,7 +139,10 @@ const flattenConditions = (value: unknown, prefix?: string): Record<string, stri
 
 	// Object = conditions map (possibly nested)
 	if (typeof value === 'object' && !Array.isArray(value)) {
-		const result: Record<string, string> = {};
+		// Null-prototype map: condition keys come from package.json `exports` (external
+		// input) and are read back by key in `selectCondition` (`key in conditions`,
+		// `conditions[key]`); avoids prototype keys leaking into membership/lookup.
+		const result: Record<string, string> = Object.create(null);
 		for (const [key, nested] of Object.entries(value as Record<string, unknown>)) {
 			const flattened = flattenConditions(nested, key);
 			if (flattened) {

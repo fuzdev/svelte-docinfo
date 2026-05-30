@@ -124,7 +124,12 @@ export const parseComment = (
 	if (tsdocComments.length === 0) return undefined;
 
 	let fullText = '';
-	const params: Record<string, string> = {};
+	// Null-prototype map: keys are parameter names parsed from source. Without it,
+	// a parameter named after an `Object.prototype` key (`constructor`, `toString`,
+	// `__proto__`, …) with no matching `@param` tag would read the inherited
+	// prototype value on lookup (`tsdocParams?.[param.name]`) instead of `undefined`,
+	// and writing such a key (`@param __proto__`) would pollute the prototype.
+	const params: Record<string, string> = Object.create(null);
 	let returns: string | undefined;
 	let throws: Array<{type?: string; description: string}> | undefined;
 	let examples: Array<string> | undefined;
@@ -197,7 +202,10 @@ export const parseComment = (
 			if (match) {
 				const paramName = match[1]!;
 				const description = match[2]!.trim();
-				(mutates ??= {})[paramName] = description;
+				// Null-prototype map: `paramName` comes from source (`\w+` matches
+				// `__proto__`, `constructor`, …); a plain object would let such a key
+				// pollute the prototype on write and read back later by key.
+				(mutates ??= Object.create(null))[paramName] = description;
 			}
 		} else if (tagName === 'nodocs') {
 			nodocs = true;

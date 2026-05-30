@@ -3,6 +3,10 @@
 	import {logo_svelte_docinfo} from '$lib/logo.js';
 	import {resolve} from '$app/paths';
 	import DocsFooter from '@fuzdev/fuz_ui/DocsFooter.svelte';
+	import {site_context} from '@fuzdev/fuz_ui/site.svelte.js';
+	import {FUZ_DEV_URL} from '@fuzdev/fuz_ui/constants.js';
+
+	const site = site_context.get();
 </script>
 
 <main>
@@ -19,11 +23,7 @@
 		</div>
 	</section>
 	<section>
-		<!-- TODO remove `library` from the `DocsFooter` props -->
-		<DocsFooter
-			library={{repo_url: 'https://github.com/fuzdev/svelte-docinfo'} as any}
-			root_url="https://www.fuz.dev/"
-		/>
+		<DocsFooter repo_url={site.repo_url} root_url={FUZ_DEV_URL} />
 	</section>
 </main>
 

@@ -115,7 +115,10 @@ export const extractSignatureParameters = (
 			const prefix = param.name + '.';
 			for (const [key, value] of Object.entries(tsdocParams)) {
 				if (key.startsWith(prefix)) {
-					(propertyDescriptions ??= {})[key.slice(prefix.length)] = value;
+					// Null-prototype map: the sliced sub-path is source-derived and is
+					// emitted as `propertyDescriptions`; a `@param obj.__proto__` key on a
+					// plain object would pollute the prototype on write.
+					(propertyDescriptions ??= Object.create(null))[key.slice(prefix.length)] = value;
 				}
 			}
 		}
