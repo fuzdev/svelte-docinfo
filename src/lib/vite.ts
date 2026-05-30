@@ -62,8 +62,6 @@ const RESOLVED_VIRTUAL_ID = '\0virtual:svelte-docinfo';
 
 /** Stable resolver identity for Vite's plugin-container resolver in dev mode. */
 const VITE_DEV_IDENTITY = 'vite-plugin-container';
-/** Stable resolver identity for the Rollup `this.resolve` resolver in build mode. */
-const VITE_BUILD_IDENTITY = 'vite-rollup-build';
 
 /** Options for the `svelteDocinfo` Vite plugin. */
 export interface VitePluginSvelteDocinfoOptions {
@@ -176,16 +174,6 @@ const svelteDocinfo = (options: VitePluginSvelteDocinfoOptions = {}): Plugin => 
 			}
 		},
 		identity: VITE_DEV_IDENTITY,
-	};
-
-	// Build resolver: Rollup `this.resolve` is per-build; we re-bind in
-	// buildStart while keeping a stable identity so cache hits survive
-	// `vite build --watch` rebuilds.
-	let buildResolveFn: ((s: string, f: string) => Promise<string | null>) | null = null;
-	const buildResolver: ImportResolver = {
-		resolve: (specifier, fromFile) =>
-			buildResolveFn ? buildResolveFn(specifier, fromFile) : Promise.resolve(null),
-		identity: VITE_BUILD_IDENTITY,
 	};
 
 	// ── In-flight analysis tracking ─────────────────────────────────────────
@@ -396,23 +384,26 @@ const svelteDocinfo = (options: VitePluginSvelteDocinfoOptions = {}): Plugin => 
 		async buildStart() {
 			// Choose resolver based on mode; create the session here (after
 			// configResolved set sourceOptions; for dev, after configureServer
-			// set `server`). Identity stable across rebuilds.
-			let sessionResolver: ImportResolver;
+			// set `server`).
+			let sessionResolver: ImportResolver | undefined;
 			if (!resolveDependencies) {
 				sessionResolver = noDepsResolver;
 			} else if (server) {
 				sessionResolver = viteDevResolver;
 			} else {
-				const ctxResolve = this.resolve.bind(this);
-				buildResolveFn = async (specifier, fromFile) => {
-					try {
-						const r = await ctxResolve(specifier, fromFile);
-						return r?.id ?? null;
-					} catch {
-						return null;
-					}
-				};
-				sessionResolver = buildResolver;
+				// Build mode: resolve via the session's TS-based default
+				// (`createDefaultResolver`, reached by leaving `resolveImport`
+				// undefined) rather than Rollup's `this.resolve`. `this.resolve`
+				// mutates the active build's module graph, so resolving a bare
+				// package specifier from the analyzed source — e.g. `vite`,
+				// imported (type-only) by this module — pulls the whole
+				// toolchain (vite → rollup → esbuild) into the client bundle.
+				// It tree-shakes away, but floods the log with "externalized for
+				// browser" warnings. `ts.resolveModuleName` is side-effect-free
+				// and honors tsconfig `paths` (incl. SvelteKit's generated
+				// `$lib`), which covers internal dependency edges. Node builtins
+				// are already filtered before the resolver (see `session.ts`).
+				sessionResolver = undefined;
 			}
 
 			// Recreate session on each buildStart so `vite build --watch` cycles

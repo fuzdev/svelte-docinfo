@@ -78,6 +78,72 @@ describe('svelteDocinfo', () => {
 		assert.equal(plugin.name, 'vite-plugin-svelte-docinfo');
 	});
 
+	// Regression: in build mode (no dev server) the plugin must resolve
+	// dependencies through the session's TS-based default resolver, NOT Rollup's
+	// `this.resolve`. Routing analysis through `this.resolve` mutates the active
+	// build's module graph, so resolving a bare package specifier from the
+	// analyzed source drags the toolchain (vite/rollup/esbuild) into the client
+	// bundle and floods the log with "externalized for browser" warnings. The
+	// recording `this.resolve` mock below must never be called, and the `a → b`
+	// relative edge must still resolve via TS.
+	test('build mode resolves deps via TS default, never calling this.resolve', async () => {
+		await withTempProject(
+			{
+				'tsconfig.json': JSON.stringify({
+					compilerOptions: {module: 'nodenext', moduleResolution: 'nodenext'},
+					include: ['src/**/*.ts'],
+				}),
+				'src/lib/a.ts': "import {b} from './b.js';\nexport const a = b + 1;\n",
+				'src/lib/b.ts': 'export const b = 1;\n',
+			},
+			async (dir) => {
+				// `resolveDependencies` defaults to `true`, so this exercises the
+				// build-resolver branch (the dev branch needs a server).
+				const plugin = svelteDocinfo({
+					projectRoot: dir,
+					discovery: 'glob',
+					include: ['src/**/*.ts'],
+				});
+				const configResolved = plugin.configResolved as unknown as (cfg: {
+					root: string;
+					command: string;
+					logger: {info: () => void; warn: () => void; error: () => void};
+				}) => void;
+				const noopLogger = {info: () => {}, warn: () => {}, error: () => {}};
+				configResolved({root: dir, command: 'build', logger: noopLogger});
+
+				let resolveCalls = 0;
+				const buildStart = plugin.buildStart as unknown as (this: {
+					resolve: (s: string, f: string) => Promise<null>;
+				}) => Promise<void>;
+				await buildStart.call({
+					resolve: async () => {
+						resolveCalls++;
+						return null;
+					},
+				});
+				assert.equal(
+					resolveCalls,
+					0,
+					'build mode must not route dep resolution through this.resolve',
+				);
+
+				const load = plugin.load as (id: string) => Promise<string | undefined>;
+				const code = await load('\0virtual:svelte-docinfo');
+				assert.ok(code, 'expected virtual module code');
+				const line = code.split('\n').find((l) => l.startsWith('export const modules = '));
+				assert.ok(line, 'expected modules export line');
+				const modules = JSON.parse(line.slice('export const modules = '.length, -1)) as Array<{
+					path: string;
+					dependencies?: Array<string>;
+				}>;
+				const a = modules.find((m) => m.path === 'a.ts');
+				assert.ok(a, 'expected a.ts module');
+				assert.deepEqual(a.dependencies, ['b.ts'], 'relative edge a → b resolved via TS default');
+			},
+		);
+	});
+
 	// Regression for empty-modules root serialization: `JSON.stringify([], compactReplacer)`
 	// returns the JS value `undefined`, which template-literal interpolates as "undefined".
 	// `updateOutputFromQuery` short-circuits to the literal `'[]'` for empty `modules`
