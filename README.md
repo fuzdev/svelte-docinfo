@@ -95,7 +95,8 @@ Three ways to integrate `svelte-docinfo`:
 import svelteDocinfo from 'svelte-docinfo/vite.js';
 
 export default defineConfig({plugins: [sveltekit(), svelteDocinfo()]});
-// then anywhere in your app: import {modules} from 'virtual:svelte-docinfo';
+// then anywhere in your app:
+// import {modules} from 'virtual:svelte-docinfo';
 ```
 
 2. [CLI](#cli) - quick analysis from the command line, useful for ad-hoc inspection and shell pipelines:
