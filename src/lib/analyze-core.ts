@@ -2,8 +2,8 @@
  * Pure two-phase analysis orchestrator.
  *
  * Extracted from `analyze.ts` to break what would otherwise be a circular
- * import: `session.ts → analyze.ts (for the orchestrator) → session.ts (for
- * the wrappers)`. With the orchestrator here, both `session.ts` and
+ * import: `session.ts` → `analyze.ts` (for the orchestrator) → `session.ts`
+ * (for the wrappers). With the orchestrator here, both `session.ts` and
  * `analyze.ts` import downward into this module without depending on each
  * other.
  *
