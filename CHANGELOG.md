@@ -1,5 +1,11 @@
 # svelte-docinfo
 
+## 0.3.0
+
+### Minor Changes
+
+- fix: improve inferred type output for intersections and unions ([#1](https://github.com/fuzdev/svelte-docinfo/pull/1))
+
 ## 0.2.1
 
 ### Patch Changes
