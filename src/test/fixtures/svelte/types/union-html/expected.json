@@ -1,0 +1,12 @@
+[
+	{
+		"name": "TypesUnionHtml",
+		"kind": "component",
+		"intersects": [
+			"SvelteHTMLElements['h1']",
+			"SvelteHTMLElements['h2']"
+		],
+		"acceptsChildren": true,
+		"sourceLine": 1
+	}
+]

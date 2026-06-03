@@ -15,7 +15,7 @@
  * There is no Svelte 4 compatibility layer.
  *
  * @see `typescript-exports.ts` for `analyzeExports`, `extractModuleComment`
- * @see `typescript-extract-shared.ts` for `parseGenericParam`, `filterIntersectionProperties`
+ * @see `typescript-extract-shared.ts` for `parseGenericParam`, `filterExternalProperties`
  * @see `typescript-program.ts` for `IsExternalFile`, `createIsExternalFile`
  * @see `tsdoc.ts` for `parseComment`, `applyToDeclaration`
  * @see `source.ts` for `SourceFileInfo`, `getComponentName`
@@ -36,7 +36,7 @@ import type {
 } from './declaration-build.js';
 import {parseComment, applyToDeclaration, hasModuleTag, type TsdocParsedComment} from './tsdoc.js';
 import {type IsExternalFile, createIsExternalFile} from './typescript-program.js';
-import {parseGenericParam, filterIntersectionProperties} from './typescript-extract-shared.js';
+import {parseGenericParam, filterExternalProperties} from './typescript-extract-shared.js';
 import {extractModuleComment, analyzeExports} from './typescript-exports.js';
 import {type SourceFileInfo, getComponentName, SVELTE_VIRTUAL_SUFFIX} from './source.js';
 import {type ModuleSourceOptions, extractDependencies} from './source-config.js';
@@ -802,10 +802,9 @@ const extractPropsViaChecker = (
 	// Detect `acceptsChildren` via type inference: `children` must resolve to a
 	// `Snippet<...>` type. Checking the symbol name alone (the previous approach)
 	// misreports a non-Snippet `children` (e.g. `children: string`) as accepting
-	// children. The lookup runs on the unfiltered intersection so inherited
+	// children. The lookup runs on the unfiltered props type so inherited
 	// `children` from `SvelteHTMLElements`/`DOMAttributes` (declared as `Snippet`)
 	// is honored even when its declaration lives in node_modules.
-	const allProperties = propsType.getProperties();
 	const acceptsChildren = detectChildrenSnippet(
 		propsType,
 		propsTypeNode,
@@ -815,14 +814,15 @@ const extractPropsViaChecker = (
 		filePath,
 	);
 
-	// For intersection types, filter out properties from external sources (node_modules)
-	const intersectionResult = filterIntersectionProperties(
+	// Drop properties contributed by external types (node_modules / svelte's
+	// element-attribute bags like `SvelteHTMLElements['li']`); those external
+	// types are summarized in `intersects` rather than enumerated as props.
+	const {properties, externalTypes} = filterExternalProperties(
 		propsType,
 		propsTypeNode,
 		checker,
 		isExternalFile,
 	);
-	const properties = intersectionResult?.properties ?? allProperties;
 
 	const props: Array<ComponentPropJsonInput> = [];
 
@@ -891,7 +891,7 @@ const extractPropsViaChecker = (
 		);
 	}
 
-	return {props, intersectionTypes: intersectionResult?.intersectionTypes, acceptsChildren};
+	return {props, intersectionTypes: externalTypes, acceptsChildren};
 };
 
 /**

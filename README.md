@@ -174,6 +174,8 @@ All three produce the same JSON shape:
 }
 ```
 
+For many more worked examples — source input paired with the exact JSON `svelte-docinfo` emits — browse the [test fixtures](https://github.com/fuzdev/svelte-docinfo/tree/main/src/test/fixtures), where each case sits beside its `expected.json`.
+
 ## Vite plugin
 
 1. Add the plugin to `vite.config.ts`:

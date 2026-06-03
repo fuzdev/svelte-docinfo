@@ -1,0 +1,11 @@
+[
+	{
+		"name": "TypesBareHtml",
+		"kind": "component",
+		"intersects": [
+			"SvelteHTMLElements['li']"
+		],
+		"acceptsChildren": true,
+		"sourceLine": 1
+	}
+]

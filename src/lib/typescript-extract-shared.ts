@@ -403,48 +403,109 @@ export const resolveIntersectionTypeNode = (
 };
 
 /**
- * Filter intersection type properties to exclude those from external sources,
- * and extract type names for branches whose properties are all external.
+ * Determine whether a type-reference / indexed-access node names a type whose
+ * properties all come from external files (e.g. `SvelteHTMLElements['li']`,
+ * `HTMLAttributes<HTMLDivElement>`). Such a node is an external attribute "bag"
+ * that should be summarized in `intersects` rather than enumerated as members.
  *
- * Returns `null` for non-intersection types (caller should use unfiltered properties).
- * For intersection types, returns filtered properties and external type names.
- *
- * Per-property filtering works through utility types (Partial, Pick, Readonly)
- * because TypeScript preserves original declaration sources on mapped type properties.
+ * Mirrors the per-property origin test used for membership: external only when
+ * the node has at least one property and every property is external. A
+ * zero-property branch (e.g. a pure index signature) is not surfaced — there is
+ * no named member to attribute to it.
  */
-export const filterIntersectionProperties = (
+const isExternalTypeRefNode = (
+	node: ts.TypeNode,
+	checker: ts.TypeChecker,
+	isExternalFile: IsExternalFile,
+): boolean => {
+	const props = checker.getTypeAtLocation(node).getProperties();
+	return props.length > 0 && props.every((p) => isExternalProperty(p, isExternalFile));
+};
+
+/**
+ * Walk a written type node and collect, in source order, the verbatim text of
+ * every external type reference it composes.
+ *
+ * Structure is read from the AST rather than the inferred type because
+ * inference erases it: `(A | B) & C` normalizes to a union and `X['k']`
+ * flattens to a property bag, both losing the `&`/`|`/index-access shape the
+ * author wrote. Composition nodes (intersection, union, parenthesized) recurse;
+ * leaf references (`TypeReference`, `IndexedAccessType`) are tested with
+ * `isExternalTypeRefNode` and, when external, emitted via `getText()`. Inline
+ * object literals and other local shapes contribute no entry.
+ *
+ * @mutates out - appends each external reference's source text
+ */
+const collectExternalTypeRefs = (
+	node: ts.TypeNode,
+	checker: ts.TypeChecker,
+	isExternalFile: IsExternalFile,
+	out: Array<string>,
+): void => {
+	if (ts.isParenthesizedTypeNode(node)) {
+		collectExternalTypeRefs(node.type, checker, isExternalFile, out);
+	} else if (ts.isIntersectionTypeNode(node) || ts.isUnionTypeNode(node)) {
+		for (const branch of node.types) collectExternalTypeRefs(branch, checker, isExternalFile, out);
+	} else if (ts.isTypeReferenceNode(node) || ts.isIndexedAccessTypeNode(node)) {
+		if (isExternalTypeRefNode(node, checker, isExternalFile)) out.push(node.getText());
+	}
+};
+
+/**
+ * Resolve a props/type-alias annotation node to the written type node whose
+ * structure drives `intersects` extraction.
+ *
+ * The svelte2tsx props annotation is a reference to a generated `$$ComponentProps`
+ * alias; unwrap one level of *local* type-alias reference so the underlying
+ * composition (`SvelteHTMLElements['li']`, `(A | B) & C`, …) is visible. External
+ * alias references are left intact so they read as a single named bag rather than
+ * leaking their node_modules-internal definition. Type-alias callers pass the
+ * written node directly, so for them this is a no-op.
+ */
+const resolveAnnotationTypeNode = (
+	typeNode: ts.Node,
+	checker: ts.TypeChecker,
+	isExternalFile: IsExternalFile,
+): ts.TypeNode | undefined => {
+	if (ts.isTypeReferenceNode(typeNode)) {
+		const aliasDecl = checker
+			.getSymbolAtLocation(typeNode.typeName)
+			?.getDeclarations()
+			?.find(ts.isTypeAliasDeclaration);
+		if (aliasDecl && !isExternalFile(aliasDecl.getSourceFile())) return aliasDecl.type;
+	}
+	return ts.isTypeNode(typeNode) ? typeNode : undefined;
+};
+
+/**
+ * Partition a type's properties into local (kept) and external (dropped), and
+ * collect the external type references that contributed the dropped ones.
+ *
+ * Applies to any composition shape — intersection, union, bare reference,
+ * indexed-access — not only intersections. Membership is decided per property
+ * by declaration origin (`isExternalProperty`), which is structure-agnostic:
+ * TypeScript preserves original declaration sources on derived properties, so
+ * the test gives the right answer through utility-type wrappers (Partial, Pick,
+ * `OmitStrict`) too. A property with no declarations (synthesized) is treated as
+ * local and kept. The external-type labels for `intersects` come from an AST
+ * walk (`collectExternalTypeRefs`) — the authoritative source for the
+ * `&`/`|`/index-access shape inference would otherwise erase.
+ */
+export const filterExternalProperties = (
 	type: ts.Type,
 	typeNode: ts.Node,
 	checker: ts.TypeChecker,
 	isExternalFile: IsExternalFile,
-): {properties: Array<ts.Symbol>; intersectionTypes: Array<string>} | null => {
-	if (!type.isIntersection()) return null;
-
+): {properties: Array<ts.Symbol>; externalTypes: Array<string>} => {
 	const properties = type
 		.getProperties()
 		.filter((prop) => !isExternalProperty(prop, isExternalFile));
 
-	// Resolve through type aliases (e.g., svelte2tsx $$ComponentProps) to find
-	// the IntersectionTypeNode for `intersects` extraction.
-	const intersectionNode = resolveIntersectionTypeNode(type, typeNode);
+	const externalTypes: Array<string> = [];
+	const annotation = resolveAnnotationTypeNode(typeNode, checker, isExternalFile);
+	if (annotation) collectExternalTypeRefs(annotation, checker, isExternalFile, externalTypes);
 
-	const intersectionTypes: Array<string> = [];
-	if (intersectionNode) {
-		for (const branch of intersectionNode.types) {
-			if (ts.isTypeReferenceNode(branch) || ts.isIndexedAccessTypeNode(branch)) {
-				const branchType = checker.getTypeAtLocation(branch);
-				const branchProps = branchType.getProperties();
-				if (
-					branchProps.length > 0 &&
-					branchProps.every((p) => isExternalProperty(p, isExternalFile))
-				) {
-					intersectionTypes.push(branch.getText());
-				}
-			}
-		}
-	}
-
-	return {properties, intersectionTypes};
+	return {properties, externalTypes};
 };
 
 /**

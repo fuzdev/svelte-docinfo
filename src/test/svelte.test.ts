@@ -1,5 +1,5 @@
 import {test, assert, describe, beforeAll} from 'vitest';
-import {join} from 'node:path';
+import {join, dirname} from 'node:path';
 import {readFileSync} from 'node:fs';
 
 import {
@@ -61,7 +61,12 @@ const analyzeTestComponent = (
 		sourceFile,
 		modulePath,
 		testChecker,
-		testSourceOptions(),
+		// Root options at the component's own directory so its file is treated as
+		// internal — the production invariant is that analyzed files live under
+		// `projectRoot`. With the default cwd root, synthetic ids outside cwd are
+		// judged external and the component's own inline props get filtered out as
+		// if they came from node_modules.
+		createTestSourceOptions(dirname(sourceFile.id)),
 		diagnostics,
 		program,
 		virtualFile,
@@ -79,7 +84,10 @@ const analyzeSvelteTestIntegration = (
 	diagnostics: Array<Diagnostic>,
 	options?: ModuleSourceOptions,
 ): ModuleAnalysis => {
-	const opts = options ?? testSourceOptions();
+	// Default options root at the component's own directory so its file is treated
+	// as internal (see `analyzeTestComponent` for why); callers needing a specific
+	// project layout pass `options` explicitly.
+	const opts = options ?? createTestSourceOptions(dirname(sourceFile.id));
 	const virtualFile = transformOrThrow(sourceFile);
 	const program = createCachedAnalysisProgram(
 		new Map([[virtualFile.virtualPath, virtualFile.content]]),
