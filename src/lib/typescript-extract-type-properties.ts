@@ -204,7 +204,10 @@ export const extractTypeAliasProperties = (
 
 	// Drop properties contributed by external types (node_modules / declaration
 	// files) and surface those external types in the `intersects` field. Applies
-	// to any shape — intersections, unions, bare references, indexed-access.
+	// to the property-bearing shapes that pass `hasExtractableProperties` above —
+	// intersections, bare references, indexed-access. Unions are gated out here
+	// (the Svelte prop path calls `filterExternalProperties` directly, so unions
+	// still surface `intersects` there, just not for plain type aliases).
 	const {properties: filteredProperties, externalTypes} = filterExternalProperties(
 		nodeType,
 		node.type,

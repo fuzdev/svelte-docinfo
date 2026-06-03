@@ -408,6 +408,51 @@ describe('filterExternalProperties', () => {
 		assert.deepEqual(propNames, ['own']);
 		assert.deepEqual(result.externalTypes, ['ExtA', 'ExtB']);
 	});
+
+	test('a local property redeclaring an external one is kept; external-only is dropped', () => {
+		// Mirrors the common Svelte pattern of narrowing an inherited attribute, e.g.
+		// `SvelteHTMLElements['button'] & { onclick: (e: CustomEvent) => void }`. When a
+		// prop name appears on both an external branch and a local branch, TypeScript's
+		// merged symbol carries the local declaration too, so `isExternalProperty`
+		// (external only when *every* declaration is external) keeps it. `extOnly`
+		// (declared solely on the external branch) is dropped; `Ext` is still summarized
+		// in `intersects`. Order-independent — both branch orders behave the same.
+		//
+		// Caveat: an *incompatible* override whose property type collapses to `never`
+		// (e.g. external `string` & local `boolean`) is dropped, not kept — the degenerate
+		// type leaves the merged symbol with only the external declaration.
+		const probe = (content: string) => {
+			const {checker, sourceFiles} = createProgram([
+				{
+					path: '/src/lib/ext.ts',
+					content: 'export type Ext = { shared: string; extOnly: number };',
+				},
+				{path: '/src/lib/test.ts', content},
+			]);
+			const sf = sourceFiles.get('/src/lib/test.ts')!;
+			const alias = findTypeAlias(sf, checker, 'C')!;
+			const isExternal: IsExternalFile = (f) => f.fileName.includes('ext.ts');
+			const result = filterExternalProperties(alias.type, alias.node.type, checker, isExternal);
+			return {
+				propNames: result.properties.map((p) => p.name).sort(),
+				externalTypes: result.externalTypes,
+			};
+		};
+
+		const externalFirst = probe(`
+			import type {Ext} from './ext.js';
+			export type C = Ext & { shared: string };
+		`);
+		assert.deepEqual(externalFirst.propNames, ['shared']);
+		assert.deepEqual(externalFirst.externalTypes, ['Ext']);
+
+		const localFirst = probe(`
+			import type {Ext} from './ext.js';
+			export type C = { shared: string } & Ext;
+		`);
+		assert.deepEqual(localFirst.propNames, ['shared']);
+		assert.deepEqual(localFirst.externalTypes, ['Ext']);
+	});
 });
 
 describe('extractTypeInfo: index-signature filtering on intersections', () => {
@@ -442,7 +487,7 @@ describe('extractTypeInfo: index-signature filtering on intersections', () => {
 			'external string index sig must not leak onto local type',
 		);
 		// `intersects` lists only branches with named external properties
-		// (per `filterIntersectionProperties`). A pure-index-sig external branch
+		// (per `filterExternalProperties`). A pure-index-sig external branch
 		// has zero named props and is intentionally not surfaced there.
 		assert.equal(declaration.intersects, undefined);
 	});

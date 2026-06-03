@@ -749,7 +749,7 @@ const extractPropsViaChecker = (
 	isExternalFile: IsExternalFile,
 ): {
 	props: Array<ComponentPropJsonInput>;
-	intersectionTypes?: Array<string>;
+	externalTypes?: Array<string>;
 	acceptsChildren: boolean;
 } => {
 	// Find the $props() call and resolve its type via the checker
@@ -891,7 +891,7 @@ const extractPropsViaChecker = (
 		);
 	}
 
-	return {props, intersectionTypes: externalTypes, acceptsChildren};
+	return {props, externalTypes, acceptsChildren};
 };
 
 /**
@@ -1028,7 +1028,7 @@ export const analyzeSvelteModule = (
 	const {bindableProps, propsDefaults} = extractPropsMetadata(virtualTsSource);
 	const {
 		props,
-		intersectionTypes,
+		externalTypes,
 		acceptsChildren: propsAcceptsChildren,
 	} = extractPropsViaChecker(
 		virtualTsSource,
@@ -1044,12 +1044,12 @@ export const analyzeSvelteModule = (
 	if (props.length > 0) {
 		componentDecl.props = props;
 	}
-	if (intersectionTypes?.length) {
-		componentDecl.intersects = intersectionTypes;
+	if (externalTypes?.length) {
+		componentDecl.intersects = externalTypes;
 	}
 
 	// Determine acceptsChildren via two paths:
-	// Path A: children found in props type (from extractPropsViaChecker, before intersection filtering)
+	// Path A: children found in props type (from extractPropsViaChecker, before external-property filtering)
 	// Path B: implicit children usage in template (for components without $props() children declaration)
 	let acceptsChildren = propsAcceptsChildren;
 	if (!acceptsChildren) {
