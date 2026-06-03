@@ -49,8 +49,8 @@
 			for everything else!
 		</p>
 		<p class="panel p_md">
-			<strong>AI disclosure:</strong> the code and docs beyond the intro were written by Claude Code with
-			uneven human guidance. The first release took about 5 months of intermittent work and 500 manual
+			<strong>AI disclosure:</strong> the code and docs beyond the intro were mostly written by Claude
+			Code with uneven human guidance. The first release took 5 months of intermittent work and ~500 manual
 			commits.
 		</p>
 		<TomeSection>
