@@ -1,0 +1,11 @@
+[
+	{
+		"name": "TypesBareGeneric",
+		"kind": "component",
+		"intersects": [
+			"HTMLAttributes<HTMLDivElement>"
+		],
+		"acceptsChildren": true,
+		"sourceLine": 1
+	}
+]

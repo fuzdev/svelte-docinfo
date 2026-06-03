@@ -1,0 +1,12 @@
+[
+	{
+		"name": "TypesUnionGeneric",
+		"kind": "component",
+		"intersects": [
+			"HTMLButtonAttributes",
+			"HTMLAnchorAttributes"
+		],
+		"acceptsChildren": true,
+		"sourceLine": 1
+	}
+]

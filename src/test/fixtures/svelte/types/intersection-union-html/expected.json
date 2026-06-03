@@ -1,0 +1,19 @@
+[
+	{
+		"name": "TypesIntersectionUnionHtml",
+		"kind": "component",
+		"props": [
+			{
+				"name": "label",
+				"type": "string",
+				"description": "A label rendered inside the element."
+			}
+		],
+		"intersects": [
+			"SvelteHTMLElements['div']",
+			"SvelteHTMLElements['span']"
+		],
+		"acceptsChildren": true,
+		"sourceLine": 1
+	}
+]

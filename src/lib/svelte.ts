@@ -15,7 +15,7 @@
  * There is no Svelte 4 compatibility layer.
  *
  * @see `typescript-exports.ts` for `analyzeExports`, `extractModuleComment`
- * @see `typescript-extract-shared.ts` for `parseGenericParam`, `filterIntersectionProperties`
+ * @see `typescript-extract-shared.ts` for `parseGenericParam`, `filterExternalProperties`
  * @see `typescript-program.ts` for `IsExternalFile`, `createIsExternalFile`
  * @see `tsdoc.ts` for `parseComment`, `applyToDeclaration`
  * @see `source.ts` for `SourceFileInfo`, `getComponentName`
@@ -36,7 +36,7 @@ import type {
 } from './declaration-build.js';
 import {parseComment, applyToDeclaration, hasModuleTag, type TsdocParsedComment} from './tsdoc.js';
 import {type IsExternalFile, createIsExternalFile} from './typescript-program.js';
-import {parseGenericParam, filterIntersectionProperties} from './typescript-extract-shared.js';
+import {parseGenericParam, filterExternalProperties} from './typescript-extract-shared.js';
 import {extractModuleComment, analyzeExports} from './typescript-exports.js';
 import {type SourceFileInfo, getComponentName, SVELTE_VIRTUAL_SUFFIX} from './source.js';
 import {type ModuleSourceOptions, extractDependencies} from './source-config.js';
@@ -749,7 +749,7 @@ const extractPropsViaChecker = (
 	isExternalFile: IsExternalFile,
 ): {
 	props: Array<ComponentPropJsonInput>;
-	intersectionTypes?: Array<string>;
+	externalTypes?: Array<string>;
 	acceptsChildren: boolean;
 } => {
 	// Find the $props() call and resolve its type via the checker
@@ -802,10 +802,9 @@ const extractPropsViaChecker = (
 	// Detect `acceptsChildren` via type inference: `children` must resolve to a
 	// `Snippet<...>` type. Checking the symbol name alone (the previous approach)
 	// misreports a non-Snippet `children` (e.g. `children: string`) as accepting
-	// children. The lookup runs on the unfiltered intersection so inherited
+	// children. The lookup runs on the unfiltered props type so inherited
 	// `children` from `SvelteHTMLElements`/`DOMAttributes` (declared as `Snippet`)
 	// is honored even when its declaration lives in node_modules.
-	const allProperties = propsType.getProperties();
 	const acceptsChildren = detectChildrenSnippet(
 		propsType,
 		propsTypeNode,
@@ -815,14 +814,15 @@ const extractPropsViaChecker = (
 		filePath,
 	);
 
-	// For intersection types, filter out properties from external sources (node_modules)
-	const intersectionResult = filterIntersectionProperties(
+	// Drop properties contributed by external types (node_modules / svelte's
+	// element-attribute bags like `SvelteHTMLElements['li']`); those external
+	// types are summarized in `intersects` rather than enumerated as props.
+	const {properties, externalTypes} = filterExternalProperties(
 		propsType,
 		propsTypeNode,
 		checker,
 		isExternalFile,
 	);
-	const properties = intersectionResult?.properties ?? allProperties;
 
 	const props: Array<ComponentPropJsonInput> = [];
 
@@ -891,7 +891,7 @@ const extractPropsViaChecker = (
 		);
 	}
 
-	return {props, intersectionTypes: intersectionResult?.intersectionTypes, acceptsChildren};
+	return {props, externalTypes, acceptsChildren};
 };
 
 /**
@@ -1028,7 +1028,7 @@ export const analyzeSvelteModule = (
 	const {bindableProps, propsDefaults} = extractPropsMetadata(virtualTsSource);
 	const {
 		props,
-		intersectionTypes,
+		externalTypes,
 		acceptsChildren: propsAcceptsChildren,
 	} = extractPropsViaChecker(
 		virtualTsSource,
@@ -1044,12 +1044,12 @@ export const analyzeSvelteModule = (
 	if (props.length > 0) {
 		componentDecl.props = props;
 	}
-	if (intersectionTypes?.length) {
-		componentDecl.intersects = intersectionTypes;
+	if (externalTypes?.length) {
+		componentDecl.intersects = externalTypes;
 	}
 
 	// Determine acceptsChildren via two paths:
-	// Path A: children found in props type (from extractPropsViaChecker, before intersection filtering)
+	// Path A: children found in props type (from extractPropsViaChecker, before external-property filtering)
 	// Path B: implicit children usage in template (for components without $props() children declaration)
 	let acceptsChildren = propsAcceptsChildren;
 	if (!acceptsChildren) {

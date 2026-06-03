@@ -24,7 +24,7 @@ import {parseComment, applyToDeclaration, type TsdocParsedComment} from './tsdoc
 import {type IsExternalFile} from './typescript-program.js';
 import {
 	emitCallOrConstructSignature,
-	filterIntersectionProperties,
+	filterExternalProperties,
 	getNodeLocation,
 	isExternalIntersectionBranch,
 	populateCallableMember,
@@ -202,16 +202,20 @@ export const extractTypeAliasProperties = (
 ): void => {
 	if (!hasExtractableProperties(nodeType)) return;
 
-	// For intersection types, filter out properties from external sources (node_modules)
-	// and extract type names for the `intersects` field
-	const intersectionResult = filterIntersectionProperties(
+	// Drop properties contributed by external types (node_modules / declaration
+	// files) and surface those external types in the `intersects` field. Applies
+	// to the property-bearing shapes that pass `hasExtractableProperties` above —
+	// intersections, bare references, indexed-access. Unions are gated out here
+	// (the Svelte prop path calls `filterExternalProperties` directly, so unions
+	// still surface `intersects` there, just not for plain type aliases).
+	const {properties: filteredProperties, externalTypes} = filterExternalProperties(
 		nodeType,
 		node.type,
 		checker,
 		isExternalFile,
 	);
-	if (intersectionResult?.intersectionTypes.length) {
-		declaration.intersects = intersectionResult.intersectionTypes;
+	if (externalTypes.length) {
+		declaration.intersects = externalTypes;
 	}
 
 	// Detect mapped-type-level readonly (e.g., Readonly<T>, { readonly [K in ...]: ... })
@@ -228,9 +232,8 @@ export const extractTypeAliasProperties = (
 		}
 	}
 
-	// Extract named properties (filtered for intersections, full for other types)
-	const properties = intersectionResult?.properties ?? nodeType.getProperties();
-	for (const prop of properties) {
+	// Extract named properties (external contributions already filtered out)
+	for (const prop of filteredProperties) {
 		// Skip internal TypeScript symbols
 		if (prop.getName().startsWith('__@')) continue;
 
