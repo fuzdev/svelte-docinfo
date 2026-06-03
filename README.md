@@ -45,7 +45,7 @@ and [discussions](https://github.com/fuzdev/svelte-docinfo/discussions)
 for everything else!
 
 **AI disclosure:** the code and docs beyond the intro were written by Claude Code with uneven human guidance.
-The first release took about 5 months of intermittent work and 500 manual commits.
+The first release took about 5 months of intermittent work and ~500 manual commits.
 
 ## Quick start
 
@@ -337,7 +337,8 @@ Known gaps: standalone `namespace Foo {}` declarations and decorators are not ye
 was this project's main inspiration.
 
 Extracted from [fuz_ui](https://github.com/fuzdev/fuz_ui),
-which has example components using the data for docs websites.
+which has example components using the data for docs websites like
+[`DeclarationDetail`](https://github.com/fuzdev/fuz_ui/blob/main/src/lib/DeclarationDetail.svelte).
 
 `svelte-docinfo` is more featureful than it would be
 otherwise thanks to LLM assistance, mostly Claude Code.
