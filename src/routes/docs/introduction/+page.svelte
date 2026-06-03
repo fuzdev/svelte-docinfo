@@ -42,8 +42,8 @@
 			<a href="#Compared-to-sveld">comparison</a> below.
 		</p>
 		<p>
-			This is an early release. There are gaps to fill and design choices still open, but Svelte 5
-			coverage seems good and it's used in production websites. Please open issues for bugs, and <a
+			The library is mostly complete for Svelte 5 and used in production websites, but you may find
+			gaps and flaws -- please open issues for bugs, and <a
 				href="https://github.com/fuzdev/svelte-docinfo/discussions">discussions</a
 			>
 			for everything else!

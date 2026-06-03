@@ -37,10 +37,8 @@ but instead of AST-only inspection it uses the TypeScript compiler API for riche
 and also analyzes TypeScript modules.
 The docs [compare](https://svelte-docinfo.fuz.dev/docs/introduction#Compared-to-sveld) them.
 
-This is an early release --
-there are gaps to be filled and design choices to make,
-but for Svelte 5 it's mostly complete and used in production websites.
-Please open issues for bugs
+The library is mostly complete for Svelte 5 and used in production websites,
+but you may find gaps and flaws -- please open issues for bugs
 and [discussions](https://github.com/fuzdev/svelte-docinfo/discussions)
 for everything else!
 
