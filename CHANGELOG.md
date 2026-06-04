@@ -1,5 +1,11 @@
 # svelte-docinfo
 
+## 0.4.0
+
+### Minor Changes
+
+- chore: fix peer deps ([0e39268](https://github.com/fuzdev/svelte-docinfo/commit/0e39268))
+
 ## 0.3.0
 
 ### Minor Changes
