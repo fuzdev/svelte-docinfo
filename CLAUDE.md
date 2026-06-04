@@ -301,9 +301,12 @@ fuz_ui's `library_gen.ts` wraps `analyze()` with `SourceJson` metadata, producin
 
 ## Dependencies
 
-**Core**: `typescript`, `zod`, `commander`, `tinyglobby`, `es-module-lexer`, `@jridgewell/trace-mapping`
+**Core**: `typescript`, `commander`, `tinyglobby`, `es-module-lexer`, `@jridgewell/trace-mapping`
 
-**Peer**: `svelte` 5+, `svelte2tsx`
+**Peer** (required): `svelte` 5+, `svelte2tsx`, `zod` 4+ — `svelte`/`svelte2tsx`
+are eagerly imported on every entry (`svelte.ts` is statically reachable from all
+public entries), so required even for pure-TypeScript analysis; `zod` is a peer so
+its schema types resolve to a single instance in the consumer's tree
 
 ## Testing
 

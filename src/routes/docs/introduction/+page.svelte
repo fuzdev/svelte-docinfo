@@ -30,9 +30,8 @@
 		</p>
 		<p>
 			Dependencies are minimal and the tool's scope is limited to data, not presentation. These docs
-			were made using the data produced by svelte-docinfo, mainly the <TomeLink slug="api"
-				>API reference</TomeLink
-			>, with <a href="https://ui.fuz.dev/">fuz_ui</a> components.
+			were made using the data produced by svelte-docinfo, like the <TomeLink slug="architecture" /> and
+			<TomeLink slug="api">API reference</TomeLink>, with <a href="https://ui.fuz.dev/">fuz_ui</a> components.
 		</p>
 		<p>
 			svelte-docinfo is largely inspired by <a href="https://github.com/carbon-design-system/sveld"
