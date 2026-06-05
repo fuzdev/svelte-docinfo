@@ -1,5 +1,11 @@
 # svelte-docinfo
 
+## 0.4.1
+
+### Patch Changes
+
+- feat: add `AnalyzeResultJsonWire` for the vite plugin value ([#2](https://github.com/fuzdev/svelte-docinfo/pull/2))
+
 ## 0.4.0
 
 ### Minor Changes
