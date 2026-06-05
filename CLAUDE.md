@@ -260,11 +260,9 @@ Lock-in tests at `src/test/analyze.reexport-edges.test.ts`.
 
 ## API
 
-| Function                  | Use when                                                               |
-| ------------------------- | ---------------------------------------------------------------------- |
-| `analyzeFromFiles()`      | One-shot — standalone projects, file discovery from disk               |
-| `analyze()`               | One-shot — build tools, you provide `SourceFileInfo[]`                 |
-| `createAnalysisSession()` | Incremental — Vite plugin, LSP-style tools (reuses LS across analyses) |
+- `analyzeFromFiles()` – One-shot — standalone projects, file discovery from disk
+- `analyze()` – One-shot — build tools, you provide `SourceFileInfo[]`
+- `createAnalysisSession()` – Incremental — Vite plugin, LSP-style tools (reuses LS across analyses)
 
 All three produce `AnalyzeResultJson = {modules: ModuleJson[], diagnostics: Array<Diagnostic>}`. The one-shot APIs are thin wrappers over single-use sessions. The CLI and Vite virtual module both emit this same shape — CLI runs output through `compactReplacer` (no top-level carve-out), so empty arrays are stripped on the wire; consumers ingesting the JSON should parse through `AnalyzeResultJson` to restore defaults. Consumers handle package metadata and serialization — see `LibraryJson` in `@fuzdev/fuz_util` for the fuz pattern.
 
@@ -276,22 +274,20 @@ npx svelte-docinfo -o output.json     # write to file
 npx svelte-docinfo --pretty           # pretty-print
 ```
 
-| Flag                        | Description                                                                                                                                            |
-| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `[project-root]`            | Project root directory (default: cwd)                                                                                                                  |
-| `-i, --include <pattern>`   | Include pattern (repeatable, replaces exports discovery)                                                                                               |
-| `-e, --exclude <pattern>`   | Exclude glob, applied at discovery and analysis (repeatable)                                                                                           |
-| `-o, --output <file>`       | Output file (default: stdout; `-` is the explicit stdout sentinel)                                                                                     |
-| `--discovery <mode>`        | `auto` \| `exports` \| `glob` (default: `auto` — exports first, glob fallback). `exports` is strict and throws when package.json exports is missing    |
-| `--dist-dir <dir>`          | Dist directory for exports discovery (default: dist)                                                                                                   |
-| `--source-dir <dir>`        | Source directory relative to project root (default: src/lib). Repeatable; derives implicit include glob when `--include` not provided                  |
-| `--source-root <dir>`       | Source root for module path extraction (default: single source-dir or longest common prefix; pass `.` for project-relative paths)                      |
-| `--on-duplicates <mode>`    | `throw` \| `warn` (default: emit `duplicate_declaration` diagnostic, no dispatch)                                                                      |
-| `--only <pattern>`          | Glob filter applied to module paths in output (repeatable); full project still analyzed (re-exports/dependents stay correct), diagnostics not filtered |
-| `--no-resolve-dependencies` | Disable dependency resolution                                                                                                                          |
-| `--pretty`                  | Pretty-print JSON (default: compact)                                                                                                                   |
-| `-q, --quiet`               | Suppress info messages on stderr                                                                                                                       |
-| `-V, --version`             | Show version number                                                                                                                                    |
+- `[project-root]` – Project root directory (default: cwd)
+- `-i, --include <pattern>` – Include pattern (repeatable, replaces exports discovery)
+- `-e, --exclude <pattern>` – Exclude glob, applied at discovery and analysis (repeatable)
+- `-o, --output <file>` – Output file (default: stdout; `-` is the explicit stdout sentinel)
+- `--discovery <mode>` – `auto` | `exports` | `glob` (default: `auto` — exports first, glob fallback). `exports` is strict and throws when package.json exports is missing
+- `--dist-dir <dir>` – Dist directory for exports discovery (default: dist)
+- `--source-dir <dir>` – Source directory relative to project root (default: src/lib). Repeatable; derives implicit include glob when `--include` not provided
+- `--source-root <dir>` – Source root for module path extraction (default: single source-dir or longest common prefix; pass `.` for project-relative paths)
+- `--on-duplicates <mode>` – `throw` | `warn` (default: emit `duplicate_declaration` diagnostic, no dispatch)
+- `--only <pattern>` – Glob filter applied to module paths in output (repeatable); full project still analyzed (re-exports/dependents stay correct), diagnostics not filtered
+- `--no-resolve-dependencies` – Disable dependency resolution
+- `--pretty` – Pretty-print JSON (default: compact)
+- `-q, --quiet` – Suppress info messages on stderr
+- `-V, --version` – Show version number
 
 Compact JSON by default. Exit codes: 0 (success), 1 (analysis errors), 2 (CLI errors).
 
