@@ -10,11 +10,12 @@
  *
  * ## Wire shape vs Zod output shape
  *
- * The plugin serializes `modules` through `compactReplacer`, which strips
- * empty arrays and `false` values to keep the bundle small. So fields like
- * `declarations`, `members`, `props` that are `.default([])` in the schema
- * arrive as `undefined` on any module that has none, and `.default(false)`
- * booleans arrive as `undefined` when false.
+ * The module's shape is `AnalyzeResultJsonWire` — the input-side counterpart
+ * to `AnalyzeResultJson`. The plugin serializes `modules` through
+ * `compactReplacer`, which strips empty arrays and `false` values to keep the
+ * bundle small. So fields like `declarations`, `members`, `props` that are
+ * `.default([])` in the schema arrive as `undefined` on any module that has
+ * none, and `.default(false)` booleans arrive as `undefined` when false.
  *
  * `ModuleJsonInput` (the `z.input` of `ModuleJson`) reflects this — its
  * default-bearing fields are optional. Consumers either use optional
@@ -30,8 +31,8 @@
  * `svelte.config.js` aliases `'svelte-docinfo' → 'src/lib'` (load-bearing
  * for fuz_ui's `library_gen`, a circular dev-dep). `@sveltejs/package`
  * applies that alias to every file under `src/lib/`, including hand-written
- * `.d.ts`, rewriting the `'svelte-docinfo/...'` imports below to relative
- * paths. TypeScript doesn't resolve relative imports inside ambient
+ * `.d.ts`, rewriting the `'svelte-docinfo'` import below to a relative
+ * path. TypeScript doesn't resolve relative imports inside ambient
  * `declare module` blocks in consumer projects — types silently collapse
  * to `any`.
  *
@@ -40,10 +41,9 @@
  * Do not "fix" this by moving the file into `src/lib/`.
  */
 declare module 'virtual:svelte-docinfo' {
-	import type {ModuleJsonInput} from 'svelte-docinfo/types.js';
-	import type {Diagnostic} from 'svelte-docinfo/diagnostics.js';
-	export const modules: Array<ModuleJsonInput>;
-	export const diagnostics: Array<Diagnostic>;
-	const data: {modules: Array<ModuleJsonInput>; diagnostics: Array<Diagnostic>};
+	import type {AnalyzeResultJsonWire} from 'svelte-docinfo';
+	export const modules: AnalyzeResultJsonWire['modules'];
+	export const diagnostics: AnalyzeResultJsonWire['diagnostics'];
+	const data: AnalyzeResultJsonWire;
 	export default data;
 }

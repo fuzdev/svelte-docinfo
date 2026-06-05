@@ -29,7 +29,7 @@
 import ts from 'typescript';
 import {z} from 'zod';
 
-import {ModuleJson} from './types.js';
+import {ModuleJson, type ModuleJsonInput} from './types.js';
 import type {ModuleAnalysis, ReExportInfo} from './declaration-build.js';
 import {Diagnostic} from './diagnostics.js';
 import type {AnalysisLog} from './log.js';
@@ -179,12 +179,42 @@ const dispatchOnDuplicates = (
  * objects without re-running `.parse()` — the inner `modules` and
  * `diagnostics` arrays are already Zod-validated upstream, and the envelope
  * schema is the type contract, not a validation gate.
+ *
+ * See `AnalyzeResultJsonWire` for the serialized input-side shape published on
+ * `virtual:svelte-docinfo`.
  */
 export const AnalyzeResultJson = z.strictObject({
 	modules: z.array(ModuleJson).default([]),
 	diagnostics: z.array(Diagnostic).default([]),
 });
 export type AnalyzeResultJson = z.infer<typeof AnalyzeResultJson>;
+
+/**
+ * Serialized wire shape of an analysis result, as published by the Vite plugin
+ * on `virtual:svelte-docinfo` — the input-side counterpart to
+ * `AnalyzeResultJson` (the validated output of `.parse()`).
+ *
+ * The two fields are deliberately asymmetric:
+ *
+ * - `modules` is `ModuleJsonInput` (the `z.input` of `ModuleJson`) because the
+ *   plugin runs it through `compactReplacer`, which strips `.default([])`
+ *   arrays and `.default(false)` booleans. Default-bearing fields therefore
+ *   arrive `undefined`.
+ * - `diagnostics` is the output `Diagnostic` — the plugin serializes it
+ *   without the replacer, and `Diagnostic` has no defaults to strip, so the
+ *   array is always present and the shape matches runtime exactly.
+ *
+ * Consumers restore defaults by parsing through `AnalyzeResultJson`.
+ *
+ * Note this describes the Vite virtual module specifically. The CLI runs the
+ * whole envelope through `compactReplacer`, so its JSON may additionally omit
+ * an empty `diagnostics` array — CLI consumers should parse through
+ * `AnalyzeResultJson` rather than assume this shape.
+ */
+export interface AnalyzeResultJsonWire {
+	modules: Array<ModuleJsonInput>;
+	diagnostics: Array<Diagnostic>;
+}
 
 /**
  * Result of analyzing a single module.
