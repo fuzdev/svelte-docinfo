@@ -15,7 +15,7 @@
 export {analyze, analyzeFromFiles} from './analyze.js';
 export type {AnalyzeOptions, AnalyzeFromFilesOptions} from './analyze.js';
 export {throwOnDuplicates, AnalyzeResultJson} from './analyze-core.js';
-export type {OnDuplicates, OnDuplicatesCallback} from './analyze-core.js';
+export type {AnalyzeResultJsonWire, OnDuplicates, OnDuplicatesCallback} from './analyze-core.js';
 export {createAnalysisSession} from './session.js';
 export type {
 	AnalysisSession,
