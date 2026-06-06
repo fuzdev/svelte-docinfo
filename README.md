@@ -10,7 +10,7 @@ of TypeScript and Svelte modules for open-ended use cases
 like docs, code search, and dev tools.
 It uses
 [svelte2tsx](https://github.com/sveltejs/language-tools/tree/master/packages/svelte2tsx)
-and the TypeScript compiler API to resolve types, track exports, and extract semantic details.
+and the TypeScript compiler API to resolve types, track exports+imports, and extract semantic details.
 It includes a Vite plugin, CLI, and programmatic API
 in the [npm package](https://www.npmjs.com/package/svelte-docinfo).
 
@@ -320,8 +320,13 @@ See the [API docs](https://svelte-docinfo.fuz.dev/docs/api) for the full referen
 - **Build-tool agnostic**: works with any source: file system, build pipeline, or in-memory
 - **Diagnostic collection**: accumulates warnings and errors without halting; `partial: true` flags incomplete declarations
 
-Known gaps: standalone `namespace Foo {}` declarations and decorators are not yet supported. Svelte 4 legacy features (slots, events, context, `$restProps`) are out of scope — Svelte 5 snippets and callback props replace most of them.
-[Issues](https://github.com/fuzdev/svelte-docinfo/issues) and
+Known gaps:
+
+- context tracking (transitive detection of common patterns seems tractable)
+- standalone `namespace Foo {}` declarations and decorators are not yet supported
+- Svelte 4 legacy features (slots, events, `$restProps`) are out of scope — Svelte 5 snippets and callback props replace most of them
+
+[Issues](https://github.com/fuzdev/svelte-docinfo/issues) for bugs and
 [discussions](https://github.com/fuzdev/svelte-docinfo/discussions) are welcome!
 
 ## Documentation

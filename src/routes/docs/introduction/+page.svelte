@@ -24,7 +24,8 @@
 			<a href="https://github.com/sveltejs/language-tools/tree/master/packages/svelte2tsx"
 				>svelte2tsx</a
 			>
-			and the TypeScript compiler API to resolve types, track exports, and extract semantic details. The
+			and the TypeScript compiler API to resolve types, track exports+imports, and extract semantic details.
+			The
 			<a href="https://www.npmjs.com/package/svelte-docinfo">npm package</a> has a Vite plugin, CLI, and
 			programmatic API.
 		</p>
