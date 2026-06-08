@@ -5,7 +5,7 @@
 > static analysis for TypeScript and Svelte 📜
 > [**svelte-docinfo.fuz.dev**](https://svelte-docinfo.fuz.dev/)
 
-**svelte-docinfo** extracts JSON describing the exports
+svelte-docinfo extracts JSON describing the exports
 of TypeScript and Svelte modules for open-ended use cases
 like docs, code search, and dev tools.
 It uses
@@ -27,11 +27,6 @@ npm install svelte-docinfo -D
 - [Credits](#credits)
 - [License](#license)
 
-Dependencies are minimal and the tool's scope is limited to data, not presentation.
-The [docs website](https://svelte-docinfo.fuz.dev/docs/api)
-for svelte-docinfo is made using itself
-and [fuz_ui](https://github.com/fuzdev/fuz_ui) components.
-
 svelte-docinfo is largely inspired by [`sveld`](https://github.com/carbon-design-system/sveld),
 but instead of AST-only inspection it uses the TypeScript compiler API for richer information,
 and also analyzes TypeScript modules.
@@ -41,6 +36,11 @@ The library is mostly complete for Svelte 5 and used in production websites,
 but you may find gaps and flaws -- please open issues for bugs
 and [discussions](https://github.com/fuzdev/svelte-docinfo/discussions)
 for everything else!
+
+Dependencies are minimal and the tool's scope is limited to data, not presentation.
+The [docs website](https://svelte-docinfo.fuz.dev/docs/api)
+for svelte-docinfo is made using itself
+and [fuz_ui](https://github.com/fuzdev/fuz_ui) components.
 
 **AI disclosure:** the code and docs beyond the intro
 were mostly written by Claude Code with uneven human guidance.

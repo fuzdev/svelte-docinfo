@@ -19,8 +19,8 @@
 <TomeContent {tome}>
 	<section>
 		<p>
-			<strong>svelte-docinfo</strong> extracts JSON describing the exports of TypeScript and Svelte
-			modules for open-ended use cases like docs, code search, and dev tools. It uses
+			svelte-docinfo extracts JSON describing the exports of TypeScript and Svelte modules for
+			open-ended use cases like docs, code search, and dev tools. It uses
 			<a href="https://github.com/sveltejs/language-tools/tree/master/packages/svelte2tsx"
 				>svelte2tsx</a
 			>
@@ -28,11 +28,6 @@
 			The
 			<a href="https://www.npmjs.com/package/svelte-docinfo">npm package</a> has a Vite plugin, CLI, and
 			programmatic API.
-		</p>
-		<p>
-			Dependencies are minimal and the tool's scope is limited to data, not presentation. These docs
-			were made using the data produced by svelte-docinfo, like the <TomeLink slug="architecture" /> and
-			<TomeLink slug="api">API reference</TomeLink>, with <a href="https://ui.fuz.dev/">fuz_ui</a> components.
 		</p>
 		<p>
 			svelte-docinfo is largely inspired by <a href="https://github.com/carbon-design-system/sveld"
@@ -47,6 +42,11 @@
 				href="https://github.com/fuzdev/svelte-docinfo/discussions">discussions</a
 			>
 			for everything else!
+		</p>
+		<p>
+			Dependencies are minimal and the tool's scope is limited to data, not presentation. These docs
+			were made using the data produced by svelte-docinfo, like the <TomeLink slug="architecture" /> and
+			<TomeLink slug="api">API reference</TomeLink>, with <a href="https://ui.fuz.dev/">fuz_ui</a> components.
 		</p>
 		<p class="panel p_md">
 			<strong>AI disclosure:</strong> the code and docs beyond the intro were mostly written by Claude
