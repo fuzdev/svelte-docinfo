@@ -236,6 +236,22 @@ const classifyNamespaceReExport = (
 };
 
 /**
+ * Whether any of the symbol's declarations lives in `fileName`
+ * (virtual-suffix-normalized).
+ *
+ * Merged symbols (module augmentation, declaration merging) can have
+ * declarations in several files — a symbol counts as declared in the file
+ * when at least one declaration is, so checking a single declaration node
+ * would drop locally-declared exports depending on bind order. Symbols
+ * without declarations are treated as declared in the file (permissive).
+ */
+const isDeclaredInFile = (symbol: ts.Symbol, fileName: string): boolean => {
+	const decls = symbol.declarations;
+	if (!decls?.length) return true;
+	return decls.some((d) => stripVirtualSuffix(d.getSourceFile().fileName) === fileName);
+};
+
+/**
  * Analyze all exports from a TypeScript source file.
  *
  * Extracts the module-level comment via `extractModuleComment`, star exports via
@@ -378,6 +394,18 @@ export const analyzeExports = (
 					}
 					continue;
 				}
+
+				// Star-projected alias bindings: `export * from './b'` projects
+				// b.ts's own re-export specifiers into this module's export table,
+				// sharing the foreign ExportSpecifier symbol. Same encoding rule as
+				// star-projected value symbols below — `starExports` is the sole
+				// encoding; processing the binding here would publish re-export
+				// edges for statements this module's source doesn't contain and
+				// read the foreign statement's JSDoc as if local (synthesizing
+				// duplicate declarations with mis-attributed docs). Star-projected
+				// *namespace* bindings are intentionally handled above and do
+				// produce links.
+				if (!isDeclaredInFile(exportSymbol, currentFileName)) continue;
 
 				// This might be a re-export - use getAliasedSymbol to find the original
 				const aliasedSymbol = checker.getAliasedSymbol(exportSymbol);
@@ -559,17 +587,13 @@ export const analyzeExports = (
 			}
 
 			// Star-projected exports surface as the target module's own symbols —
-			// no Alias flag, declaration in a foreign file (`export * from './a'`
+			// no Alias flag, declarations in a foreign file (`export * from './a'`
 			// merges a.ts's export table; there is no per-name alias node). Their
 			// encoding is `starExports`; analyzing them here would duplicate the
 			// canonical declaration into this module (triggering spurious
 			// duplicate_declaration diagnostics, with sourceLine pointing into
 			// the foreign file).
-			if (!isAlias) {
-				const ownDecl = exportSymbol.valueDeclaration ?? exportSymbol.declarations?.[0];
-				const ownFileName = ownDecl && stripVirtualSuffix(ownDecl.getSourceFile().fileName);
-				if (ownFileName !== undefined && ownFileName !== currentFileName) continue;
-			}
+			if (!isAlias && !isDeclaredInFile(exportSymbol, currentFileName)) continue;
 
 			// Normal export or within-file alias - declared in this file.
 			// For within-file aliases (export { x } or export { x as y }), resolve to

@@ -627,7 +627,7 @@ export {default} from './Foo.svelte';`,
 	test("non-Svelte same-name re-export of default links via name: 'default'", async () => {
 		// `export {default} from './a.js'` where a.js has `export default function foo`.
 		// The canonical's name is `'default'` (the symbol's actual name in JS);
-		// `mergeReExports` keys by `(originalModule, name)` like any other re-export.
+		// `mergeReExports` keys by `(module, name)` like any other re-export.
 		const files = {
 			'src/lib/a.ts': `export default function foo(): void {}\n`,
 			'src/lib/b.ts': `export {default} from './a.js';\n`,
@@ -1300,6 +1300,70 @@ describe('module-level reExports field', {timeout: 15_000}, () => {
 		});
 	});
 
+	test('star-projected re-export aliases are not materialized either (no edges, no declarations)', async () => {
+		// `export * from './b.js'` projects b.ts's own re-export specifiers
+		// (alias-flagged, foreign ExportSpecifier symbol) into index.ts's export
+		// table. Like star-projected value symbols, `starExports` is their sole
+		// encoding — no forward edge, no back-link, no duplicate_declaration.
+		const files = {
+			'src/lib/a.ts': `export const foo = 1;\n`,
+			'src/lib/b.ts': `export {foo} from './a.js';\n`,
+			'src/lib/index.ts': `export * from './b.js';\n`,
+		};
+
+		await withTestProject(files, async (projectRoot) => {
+			const {sourceFiles, sourceOptions} = setupAnalysis(projectRoot, files);
+			const {modules, diagnostics} = await analyze({sourceFiles, sourceOptions});
+
+			const indexModule = modules.find((m) => m.path === 'index.ts')!;
+			assert.deepStrictEqual(indexModule.starExports, ['b.ts']);
+			assert.deepStrictEqual(indexModule.reExports, []);
+			assert.deepStrictEqual(indexModule.declarations, []);
+			assert.ok(!diagnostics.some((d) => d.kind === 'duplicate_declaration'));
+
+			// b.ts keeps its own forward edge; the canonical's back-links cover
+			// only the module whose source contains the statement
+			const bModule = modules.find((m) => m.path === 'b.ts')!;
+			assert.deepStrictEqual(bModule.reExports, [{name: 'foo', module: 'a.ts'}]);
+			const foo = modules
+				.find((m) => m.path === 'a.ts')!
+				.declarations.find((d) => d.name === 'foo');
+			assert.deepStrictEqual(foo?.alsoExportedFrom, ['b.ts']);
+		});
+	});
+
+	test('foreign JSDoc on a star-projected re-export statement does not leak across the star', async () => {
+		// b.ts's documented re-export statement triggers Position-3 synthesis in
+		// b.ts only. The star-projecting module shares b.ts's ExportSpecifier
+		// symbol, so without the locality skip the foreign JSDoc would
+		// synthesize a duplicate declaration in index.ts with b.ts's docs.
+		const files = {
+			'src/lib/a.ts': `export const foo = 1;\n`,
+			'src/lib/b.ts': `/** B's local view. */\nexport {foo} from './a.js';\n`,
+			'src/lib/index.ts': `export * from './b.js';\n`,
+		};
+
+		await withTestProject(files, async (projectRoot) => {
+			const {sourceFiles, sourceOptions} = setupAnalysis(projectRoot, files);
+			const {modules} = await analyze({sourceFiles, sourceOptions});
+
+			const indexModule = modules.find((m) => m.path === 'index.ts')!;
+			assert.deepStrictEqual(indexModule.declarations, []);
+			assert.deepStrictEqual(indexModule.reExports, []);
+
+			// Position 3 stays where the statement lives
+			const bAlias = modules
+				.find((m) => m.path === 'b.ts')!
+				.declarations.find((d) => d.name === 'foo');
+			assert.strictEqual(bAlias?.docComment, "B's local view.");
+			// ...and the canonical's back-link covers b.ts only
+			const foo = modules
+				.find((m) => m.path === 'a.ts')!
+				.declarations.find((d) => d.name === 'foo');
+			assert.deepStrictEqual(foo?.alsoExportedFrom, ['b.ts']);
+		});
+	});
+
 	test('Svelte default-slot re-export re-keys the edge by component name', async () => {
 		const files = {
 			'src/lib/Foo.svelte': `<script lang="ts">
@@ -1446,6 +1510,28 @@ let {label}: {label: string} = $props();
 
 			// The two canonicals are a flat-namespace duplicate — orthogonal to reExports
 			assert.ok(diagnostics.some((d) => d.kind === 'duplicate_declaration'));
+		});
+	});
+
+	test('exact-duplicate edges are deduped (Svelte default re-key + same-name script-module export)', async () => {
+		// `export {default} from './Foo.svelte'` re-keys to 'Foo'; the same
+		// file's `<script module>` also exports a const `Foo`, so re-exporting
+		// both produces two identical `{name: 'Foo', module: 'Foo.svelte'}`
+		// edges. Deduped so `(name, module)` pairs stay unique.
+		const files = {
+			'src/lib/Foo.svelte': `<script module lang="ts">
+export const Foo = 1;
+</script>
+<p>text</p>`,
+			'src/lib/barrel.ts': `export {default} from './Foo.svelte';\nexport {Foo} from './Foo.svelte';\n`,
+		};
+
+		await withTestProject(files, async (projectRoot) => {
+			const {sourceFiles, sourceOptions} = setupAnalysis(projectRoot, files);
+			const {modules} = await analyze({sourceFiles, sourceOptions});
+
+			const barrel = modules.find((m) => m.path === 'barrel.ts')!;
+			assert.deepStrictEqual(barrel.reExports, [{name: 'Foo', module: 'Foo.svelte'}]);
 		});
 	});
 

@@ -1192,6 +1192,34 @@ export const indexValue = 'index';
 		assert.deepStrictEqual(result.reExports, []);
 	});
 
+	test('keeps locally-declared exports when module augmentation merges foreign declarations', () => {
+		// Cross-file merged symbols can carry `valueDeclaration` (or
+		// `declarations[0]`) in the augmenting file — the star-projection skip
+		// must test whether ANY declaration is local, not just one of them,
+		// or a.ts's own interface vanishes depending on bind order.
+		const {program, sourceFiles} = createMultiFileProgram([
+			{
+				path: '/src/lib/a.ts',
+				content: `export interface Config {\n\ta: string;\n}\n`,
+			},
+			{
+				path: '/src/lib/b.ts',
+				content: `import './a.js';\n\ndeclare module './a.js' {\n\texport const Config: number;\n}\n\nexport const other = 1;\n`,
+			},
+		]);
+		const checker = program.getTypeChecker();
+
+		const diagnostics: Array<Diagnostic> = [];
+		const aFile = sourceFiles.get('/src/lib/a.ts')!;
+		const virtualOptions = createVirtualSourceOptions();
+		const result = analyzeExports(aFile, checker, virtualOptions, diagnostics);
+
+		assert.ok(
+			result.declarations.some((d) => d.declaration.name === 'Config'),
+			'merged symbol with a local declaration must not be skipped',
+		);
+	});
+
 	test('handles multiple star exports', () => {
 		const {program, sourceFiles} = createMultiFileProgram([
 			{

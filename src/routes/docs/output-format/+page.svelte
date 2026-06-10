@@ -62,6 +62,10 @@
 				<li><code>dependencies</code>: paths of modules this file imports</li>
 				<li><code>dependents</code>: paths of modules that import this file</li>
 				<li><code>starExports</code>: <code>export * from './module'</code> patterns</li>
+				<li>
+					<code>reExports</code>: same-name re-export edges (<code>{`{name, module}`}</code>) in
+					this module's source — the forward view of <code>alsoExportedFrom</code> (see Re-exports below)
+				</li>
 			</ul>
 			<p>
 				Array fields (<code>declarations</code>, <code>dependencies</code>, etc.) are omitted from
@@ -149,8 +153,11 @@
 			<ul>
 				<li>
 					<strong>Same-name</strong>: the canonical declaration carries an
-					<code>alsoExportedFrom</code> array listing the modules that re-export it. One declaration,
-					multiple import paths.
+					<code>alsoExportedFrom</code> array listing the modules that re-export it. One
+					declaration, multiple import paths. The same edges publish from the re-exporting side as
+					<code>ModuleJson.reExports</code> (<code>{`{name, module}`}</code>, with
+					<code>module</code> the canonical module, multi-hop resolved), so barrels are
+					self-describing without inverting every <code>alsoExportedFrom</code> array.
 				</li>
 				<li>
 					<strong>Renamed</strong>: a synthesized declaration appears in the re-exporting module

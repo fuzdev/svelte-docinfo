@@ -125,7 +125,10 @@ export const sortModules = (modules: Array<ModuleJson>): Array<ModuleJson> => {
  * — call it after this function. They split because they touch disjoint fields
  * and have different inputs.
  *
- * @param modules - the modules array with all modules (will be mutated)
+ * @param modules - the modules array with all modules (will be mutated).
+ *   Must be parsed `ModuleJson`s — wire JSON strips empty arrays, so run
+ *   raw JSON through `AnalyzeResultJson.parse` first or `reExports` may be
+ *   `undefined`
  * @mutates modules - unions re-exporters into `declaration.alsoExportedFrom`
  *   (deduped + sorted), so a second call with the same inputs is a no-op
  *
