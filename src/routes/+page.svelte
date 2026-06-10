@@ -20,6 +20,7 @@
 	<section>
 		<div class="column gap_lg">
 			<a href={resolve('/docs')} class="panel px_xl py_md font_size_xl2 text-align:center">docs</a>
+			<a href={resolve('/demo')} class="panel px_xl py_md font_size_xl2 text-align:center">demo</a>
 		</div>
 	</section>
 	<section>

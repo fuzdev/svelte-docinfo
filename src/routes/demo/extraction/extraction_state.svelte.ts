@@ -1,0 +1,51 @@
+import {page} from '$app/state';
+import {create_context} from '@fuzdev/fuz_ui/context_helpers.js';
+import type {AnalyzeResultJsonWire} from 'svelte-docinfo';
+import {isCss, isJson, isSvelte} from 'svelte-docinfo/source.js';
+
+export interface ExtractionStateOptions {
+	modules: AnalyzeResultJsonWire['modules'];
+	/**
+	 * Raw source content keyed by module path, matching `ModuleJson.path`.
+	 */
+	sources: Record<string, string>;
+}
+
+/**
+ * Data for the extraction demo, set by its layout and read by sub-pages.
+ * Selection derives from the route's `module_path` param,
+ * falling back to the first module at the bare `/demo/extraction` root.
+ */
+export class ExtractionState {
+	// defaults are immediately overwritten in the constructor; they exist so
+	// the lazily-evaluated `$derived` initializers below satisfy use-before-init
+	readonly modules: AnalyzeResultJsonWire['modules'] = [];
+	readonly sources: Record<string, string> = {};
+
+	// the barrel is the natural default at the bare root; fall back to the first module
+	readonly default_path: string = $derived(
+		this.modules.find((m) => m.path === 'index.ts')?.path ?? this.modules[0]?.path ?? '',
+	);
+	readonly selected_path: string = $derived(page.params.module_path ?? this.default_path);
+	readonly selected_module = $derived(this.modules.find((m) => m.path === this.selected_path));
+	readonly selected_source: string = $derived(this.sources[this.selected_path] ?? '');
+	readonly selected_lang: string = $derived.by(() => {
+		if (isSvelte(this.selected_path)) return 'svelte';
+		if (isCss(this.selected_path)) return 'css';
+		if (isJson(this.selected_path)) return 'json';
+		return 'ts';
+	});
+	// `modules` is already the compact wire form (the Vite plugin serializes
+	// through `compactReplacer`), so pretty-printing it directly shows exactly
+	// what consumers get.
+	readonly selected_data: string = $derived(
+		this.selected_module ? JSON.stringify(this.selected_module, null, '\t') : '',
+	);
+
+	constructor(options: ExtractionStateOptions) {
+		this.modules = options.modules;
+		this.sources = options.sources;
+	}
+}
+
+export const extraction_context = create_context<ExtractionState>();
