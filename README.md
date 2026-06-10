@@ -174,7 +174,11 @@ All three produce the same JSON shape:
 }
 ```
 
-For many more worked examples — source input paired with the exact JSON `svelte-docinfo` emits — browse the [test fixtures](https://github.com/fuzdev/svelte-docinfo/tree/main/src/test/fixtures), where each case sits beside its `expected.json`.
+For examples of source input paired with the exact JSON `svelte-docinfo` emits:
+
+- see svelte-docinfo's own source code's extracted JSON at
+  [svelte-docinfo.fuz.dev/demo/extraction](https://svelte-docinfo.fuz.dev/demo/extraction)
+- browse the [test fixtures](https://github.com/fuzdev/svelte-docinfo/tree/main/src/test/fixtures)
 
 ## Vite plugin
 
