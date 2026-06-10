@@ -15,7 +15,7 @@ It includes a Vite plugin, CLI, and programmatic API
 in the [npm package](https://www.npmjs.com/package/svelte-docinfo).
 
 ```bash
-npm install svelte-docinfo -D
+npm i -D svelte-docinfo
 ```
 
 - [Quick start](#quick-start)
