@@ -666,7 +666,8 @@ export type DeclarationJsonInput = z.input<typeof DeclarationJson>;
  * name — the same exception documented on `aliasOf`. Because of that
  * re-keying, two entries in one module can share a `name` (a re-keyed
  * component colliding with a same-name re-export from another module);
- * `(module, name)` pairs remain unique.
+ * `(module, name)` pairs remain unique (exact duplicates are deduped at
+ * construction).
  *
  * `@nodocs` on the export statement suppresses the entry (and the
  * `alsoExportedFrom` back-link). When the canonical declaration itself is
