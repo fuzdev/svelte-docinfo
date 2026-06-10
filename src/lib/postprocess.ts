@@ -101,13 +101,25 @@ export const findDuplicates = (
 };
 
 /**
+ * Code-unit string comparator for deterministic output ordering.
+ *
+ * Unlike `localeCompare` (host-locale/ICU-dependent, so byte-identical input
+ * can serialize in different orders on different machines), code-unit order is
+ * environment-independent — and it matches the default `Array.prototype.sort`
+ * used for `alsoExportedFrom`, `dependencies`, and `dependents`.
+ */
+export const compareStrings = (a: string, b: string): number => (a < b ? -1 : a > b ? 1 : 0);
+
+/**
  * Sort modules alphabetically by path for deterministic output and cleaner diffs.
+ *
+ * Code-unit order (`compareStrings`) so the output is environment-independent.
  *
  * @param modules - the modules to sort
  * @returns a new sorted array (does not mutate input)
  */
 export const sortModules = (modules: Array<ModuleJson>): Array<ModuleJson> => {
-	return modules.slice().sort((a, b) => a.path.localeCompare(b.path));
+	return modules.slice().sort((a, b) => compareStrings(a.path, b.path));
 };
 
 /**

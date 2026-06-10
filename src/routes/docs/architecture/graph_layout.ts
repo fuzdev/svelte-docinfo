@@ -9,6 +9,8 @@
  * @module
  */
 
+import {compareStrings} from 'svelte-docinfo/postprocess.js';
+
 export interface LayoutInputNode {
 	id: string;
 }
@@ -180,10 +182,10 @@ const reduce_crossings = (
 			layers[i] = [...layer].sort((a, b) => {
 				const ma = ms.get(a) ?? -1;
 				const mb = ms.get(b) ?? -1;
-				if (ma === -1 && mb === -1) return a.localeCompare(b);
+				if (ma === -1 && mb === -1) return compareStrings(a, b);
 				if (ma === -1) return -1;
 				if (mb === -1) return 1;
-				if (ma === mb) return a.localeCompare(b);
+				if (ma === mb) return compareStrings(a, b);
 				return ma - mb;
 			});
 		}
@@ -275,7 +277,7 @@ export const compute_layout = (
 			const ad = a.startsWith('__dummy_');
 			const bd = b.startsWith('__dummy_');
 			if (ad !== bd) return ad ? 1 : -1;
-			return a.localeCompare(b);
+			return compareStrings(a, b);
 		});
 	}
 

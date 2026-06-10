@@ -8,6 +8,8 @@ import {readdir, readFile, writeFile, mkdir, rm} from 'node:fs/promises';
 import {join, relative} from 'node:path';
 import {tmpdir} from 'node:os';
 
+import {compareStrings} from '$lib/postprocess.js';
+
 /**
  * Result of creating a test project.
  */
@@ -432,7 +434,7 @@ export const discoverFixtureDirs = async (
 	};
 
 	await scan(baseDir);
-	return results.sort((a, b) => a.name.localeCompare(b.name));
+	return results.sort((a, b) => compareStrings(a.name, b.name));
 };
 
 /**

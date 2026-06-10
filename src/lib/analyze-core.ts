@@ -43,6 +43,7 @@ import {
 	findDuplicates,
 	mergeReExports,
 	resolveComponentAliases,
+	compareStrings,
 	type DuplicateDeclaration,
 } from './postprocess.js';
 
@@ -217,28 +218,16 @@ export interface AnalyzeResultJsonWire {
 
 const toModuleJson = (raw: ModuleAnalysis): ModuleJson => {
 	const filtered = raw.declarations.filter((d) => !d.nodocs).map((d) => d.declaration);
-	// sorted for deterministic output — getExportsOfModule order is a TS
-	// implementation detail. Code-unit comparison (not localeCompare, which is
-	// host-locale-dependent) so the order is environment-independent and
-	// matches `alsoExportedFrom`'s sort. Module tie-break because names can
-	// collide: a Svelte default-slot re-export re-keys to the component name,
-	// which a same-name re-export from another module may also use. The same
-	// re-keying can produce exact-duplicate edges (component + same-name
-	// script-module export from one file) — deduped so `(name, module)` pairs
-	// stay unique
+	// sorted for deterministic, environment-independent output —
+	// getExportsOfModule order is a TS implementation detail. Module tie-break
+	// because names can collide: a Svelte default-slot re-export re-keys to
+	// the component name, which a same-name re-export from another module may
+	// also use. The same re-keying can produce exact-duplicate edges
+	// (component + same-name script-module export from one file) — deduped so
+	// `(name, module)` pairs stay unique
 	const reExports = raw.reExports
 		.slice()
-		.sort((a, b) =>
-			a.name < b.name
-				? -1
-				: a.name > b.name
-					? 1
-					: a.module < b.module
-						? -1
-						: a.module > b.module
-							? 1
-							: 0,
-		)
+		.sort((a, b) => compareStrings(a.name, b.name) || compareStrings(a.module, b.module))
 		.filter(
 			(r, i, arr) => i === 0 || r.name !== arr[i - 1]!.name || r.module !== arr[i - 1]!.module,
 		);

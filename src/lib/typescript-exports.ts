@@ -162,9 +162,9 @@ const classifyNamespaceReExport = (
 	if ((deeplyAliased.flags & ts.SymbolFlags.ValueModule) === 0) return null;
 
 	// Source module = where the deeply-resolved module symbol lives.
-	const sourceModuleDecl = deeplyAliased.valueDeclaration ?? deeplyAliased.declarations?.[0];
-	if (!sourceModuleDecl) return null;
-	const sourceModuleFile = stripVirtualSuffix(sourceModuleDecl.getSourceFile().fileName);
+	const sourceModuleSource = getPrimaryDeclarationSourceFile(deeplyAliased);
+	if (!sourceModuleSource) return null;
+	const sourceModuleFile = stripVirtualSuffix(sourceModuleSource.fileName);
 	if (!isSource(sourceModuleFile, options)) return null;
 
 	// Origination + star-projection: export's first declaration is itself a
@@ -250,6 +250,18 @@ const isDeclaredInFile = (symbol: ts.Symbol, fileName: string): boolean => {
 	if (!decls?.length) return true;
 	return decls.some((d) => stripVirtualSuffix(d.getSourceFile().fileName) === fileName);
 };
+
+/**
+ * The source file of a symbol's primary declaration (`valueDeclaration`,
+ * else the first declaration), or `undefined` for declaration-less symbols.
+ *
+ * Resolves which file "owns" a symbol for canonical-module attribution.
+ * Distinct from `isDeclaredInFile`, which asks whether *any* declaration
+ * lives in a given file — the right question for ownership tests on
+ * potentially-merged symbols.
+ */
+const getPrimaryDeclarationSourceFile = (symbol: ts.Symbol): ts.SourceFile | undefined =>
+	(symbol.valueDeclaration ?? symbol.declarations?.[0])?.getSourceFile();
 
 /**
  * Analyze all exports from a TypeScript source file.
@@ -409,10 +421,9 @@ export const analyzeExports = (
 
 				// This might be a re-export - use getAliasedSymbol to find the original
 				const aliasedSymbol = checker.getAliasedSymbol(exportSymbol);
-				const aliasedDecl = aliasedSymbol.valueDeclaration || aliasedSymbol.declarations?.[0];
+				const originalSource = getPrimaryDeclarationSourceFile(aliasedSymbol);
 
-				if (aliasedDecl) {
-					const originalSource = aliasedDecl.getSourceFile();
+				if (originalSource) {
 					const originalFileName = stripVirtualSuffix(originalSource.fileName);
 
 					// Check if this is a CROSS-FILE re-export (original in different file)
@@ -503,8 +514,7 @@ export const analyzeExports = (
 								// canonical (whose declaration uses the pre-rename name and
 								// wouldn't match in `mergeReExports`).
 								const canonical = walkSameNameCanonical(exportSymbol, immediateAlias, checker);
-								const canonicalDecl = canonical.valueDeclaration ?? canonical.declarations?.[0];
-								const canonicalSource = canonicalDecl?.getSourceFile();
+								const canonicalSource = getPrimaryDeclarationSourceFile(canonical);
 								const canonicalFile = canonicalSource
 									? stripVirtualSuffix(canonicalSource.fileName)
 									: originalFileName;
@@ -807,9 +817,8 @@ const extractStarExports = (
 			const moduleSymbol = checker.getSymbolAtLocation(statement.moduleSpecifier);
 			if (moduleSymbol) {
 				// Get the source file from the module symbol's declarations
-				const moduleDecl = moduleSymbol.valueDeclaration ?? moduleSymbol.declarations?.[0];
-				if (moduleDecl) {
-					const resolvedSource = moduleDecl.getSourceFile();
+				const resolvedSource = getPrimaryDeclarationSourceFile(moduleSymbol);
+				if (resolvedSource) {
 					// Normalize virtual paths for Svelte files
 					const resolvedPath = stripVirtualSuffix(resolvedSource.fileName);
 

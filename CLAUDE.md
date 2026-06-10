@@ -55,7 +55,7 @@ this repo — make the edits and stop, the user commits.
 - `types.ts` — Zod schemas: `DeclarationJson` (9-variant discriminated union), `MemberJson` (3-variant), `ModuleJson`, `OverloadJson`, `Reactivity` enum
 - `declaration-build.ts` — internal construction types: `DeclarationJsonBuild`, `MemberJsonBuild`, `DeclarationAnalysis`, `ModuleExportsAnalysis`, `ModuleAnalysis` (re-export edges use the public `ReExportJson` from `types.ts`)
 - `declaration-helpers.ts` — display (`getDisplayName`, `generateImport`), serialization (`compactReplacer`), narrowing (`isKind`), type-reference discovery (`findTypeReferences`, `buildTypeReferencePatterns`)
-- `postprocess.ts` — `findDuplicates`, `mergeReExports`, `resolveComponentAliases`, `sortModules`, `computeDependents`
+- `postprocess.ts` — `findDuplicates`, `mergeReExports`, `resolveComponentAliases`, `sortModules`, `computeDependents`, `compareStrings` (code-unit comparator — all output ordering goes through it or default `.sort()`, never bare `localeCompare`, for environment-independent output)
 
 **High-level** (orchestration)
 
