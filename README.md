@@ -314,7 +314,7 @@ See the [API docs](https://svelte-docinfo.fuz.dev/docs/api) for the full referen
 - **Enums**: regular and const, with member values and per-member JSDoc
 - **Function overloads**: all public overload signatures with per-overload JSDoc
 - **Dependency graphs**: tracks imports between modules and computes dependents
-- **Re-export tracking**: `alsoExportedFrom` arrays, `aliasOf` for renames, `starExports` for `export * from './x'`
+- **Re-export tracking**: `alsoExportedFrom` arrays on canonical declarations plus the forward view `ModuleJson.reExports` (so barrels are self-describing), `aliasOf` for renames, `starExports` for `export * from './x'`
 - **Namespace re-exports**: `export * as ns from './x'` synthesized as `kind: 'namespace'`
 - **Source locations**: file and line for every declaration
 - **Build-tool agnostic**: works with any source: file system, build pipeline, or in-memory

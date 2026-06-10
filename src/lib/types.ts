@@ -428,6 +428,12 @@ const declarationTopLevelFields = {
 	 * The canonical declaration lives in this module's `declarations` array;
 	 * these paths are additional import locations for the same thing.
 	 *
+	 * The same edges appear from the re-exporting side as `ModuleJson.reExports`
+	 * — use that when asking "what does this module re-export" instead of
+	 * inverting these arrays. The two can disagree at the margins: a `reExports`
+	 * entry whose canonical declaration is `@nodocs` (or whose module isn't in
+	 * the analyzed set) has no back-link here.
+	 *
 	 * **Consumer note**: To build a complete re-export map, scan two fields:
 	 * 1. `alsoExportedFrom` on each declaration — same-name re-exports
 	 * 2. `aliasOf` on declarations — renamed re-exports (separate declarations)
@@ -639,6 +645,44 @@ export type DeclarationJson = z.infer<typeof DeclarationJson>;
 export type DeclarationJsonInput = z.input<typeof DeclarationJson>;
 
 /**
+ * A same-name re-export edge, from the re-exporting module's side.
+ *
+ * Each entry on `ModuleJson.reExports` records that the module's source
+ * contains `export {name} from ...` where the canonical declaration lives in
+ * `module`. This is the forward view of the same fact that
+ * `alsoExportedFrom` records on the canonical declaration — consumers
+ * resolve the canonical by `(module, name)`, the same lookup contract as
+ * `aliasOf`.
+ *
+ * Same-name re-exports only. Renamed re-exports appear as declarations with
+ * `aliasOf` in the re-exporting module; star exports live in
+ * `ModuleJson.starExports`. A complete export surface is the union of the
+ * three plus the module's own declarations.
+ *
+ * `module` points at the *canonical* module (multi-hop chains are resolved),
+ * not the immediate specifier in the export statement. For Svelte default-slot
+ * re-exports (`export {default} from './X.svelte'`), `name` is the component
+ * name derived from the filename (`'X'`), matching the canonical declaration's
+ * name — the same exception documented on `aliasOf`. Because of that
+ * re-keying, two entries in one module can share a `name` (a re-keyed
+ * component colliding with a same-name re-export from another module);
+ * `(module, name)` pairs remain unique.
+ *
+ * `@nodocs` on the export statement suppresses the entry (and the
+ * `alsoExportedFrom` back-link). When the canonical declaration itself is
+ * `@nodocs`, or the canonical module isn't part of the analyzed set, the
+ * entry still exists but has no matching back-link — the same presence
+ * caveat as `aliasOf.module` and `starExports`.
+ */
+export const ReExportJson = z.strictObject({
+	/** Exported name — the canonical declaration's name in `module`. */
+	name: z.string(),
+	/** Module path (relative to `sourceRoot`) where the canonical declaration lives. */
+	module: z.string(),
+});
+export type ReExportJson = z.infer<typeof ReExportJson>;
+
+/**
  * Metadata for a source module — the top-level container in the data model.
  *
  * `analyze` and `analyzeFromFiles` return `Array<ModuleJson>` sorted alphabetically by `path`.
@@ -666,6 +710,14 @@ export const ModuleJson = z.strictObject({
 	 * Paths are relative to `sourceRoot`.
 	 */
 	starExports: z.array(z.string()).default([]),
+	/**
+	 * Same-name re-exports in this module's source, sorted by `name` then
+	 * `module` (names can collide — see `ReExportJson`). The forward view of
+	 * `alsoExportedFrom` — see `ReExportJson` for the full contract (canonical
+	 * resolution, Svelte default-slot naming, `@nodocs` suppression, presence
+	 * caveats).
+	 */
+	reExports: z.array(ReExportJson).default([]),
 	/**
 	 * Whether the module is a placeholder for a file that couldn't be analyzed.
 	 *

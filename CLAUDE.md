@@ -21,7 +21,7 @@ this repo — make the edits and stop, the user commits.
 - **TSDoc/JSDoc** — standard tags (`@param`, `@returns`, `@throws`, `@example`, `@deprecated`, `@see`, `@since`, `@default`, `@module`) plus `@nodocs` and `@mutates`. `@mutates` keys are unvalidated — typically a parameter name; compound paths (`this.foo`) and external state references accepted as-is. Dotted `@param obj.prop` tags for named object parameters surface as `ParameterJson.propertyDescriptions` (keyed by sub-path: `obj.prop` → `prop`, `obj.a.b` → `a.b`); the property segment is unvalidated like `@mutates`. Matching is by parameter name, so destructured params (`__0` synthetic names) are not covered
 - **Svelte 5 components** — props via svelte2tsx, generics, snippet parameter extraction
 - **Reactivity runes** — detects `$state`, `$state.raw`, `$derived`, `$derived.by` initializers (variables and class fields, `reactivity` field)
-- **Re-export tracking** — `alsoExportedFrom` for same-name, `aliasOf` for renames, star exports tracked separately; default slot uses `name === 'default'` (see Re-Export Philosophy)
+- **Re-export tracking** — `alsoExportedFrom` for same-name (with the forward view on `ModuleJson.reExports`), `aliasOf` for renames, star exports tracked separately; default slot uses `name === 'default'` (see Re-Export Philosophy)
 - **Dependency graphs** — imports/dependents between source modules
 - **Function overloads** — all public signatures with per-overload JSDoc. Signature-scope tags (`@param`/`@returns`) flow to that overload's `parameters[i].description`/`returnDescription`. Symbol-scope tags (`@example`, `@deprecated`, `@since`, `@see`, `@throws`, `@mutates`, `@default`, `@nodocs`) belong on the parent only; on a non-primary overload they emit `misplaced_tag` and are dropped
 - **Source locations** — file + line for declarations (synthesized aliases excluded)
@@ -53,7 +53,7 @@ this repo — make the edits and stop, the user commits.
 - `concurrency.ts` — concurrency caps + bounded-`Promise.all` helper. `MAX_FILE_CONCURRENCY` (parallel `readFile`; `files.globFiles`, `exports.discoverFromExports`), `MAX_RESOLVE_CONCURRENCY` (parallel resolver calls; session phase 2), `map_concurrent` (order-preserving fail-fast worker pool). Same numerical cap today, named separately for future independent tuning
 - `source-config.ts` — source configuration: `ModuleSourceOptions`, `createSourceOptions`, `normalizeSourceOptions`, `getSourceRoot`, `extractPath`, `isSource`, `extractDependencies`
 - `types.ts` — Zod schemas: `DeclarationJson` (9-variant discriminated union), `MemberJson` (3-variant), `ModuleJson`, `OverloadJson`, `Reactivity` enum
-- `declaration-build.ts` — internal construction types: `DeclarationJsonBuild`, `MemberJsonBuild`, `DeclarationAnalysis`, `ModuleExportsAnalysis`, `ModuleAnalysis`, `ReExportInfo`
+- `declaration-build.ts` — internal construction types: `DeclarationJsonBuild`, `MemberJsonBuild`, `DeclarationAnalysis`, `ModuleExportsAnalysis`, `ModuleAnalysis` (re-export edges use the public `ReExportJson` from `types.ts`)
 - `declaration-helpers.ts` — display (`getDisplayName`, `generateImport`), serialization (`compactReplacer`), narrowing (`isKind`), type-reference discovery (`findTypeReferences`, `buildTypeReferencePatterns`)
 - `postprocess.ts` — `findDuplicates`, `mergeReExports`, `resolveComponentAliases`, `sortModules`, `computeDependents`
 
@@ -154,7 +154,7 @@ TSDoc is extracted at build-time as raw strings. Rendering format (markdown, HTM
 
 Hierarchy: `ModuleJson[]` → `DeclarationJson[]` → `MemberJson[]`. Members never contain their own members (single-level nesting).
 
-**ModuleJson** — `path` (relative to `sourceRoot`), `declarations`, `moduleComment`, `dependencies`, `dependents`, `starExports`, `partial` (set when the module is a placeholder for a Svelte file whose svelte2tsx transform threw at ingest). Array fields default to `[]` at runtime; `partial` defaults to `false`.
+**ModuleJson** — `path` (relative to `sourceRoot`), `declarations`, `moduleComment`, `dependencies`, `dependents`, `starExports`, `reExports` (same-name re-export edges `{name, module}`, the forward view of `alsoExportedFrom` — see Re-Export Philosophy), `partial` (set when the module is a placeholder for a Svelte file whose svelte2tsx transform threw at ingest). Array fields default to `[]` at runtime; `partial` defaults to `false`.
 
 **DeclarationJson** — `z.discriminatedUnion('kind', [...])` with 9 strict-object variants. Use `isKind(decl, 'function')` or check `decl.kind` to narrow.
 
@@ -225,7 +225,9 @@ Hierarchy: `ModuleJson[]` → `DeclarationJson[]` → `MemberJson[]`. Members ne
 
 - **Same-name** → `alsoExportedFrom` on the canonical ("same thing, more import paths"). **Position 3**: when the local export statement carries JSDoc or `@nodocs`, an alias is _also_ synthesized in the re-exporting module (so local content has a home), in addition to the link. `@nodocs` suppresses both link and synthesis. Trigger is "presence of local content," not "presence of rename" — rename and content are orthogonal axes
 - **Renamed** → synthesized declaration with `aliasOf` ("new public name pointing at existing thing"). Inherits `typeSignature`, `docComment`, `parameters`, `reactivity` from canonical; `sourceLine` undefined
-- **Star exports** → tracked in `starExports` arrays
+- **Star exports** → tracked in `starExports` arrays; star-projected value symbols are not materialized in the projecting module (no declarations, no links, no edges — `analyzeExports` skips non-alias symbols whose declaration lives in a foreign file). Star-projected _namespace_ bindings are alias-flagged so they do produce `alsoExportedFrom` links (see Namespace re-exports below)
+
+**Forward view**: the same-name edges also publish on the re-exporting module as `ModuleJson.reExports` (`Array<ReExportJson>` — `{name, module}`, sorted by name then module; names can collide via Svelte default re-keying) so barrels are self-describing without inverting every `alsoExportedFrom` array. `mergeReExports(modules)` derives the reverse view from these fields directly. `module` is the canonical module (multi-hop resolved); `(module, name)` is the same lookup contract as `aliasOf`, including the Svelte filename-derived-name exception. Statement-level `@nodocs` suppresses entry and back-link together; the views can disagree at the margins — an entry whose canonical declaration is `@nodocs`, or whose module isn't in the analyzed set (session with partial owned set; LS resolves unowned files from disk), has no back-link. Same-name only: renames stay alias declarations, star exports stay in `starExports`
 
 **Svelte component re-exports** — synthesize a `kind: 'component'` placeholder rather than running `analyzeDeclaration` on svelte2tsx's `__SvelteComponent_` type alias. Same-name branch re-keys `default` to the component's filename-derived name (so `mergeReExports` matches). Phase-2 `resolveComponentAliases` (in `mergeReExports`) copies `props`/`acceptsChildren`/`intersects`/`genericParams`/`lang`/doc fields from canonical onto each aliased declaration. Fill-gaps-only merge: local doc-comment fields applied before phase 2 stick
 

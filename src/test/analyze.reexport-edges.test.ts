@@ -1194,3 +1194,287 @@ export {ns} from './index.js';`,
 		});
 	});
 });
+
+describe('module-level reExports field', {timeout: 15_000}, () => {
+	test('same-name re-export publishes a forward edge; rename synthesizes an alias instead', async () => {
+		const files = {
+			'src/lib/a.ts': `export const foo = 1;\nexport const bar = 2;\n`,
+			'src/lib/index.ts': `export {foo} from './a.js';\nexport {bar as baz} from './a.js';\n`,
+		};
+
+		await withTestProject(files, async (projectRoot) => {
+			const {sourceFiles, sourceOptions} = setupAnalysis(projectRoot, files);
+			const {modules} = await analyze({sourceFiles, sourceOptions});
+
+			const indexModule = modules.find((m) => m.path === 'index.ts')!;
+			assert.deepStrictEqual(indexModule.reExports, [{name: 'foo', module: 'a.ts'}]);
+
+			// The rename is a declaration with aliasOf, not a reExports entry
+			const baz = indexModule.declarations.find((d) => d.name === 'baz');
+			assert.ok(baz);
+			assert.deepStrictEqual(baz.aliasOf, {module: 'a.ts', name: 'bar'});
+
+			// Forward edge matches the back-link on the canonical
+			const foo = modules
+				.find((m) => m.path === 'a.ts')!
+				.declarations.find((d) => d.name === 'foo');
+			assert.deepStrictEqual(foo?.alsoExportedFrom, ['index.ts']);
+		});
+	});
+
+	test('forward edges point at the canonical module across multi-hop chains', async () => {
+		const files = {
+			'src/lib/a.ts': `export const foo = 1;\n`,
+			'src/lib/b.ts': `export {foo} from './a.js';\n`,
+			'src/lib/c.ts': `export {foo} from './b.js';\n`,
+		};
+
+		await withTestProject(files, async (projectRoot) => {
+			const {sourceFiles, sourceOptions} = setupAnalysis(projectRoot, files);
+			const {modules} = await analyze({sourceFiles, sourceOptions});
+
+			// Both hops resolve to a.ts, not the immediate specifier
+			const b = modules.find((m) => m.path === 'b.ts')!;
+			const c = modules.find((m) => m.path === 'c.ts')!;
+			assert.deepStrictEqual(b.reExports, [{name: 'foo', module: 'a.ts'}]);
+			assert.deepStrictEqual(c.reExports, [{name: 'foo', module: 'a.ts'}]);
+		});
+	});
+
+	test('@nodocs on the export statement suppresses the forward edge', async () => {
+		const files = {
+			'src/lib/a.ts': `export const foo = 1;\n`,
+			'src/lib/index.ts': `/** @nodocs */\nexport {foo} from './a.js';\n`,
+		};
+
+		await withTestProject(files, async (projectRoot) => {
+			const {sourceFiles, sourceOptions} = setupAnalysis(projectRoot, files);
+			const {modules} = await analyze({sourceFiles, sourceOptions});
+
+			const indexModule = modules.find((m) => m.path === 'index.ts')!;
+			assert.deepStrictEqual(indexModule.reExports, []);
+		});
+	});
+
+	test('same-name with JSDoc (Position 3) keeps both the alias declaration and the forward edge', async () => {
+		const files = {
+			'src/lib/a.ts': `export const foo = 1;\n`,
+			'src/lib/index.ts': `/** Local view of foo. */\nexport {foo} from './a.js';\n`,
+		};
+
+		await withTestProject(files, async (projectRoot) => {
+			const {sourceFiles, sourceOptions} = setupAnalysis(projectRoot, files);
+			const {modules} = await analyze({sourceFiles, sourceOptions});
+
+			const indexModule = modules.find((m) => m.path === 'index.ts')!;
+			assert.deepStrictEqual(indexModule.reExports, [{name: 'foo', module: 'a.ts'}]);
+			const alias = indexModule.declarations.find((d) => d.name === 'foo');
+			assert.ok(alias, 'local JSDoc should synthesize an alias declaration');
+			assert.strictEqual(alias.docComment, 'Local view of foo.');
+		});
+	});
+
+	test('star exports stay in starExports; reExports stays empty', async () => {
+		const files = {
+			'src/lib/a.ts': `export const foo = 1;\n`,
+			'src/lib/index.ts': `export * from './a.js';\n`,
+		};
+
+		await withTestProject(files, async (projectRoot) => {
+			const {sourceFiles, sourceOptions} = setupAnalysis(projectRoot, files);
+			const {modules, diagnostics} = await analyze({sourceFiles, sourceOptions});
+
+			const indexModule = modules.find((m) => m.path === 'index.ts')!;
+			assert.deepStrictEqual(indexModule.starExports, ['a.ts']);
+			assert.deepStrictEqual(indexModule.reExports, []);
+			// Star projection synthesizes no declarations in the projecting module
+			// (and so no spurious duplicate_declaration diagnostics either)
+			assert.deepStrictEqual(indexModule.declarations, []);
+			assert.ok(!diagnostics.some((d) => d.kind === 'duplicate_declaration'));
+			// ...and no alsoExportedFrom back-link on the canonical — `starExports`
+			// is the sole encoding for star re-exports
+			const foo = modules
+				.find((m) => m.path === 'a.ts')!
+				.declarations.find((d) => d.name === 'foo');
+			assert.deepStrictEqual(foo?.alsoExportedFrom, []);
+		});
+	});
+
+	test('Svelte default-slot re-export re-keys the edge by component name', async () => {
+		const files = {
+			'src/lib/Foo.svelte': `<script lang="ts">
+let {label}: {label: string} = $props();
+</script>
+<button>{label}</button>`,
+			'src/lib/index.ts': `export {default} from './Foo.svelte';\n`,
+		};
+
+		await withTestProject(files, async (projectRoot) => {
+			const {sourceFiles, sourceOptions} = setupAnalysis(projectRoot, files);
+			const {modules} = await analyze({sourceFiles, sourceOptions});
+
+			const indexModule = modules.find((m) => m.path === 'index.ts')!;
+			assert.deepStrictEqual(indexModule.reExports, [{name: 'Foo', module: 'Foo.svelte'}]);
+		});
+	});
+
+	test("non-Svelte default-slot re-export keys the edge by name 'default'", async () => {
+		const files = {
+			'src/lib/a.ts': `export default function foo(): void {}\n`,
+			'src/lib/b.ts': `export {default} from './a.js';\n`,
+		};
+
+		await withTestProject(files, async (projectRoot) => {
+			const {sourceFiles, sourceOptions} = setupAnalysis(projectRoot, files);
+			const {modules} = await analyze({sourceFiles, sourceOptions});
+
+			const bModule = modules.find((m) => m.path === 'b.ts')!;
+			assert.deepStrictEqual(bModule.reExports, [{name: 'default', module: 'a.ts'}]);
+		});
+	});
+
+	test('entries are sorted by name regardless of source order', async () => {
+		const files = {
+			'src/lib/a.ts': `export const zeta = 1;\nexport const alpha = 2;\nexport const mid = 3;\n`,
+			'src/lib/index.ts': `export {zeta} from './a.js';\nexport {alpha} from './a.js';\nexport {mid} from './a.js';\n`,
+		};
+
+		await withTestProject(files, async (projectRoot) => {
+			const {sourceFiles, sourceOptions} = setupAnalysis(projectRoot, files);
+			const {modules} = await analyze({sourceFiles, sourceOptions});
+
+			const indexModule = modules.find((m) => m.path === 'index.ts')!;
+			assert.deepStrictEqual(
+				indexModule.reExports.map((r) => r.name),
+				['alpha', 'mid', 'zeta'],
+			);
+		});
+	});
+
+	test('namespace same-name re-export records an edge at the namespace-defining module', async () => {
+		const files = {
+			'src/lib/x.ts': `export const a = 1;`,
+			'src/lib/index.ts': `export * as ns from './x.js';`,
+			'src/lib/barrel.ts': `export {ns} from './index.js';`,
+		};
+
+		await withTestProject(files, async (projectRoot) => {
+			const {sourceFiles, sourceOptions} = setupAnalysis(projectRoot, files);
+			const {modules} = await analyze({sourceFiles, sourceOptions});
+
+			const barrel = modules.find((m) => m.path === 'barrel.ts')!;
+			assert.deepStrictEqual(barrel.reExports, [{name: 'ns', module: 'index.ts'}]);
+			// The origination itself is a declaration, not a forward edge
+			const indexModule = modules.find((m) => m.path === 'index.ts')!;
+			assert.deepStrictEqual(indexModule.reExports, []);
+		});
+	});
+
+	test('Svelte <script module> re-exports publish forward edges on the .svelte module', async () => {
+		const files = {
+			'src/lib/helpers.ts': `export const helper = (): void => {};\n`,
+			'src/lib/Foo.svelte': `<script module lang="ts">
+export {helper} from './helpers.js';
+</script>
+<p>text</p>`,
+		};
+
+		await withTestProject(files, async (projectRoot) => {
+			const {sourceFiles, sourceOptions} = setupAnalysis(projectRoot, files);
+			const {modules} = await analyze({sourceFiles, sourceOptions});
+
+			const svelteModule = modules.find((m) => m.path === 'Foo.svelte')!;
+			assert.deepStrictEqual(svelteModule.reExports, [{name: 'helper', module: 'helpers.ts'}]);
+			const helper = modules
+				.find((m) => m.path === 'helpers.ts')!
+				.declarations.find((d) => d.name === 'helper');
+			assert.deepStrictEqual(helper?.alsoExportedFrom, ['Foo.svelte']);
+		});
+	});
+
+	test('type-only re-export publishes a forward edge like a value re-export', async () => {
+		const files = {
+			'src/lib/a.ts': `export interface A {\n\ta: number;\n}\n`,
+			'src/lib/index.ts': `export type {A} from './a.js';\n`,
+		};
+
+		await withTestProject(files, async (projectRoot) => {
+			const {sourceFiles, sourceOptions} = setupAnalysis(projectRoot, files);
+			const {modules} = await analyze({sourceFiles, sourceOptions});
+
+			const indexModule = modules.find((m) => m.path === 'index.ts')!;
+			assert.deepStrictEqual(indexModule.reExports, [{name: 'A', module: 'a.ts'}]);
+			const canonical = modules
+				.find((m) => m.path === 'a.ts')!
+				.declarations.find((d) => d.name === 'A');
+			assert.deepStrictEqual(canonical?.alsoExportedFrom, ['index.ts']);
+		});
+	});
+
+	test('colliding names (Svelte default re-key + same-name from another module) tie-break by module', async () => {
+		// `export {default} from './Foo.svelte'` re-keys to 'Foo'; a same-name
+		// re-export of an unrelated `Foo` from another module shares the name.
+		// `(module, name)` stays unique; sort is deterministic via module tie-break.
+		const files = {
+			'src/lib/Foo.svelte': `<script lang="ts">
+let {label}: {label: string} = $props();
+</script>
+<button>{label}</button>`,
+			'src/lib/other.ts': `export const Foo = 1;\n`,
+			'src/lib/barrel.ts': `export {default} from './Foo.svelte';\nexport {Foo} from './other.js';\n`,
+		};
+
+		await withTestProject(files, async (projectRoot) => {
+			const {sourceFiles, sourceOptions} = setupAnalysis(projectRoot, files);
+			const {modules, diagnostics} = await analyze({sourceFiles, sourceOptions});
+
+			const barrel = modules.find((m) => m.path === 'barrel.ts')!;
+			assert.deepStrictEqual(barrel.reExports, [
+				{name: 'Foo', module: 'Foo.svelte'},
+				{name: 'Foo', module: 'other.ts'},
+			]);
+
+			// Each canonical gets its own back-link
+			const component = modules
+				.find((m) => m.path === 'Foo.svelte')!
+				.declarations.find((d) => d.name === 'Foo');
+			assert.deepStrictEqual(component?.alsoExportedFrom, ['barrel.ts']);
+			const constant = modules
+				.find((m) => m.path === 'other.ts')!
+				.declarations.find((d) => d.name === 'Foo');
+			assert.deepStrictEqual(constant?.alsoExportedFrom, ['barrel.ts']);
+
+			// The two canonicals are a flat-namespace duplicate — orthogonal to reExports
+			assert.ok(diagnostics.some((d) => d.kind === 'duplicate_declaration'));
+		});
+	});
+
+	test('re-export from an external package is skipped entirely (no edge, no declaration)', async () => {
+		const files = {
+			'node_modules/extpkg/package.json': `{"name": "extpkg", "version": "1.0.0", "main": "./index.js", "types": "./index.d.ts"}`,
+			'node_modules/extpkg/index.d.ts': `export declare const ext: number;\n`,
+			'node_modules/extpkg/index.js': `export const ext = 1;\n`,
+			'src/lib/index.ts': `export {ext} from 'extpkg';\nexport const local = 1;\n`,
+		};
+
+		await withTestProject(files, async (projectRoot) => {
+			// Build sourceFiles by hand — only src/lib belongs to the analysis
+			// input; node_modules files exist on disk for module resolution.
+			const sourceFiles = [
+				{
+					id: join(projectRoot, 'src/lib/index.ts'),
+					content: files['src/lib/index.ts'],
+				},
+			];
+			const sourceOptions = createSourceOptions(projectRoot);
+			const {modules} = await analyze({sourceFiles, sourceOptions});
+
+			const indexModule = modules.find((m) => m.path === 'index.ts')!;
+			assert.deepStrictEqual(indexModule.reExports, []);
+			assert.deepStrictEqual(
+				indexModule.declarations.map((d) => d.name),
+				['local'],
+			);
+		});
+	});
+});

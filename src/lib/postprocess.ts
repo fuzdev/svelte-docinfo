@@ -14,7 +14,6 @@
  */
 
 import type {ComponentDeclarationJson, DeclarationJson, ModuleJson} from './types.js';
-import type {ReExportInfo} from './declaration-build.js';
 import type {SourceFileInfo} from './source.js';
 import {toPosixPath} from './paths.js';
 
@@ -112,30 +111,14 @@ export const sortModules = (modules: Array<ModuleJson>): Array<ModuleJson> => {
 };
 
 /**
- * A collected re-export with its source module context.
+ * Build `alsoExportedFrom` arrays from the modules' forward re-export edges.
  *
- * Used during the two-phase re-export resolution:
- * 1. Phase 1: Collect re-exports from each module during analysis
- * 2. Phase 2: Group by original module and merge into `alsoExportedFrom`
- */
-export interface ReExportEntry {
-	/** The module that re-exports the declaration. */
-	reExportingModule: string;
-	/** The re-export info (name and original module). */
-	reExport: ReExportInfo;
-}
-
-/**
- * Build `alsoExportedFrom` arrays from collected re-export data.
- *
- * This function resolves the two-phase re-export problem:
- *
- * **Problem**: When module A re-exports from module B, we discover this while
- * analyzing A, but need to update B's declarations. However, B may already be
- * processed or may be processed later.
- *
- * **Solution**: Collect all re-exports in phase 1, then merge them in phase 2
- * after all modules are analyzed.
+ * Each module carries its same-name re-export edges as `ModuleJson.reExports`
+ * (collected in phase 1); this phase-2 pass inverts them onto the canonical
+ * declarations so both directions of the same fact are queryable. Edges whose
+ * canonical module or declaration is absent from `modules` are skipped — the
+ * forward entry remains without a back-link (see `ReExportJson` for the
+ * presence caveats).
  *
  * Component-only fields on renamed component aliases (`props`,
  * `acceptsChildren`, etc.) are populated separately by `resolveComponentAliases`
@@ -143,39 +126,38 @@ export interface ReExportEntry {
  * and have different inputs.
  *
  * @param modules - the modules array with all modules (will be mutated)
- * @param collectedReExports - array of re-exports collected during phase 1
- * @mutates modules - unions new re-exporters into `declaration.alsoExportedFrom`
+ * @mutates modules - unions re-exporters into `declaration.alsoExportedFrom`
  *   (deduped + sorted), so a second call with the same inputs is a no-op
  *
  * @example
  * ```ts
  * // helpers.ts exports: foo, bar
- * // index.ts does: export {foo, bar} from './files.js'
+ * // index.ts does: export {foo, bar} from './helpers.js'
+ * // (so index.ts's ModuleJson carries reExports:
+ * //   [{name: 'foo', module: 'helpers.ts'}, {name: 'bar', module: 'helpers.ts'}])
  * //
  * // After processing:
  * // - helpers.ts foo declaration gets: alsoExportedFrom: ['index.ts']
  * // - helpers.ts bar declaration gets: alsoExportedFrom: ['index.ts']
  * ```
  */
-export const mergeReExports = (
-	modules: Array<ModuleJson>,
-	collectedReExports: Array<ReExportEntry>,
-): void => {
-	// Group re-exports by `(originalModule, name)`. The default slot keys as
+export const mergeReExports = (modules: Array<ModuleJson>): void => {
+	// Group edges by `(canonical module, name)`. The default slot keys as
 	// `'default'` like any other name — each module owns its own default slot,
 	// so the per-module map prevents cross-module collisions naturally.
 	const reExportMap: Map<string, Map<string, Array<string>>> = new Map();
 
-	for (const {reExportingModule, reExport} of collectedReExports) {
-		const {name, originalModule} = reExport;
-		if (!reExportMap.has(originalModule)) {
-			reExportMap.set(originalModule, new Map());
+	for (const mod of modules) {
+		for (const {name, module: originalModule} of mod.reExports) {
+			if (!reExportMap.has(originalModule)) {
+				reExportMap.set(originalModule, new Map());
+			}
+			const moduleMap = reExportMap.get(originalModule)!;
+			if (!moduleMap.has(name)) {
+				moduleMap.set(name, []);
+			}
+			moduleMap.get(name)!.push(mod.path);
 		}
-		const moduleMap = reExportMap.get(originalModule)!;
-		if (!moduleMap.has(name)) {
-			moduleMap.set(name, []);
-		}
-		moduleMap.get(name)!.push(reExportingModule);
 	}
 
 	// Merge into original declarations

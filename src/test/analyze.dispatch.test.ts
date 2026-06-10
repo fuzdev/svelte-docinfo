@@ -37,11 +37,11 @@ export function helper(): string { return 'hello'; }
 		);
 
 		assert.ok(result);
-		assert.strictEqual(result.module.path, 'helpers.ts');
-		assert.strictEqual(result.module.moduleComment, 'Module comment.');
-		assert.strictEqual(result.module.declarations.length, 2);
+		assert.strictEqual(result.path, 'helpers.ts');
+		assert.strictEqual(result.moduleComment, 'Module comment.');
+		assert.strictEqual(result.declarations.length, 2);
 
-		const names = result.module.declarations.map((d) => d.name).sort();
+		const names = result.declarations.map((d) => d.name).sort();
 		assert.deepStrictEqual(names, ['VALUE', 'helper'].sort());
 	});
 
@@ -91,7 +91,7 @@ let {name}: {name: string} = $props();
 
 		assert.ok(result);
 		// Should strip sourceRoot prefix
-		assert.strictEqual(result.module.path, 'utils/stringHelpers.ts');
+		assert.strictEqual(result.path, 'utils/stringHelpers.ts');
 	});
 
 	test('derives modulePath with custom sourceRoot', () => {
@@ -115,7 +115,7 @@ let {name}: {name: string} = $props();
 		);
 
 		assert.ok(result);
-		assert.strictEqual(result.module.path, 'my_module.ts');
+		assert.strictEqual(result.path, 'my_module.ts');
 	});
 
 	test('returns undefined when TypeScript file not in program', () => {
@@ -160,7 +160,7 @@ let {name}: {name: string} = $props();
 		assert.ok(result);
 		// Dependencies are filtered to source modules and converted to relative paths
 		// They follow ModuleJson optional array semantics
-		assert.ok(result.module.path);
+		assert.ok(result.path);
 	});
 
 	test('returns minimal module for CSS files', () => {
@@ -177,8 +177,8 @@ let {name}: {name: string} = $props();
 		);
 
 		assert.ok(result);
-		assert.strictEqual(result.module.path, 'theme.css');
-		assert.deepStrictEqual(result.module.declarations, []);
+		assert.strictEqual(result.path, 'theme.css');
+		assert.deepStrictEqual(result.declarations, []);
 		assert.strictEqual(result.reExports.length, 0);
 	});
 
@@ -196,8 +196,8 @@ let {name}: {name: string} = $props();
 		);
 
 		assert.ok(result);
-		assert.strictEqual(result.module.path, 'data.json');
-		assert.deepStrictEqual(result.module.declarations, []);
+		assert.strictEqual(result.path, 'data.json');
+		assert.deepStrictEqual(result.declarations, []);
 		assert.strictEqual(result.reExports.length, 0);
 	});
 
@@ -218,9 +218,9 @@ let {name}: {name: string} = $props();
 		);
 
 		assert.ok(result);
-		assert.strictEqual(result.module.path, 'script.js');
-		assert.strictEqual(result.module.declarations.length, 1);
-		assert.strictEqual(result.module.declarations[0]!.name, 'config');
+		assert.strictEqual(result.path, 'script.js');
+		assert.strictEqual(result.declarations.length, 1);
+		assert.strictEqual(result.declarations[0]!.name, 'config');
 	});
 });
 
@@ -229,7 +229,7 @@ describe('analyzeModule return structure', () => {
 		sourcePaths: ['src/lib'],
 	});
 
-	test('TypeScript module returns ModuleAnalyzeResult with reExports array', () => {
+	test('TypeScript module returns ModuleJson with reExports array', () => {
 		const program = createTestProgram([
 			{
 				path: '/project/src/lib/simple.ts',
@@ -246,8 +246,7 @@ describe('analyzeModule return structure', () => {
 		);
 
 		assert.ok(result);
-		assert.ok(result.module);
-		assert.ok(result.module.path);
+		assert.ok(result.path);
 		assert.ok(Array.isArray(result.reExports), 'reExports should always be an array');
 	});
 
@@ -271,7 +270,7 @@ let {value}: {value: string} = $props();
 		assert.isUndefined(result);
 	});
 
-	test('CSS module returns ModuleAnalyzeResult with empty reExports', () => {
+	test('CSS module returns ModuleJson with empty reExports', () => {
 		const program = createTestProgram([
 			{path: '/project/src/lib/placeholder.ts', content: 'export const x = 1;'},
 		]);
@@ -285,14 +284,13 @@ let {value}: {value: string} = $props();
 		);
 
 		assert.ok(result);
-		assert.ok(result.module);
-		assert.strictEqual(result.module.path, 'styles.css');
-		assert.deepStrictEqual(result.module.declarations, []);
+		assert.strictEqual(result.path, 'styles.css');
+		assert.deepStrictEqual(result.declarations, []);
 		assert.ok(Array.isArray(result.reExports));
 		assert.strictEqual(result.reExports.length, 0);
 	});
 
-	test('JSON module returns ModuleAnalyzeResult with empty reExports', () => {
+	test('JSON module returns ModuleJson with empty reExports', () => {
 		const program = createTestProgram([
 			{path: '/project/src/lib/placeholder.ts', content: 'export const x = 1;'},
 		]);
@@ -306,9 +304,8 @@ let {value}: {value: string} = $props();
 		);
 
 		assert.ok(result);
-		assert.ok(result.module);
-		assert.strictEqual(result.module.path, 'config.json');
-		assert.deepStrictEqual(result.module.declarations, []);
+		assert.strictEqual(result.path, 'config.json');
+		assert.deepStrictEqual(result.declarations, []);
 		assert.ok(Array.isArray(result.reExports));
 		assert.strictEqual(result.reExports.length, 0);
 	});
@@ -331,7 +328,7 @@ let {value}: {value: string} = $props();
 
 		assert.ok(result);
 		// No exports → declarations is empty array (Zod default)
-		assert.deepStrictEqual(result.module.declarations, []);
+		assert.deepStrictEqual(result.declarations, []);
 		assert.strictEqual(result.reExports.length, 0);
 	});
 

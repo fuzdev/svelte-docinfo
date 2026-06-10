@@ -7,7 +7,6 @@ import {
 	mergeReExports,
 	resolveComponentAliases,
 	computeDependents,
-	type ReExportEntry,
 } from '$lib/postprocess.js';
 import {type SourceFileInfo} from '$lib/source.js';
 
@@ -356,17 +355,11 @@ describe('mergeReExports', () => {
 				m({
 					path: 'index.ts',
 					declarations: [{name: 'local', kind: 'variable'}],
+					reExports: [{name: 'helper', module: 'helpers.ts'}],
 				}),
 			];
 
-			const collectedReExports: Array<ReExportEntry> = [
-				{
-					reExportingModule: 'index.ts',
-					reExport: {name: 'helper', originalModule: 'helpers.ts'},
-				},
-			];
-
-			mergeReExports(modules, collectedReExports);
+			mergeReExports(modules);
 
 			const helpersModule = modules.find((m) => m.path === 'helpers.ts')!;
 			const helperDecl = helpersModule.declarations.find((d) => d.name === 'helper')!;
@@ -380,20 +373,17 @@ describe('mergeReExports', () => {
 					path: 'core.ts',
 					declarations: [{name: 'util', kind: 'function'}],
 				}),
+				m({
+					path: 'index.ts',
+					reExports: [{name: 'util', module: 'core.ts'}],
+				}),
+				m({
+					path: 'public.ts',
+					reExports: [{name: 'util', module: 'core.ts'}],
+				}),
 			];
 
-			const collectedReExports: Array<ReExportEntry> = [
-				{
-					reExportingModule: 'index.ts',
-					reExport: {name: 'util', originalModule: 'core.ts'},
-				},
-				{
-					reExportingModule: 'public.ts',
-					reExport: {name: 'util', originalModule: 'core.ts'},
-				},
-			];
-
-			mergeReExports(modules, collectedReExports);
+			mergeReExports(modules);
 
 			const coreModule = modules.find((m) => m.path === 'core.ts')!;
 			const utilDecl = coreModule.declarations.find((d) => d.name === 'util')!;
@@ -411,20 +401,16 @@ describe('mergeReExports', () => {
 						{name: 'bar', kind: 'function'},
 					],
 				}),
+				m({
+					path: 'index.ts',
+					reExports: [
+						{name: 'foo', module: 'helpers.ts'},
+						{name: 'bar', module: 'helpers.ts'},
+					],
+				}),
 			];
 
-			const collectedReExports: Array<ReExportEntry> = [
-				{
-					reExportingModule: 'index.ts',
-					reExport: {name: 'foo', originalModule: 'helpers.ts'},
-				},
-				{
-					reExportingModule: 'index.ts',
-					reExport: {name: 'bar', originalModule: 'helpers.ts'},
-				},
-			];
-
-			mergeReExports(modules, collectedReExports);
+			mergeReExports(modules);
 
 			const helpersModule = modules.find((m) => m.path === 'helpers.ts')!;
 			const fooDecl = helpersModule.declarations.find((d) => d.name === 'foo')!;
@@ -436,7 +422,7 @@ describe('mergeReExports', () => {
 	});
 
 	describe('edge cases', () => {
-		test('handles empty collectedReExports', () => {
+		test('handles modules without re-export edges', () => {
 			const modules = [
 				m({
 					path: 'helpers.ts',
@@ -445,7 +431,7 @@ describe('mergeReExports', () => {
 			];
 
 			// Should not throw
-			mergeReExports(modules, []);
+			mergeReExports(modules);
 
 			const helpersModule = modules.find((m) => m.path === 'helpers.ts')!;
 			const helperDecl = helpersModule.declarations.find((d) => d.name === 'helper')!;
@@ -456,57 +442,43 @@ describe('mergeReExports', () => {
 		test('handles empty modules array', () => {
 			const modules: Array<ModuleJson> = [];
 
-			const collectedReExports: Array<ReExportEntry> = [
-				{
-					reExportingModule: 'index.ts',
-					reExport: {name: 'foo', originalModule: 'helpers.ts'},
-				},
-			];
-
 			// Should not throw
-			mergeReExports(modules, collectedReExports);
+			mergeReExports(modules);
 		});
 
-		test('ignores re-exports for non-existent modules', () => {
+		test('ignores edges whose canonical module is absent', () => {
 			const modules = [
 				m({
 					path: 'helpers.ts',
 					declarations: [{name: 'helper', kind: 'function'}],
 				}),
+				m({
+					path: 'index.ts',
+					reExports: [{name: 'foo', module: 'nonexistent.ts'}],
+				}),
 			];
 
-			const collectedReExports: Array<ReExportEntry> = [
-				{
-					reExportingModule: 'index.ts',
-					reExport: {name: 'foo', originalModule: 'nonexistent.ts'},
-				},
-			];
+			// Should not throw — the dangling forward edge stays without a back-link
+			mergeReExports(modules);
 
-			// Should not throw
-			mergeReExports(modules, collectedReExports);
-
-			// Original module should not be affected
 			const helpersModule = modules.find((m) => m.path === 'helpers.ts')!;
 			assert.deepStrictEqual(helpersModule.declarations[0]!.alsoExportedFrom, []);
 		});
 
-		test('ignores re-exports for non-existent declarations', () => {
+		test('ignores edges whose canonical declaration is absent', () => {
 			const modules = [
 				m({
 					path: 'helpers.ts',
 					declarations: [{name: 'helper', kind: 'function'}],
 				}),
-			];
-
-			const collectedReExports: Array<ReExportEntry> = [
-				{
-					reExportingModule: 'index.ts',
-					reExport: {name: 'nonexistent', originalModule: 'helpers.ts'},
-				},
+				m({
+					path: 'index.ts',
+					reExports: [{name: 'nonexistent', module: 'helpers.ts'}],
+				}),
 			];
 
 			// Should not throw
-			mergeReExports(modules, collectedReExports);
+			mergeReExports(modules);
 
 			// Original declaration should not be affected
 			const helpersModule = modules.find((m) => m.path === 'helpers.ts')!;
@@ -514,30 +486,18 @@ describe('mergeReExports', () => {
 		});
 
 		test('sorts re-exporters alphabetically for determinism', () => {
+			// Modules listed in non-alphabetical order
 			const modules = [
 				m({
 					path: 'core.ts',
 					declarations: [{name: 'util', kind: 'function'}],
 				}),
+				m({path: 'zebra.ts', reExports: [{name: 'util', module: 'core.ts'}]}),
+				m({path: 'alpha.ts', reExports: [{name: 'util', module: 'core.ts'}]}),
+				m({path: 'beta.ts', reExports: [{name: 'util', module: 'core.ts'}]}),
 			];
 
-			// Add in non-alphabetical order
-			const collectedReExports: Array<ReExportEntry> = [
-				{
-					reExportingModule: 'zebra.ts',
-					reExport: {name: 'util', originalModule: 'core.ts'},
-				},
-				{
-					reExportingModule: 'alpha.ts',
-					reExport: {name: 'util', originalModule: 'core.ts'},
-				},
-				{
-					reExportingModule: 'beta.ts',
-					reExport: {name: 'util', originalModule: 'core.ts'},
-				},
-			];
-
-			mergeReExports(modules, collectedReExports);
+			mergeReExports(modules);
 
 			const coreModule = modules.find((m) => m.path === 'core.ts')!;
 			const utilDecl = coreModule.declarations.find((d) => d.name === 'util')!;
@@ -551,22 +511,13 @@ describe('mergeReExports', () => {
 					path: 'core.ts',
 					declarations: [{name: 'util', kind: 'function'}],
 				}),
+				m({path: 'index.ts', reExports: [{name: 'util', module: 'core.ts'}]}),
+				m({path: 'public.ts', reExports: [{name: 'util', module: 'core.ts'}]}),
 			];
 
-			const collectedReExports: Array<ReExportEntry> = [
-				{
-					reExportingModule: 'index.ts',
-					reExport: {name: 'util', originalModule: 'core.ts'},
-				},
-				{
-					reExportingModule: 'public.ts',
-					reExport: {name: 'util', originalModule: 'core.ts'},
-				},
-			];
-
-			mergeReExports(modules, collectedReExports);
+			mergeReExports(modules);
 			const afterFirst = JSON.parse(JSON.stringify(modules));
-			mergeReExports(modules, collectedReExports);
+			mergeReExports(modules);
 
 			assert.deepStrictEqual(modules, afterFirst);
 
@@ -580,60 +531,17 @@ describe('mergeReExports', () => {
 					path: 'core.ts',
 					declarations: [{name: 'util', kind: 'function'}],
 				}),
+				m({path: 'index.ts', reExports: [{name: 'util', module: 'core.ts'}]}),
 			];
 
-			mergeReExports(modules, [
-				{
-					reExportingModule: 'index.ts',
-					reExport: {name: 'util', originalModule: 'core.ts'},
-				},
-			]);
+			mergeReExports(modules);
 
-			// Second pass adds a new re-exporter — first one should be preserved
-			mergeReExports(modules, [
-				{
-					reExportingModule: 'public.ts',
-					reExport: {name: 'util', originalModule: 'core.ts'},
-				},
-			]);
+			// A module added between calls — existing back-links should be preserved
+			modules.push(m({path: 'public.ts', reExports: [{name: 'util', module: 'core.ts'}]}));
+			mergeReExports(modules);
 
 			const utilDecl = modules[0]!.declarations.find((d) => d.name === 'util')!;
 			assert.deepStrictEqual(utilDecl.alsoExportedFrom, ['index.ts', 'public.ts']);
-		});
-
-		test('dedupes overlap between calls (partial overlap)', () => {
-			const modules = [
-				m({
-					path: 'core.ts',
-					declarations: [{name: 'util', kind: 'function'}],
-				}),
-			];
-
-			mergeReExports(modules, [
-				{
-					reExportingModule: 'index.ts',
-					reExport: {name: 'util', originalModule: 'core.ts'},
-				},
-				{
-					reExportingModule: 'public.ts',
-					reExport: {name: 'util', originalModule: 'core.ts'},
-				},
-			]);
-
-			// Second pass overlaps on 'index.ts' and adds 'extra.ts'
-			mergeReExports(modules, [
-				{
-					reExportingModule: 'index.ts',
-					reExport: {name: 'util', originalModule: 'core.ts'},
-				},
-				{
-					reExportingModule: 'extra.ts',
-					reExport: {name: 'util', originalModule: 'core.ts'},
-				},
-			]);
-
-			const utilDecl = modules[0]!.declarations.find((d) => d.name === 'util')!;
-			assert.deepStrictEqual(utilDecl.alsoExportedFrom, ['extra.ts', 'index.ts', 'public.ts']);
 		});
 	});
 
@@ -697,7 +605,7 @@ describe('mergeReExports', () => {
 
 			// `mergeReExports` only handles alsoExportedFrom; component-only field
 			// inheritance is `resolveComponentAliases`'s job. Both run in `analyzeCore`.
-			mergeReExports([canonical, alias], []);
+			mergeReExports([canonical, alias]);
 			resolveComponentAliases([canonical, alias]);
 
 			const aliasDecl = alias.declarations[0]!;

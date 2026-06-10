@@ -24,24 +24,8 @@ import type {
 	OverloadJsonInput,
 	ComponentPropJsonInput,
 	Reactivity,
+	ReExportJson,
 } from './types.js';
-
-/**
- * Information about a same-name re-export.
- *
- * Collected during phase 1 of analysis and passed to `mergeReExports`
- * in phase 2 to build `alsoExportedFrom` arrays on canonical declarations.
- */
-export interface ReExportInfo {
-	/**
-	 * Name of the re-exported declaration. `'default'` for default-slot
-	 * re-exports (`export {default} from './x'`) — that's the canonical's
-	 * actual symbol name in the original module.
-	 */
-	name: string;
-	/** Module path (relative to `sourceRoot`) where the declaration is originally declared. */
-	originalModule: string;
-}
 
 /**
  * Permissive type for constructing members incrementally before Zod validation.
@@ -148,8 +132,12 @@ export interface ModuleExportsAnalysis {
 	moduleComment?: string;
 	/** All exported declarations with `@nodocs` flags — consumer filters based on policy. */
 	declarations: Array<DeclarationAnalysis>;
-	/** Same-name re-exports (for building `alsoExportedFrom` in post-processing). */
-	reExports: Array<ReExportInfo>;
+	/**
+	 * Same-name re-exports. Published as `ModuleJson.reExports` and consumed
+	 * by `mergeReExports` in phase 2 to build `alsoExportedFrom` arrays on
+	 * canonical declarations.
+	 */
+	reExports: Array<ReExportJson>;
 	/** Star exports (`export * from './module'`) — module paths that are fully re-exported. */
 	starExports: Array<string>;
 }

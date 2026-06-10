@@ -19,8 +19,8 @@ import type {
 	ModuleAnalysis,
 	ModuleExportsAnalysis,
 	DeclarationJsonBuild,
-	ReExportInfo,
 } from './declaration-build.js';
+import type {ReExportJson} from './types.js';
 import type {Diagnostic} from './diagnostics.js';
 import {parseComment, applyToDeclaration, cleanComment, hasModuleTag} from './tsdoc.js';
 import {
@@ -262,7 +262,7 @@ export const analyzeExports = (
 	diagnostics: Array<Diagnostic>,
 ): ModuleExportsAnalysis => {
 	const declarations: Array<DeclarationAnalysis> = [];
-	const reExports: Array<ReExportInfo> = [];
+	const reExports: Array<ReExportJson> = [];
 
 	const isExternalFile = createIsExternalFile(options);
 
@@ -372,7 +372,7 @@ export const analyzeExports = (
 						if (!localTsdoc?.nodocs) {
 							reExports.push({
 								name: exportSymbol.name,
-								originalModule: nsClass.canonicalModule,
+								module: nsClass.canonicalModule,
 							});
 						}
 					}
@@ -545,7 +545,7 @@ export const analyzeExports = (
 								) {
 									reExports.push({
 										name: reExportName,
-										originalModule: extractPath(canonicalFile, options),
+										module: extractPath(canonicalFile, options),
 									});
 								}
 							}
@@ -556,6 +556,19 @@ export const analyzeExports = (
 					}
 					// Within-file alias (export { x as y }) - fall through to normal analysis
 				}
+			}
+
+			// Star-projected exports surface as the target module's own symbols —
+			// no Alias flag, declaration in a foreign file (`export * from './a'`
+			// merges a.ts's export table; there is no per-name alias node). Their
+			// encoding is `starExports`; analyzing them here would duplicate the
+			// canonical declaration into this module (triggering spurious
+			// duplicate_declaration diagnostics, with sourceLine pointing into
+			// the foreign file).
+			if (!isAlias) {
+				const ownDecl = exportSymbol.valueDeclaration ?? exportSymbol.declarations?.[0];
+				const ownFileName = ownDecl && stripVirtualSuffix(ownDecl.getSourceFile().fileName);
+				if (ownFileName !== undefined && ownFileName !== currentFileName) continue;
 			}
 
 			// Normal export or within-file alias - declared in this file.
