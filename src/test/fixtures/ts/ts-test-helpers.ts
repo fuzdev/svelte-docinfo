@@ -7,7 +7,7 @@ import {extractFunctionInfo, extractVariableInfo} from '$lib/typescript-extract-
 import {extractTypeInfo, extractEnumInfo} from '$lib/typescript-extract-type.js';
 import {extractClassInfo} from '$lib/typescript-extract-class.js';
 import {extractModuleComment} from '$lib/typescript-exports.js';
-import {parseComment, applyToDeclaration, hasModuleTag} from '$lib/tsdoc.js';
+import {parseComment, applyToDeclaration} from '$lib/tsdoc.js';
 import type {Diagnostic} from '$lib/diagnostics.js';
 
 import {loadFixturesGeneric} from '../../test-helpers.js';
@@ -285,7 +285,7 @@ export const extractDeclarationFromSource = (
 			kind: inferDeclarationKind(symbol, node),
 		};
 
-		// Extract TSDoc — skip @module comments (handled by extractModuleComment)
+		// Extract TSDoc — parseComment filters @module blocks (handled by extractModuleComment)
 		const tsdoc = parseComment(node, sourceFile);
 
 		// Check for @nodocs tag (excludes from documentation)
@@ -293,9 +293,7 @@ export const extractDeclarationFromSource = (
 		if (nodocs) return null;
 
 		// Apply TSDoc to declaration (adds docComment, deprecatedMessage, examples, etc.)
-		if (!hasModuleTag(node)) {
-			applyToDeclaration(declaration, tsdoc);
-		}
+		applyToDeclaration(declaration, tsdoc);
 
 		// Apply appropriate extraction based on category
 		const diagnostics: Array<Diagnostic> = [];

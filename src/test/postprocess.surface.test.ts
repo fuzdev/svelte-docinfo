@@ -245,7 +245,7 @@ describe('resolveExportSurface', () => {
 			const surface = resolveExportSurface(modules, 'index.ts')!;
 			assert.deepStrictEqual(
 				surface.entries.map((e) => e.name),
-				['Renamed', 'helper'],
+				['helper', 'Renamed'],
 			);
 		});
 

@@ -22,7 +22,7 @@ import type {
 } from './declaration-build.js';
 import type {ReExportJsonInput, ExternalReExportJsonInput} from './types.js';
 import type {Diagnostic} from './diagnostics.js';
-import {parseComment, applyToDeclaration, cleanComment, hasModuleTag} from './tsdoc.js';
+import {parseComment, applyToDeclaration, cleanComment} from './tsdoc.js';
 import {
 	type SourceFileInfo,
 	stripVirtualSuffix,
@@ -405,6 +405,8 @@ export const analyzeExports = (
 	// so re-export tracking matches real module paths
 	const currentFileName = stripVirtualSuffix(sourceFile.fileName);
 
+	warnModuleCommentNodocs(moduleComment, currentFileName, diagnostics);
+
 	// 1-based line of a node in this file. Virtual coordinates for Svelte
 	// `<script module>` sources — remapped in `analyzeSvelteModule`.
 	const lineOf = (node: ts.Node): number =>
@@ -761,12 +763,12 @@ export const analyzeDeclaration = (
 		return {declaration: result, nodocs: false};
 	}
 
-	// Extract TSDoc — skip @module comments (handled by extractModuleComment)
+	// Extract TSDoc — `parseComment` filters `@module` blocks (handled by
+	// `extractModuleComment`), so a first declaration under a module comment
+	// keeps its own JSDoc
 	const tsdoc = parseComment(declNode, sourceFile);
 	const nodocs = tsdoc?.nodocs ?? false;
-	if (!hasModuleTag(declNode)) {
-		applyToDeclaration(result, tsdoc);
-	}
+	applyToDeclaration(result, tsdoc);
 
 	// Extract source line
 	const start = declNode.getStart(sourceFile);
@@ -840,6 +842,35 @@ export const extractModuleComment = (sourceFile: ts.SourceFile): string | undefi
 	}
 
 	return undefined;
+};
+
+/**
+ * Warn when a module comment carries `@nodocs`.
+ *
+ * The tag has no module-level meaning — it applies to declarations and export
+ * statements — so its presence in a `@module` comment is always author
+ * confusion: it does nothing except remain verbatim in `moduleComment` text.
+ * Same line-start detection as `extractModuleComment`'s `@module` test, so a
+ * backticked or mid-prose mention doesn't trigger.
+ *
+ * @internal Shared by `analyzeExports` (TS files and Svelte `<script module>`
+ * virtuals) and `analyzeSvelteModule` (instance-script and HTML module
+ * comments, which `analyzeExports` never sees).
+ */
+export const warnModuleCommentNodocs = (
+	moduleComment: string | undefined,
+	file: string,
+	diagnostics: Array<Diagnostic>,
+): void => {
+	if (!moduleComment || !/(?:^|\n)@nodocs\b/.test(moduleComment)) return;
+	diagnostics.push({
+		kind: 'misplaced_tag',
+		file,
+		message:
+			'@nodocs in a module comment has no effect — it applies to declarations and export statements; to omit a module from analysis, use exclude patterns',
+		severity: 'warning',
+		tagName: 'nodocs',
+	});
 };
 
 /**

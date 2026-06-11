@@ -7,7 +7,6 @@
  * Svelte analysis internals, or TSDoc parsing utilities.
  *
  * @module
- * @nodocs
  */
 
 // ── Core entry points ───────────────────────────────────────────────────────

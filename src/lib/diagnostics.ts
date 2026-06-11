@@ -231,19 +231,23 @@ export const DuplicateCommentDiagnostic = z.strictObject({
 export type DuplicateCommentDiagnostic = z.infer<typeof DuplicateCommentDiagnostic>;
 
 /**
- * Symbol-scope JSDoc tag (`@example`, `@deprecated`, `@since`, `@see`,
- * `@throws`, `@mutates`, `@default`, `@nodocs`) found on a non-primary overload
- * signature.
+ * A JSDoc tag found somewhere it has no effect.
  *
- * Symbol-scope tags describe the function as a whole, not individual
- * signatures. The primary signature's JSDoc feeds the parent declaration's
- * symbol-level extraction; tags on non-primary overload signatures are
- * silently dropped from output. This diagnostic surfaces them so authors
- * can move them to the primary signature.
+ * Two contexts emit this:
  *
- * `@default` and `@nodocs` are included here even though overloads never
- * carry a `defaultValue` or per-overload exclusion: their presence on a
- * non-primary signature is always a misplacement.
+ * - **Non-primary overload signature** — symbol-scope tags (`@example`,
+ *   `@deprecated`, `@since`, `@see`, `@throws`, `@mutates`, `@default`,
+ *   `@nodocs`) describe the function as a whole, not individual signatures.
+ *   The primary signature's JSDoc feeds the parent declaration's symbol-level
+ *   extraction; tags on non-primary overload signatures are silently dropped
+ *   from output. This diagnostic surfaces them so authors can move them to
+ *   the primary signature. `@default` and `@nodocs` are included even though
+ *   overloads never carry a `defaultValue` or per-overload exclusion: their
+ *   presence on a non-primary signature is always a misplacement.
+ * - **Module comment** — `@nodocs` has no module-level meaning (it applies to
+ *   declarations and export statements); in a `@module` comment the tag does
+ *   nothing except remain verbatim in `moduleComment` text. To omit a module
+ *   from analysis, use `exclude` patterns instead.
  */
 export const MisplacedTagDiagnostic = z.strictObject({
 	kind: z.literal('misplaced_tag'),
@@ -259,8 +263,11 @@ export const MisplacedTagDiagnostic = z.strictObject({
 		'default',
 		'nodocs',
 	]),
-	/** Name of the function or method whose overload carries the misplaced tag. */
-	functionName: z.string(),
+	/**
+	 * Name of the function or method whose overload carries the misplaced tag.
+	 * Absent for module-comment misplacements (no enclosing symbol).
+	 */
+	functionName: z.string().optional(),
 });
 export type MisplacedTagDiagnostic = z.infer<typeof MisplacedTagDiagnostic>;
 

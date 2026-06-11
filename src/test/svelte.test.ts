@@ -714,6 +714,49 @@ let {name}: {name: string} = $props();
 		assert.ok(declaration.docComment);
 		assert.include(declaration.docComment, 'Component documentation');
 	});
+
+	test('@nodocs in a module comment warns (no module-level meaning)', () => {
+		// <script module> comments flow through analyzeExports on the virtual;
+		// instance-script and HTML comments are checked in analyzeSvelteModule —
+		// each misplaced comment warns once
+		const scriptModuleContent = `<script module lang="ts">
+/**
+ * Module docs.
+ *
+ * @module
+ * @nodocs
+ */
+export const a = 1;
+</script>
+<p>text</p>`;
+
+		const scriptModuleDiagnostics: Array<Diagnostic> = [];
+		analyzeSvelteTestIntegration(
+			{id: '/fake/path/ScriptModule.svelte', content: scriptModuleContent},
+			'ScriptModule.svelte',
+			scriptModuleDiagnostics,
+		);
+		const fromScriptModule = scriptModuleDiagnostics.filter((d) => d.kind === 'misplaced_tag');
+		assert.strictEqual(fromScriptModule.length, 1);
+		assert.strictEqual(fromScriptModule[0]!.tagName, 'nodocs');
+
+		const htmlContent = `<!--
+@module
+@nodocs
+Module docs.
+-->
+<p>text</p>`;
+
+		const htmlDiagnostics: Array<Diagnostic> = [];
+		analyzeSvelteTestIntegration(
+			{id: '/fake/path/HtmlModule.svelte', content: htmlContent},
+			'HtmlModule.svelte',
+			htmlDiagnostics,
+		);
+		const fromHtml = htmlDiagnostics.filter((d) => d.kind === 'misplaced_tag');
+		assert.strictEqual(fromHtml.length, 1);
+		assert.strictEqual(fromHtml[0]!.tagName, 'nodocs');
+	});
 });
 
 describe('svelte analysis diagnostic collection', () => {

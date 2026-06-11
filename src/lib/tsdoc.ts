@@ -31,6 +31,10 @@
  *
  * ## Behavioral notes
  *
+ * JSDoc blocks tagged `@module` are excluded from `parseComment` entirely (text
+ * and tags) — module comments attach to the file's first statement in the AST
+ * and are owned by `extractModuleComment` instead.
+ *
  * Due to TS Compiler API limitations:
  * - TS API includes dash separator in `@param` tag text; we strip the leading `- ` as it's syntax, not content
  * - `@throws` tags have `{Type}` stripped by TS API; fallback regex extracts first word as error type
@@ -88,6 +92,26 @@ export interface TsdocParsedComment {
 const cleanTagDescription = (text: string): string => text.trim().replace(/^-\s+/, '');
 
 /**
+ * Whether a JSDoc block is a module-level comment (carries a `@module` tag).
+ */
+const isModuleJsdocBlock = (jsdoc: ts.JSDoc): boolean =>
+	jsdoc.tags?.some((tag) => tag.tagName.text === 'module') ?? false;
+
+/**
+ * Whether a JSDoc node or tag belongs to a module-level (`@module`) block.
+ *
+ * A module comment physically precedes the file's first statement, so the AST
+ * attaches it to that statement's JSDoc — without this filter the module
+ * comment (including tags like `@nodocs`) would read as the statement's own
+ * docs. Per-block, so a statement's own JSDoc below a module comment still
+ * applies. `extractModuleComment` owns module-comment extraction.
+ */
+const belongsToModuleBlock = (node: ts.JSDoc | ts.JSDocTag): boolean =>
+	ts.isJSDoc(node)
+		? isModuleJsdocBlock(node)
+		: ts.isJSDoc(node.parent) && isModuleJsdocBlock(node.parent);
+
+/**
  * Parse JSDoc comment from a TypeScript node.
  *
  * Extracts and parses all JSDoc tags including:
@@ -103,9 +127,14 @@ const cleanTagDescription = (text: string): string => text.trim().replace(/^-\s+
  * - `@mutates` - mutation documentation (non-standard)
  * - `@nodocs` - exclusion flag (non-standard)
  *
+ * JSDoc blocks tagged `@module` are excluded entirely (text and tags): a module
+ * comment attaches to the file's first statement in the AST, and without the
+ * filter it would read as that statement's own docs. `extractModuleComment`
+ * (`typescript-exports.ts`) owns module comments.
+ *
  * @param node - the TypeScript node to extract JSDoc from
  * @param sourceFile - source file (used for extracting full `@see` tag text)
- * @returns parsed comment with structured metadata, or undefined if no JSDoc found
+ * @returns parsed comment with structured metadata, or undefined if no JSDoc found (or only `@module` blocks)
  *
  * @example
  * ```ts
@@ -120,7 +149,7 @@ export const parseComment = (
 	node: ts.Node,
 	sourceFile: ts.SourceFile,
 ): TsdocParsedComment | undefined => {
-	const tsdocComments = ts.getJSDocCommentsAndTags(node);
+	const tsdocComments = ts.getJSDocCommentsAndTags(node).filter((c) => !belongsToModuleBlock(c));
 	if (tsdocComments.length === 0) return undefined;
 
 	let fullText = '';
@@ -151,8 +180,8 @@ export const parseComment = (
 		}
 	}
 
-	// Extract tags
-	const tags = ts.getJSDocTags(node);
+	// Extract tags (module-block tags filtered like their text above)
+	const tags = ts.getJSDocTags(node).filter((tag) => !belongsToModuleBlock(tag));
 	for (const tag of tags) {
 		const tagText =
 			typeof tag.comment === 'string' ? tag.comment : tag.comment?.map((c) => c.text).join('');
@@ -275,18 +304,6 @@ export const applyToDeclaration = (
 		declaration.defaultValue = tsdoc.defaultValue;
 	}
 };
-
-/**
- * Check if a TypeScript node has a `@module` JSDoc tag.
- *
- * Used to prevent `@module` comments from leaking into declaration `docComment` fields.
- * Module-level comments are extracted separately by `extractModuleComment`.
- *
- * @param node - the TypeScript node to check
- * @returns true if any JSDoc tag on the node is `@module`
- */
-export const hasModuleTag = (node: ts.Node): boolean =>
-	ts.getJSDocTags(node).some((tag) => tag.tagName.text === 'module');
 
 /**
  * Clean raw JSDoc comment text by removing comment markers and leading asterisks.

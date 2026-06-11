@@ -110,6 +110,48 @@ describe('module-level reExports field', {timeout: 15_000}, () => {
 		});
 	});
 
+	test('module comment (with @nodocs) on the first statement does not suppress its edges', async () => {
+		// The AST attaches a file's module comment to the first statement —
+		// it must not read as that statement's local JSDoc (which would
+		// synthesize a Position-3 alias and, via @nodocs, suppress the edges)
+		const files = {
+			'src/lib/a.ts': `export const foo = 1;\nexport type Bar = number;\n`,
+			'src/lib/index.ts': `/**\n * Barrel docs.\n *\n * @module\n * @nodocs\n */\n\nexport {foo} from './a.js';\nexport type {Bar} from './a.js';\n`,
+			'src/lib/star.ts': `/**\n * Star barrel.\n *\n * @module\n * @nodocs\n */\n\nexport * from './a.js';\n`,
+		};
+
+		await withTestProject(files, async (projectRoot) => {
+			const {sourceFiles, sourceOptions} = setupAnalysis(projectRoot, files);
+			const {modules, diagnostics} = await analyze({sourceFiles, sourceOptions});
+
+			const indexModule = modules.find((m) => m.path === 'index.ts')!;
+			assert.ok(indexModule.moduleComment, 'module comment still extracted');
+			assert.deepStrictEqual(indexModule.reExports, [
+				{name: 'Bar', module: 'a.ts', typeOnly: true, sourceLine: 9},
+				{name: 'foo', module: 'a.ts', typeOnly: false, sourceLine: 8},
+			]);
+			// no Position-3 alias synthesized from the module comment
+			assert.deepStrictEqual(indexModule.declarations, []);
+
+			// back-link agrees with the forward edge
+			const foo = modules
+				.find((m) => m.path === 'a.ts')!
+				.declarations.find((d) => d.name === 'foo');
+			assert.deepStrictEqual(foo?.alsoExportedFrom, ['index.ts']);
+
+			// star export as first statement survives too
+			const starModule = modules.find((m) => m.path === 'star.ts')!;
+			assert.deepStrictEqual(starModule.starExports, ['a.ts']);
+
+			// the inert module-level @nodocs is surfaced as a warning per module
+			const misplaced = diagnostics.filter((d) => d.kind === 'misplaced_tag');
+			assert.deepStrictEqual(misplaced.map((d) => d.file).sort(), [
+				'src/lib/index.ts',
+				'src/lib/star.ts',
+			]);
+		});
+	});
+
 	test('same-name with JSDoc (Position 3) keeps both the alias declaration and the forward edge', async () => {
 		const files = {
 			'src/lib/a.ts': `export const foo = 1;\n`,

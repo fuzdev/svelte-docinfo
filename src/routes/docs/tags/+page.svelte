@@ -99,7 +99,8 @@
 						<td><code>@nodocs</code></td>
 						<td>
 							Excludes the declaration from output entirely; also excludes it from flat-namespace
-							duplicate checking
+							duplicate checking. Declaration- and statement-level only — in a
+							<code>@module</code> comment it has no effect and warns
 						</td>
 					</tr>
 					<tr>
@@ -259,7 +260,9 @@ export function add_days(d: Date, n: number): Date { /* ... */ }`}
 			<p>Three diagnostic kinds surface tag-handling problems:</p>
 			<ul>
 				<li>
-					<code>misplaced_tag</code>: symbol-scope tag on a non-primary overload signature
+					<code>misplaced_tag</code>: symbol-scope tag on a non-primary overload signature, or
+					<code>@nodocs</code> in a <code>@module</code> comment (no module-level meaning — use
+					<code>exclude</code> patterns to omit a module)
 				</li>
 				<li>
 					<code>unknown_param</code>: <code>@param</code> key with no matching parameter

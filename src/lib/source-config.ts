@@ -16,6 +16,7 @@ import picomatch from 'picomatch';
 
 import {type AnalyzerType, type SourceFileInfo, getDefaultAnalyzer} from './source.js';
 import {toPosixPath} from './paths.js';
+import {compareStrings} from './postprocess.js';
 
 /**
  * Configuration for module source detection and path extraction.
@@ -523,8 +524,8 @@ export const extractDependencies = (
 	}
 
 	// Sort for deterministic output
-	dependencies.sort();
-	dependents.sort();
+	dependencies.sort(compareStrings);
+	dependents.sort(compareStrings);
 
 	return {dependencies, dependents};
 };

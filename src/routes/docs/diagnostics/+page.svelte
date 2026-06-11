@@ -173,9 +173,11 @@
 							<strong>Trigger:</strong> symbol-scope tag (<code>@example</code>,
 							<code>@deprecated</code>, <code>@since</code>, <code>@see</code>,
 							<code>@throws</code>, <code>@mutates</code>, <code>@default</code>,
-							<code>@nodocs</code>) found on a non-primary overload signature.
-							<strong>Consequence:</strong> the tag is dropped; move it to the primary signature to keep
-							it.
+							<code>@nodocs</code>) found on a non-primary overload signature, or
+							<code>@nodocs</code> in a <code>@module</code> comment (where it has no meaning;
+							<code>functionName</code> is absent in that case).
+							<strong>Consequence:</strong> the tag is dropped; move it to the primary signature —
+							or, to omit a module from analysis, use <code>exclude</code> patterns.
 						</td>
 					</tr>
 					<tr>

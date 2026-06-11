@@ -164,19 +164,29 @@ export const findDuplicates = (
 };
 
 /**
- * Code-unit string comparator for deterministic output ordering.
+ * Case-insensitive string comparator for deterministic output ordering.
  *
- * Unlike `localeCompare` (host-locale/ICU-dependent, so byte-identical input
- * can serialize in different orders on different machines), code-unit order is
- * environment-independent — and it matches the default `Array.prototype.sort`
- * used for `alsoExportedFrom`, `dependencies`, and `dependents`.
+ * Case-folded comparison first (so `Analyze` and `analyze` sort together
+ * instead of all uppercase before all lowercase), then a code-unit tiebreak —
+ * so equal-ignoring-case strings still compare unequal and the result is an
+ * exact total order. Unlike `localeCompare` (host-locale/ICU-dependent, so
+ * byte-identical input can serialize in different orders on different
+ * machines), both passes use Unicode default mappings only and are
+ * environment-independent. All output ordering goes through this comparator —
+ * never bare `localeCompare` or default `Array.prototype.sort`.
  */
-export const compareStrings = (a: string, b: string): number => (a < b ? -1 : a > b ? 1 : 0);
+export const compareStrings = (a: string, b: string): number => {
+	const af = a.toLowerCase();
+	const bf = b.toLowerCase();
+	if (af < bf) return -1;
+	if (af > bf) return 1;
+	return a < b ? -1 : a > b ? 1 : 0;
+};
 
 /**
  * Sort modules alphabetically by path for deterministic output and cleaner diffs.
  *
- * Code-unit order (`compareStrings`) so the output is environment-independent.
+ * Case-insensitive order (`compareStrings`) so the output is environment-independent.
  *
  * @param modules - the modules to sort
  * @returns a new sorted array (does not mutate input)
@@ -250,7 +260,7 @@ export const mergeReExports = (modules: Array<ModuleJson>): void => {
 				// when re-run on already-merged modules
 				const merged = new Set(declaration.alsoExportedFrom);
 				for (const reExporter of reExporters) merged.add(reExporter);
-				declaration.alsoExportedFrom = Array.from(merged).sort();
+				declaration.alsoExportedFrom = Array.from(merged).sort(compareStrings);
 			}
 		}
 	}
@@ -400,7 +410,7 @@ export const computeDependents = (
 		}
 
 		// Sort for deterministic output
-		const dependents = Array.from(computed).sort();
+		const dependents = Array.from(computed).sort(compareStrings);
 
 		return {
 			...file,
@@ -443,7 +453,7 @@ export interface ExportSurfaceEntry {
  * A module's resolved export surface — see `resolveExportSurface`.
  */
 export interface ExportSurface {
-	/** Surface entries, sorted by `name` (code-unit order). */
+	/** Surface entries, sorted by `name` (case-insensitive order, `compareStrings`). */
 	entries: Array<ExportSurfaceEntry>;
 	/**
 	 * Star targets (own or transitive) absent from the analyzed set — their
@@ -648,7 +658,7 @@ export const resolveExportSurface = (
 		entries: Array.from(resolved.entries.values())
 			.map(({entry}) => entry)
 			.sort((a, b) => compareStrings(a.name, b.name)),
-		unresolvedStarExports: Array.from(resolved.unresolvedStars).sort(),
-		externalStarExports: Array.from(resolved.externalStars).sort(),
+		unresolvedStarExports: Array.from(resolved.unresolvedStars).sort(compareStrings),
+		externalStarExports: Array.from(resolved.externalStars).sort(compareStrings),
 	};
 };

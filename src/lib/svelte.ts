@@ -34,10 +34,14 @@ import type {
 	DeclarationAnalysis,
 	ModuleAnalysis,
 } from './declaration-build.js';
-import {parseComment, applyToDeclaration, hasModuleTag, type TsdocParsedComment} from './tsdoc.js';
+import {parseComment, applyToDeclaration, type TsdocParsedComment} from './tsdoc.js';
 import {type IsExternalFile, createIsExternalFile} from './typescript-program.js';
 import {parseGenericParam, filterExternalProperties} from './typescript-extract-shared.js';
-import {extractModuleComment, analyzeExports} from './typescript-exports.js';
+import {
+	extractModuleComment,
+	analyzeExports,
+	warnModuleCommentNodocs,
+} from './typescript-exports.js';
 import {type SourceFileInfo, getComponentName, SVELTE_VIRTUAL_SUFFIX} from './source.js';
 import {type ModuleSourceOptions, extractDependencies} from './source-config.js';
 import {type Diagnostic} from './diagnostics.js';
@@ -382,9 +386,10 @@ const hasScriptDocComment = (scriptContent: string | undefined): boolean => {
 		ts.ScriptKind.TS,
 	);
 
-	// Walk statements looking for a non-@module JSDoc comment
+	// Walk statements looking for a JSDoc comment (`parseComment` filters
+	// `@module` blocks, so module comments don't count)
 	for (const statement of sourceFile.statements) {
-		if (ts.isVariableStatement(statement) && !hasModuleTag(statement)) {
+		if (ts.isVariableStatement(statement)) {
 			const tsdoc = parseComment(statement, sourceFile);
 			if (tsdoc) return true;
 		}
@@ -413,14 +418,12 @@ const extractComponentTsdoc = (sourceFile: ts.SourceFile): TsdocParsedComment | 
 
 		// Check for JSDoc on VariableStatement or VariableDeclaration
 		// Component-level JSDoc is attached to these node types
-		// Skip @module comments — those are module-level, not component-level
+		// (`parseComment` filters module-level `@module` blocks)
 		if (ts.isVariableStatement(node) || ts.isVariableDeclaration(node)) {
-			if (!hasModuleTag(node)) {
-				const tsdoc = parseComment(node, sourceFile);
-				if (tsdoc) {
-					foundTsdoc = tsdoc;
-					return;
-				}
+			const tsdoc = parseComment(node, sourceFile);
+			if (tsdoc) {
+				foundTsdoc = tsdoc;
+				return;
 			}
 		}
 
@@ -1144,6 +1147,11 @@ export const analyzeSvelteModule = (
 		: undefined;
 	const htmlModuleComment = extractHtmlModuleComment(sourceFile.content);
 	const moduleComment = instanceModuleComment ?? scriptModuleComment ?? htmlModuleComment;
+
+	// @nodocs has no module-level meaning — warn per misplaced comment. The
+	// <script module> source is covered by analyzeExports on the virtual above.
+	warnModuleCommentNodocs(instanceModuleComment, modulePath, diagnostics);
+	warnModuleCommentNodocs(htmlModuleComment, modulePath, diagnostics);
 
 	// Warn if multiple @module sources exist
 	const moduleCommentSources = [

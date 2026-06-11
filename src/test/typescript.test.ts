@@ -460,6 +460,61 @@ export type Baz = { value: number };
 		assert.include(names, 'Baz');
 	});
 
+	test('module comment on the first declaration does not leak into its docs', () => {
+		// The AST attaches the module comment to the first statement — its text
+		// and tags (@nodocs here) must not read as the declaration's own JSDoc,
+		// and the declaration's own JSDoc below it must still apply
+		const sourceCode = `/**
+ * Module docs.
+ *
+ * @module
+ * @nodocs
+ */
+
+/** Doc for foo. */
+export const foo = 42;
+`;
+
+		const sourceFile = ts.createSourceFile('first.ts', sourceCode, ts.ScriptTarget.Latest, true);
+		const checker = createTestProgram(sourceFile, 'first.ts').getTypeChecker();
+
+		const diagnostics: Array<Diagnostic> = [];
+		const result = analyzeExports(sourceFile, checker, testSourceOptions(), diagnostics);
+
+		const foo = result.declarations.find((d) => d.declaration.name === 'foo');
+		assert.ok(foo);
+		assert.strictEqual(foo.nodocs, false);
+		assert.strictEqual(foo.declaration.docComment, 'Doc for foo.');
+
+		// module-level @nodocs has no meaning — surfaced as a warning
+		const misplaced = diagnostics.filter((d) => d.kind === 'misplaced_tag');
+		assert.strictEqual(misplaced.length, 1);
+		assert.strictEqual(misplaced[0]!.tagName, 'nodocs');
+		assert.isUndefined(misplaced[0]!.functionName);
+	});
+
+	test('module comment without @nodocs emits no misplaced_tag warning', () => {
+		const sourceCode = `/**
+ * Module docs mentioning \`@nodocs\` in prose.
+ *
+ * @module
+ */
+
+export const foo = 42;
+`;
+
+		const sourceFile = ts.createSourceFile('clean.ts', sourceCode, ts.ScriptTarget.Latest, true);
+		const checker = createTestProgram(sourceFile, 'clean.ts').getTypeChecker();
+
+		const diagnostics: Array<Diagnostic> = [];
+		analyzeExports(sourceFile, checker, testSourceOptions(), diagnostics);
+
+		assert.deepStrictEqual(
+			diagnostics.filter((d) => d.kind === 'misplaced_tag'),
+			[],
+		);
+	});
+
 	test('handles module with no exports', () => {
 		const sourceCode = `
 /**

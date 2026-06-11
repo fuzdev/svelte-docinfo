@@ -12,7 +12,7 @@
 import {test, assert, describe, beforeAll} from 'vitest';
 import ts from 'typescript';
 
-import {cleanComment} from '$lib/tsdoc.js';
+import {cleanComment, parseComment} from '$lib/tsdoc.js';
 
 import {
 	loadFixtures,
@@ -109,5 +109,36 @@ describe('cleanComment', () => {
 		const result = cleanComment('/* not JSDoc */');
 		// The /** regex doesn't match /*, so the /* prefix remains in output
 		assert.strictEqual(result, '/* not JSDoc');
+	});
+});
+
+describe('parseComment module-comment filtering', () => {
+	const parseFirstStatement = (code: string) => {
+		const sourceFile = ts.createSourceFile(
+			'mod.ts',
+			code,
+			ts.ScriptTarget.Latest,
+			true,
+			ts.ScriptKind.TS,
+		);
+		return parseComment(sourceFile.statements[0]!, sourceFile);
+	};
+
+	test('module comment attached to the first statement is not its own JSDoc', () => {
+		// The AST attaches a file's module comment to the first statement —
+		// parseComment must not read it (including its @nodocs) as statement docs
+		const result = parseFirstStatement(
+			'/**\n * Module docs.\n *\n * @module\n * @nodocs\n */\n\nexport {foo} from "./a.js";\n',
+		);
+		assert.isUndefined(result);
+	});
+
+	test('own JSDoc below a module comment still applies', () => {
+		const result = parseFirstStatement(
+			'/**\n * Module docs.\n *\n * @module\n * @nodocs\n */\n\n/** Own docs. */\nexport const foo = 1;\n',
+		);
+		assert.ok(result);
+		assert.strictEqual(result.text, 'Own docs.');
+		assert.notOk(result.nodocs);
 	});
 });
