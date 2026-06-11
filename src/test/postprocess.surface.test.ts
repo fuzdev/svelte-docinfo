@@ -58,6 +58,46 @@ describe('resolveExportSurface', () => {
 		assert.strictEqual(entry.declaration?.name, 'foo');
 	});
 
+	test('colliding edge names keep the first edge in sort order', () => {
+		// `export {default} from './Foo.svelte'` (re-keyed to 'Foo') collides
+		// with a same-name re-export of an unrelated `Foo` — the surface is
+		// keyed by name, so the edge sorting first by module wins.
+		const modules = [
+			m({path: 'Foo.svelte', declarations: [{name: 'Foo', kind: 'component'}]}),
+			m({path: 'other.ts', declarations: [{name: 'Foo', kind: 'variable'}]}),
+			m({
+				path: 'barrel.ts',
+				reExports: [
+					{name: 'Foo', module: 'Foo.svelte'},
+					{name: 'Foo', module: 'other.ts'},
+				],
+			}),
+		];
+
+		const surface = resolveExportSurface(modules, 'barrel.ts')!;
+		assert.deepStrictEqual(names(surface), [{name: 'Foo', via: 'reExport', module: 'Foo.svelte'}]);
+	});
+
+	test('an edge whose canonical module is outside the set surfaces without a declaration', () => {
+		// Session with a partial owned set — the forward edge persists (see the
+		// presence caveats on `ReExportJson`), so the surface reports it with
+		// the canonical module but no resolved declaration.
+		const modules = [m({path: 'barrel.ts', reExports: [{name: 'foo', module: 'unowned.ts'}]})];
+
+		const surface = resolveExportSurface(modules, 'barrel.ts')!;
+		assert.deepStrictEqual(surface.entries, [{name: 'foo', via: 'reExport', module: 'unowned.ts'}]);
+	});
+
+	test("a module's own default appears on its own surface", () => {
+		const modules = [m({path: 'a.ts', declarations: [{name: 'default', kind: 'function'}]})];
+
+		const surface = resolveExportSurface(modules, 'a.ts')!;
+		assert.deepStrictEqual(
+			surface.entries.map((e) => ({name: e.name, via: e.via})),
+			[{name: 'default', via: 'declaration'}],
+		);
+	});
+
 	test('a Position-3 alias and its edge collapse to one declaration entry carrying typeOnly', () => {
 		const modules = [
 			m({path: 'a.ts', declarations: [{name: 'A', kind: 'interface'}]}),
@@ -248,6 +288,34 @@ describe('resolveExportSurface', () => {
 			);
 		});
 
+		test('a surface resolved inside a cycle does not leak to sibling star paths', () => {
+			// p owns X and stars b; b stars p (cycle) and a1, which owns a
+			// different X. Resolving b under p's star contributes nothing along
+			// the back-edge, so that path-relative surface keeps a1's X instead
+			// of excluding it as ambiguous — were it memoized, q would inherit
+			// it and r would see a phantom ambiguity (p's X vs a1's X) and
+			// export nothing. ES truth: b's X is ambiguous so b exports no X;
+			// r exports p's X via the star of p.
+			const modules = [
+				m({path: 'p.ts', declarations: [{name: 'X', kind: 'variable'}], starExports: ['b.ts']}),
+				m({path: 'b.ts', starExports: ['p.ts', 'a1.ts']}),
+				m({path: 'a1.ts', declarations: [{name: 'X', kind: 'function'}]}),
+				m({path: 'q.ts', starExports: ['b.ts']}),
+				m({path: 'r.ts', starExports: ['p.ts', 'q.ts']}),
+			];
+
+			const r = resolveExportSurface(modules, 'r.ts')!;
+			assert.deepStrictEqual(
+				r.entries.map((e) => ({name: e.name, via: e.via, starFrom: e.starFrom})),
+				[{name: 'X', via: 'star', starFrom: 'p.ts'}],
+			);
+			assert.strictEqual(r.entries[0]!.declaration?.kind, 'variable');
+
+			// b queried directly excludes the ambiguous X
+			const b = resolveExportSurface(modules, 'b.ts')!;
+			assert.deepStrictEqual(b.entries, []);
+		});
+
 		test('star targets outside the analyzed set are reported as unresolved', () => {
 			const modules = [
 				m({
@@ -262,6 +330,16 @@ describe('resolveExportSurface', () => {
 				surface.entries.map((e) => e.name),
 				['own'],
 			);
+			assert.deepStrictEqual(surface.unresolvedStarExports, ['missing.ts']);
+		});
+
+		test('unresolved star targets aggregate transitively', () => {
+			const modules = [
+				m({path: 'b.ts', starExports: ['missing.ts']}),
+				m({path: 'index.ts', starExports: ['b.ts']}),
+			];
+
+			const surface = resolveExportSurface(modules, 'index.ts')!;
 			assert.deepStrictEqual(surface.unresolvedStarExports, ['missing.ts']);
 		});
 

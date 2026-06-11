@@ -493,7 +493,9 @@ interface InternalSurface {
  * declaration entry wins, inheriting the edge's `typeOnly`.
  *
  * Cyclic star graphs terminate by contributing nothing along the back-edge
- * (an approximation of ES fixpoint resolution — fine in practice). Star
+ * (an approximation of ES fixpoint resolution — fine in practice). Surfaces
+ * resolved inside a cycle are path-relative and not memoized, so sibling
+ * star paths resolve independently rather than inheriting them. Star
  * targets missing from `modules` are reported in `unresolvedStarExports`
  * rather than guessed at; `externalStarExports` aggregates external star
  * specifiers reachable from the module, whose names are unknowable.
@@ -519,16 +521,24 @@ export const resolveExportSurface = (
 		externalStars: new Set(),
 	});
 
-	const resolveModule = (modulePath: string): InternalSurface => {
+	// Only surfaces resolved without hitting a cycle back-edge are memoized.
+	// A surface computed while one of its star ancestors is mid-resolution is
+	// relative to that path — it can carry names a full resolution would
+	// exclude as ambiguous (the back-edge contributed nothing to weigh them
+	// against). Caching it would leak the path-relative answer to sibling
+	// star paths; tainted surfaces are instead recomputed per consumer.
+	// Recomputation is bounded by `visiting` and only occurs inside cyclic
+	// clusters, which are pathological to begin with.
+	const resolveModule = (modulePath: string): {surface: InternalSurface; tainted: boolean} => {
 		const cached = cache.get(modulePath);
-		if (cached) return cached;
-		// Cycle break: a star back-edge contributes nothing (not cached — the
-		// module resolves fully once its own resolution completes)
-		if (visiting.has(modulePath)) return emptySurface();
+		if (cached) return {surface: cached, tainted: false};
+		// Cycle break: a star back-edge contributes nothing
+		if (visiting.has(modulePath)) return {surface: emptySurface(), tainted: true};
 		visiting.add(modulePath);
 
 		const mod = byPath.get(modulePath)!;
 		const surface = emptySurface();
+		let tainted = false;
 		const {entries} = surface;
 
 		// 1. Own declarations — including synthesized aliases and `default`
@@ -552,7 +562,10 @@ export const resolveExportSurface = (
 			});
 		}
 
-		// 2. Same-name re-export edges not already covered by a declaration
+		// 2. Same-name re-export edges not already covered by a declaration.
+		// Edges can collide on `name` (Svelte default re-keying — see
+		// `ReExportJson`); the surface is keyed by name, so the first edge in
+		// sort order wins and the collider is dropped
 		for (const edge of mod.reExports) {
 			if (entries.has(edge.name)) continue;
 			const canonical = byIdentity.get(`${edge.module}\n${edge.name}`);
@@ -597,7 +610,9 @@ export const resolveExportSurface = (
 				surface.unresolvedStars.add(target);
 				continue;
 			}
-			const sub = resolveModule(target);
+			const resolved = resolveModule(target);
+			if (resolved.tainted) tainted = true;
+			const sub = resolved.surface;
 			for (const star of sub.unresolvedStars) surface.unresolvedStars.add(star);
 			for (const star of sub.externalStars) surface.externalStars.add(star);
 			for (const {entry, identity} of sub.entries.values()) {
@@ -624,11 +639,11 @@ export const resolveExportSurface = (
 		}
 
 		visiting.delete(modulePath);
-		cache.set(modulePath, surface);
-		return surface;
+		if (!tainted) cache.set(modulePath, surface);
+		return {surface, tainted};
 	};
 
-	const resolved = resolveModule(path);
+	const resolved = resolveModule(path).surface;
 	return {
 		entries: Array.from(resolved.entries.values())
 			.map(({entry}) => entry)
