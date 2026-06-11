@@ -10,18 +10,18 @@ import {
 } from '$lib/postprocess.js';
 import {type SourceFileInfo} from '$lib/source.js';
 
+/** Parse a partial module through Zod to fill in array defaults. */
+const m = (input: {path: string; [key: string]: unknown}): ModuleJson => ModuleJson.parse(input);
+
 /**
  * Create a mock ModuleJson with test declarations.
  *
  * Simplifies test setup by auto-generating minimal declaration metadata.
  *
- * @param path module path (e.g., 'foo.ts', 'Bar.svelte')
- * @param declarations array of declaration objects with name and kind
+ * @param path - module path (e.g., 'foo.ts', 'Bar.svelte')
+ * @param declarations - array of declaration objects with name and kind
  * @returns ModuleJson with the specified declarations
  */
-/** Parse a partial module through Zod to fill in array defaults. */
-const m = (input: {path: string; [key: string]: unknown}): ModuleJson => ModuleJson.parse(input);
-
 const createMockModule = (
 	path: string,
 	declarations: Array<{name: string; kind: DeclarationKind}>,
@@ -233,6 +233,120 @@ describe('findDuplicates', () => {
 			const duplicates = findDuplicates(modules);
 
 			assert.strictEqual(duplicates.size, 0);
+		});
+	});
+
+	describe('alias resolution (aliasOf chains)', () => {
+		test('an alias and its canonical are one thing, not a collision', () => {
+			// Position-3 shape: documenting `export {foo} from './a.js'`
+			// synthesizes a same-name alias in the barrel.
+			const modules = [
+				m({path: 'a.ts', declarations: [{name: 'foo', kind: 'variable'}]}),
+				m({
+					path: 'index.ts',
+					declarations: [{name: 'foo', kind: 'variable', aliasOf: {module: 'a.ts', name: 'foo'}}],
+				}),
+			];
+
+			assert.strictEqual(findDuplicates(modules).size, 0);
+		});
+
+		test('a renamed alias sharing the canonical name is not a collision either', () => {
+			// `export {default as Foo} from './Foo.svelte'` — the alias carries
+			// the same public name as the filename-derived canonical.
+			const modules = [
+				m({path: 'Foo.svelte', declarations: [{name: 'Foo', kind: 'component'}]}),
+				m({
+					path: 'index.ts',
+					declarations: [
+						{name: 'Foo', kind: 'component', aliasOf: {module: 'Foo.svelte', name: 'Foo'}},
+					],
+				}),
+			];
+
+			assert.strictEqual(findDuplicates(modules).size, 0);
+		});
+
+		test('alias-of-alias chains resolve transitively to one identity', () => {
+			// b.ts renames a.ts#foo to bar; c.ts's documented same-name re-export
+			// of bar aliases b.ts#bar — all three are the same thing.
+			const modules = [
+				m({path: 'a.ts', declarations: [{name: 'foo', kind: 'variable'}]}),
+				m({
+					path: 'b.ts',
+					declarations: [{name: 'bar', kind: 'variable', aliasOf: {module: 'a.ts', name: 'foo'}}],
+				}),
+				m({
+					path: 'c.ts',
+					declarations: [{name: 'bar', kind: 'variable', aliasOf: {module: 'b.ts', name: 'bar'}}],
+				}),
+			];
+
+			assert.strictEqual(findDuplicates(modules).size, 0);
+		});
+
+		test('two aliases of the same absent canonical share one identity', () => {
+			// Session with a partial owned set: the canonical module isn't in
+			// `modules`, but both aliases point at the same `(module, name)`.
+			const modules = [
+				m({
+					path: 'b.ts',
+					declarations: [{name: 'foo', kind: 'variable', aliasOf: {module: 'a.ts', name: 'foo'}}],
+				}),
+				m({
+					path: 'c.ts',
+					declarations: [{name: 'foo', kind: 'variable', aliasOf: {module: 'a.ts', name: 'foo'}}],
+				}),
+			];
+
+			assert.strictEqual(findDuplicates(modules).size, 0);
+		});
+
+		test('distinct canonicals still flag, with alias occurrences included', () => {
+			// `foo` in a.ts and an unrelated `foo` in z.ts collide; the alias in
+			// index.ts resolves to a.ts#foo but is reported as an occurrence.
+			const modules = [
+				m({path: 'a.ts', declarations: [{name: 'foo', kind: 'variable'}]}),
+				m({path: 'z.ts', declarations: [{name: 'foo', kind: 'function'}]}),
+				m({
+					path: 'index.ts',
+					declarations: [{name: 'foo', kind: 'variable', aliasOf: {module: 'a.ts', name: 'foo'}}],
+				}),
+			];
+
+			const duplicates = findDuplicates(modules);
+			assert.strictEqual(duplicates.size, 1);
+			assert.deepStrictEqual(
+				duplicates.get('foo')!.map((o) => o.module),
+				['a.ts', 'z.ts', 'index.ts'],
+			);
+		});
+
+		test('an alias pointing at one of two colliding canonicals does not add a third identity', () => {
+			const modules = [
+				m({path: 'a.ts', declarations: [{name: 'foo', kind: 'variable'}]}),
+				m({path: 'z.ts', declarations: [{name: 'foo', kind: 'function'}]}),
+			];
+
+			const duplicates = findDuplicates(modules);
+			assert.strictEqual(duplicates.size, 1);
+			assert.strictEqual(duplicates.get('foo')!.length, 2);
+		});
+
+		test('cyclic aliasOf chains (malformed input) do not hang', () => {
+			const modules = [
+				m({
+					path: 'a.ts',
+					declarations: [{name: 'foo', kind: 'variable', aliasOf: {module: 'b.ts', name: 'foo'}}],
+				}),
+				m({
+					path: 'b.ts',
+					declarations: [{name: 'foo', kind: 'variable', aliasOf: {module: 'a.ts', name: 'foo'}}],
+				}),
+			];
+
+			// Just must terminate; flagging behavior on malformed input is unspecified
+			findDuplicates(modules);
 		});
 	});
 

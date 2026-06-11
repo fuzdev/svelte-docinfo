@@ -223,13 +223,27 @@ const toModuleJson = (raw: ModuleAnalysis): ModuleJson => {
 	// because names can collide: a Svelte default-slot re-export re-keys to
 	// the component name, which a same-name re-export from another module may
 	// also use. The same re-keying can produce exact-duplicate edges
-	// (component + same-name script-module export from one file) — deduped so
-	// `(name, module)` pairs stay unique
+	// (component + same-name script-module export from one file) — deduped on
+	// `(name, module)` so those pairs stay unique; the sourceLine tie-break
+	// makes the dedup deterministic (smallest line survives)
 	const reExports = raw.reExports
 		.slice()
-		.sort((a, b) => compareStrings(a.name, b.name) || compareStrings(a.module, b.module))
+		.sort(
+			(a, b) =>
+				compareStrings(a.name, b.name) ||
+				compareStrings(a.module, b.module) ||
+				(a.sourceLine ?? 0) - (b.sourceLine ?? 0),
+		)
 		.filter(
 			(r, i, arr) => i === 0 || r.name !== arr[i - 1]!.name || r.module !== arr[i - 1]!.module,
+		);
+	const externalReExports = raw.externalReExports
+		.slice()
+		.sort(
+			(a, b) =>
+				compareStrings(a.name, b.name) ||
+				compareStrings(a.specifier, b.specifier) ||
+				(a.sourceLine ?? 0) - (b.sourceLine ?? 0),
 		);
 	return ModuleJson.parse({
 		path: raw.path,
@@ -238,6 +252,8 @@ const toModuleJson = (raw: ModuleAnalysis): ModuleJson => {
 		dependents: raw.dependents,
 		starExports: raw.starExports,
 		reExports,
+		externalReExports,
+		externalStarExports: raw.externalStarExports,
 		...(raw.moduleComment ? {moduleComment: raw.moduleComment} : {}),
 	});
 };
@@ -319,6 +335,8 @@ export const analyzeModule = (
 			dependents,
 			starExports: [],
 			reExports: [],
+			externalReExports: [],
+			externalStarExports: [],
 		};
 	} else {
 		diagnostics.push({

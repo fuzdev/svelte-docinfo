@@ -48,7 +48,58 @@ export interface DuplicateDeclaration {
 }
 
 /**
+ * Build the `(module, name)` → declaration lookup used for `aliasOf`-chain
+ * walking. Key format: `` `${modulePath}\n${name}` `` — `\n` can't appear in
+ * either part.
+ */
+const buildDeclarationIndex = (modules: Array<ModuleJson>): Map<string, DeclarationJson> => {
+	const byIdentity: Map<string, DeclarationJson> = new Map();
+	for (const mod of modules) {
+		for (const declaration of mod.declarations) {
+			byIdentity.set(`${mod.path}\n${declaration.name}`, declaration);
+		}
+	}
+	return byIdentity;
+};
+
+/**
+ * Resolve a declaration to its canonical identity. A same-name re-export of
+ * an intermediate rename produces an alias pointing at another alias, so a
+ * single hop isn't enough — follow the chain through declarations present in
+ * the index. The terminal is the declaration *object* when it's in the set
+ * (object identity keeps two same-`(module, name)` declarations distinct in
+ * pathological inputs), else the dangling `(module, name)` key (two aliases
+ * of the same absent canonical still resolve to one identity). The visited
+ * set guards malformed cyclic input.
+ */
+const resolveCanonicalIdentity = (
+	byIdentity: Map<string, DeclarationJson>,
+	modulePath: string,
+	declaration: DeclarationJson,
+): DeclarationJson | string => {
+	let current = declaration;
+	const visited = new Set([`${modulePath}\n${declaration.name}`]);
+	while (current.aliasOf) {
+		const nextKey = `${current.aliasOf.module}\n${current.aliasOf.name}`;
+		if (visited.has(nextKey)) return nextKey;
+		visited.add(nextKey);
+		const next = byIdentity.get(nextKey);
+		if (!next) return nextKey;
+		current = next;
+	}
+	return current;
+};
+
+/**
  * Find duplicate declaration names across modules.
+ *
+ * A duplicate is two *different things* sharing a name in the flat namespace.
+ * Occurrences are compared by canonical identity — `aliasOf` chains are
+ * resolved first, so an alias and its canonical (or two aliases of the same
+ * canonical) are one thing, not a collision. Documenting a same-name re-export
+ * (which synthesizes an alias) or re-exporting a component under its own name
+ * (`export {default as Foo} from './Foo.svelte'`) therefore doesn't flag.
+ * When a name does flag, all occurrences are reported, aliases included.
  *
  * Callers can decide how to handle duplicates (throw, warn, ignore).
  *
@@ -71,11 +122,18 @@ export interface DuplicateDeclaration {
 export const findDuplicates = (
 	modules: Array<ModuleJson>,
 ): Map<string, Array<DuplicateDeclaration>> => {
-	const allOccurrences: Map<string, Array<DuplicateDeclaration>> = new Map();
+	const byIdentity = buildDeclarationIndex(modules);
+	const resolveCanonical = (modulePath: string, declaration: DeclarationJson) =>
+		resolveCanonicalIdentity(byIdentity, modulePath, declaration);
 
-	// Collect declaration names. The default slot is module-scoped per the JS
-	// spec — every module can have its own `'default'` and they don't collide
-	// — so skip `name === 'default'` entries from this flat-namespace check.
+	// Collect declaration names with their canonical identities. The default
+	// slot is module-scoped per the JS spec — every module can have its own
+	// `'default'` and they don't collide — so skip `name === 'default'`
+	// entries from this flat-namespace check.
+	const allOccurrences: Map<
+		string,
+		Array<DuplicateDeclaration & {canonical: DeclarationJson | string}>
+	> = new Map();
 	for (const mod of modules) {
 		for (const declaration of mod.declarations) {
 			if (declaration.name === 'default') continue;
@@ -85,15 +143,20 @@ export const findDuplicates = (
 			allOccurrences.get(declaration.name)!.push({
 				declaration,
 				module: mod.path,
+				canonical: resolveCanonical(mod.path, declaration),
 			});
 		}
 	}
 
-	// Filter to only duplicates
+	// A name is duplicated only when its occurrences span >1 canonical identity
 	const duplicates: Map<string, Array<DuplicateDeclaration>> = new Map();
 	for (const [name, occurrences] of allOccurrences) {
-		if (occurrences.length > 1) {
-			duplicates.set(name, occurrences);
+		const identities = new Set(occurrences.map((o) => o.canonical));
+		if (identities.size > 1) {
+			duplicates.set(
+				name,
+				occurrences.map(({declaration, module}) => ({declaration, module})),
+			);
 		}
 	}
 
@@ -344,4 +407,233 @@ export const computeDependents = (
 			dependents,
 		};
 	});
+};
+
+/**
+ * One name on a module's resolved export surface.
+ */
+export interface ExportSurfaceEntry {
+	/**
+	 * Exported name, in the docinfo model's terms — Svelte components appear
+	 * under their filename-derived name (the model's convention for default
+	 * exports of `.svelte` files), not `'default'`.
+	 */
+	name: string;
+	/**
+	 * How the name reaches this module's surface: an own declaration
+	 * (including synthesized aliases), a same-name re-export edge, a direct
+	 * external re-export, or projection through `export * from './x'`.
+	 */
+	via: 'declaration' | 'reExport' | 'external' | 'star';
+	/** Canonical module path, when known (`undefined` for external entries). */
+	module?: string;
+	/** The canonical declaration, when present in the analyzed set. */
+	declaration?: DeclarationJson;
+	/** Package specifier for external entries (as written in the statement). */
+	specifier?: string;
+	/** Name inside the external package when renamed. */
+	originalName?: string;
+	/** Type-only re-export — the name is erased at runtime. */
+	typeOnly?: boolean;
+	/** For star-projected entries: the `starExports` target the name arrived through. */
+	starFrom?: string;
+}
+
+/**
+ * A module's resolved export surface — see `resolveExportSurface`.
+ */
+export interface ExportSurface {
+	/** Surface entries, sorted by `name` (code-unit order). */
+	entries: Array<ExportSurfaceEntry>;
+	/**
+	 * Star targets (own or transitive) absent from the analyzed set — their
+	 * projected names are unknown, so the surface is incomplete.
+	 */
+	unresolvedStarExports: Array<string>;
+	/**
+	 * External star specifiers reachable from this module (own or transitive)
+	 * — their projected names are unknowable without analyzing the package.
+	 */
+	externalStarExports: Array<string>;
+}
+
+interface InternalSurfaceEntry {
+	entry: ExportSurfaceEntry;
+	/** Canonical identity for ES ambiguity comparison across stars. */
+	identity: DeclarationJson | string;
+}
+
+interface InternalSurface {
+	entries: Map<string, InternalSurfaceEntry>;
+	unresolvedStars: Set<string>;
+	externalStars: Set<string>;
+}
+
+/**
+ * Resolve a module's full export surface from the analyzed model, applying
+ * ES module semantics to star exports.
+ *
+ * Combines the module's own `declarations` (including synthesized aliases),
+ * `reExports` edges, `externalReExports`, and transitively-resolved
+ * `starExports` into one deduped, name-sorted list. The ES rules applied to
+ * star projection:
+ *
+ * - explicit exports (declarations, edges, externals) shadow star-projected
+ *   names
+ * - a name projected by two stars that resolve to *different* canonicals is
+ *   ambiguous and excluded (same canonical through a diamond is included
+ *   once)
+ * - `default` is never star-projected — including canonical Svelte component
+ *   declarations, which represent their file's default export. (Caveat: a
+ *   star-projected re-export edge whose canonical is a component is treated
+ *   as a default-slot re-export and skipped; a `<script module>` const
+ *   sharing the component's exact name would be skipped with it.)
+ *
+ * A Position-3 alias and its `reExports` edge are the same fact — the
+ * declaration entry wins, inheriting the edge's `typeOnly`.
+ *
+ * Cyclic star graphs terminate by contributing nothing along the back-edge
+ * (an approximation of ES fixpoint resolution — fine in practice). Star
+ * targets missing from `modules` are reported in `unresolvedStarExports`
+ * rather than guessed at; `externalStarExports` aggregates external star
+ * specifiers reachable from the module, whose names are unknowable.
+ *
+ * @param modules - the analyzed modules (parsed `ModuleJson`s — run wire
+ *   JSON through `AnalyzeResultJson.parse` first)
+ * @param path - the module to resolve, as a `ModuleJson.path` value
+ * @returns the resolved surface, or `null` when `path` isn't in `modules`
+ */
+export const resolveExportSurface = (
+	modules: Array<ModuleJson>,
+	path: string,
+): ExportSurface | null => {
+	const byPath = new Map(modules.map((m) => [m.path, m]));
+	if (!byPath.has(path)) return null;
+
+	const byIdentity = buildDeclarationIndex(modules);
+	const cache = new Map<string, InternalSurface>();
+	const visiting = new Set<string>();
+	const emptySurface = (): InternalSurface => ({
+		entries: new Map(),
+		unresolvedStars: new Set(),
+		externalStars: new Set(),
+	});
+
+	const resolveModule = (modulePath: string): InternalSurface => {
+		const cached = cache.get(modulePath);
+		if (cached) return cached;
+		// Cycle break: a star back-edge contributes nothing (not cached — the
+		// module resolves fully once its own resolution completes)
+		if (visiting.has(modulePath)) return emptySurface();
+		visiting.add(modulePath);
+
+		const mod = byPath.get(modulePath)!;
+		const surface = emptySurface();
+		const {entries} = surface;
+
+		// 1. Own declarations — including synthesized aliases and `default`
+		const edgesByName = new Map(mod.reExports.map((e) => [e.name, e]));
+		for (const declaration of mod.declarations) {
+			// A Position-3 alias duplicates its edge; carry the edge's typeOnly
+			const matchingEdge =
+				declaration.aliasOf &&
+				edgesByName.get(declaration.name)?.module === declaration.aliasOf.module
+					? edgesByName.get(declaration.name)
+					: undefined;
+			entries.set(declaration.name, {
+				entry: {
+					name: declaration.name,
+					via: 'declaration',
+					module: modulePath,
+					declaration,
+					...(matchingEdge?.typeOnly ? {typeOnly: true} : {}),
+				},
+				identity: resolveCanonicalIdentity(byIdentity, modulePath, declaration),
+			});
+		}
+
+		// 2. Same-name re-export edges not already covered by a declaration
+		for (const edge of mod.reExports) {
+			if (entries.has(edge.name)) continue;
+			const canonical = byIdentity.get(`${edge.module}\n${edge.name}`);
+			entries.set(edge.name, {
+				entry: {
+					name: edge.name,
+					via: 'reExport',
+					module: edge.module,
+					...(canonical ? {declaration: canonical} : {}),
+					...(edge.typeOnly ? {typeOnly: true} : {}),
+				},
+				identity: canonical
+					? resolveCanonicalIdentity(byIdentity, edge.module, canonical)
+					: `${edge.module}\n${edge.name}`,
+			});
+		}
+
+		// 3. Direct external re-exports
+		for (const external of mod.externalReExports) {
+			if (entries.has(external.name)) continue;
+			entries.set(external.name, {
+				entry: {
+					name: external.name,
+					via: 'external',
+					specifier: external.specifier,
+					...(external.originalName !== undefined ? {originalName: external.originalName} : {}),
+					...(external.typeOnly ? {typeOnly: true} : {}),
+				},
+				identity: `ext\n${external.specifier}\n${external.originalName ?? external.name}`,
+			});
+		}
+
+		// 4. External stars — names unknowable, surface incompleteness recorded
+		for (const specifier of mod.externalStarExports) {
+			surface.externalStars.add(specifier);
+		}
+
+		// 5. Star projection, with ES shadowing and ambiguity rules
+		const excluded = new Set<string>();
+		for (const target of mod.starExports) {
+			if (!byPath.has(target)) {
+				surface.unresolvedStars.add(target);
+				continue;
+			}
+			const sub = resolveModule(target);
+			for (const star of sub.unresolvedStars) surface.unresolvedStars.add(star);
+			for (const star of sub.externalStars) surface.externalStars.add(star);
+			for (const {entry, identity} of sub.entries.values()) {
+				// `default` never projects — nor do canonical Svelte components,
+				// which represent their file's default export (whether reached
+				// as a declaration or through a re-export edge)
+				if (entry.name === 'default') continue;
+				if (entry.declaration?.kind === 'component' && !entry.declaration.aliasOf) continue;
+				if (excluded.has(entry.name)) continue;
+				const existing = entries.get(entry.name);
+				if (existing) {
+					// Explicit exports shadow; identical canonicals (diamond) merge
+					if (existing.entry.via !== 'star' || existing.identity === identity) continue;
+					// Ambiguous between two stars — excluded per ES semantics
+					entries.delete(entry.name);
+					excluded.add(entry.name);
+					continue;
+				}
+				entries.set(entry.name, {
+					entry: {...entry, via: 'star', starFrom: target},
+					identity,
+				});
+			}
+		}
+
+		visiting.delete(modulePath);
+		cache.set(modulePath, surface);
+		return surface;
+	};
+
+	const resolved = resolveModule(path);
+	return {
+		entries: Array.from(resolved.entries.values())
+			.map(({entry}) => entry)
+			.sort((a, b) => compareStrings(a.name, b.name)),
+		unresolvedStarExports: Array.from(resolved.unresolvedStars).sort(),
+		externalStarExports: Array.from(resolved.externalStars).sort(),
+	};
 };

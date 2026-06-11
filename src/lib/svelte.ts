@@ -940,6 +940,8 @@ export const analyzeSvelteModule = (
 		declarations: rawDeclarations,
 		reExports,
 		starExports,
+		externalReExports,
+		externalStarExports,
 		moduleComment: scriptModuleComment,
 	} = analyzeExports(virtualTsSource, checker, options, diagnostics);
 
@@ -975,9 +977,24 @@ export const analyzeSvelteModule = (
 
 	// 2b. Remap source lines for module-level exports using source map.
 	// analyzeExports extracts sourceLine from virtual file positions — remap to original .svelte.
-	if (virtualFile.sourceMap && moduleDeclarations.length > 0) {
+	if (virtualFile.sourceMap) {
 		// Build name→node map from virtual source statements
 		const nodesByName = new Map<string, ts.Node>();
+		// Export-statement bindings (specifiers + `* as ns`), kept separate:
+		// `const foo = 1; export {foo}` would otherwise collide — the
+		// declaration's line should point at the const, the synthesized
+		// alias's at the specifier.
+		const exportNodesByName = new Map<string, ts.Node>();
+		// Virtual line → export binding node, for re-export edges. Edges
+		// can't be matched by name (Svelte default-slot re-keying renames
+		// them), but every edge's virtual sourceLine is some binding's line.
+		const exportNodesByLine = new Map<number, ts.Node>();
+		const addExportNode = (name: string, node: ts.Node) => {
+			exportNodesByName.set(name, node);
+			const line =
+				virtualTsSource.getLineAndCharacterOfPosition(node.getStart(virtualTsSource)).line + 1;
+			if (!exportNodesByLine.has(line)) exportNodesByLine.set(line, node);
+		};
 		for (const stmt of virtualTsSource.statements) {
 			if (ts.isVariableStatement(stmt)) {
 				for (const decl of stmt.declarationList.declarations) {
@@ -995,16 +1012,42 @@ export const analyzeSvelteModule = (
 				nodesByName.set(stmt.name.text, stmt);
 			} else if (ts.isEnumDeclaration(stmt)) {
 				nodesByName.set(stmt.name.text, stmt);
+			} else if (ts.isExportDeclaration(stmt)) {
+				if (stmt.exportClause && ts.isNamedExports(stmt.exportClause)) {
+					for (const spec of stmt.exportClause.elements) {
+						addExportNode(spec.name.text, spec);
+					}
+				} else if (stmt.exportClause && ts.isNamespaceExport(stmt.exportClause)) {
+					addExportNode(stmt.exportClause.name.text, stmt.exportClause);
+				}
 			}
 		}
 
 		for (const d of moduleDeclarations) {
 			if (d.declaration.name === undefined) continue;
-			const node = nodesByName.get(d.declaration.name);
+			// Synthesized aliases and namespace declarations point at their
+			// export statement; everything else at its value declaration
+			const fromExportStatement =
+				d.declaration.aliasOf !== undefined || d.declaration.kind === 'namespace';
+			const node = fromExportStatement
+				? exportNodesByName.get(d.declaration.name)
+				: nodesByName.get(d.declaration.name);
 			if (node) {
 				const mapped = mapVirtualPosition(node, virtualTsSource, virtualFile.sourceMap);
 				if (mapped.line !== undefined) {
 					d.declaration.sourceLine = mapped.line;
+				}
+			}
+		}
+
+		// Remap edge lines by virtual line (name-independent — see above)
+		for (const edge of [...reExports, ...externalReExports]) {
+			if (edge.sourceLine === undefined) continue;
+			const node = exportNodesByLine.get(edge.sourceLine);
+			if (node) {
+				const mapped = mapVirtualPosition(node, virtualTsSource, virtualFile.sourceMap);
+				if (mapped.line !== undefined) {
+					edge.sourceLine = mapped.line;
 				}
 			}
 		}
@@ -1135,5 +1178,7 @@ export const analyzeSvelteModule = (
 		dependents,
 		starExports,
 		reExports,
+		externalReExports,
+		externalStarExports,
 	};
 };

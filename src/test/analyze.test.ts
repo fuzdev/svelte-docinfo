@@ -519,8 +519,8 @@ export {originalFn as renamedFn, originalCount as renamedCount} from './helpers.
 				assert.strictEqual(renamedFn.returnType, 'number');
 				assert.strictEqual(
 					renamedFn.sourceLine,
-					undefined,
-					'sourceLine is undefined for synthesized alias declarations',
+					2,
+					'synthesized alias points at the local export specifier, not the canonical',
 				);
 
 				const renamedCount = indexModule.declarations.find((d) => d.name === 'renamedCount');
@@ -531,7 +531,7 @@ export {originalFn as renamedFn, originalCount as renamedCount} from './helpers.
 				assert.strictEqual(renamedCount.reactivity, '$state');
 				assert.strictEqual(renamedCount.docComment, 'A counter.');
 				assert.ok(renamedCount.typeSignature, 'should have typeSignature');
-				assert.strictEqual(renamedCount.sourceLine, undefined);
+				assert.strictEqual(renamedCount.sourceLine, 2);
 				assert.ok(renamedCount.aliasOf);
 				assert.strictEqual(renamedCount.aliasOf.name, 'originalCount');
 			});

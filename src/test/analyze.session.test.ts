@@ -237,7 +237,9 @@ describe('createAnalysisSession', {timeout: 30_000}, () => {
 						modules.map((m) => m.path),
 						['barrel.ts'],
 					);
-					assert.deepStrictEqual(modules[0]!.reExports, [{name: 'foo', module: 'a.ts'}]);
+					assert.deepStrictEqual(modules[0]!.reExports, [
+						{name: 'foo', module: 'a.ts', typeOnly: false, sourceLine: 1},
+					]);
 				} finally {
 					session.dispose();
 				}

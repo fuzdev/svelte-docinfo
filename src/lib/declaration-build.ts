@@ -24,7 +24,8 @@ import type {
 	OverloadJsonInput,
 	ComponentPropJsonInput,
 	Reactivity,
-	ReExportJson,
+	ReExportJsonInput,
+	ExternalReExportJsonInput,
 } from './types.js';
 
 /**
@@ -139,9 +140,16 @@ export interface ModuleExportsAnalysis {
 	 * (Svelte default-slot re-keying) — ordering and dedup are applied at
 	 * publication in `analyze-core.ts`.
 	 */
-	reExports: Array<ReExportJson>;
+	reExports: Array<ReExportJsonInput>;
 	/** Star exports (`export * from './module'`) — module paths that are fully re-exported. */
 	starExports: Array<string>;
+	/**
+	 * Direct re-exports from external packages. Published as
+	 * `ModuleJson.externalReExports`; unsorted here, sorted at publication.
+	 */
+	externalReExports: Array<ExternalReExportJsonInput>;
+	/** External star exports (`export * from 'pkg'`) — specifiers as written. */
+	externalStarExports: Array<string>;
 }
 
 /**
