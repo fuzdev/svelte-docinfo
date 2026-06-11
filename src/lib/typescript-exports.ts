@@ -123,11 +123,16 @@ const walkSameNameCanonical = (
  * Three shapes:
  * - **origination** — this file declares the namespace via `export * as ns from './x'`.
  * - **same-name** — this file forwards an existing namespace by the same name
- *   (`export {ns} from './has-namespace'`, `export * from './has-namespace'`,
- *   or N-hop chains where names match). Linked via `alsoExportedFrom`.
+ *   (`export {ns} from './has-namespace'`, or N-hop chains of such specifiers
+ *   where names match). Linked via `alsoExportedFrom`.
  * - **renamed** — this file forwards a namespace under a different name
  *   (`export {ns as foo} from './has-namespace'`). Synthesized alias declaration
  *   with `aliasOf` pointing at the canonical.
+ *
+ * Star-projected namespace bindings (`export * from` a module whose export
+ * table contains `ns`) never reach classification — the caller's locality
+ * skip filters them first; `starExports` is their sole encoding like every
+ * other star-projected binding.
  */
 type NamespaceClassification =
 	| {kind: 'origination'; sourceModule: string}
@@ -167,23 +172,15 @@ const classifyNamespaceReExport = (
 	const sourceModuleFile = stripVirtualSuffix(sourceModuleSource.fileName);
 	if (!isSource(sourceModuleFile, options)) return null;
 
-	// Origination + star-projection: export's first declaration is itself a
-	// NamespaceExport. TypeScript shares the same NamespaceExport node across
-	// star-projecting modules, so the defining file may not equal currentFile.
+	// Origination: export's first declaration is itself a NamespaceExport in
+	// this file. The caller's locality skip filters star-projected bindings
+	// before classification, but merged symbols could put a foreign
+	// declaration first — bail rather than misclassify.
 	const exportDecl = exportSymbol.declarations?.[0];
 	if (exportDecl && ts.isNamespaceExport(exportDecl)) {
 		const definingFile = stripVirtualSuffix(exportDecl.getSourceFile().fileName);
-		if (definingFile === currentFileName) {
-			return {kind: 'origination', sourceModule: extractPath(sourceModuleFile, options)};
-		}
-		if (isSource(definingFile, options)) {
-			return {
-				kind: 'same-name',
-				canonicalModule: extractPath(definingFile, options),
-				sourceModule: extractPath(sourceModuleFile, options),
-			};
-		}
-		return null;
+		if (definingFile !== currentFileName) return null;
+		return {kind: 'origination', sourceModule: extractPath(sourceModuleFile, options)};
 	}
 
 	// Re-export specifier (`export {ns ...} from`). Use immediate-alias name
@@ -313,6 +310,19 @@ export const analyzeExports = (
 			const isAlias = (exportSymbol.flags & ts.SymbolFlags.Alias) !== 0;
 
 			if (isAlias) {
+				// Star-projected alias bindings: `export * from './b'` projects
+				// b.ts's own re-export bindings into this module's export table,
+				// sharing the foreign declaration node (an `ExportSpecifier` or,
+				// for `export * as ns`, a `NamespaceExport`). Same encoding rule
+				// as star-projected value symbols below — `starExports` is the
+				// sole encoding; processing the binding here would publish
+				// re-export edges for statements this module's source doesn't
+				// contain and read the foreign statement's JSDoc as if local
+				// (synthesizing duplicate declarations with mis-attributed docs).
+				// Runs before namespace classification so star-projected
+				// namespace bindings are silenced uniformly.
+				if (!isDeclaredInFile(exportSymbol, currentFileName)) continue;
+
 				// Namespace re-exports (`export * as ns from './x'` and re-exports
 				// of such bindings) need special handling: their deeply-resolved
 				// canonical is a module symbol, and `analyzeDeclaration` would fall
@@ -324,13 +334,12 @@ export const analyzeExports = (
 				// not `NamespaceExport`).
 				const nsClass = classifyNamespaceReExport(exportSymbol, checker, currentFileName, options);
 				if (nsClass) {
-					// Locate the local export statement, if it lives in the current
-					// source file. For origination/renamed/named-same-name, the
-					// statement IS local. For star-projection, `exportSymbol.declarations[0]`
-					// is the shared `NamespaceExport` node from the *defining* file —
-					// its parent is in the defining file too, so parsing JSDoc there
-					// would attribute another module's docs to the local re-export.
-					// Identity-check on the source file rules star-projection out.
+					// Locate the local export statement. The locality skip above
+					// filters star-projected bindings before classification, so
+					// origination/renamed/same-name statements are local; the
+					// identity check stays as defense against merged symbols
+					// whose first declaration could be a foreign node (parsing
+					// JSDoc there would attribute another module's docs here).
 					const exportDeclNode = exportSymbol.declarations?.[0];
 					const candidateStatement =
 						exportDeclNode && ts.isNamespaceExport(exportDeclNode)
@@ -406,18 +415,6 @@ export const analyzeExports = (
 					}
 					continue;
 				}
-
-				// Star-projected alias bindings: `export * from './b'` projects
-				// b.ts's own re-export specifiers into this module's export table,
-				// sharing the foreign ExportSpecifier symbol. Same encoding rule as
-				// star-projected value symbols below — `starExports` is the sole
-				// encoding; processing the binding here would publish re-export
-				// edges for statements this module's source doesn't contain and
-				// read the foreign statement's JSDoc as if local (synthesizing
-				// duplicate declarations with mis-attributed docs). Star-projected
-				// *namespace* bindings are intentionally handled above and do
-				// produce links.
-				if (!isDeclaredInFile(exportSymbol, currentFileName)) continue;
 
 				// This might be a re-export - use getAliasedSymbol to find the original
 				const aliasedSymbol = checker.getAliasedSymbol(exportSymbol);

@@ -918,11 +918,11 @@ export {ns as renamed} from './y.js'; // referenced to keep ns in scope
 		});
 	});
 
-	test('star re-export of a module containing a namespace links via alsoExportedFrom (no duplicate decl)', async () => {
-		// Regression guard for the star-export-of-namespace case.
-		// Without the `getSourceFile() === sourceFile` guard in analyzeExports,
-		// the star-projected `ns` symbol would re-fire the namespace branch and
-		// synthesize a duplicate declaration in barrel-star.ts.
+	test('star re-export of a module containing a namespace is silent — starExports is the sole encoding', async () => {
+		// The star-projected `ns` binding shares index.ts's `NamespaceExport`
+		// node. Like every star-projected binding, it is not materialized in the
+		// projecting module: no declaration, no `reExports` edge, no
+		// `alsoExportedFrom` back-link.
 		const files = {
 			'src/lib/x.ts': `export const a = 1;`,
 			'src/lib/index.ts': `export * as ns from './x.js';`,
@@ -942,11 +942,35 @@ export {ns as renamed} from './y.js'; // referenced to keep ns in scope
 				'no duplicate ns declaration in the star-importing module',
 			);
 			assert.deepStrictEqual(barrelStar?.starExports, ['index.ts']);
-			assert.deepStrictEqual(
-				indexNs.alsoExportedFrom.sort(),
-				['barrel-star.ts'],
-				'star-importer registers as alsoExportedFrom on the canonical namespace',
-			);
+			assert.deepStrictEqual(barrelStar?.reExports, []);
+			assert.deepStrictEqual(indexNs.alsoExportedFrom, []);
+		});
+	});
+
+	test('star projection of a namespace re-export specifier is silent too', async () => {
+		// barrel-star projects b.ts's `export {ns}` specifier — a foreign
+		// `ExportSpecifier` binding rather than the `NamespaceExport` node.
+		// b.ts keeps its own forward edge and back-link; the star-projecting
+		// module gets only `starExports`.
+		const files = {
+			'src/lib/x.ts': `export const a = 1;`,
+			'src/lib/index.ts': `export * as ns from './x.js';`,
+			'src/lib/b.ts': `export {ns} from './index.js';`,
+			'src/lib/barrel-star.ts': `export * from './b.js';`,
+		};
+		await withTestProject(files, async (projectRoot) => {
+			const {sourceFiles, sourceOptions} = setupAnalysis(projectRoot, files);
+			const {modules} = await analyze({sourceFiles, sourceOptions});
+			const barrelStar = modules.find((m) => m.path === 'barrel-star.ts')!;
+			assert.deepStrictEqual(barrelStar.declarations, []);
+			assert.deepStrictEqual(barrelStar.reExports, []);
+			assert.deepStrictEqual(barrelStar.starExports, ['b.ts']);
+			const bModule = modules.find((m) => m.path === 'b.ts')!;
+			assert.deepStrictEqual(bModule.reExports, [{name: 'ns', module: 'index.ts'}]);
+			const indexNs = modules
+				.find((m) => m.path === 'index.ts')!
+				.declarations.find((d) => d.name === 'ns');
+			assert.deepStrictEqual(indexNs?.alsoExportedFrom, ['b.ts']);
 		});
 	});
 
@@ -1329,6 +1353,55 @@ describe('module-level reExports field', {timeout: 15_000}, () => {
 				.find((m) => m.path === 'a.ts')!
 				.declarations.find((d) => d.name === 'foo');
 			assert.deepStrictEqual(foo?.alsoExportedFrom, ['b.ts']);
+		});
+	});
+
+	test('star-projected renamed re-export specifiers are not materialized', async () => {
+		// b.ts's rename synthesizes an aliasOf declaration in b.ts only. The
+		// star-projecting module shares the foreign ExportSpecifier symbol —
+		// without the locality skip it would synthesize a duplicate `bar`
+		// alias there (the renamed branch synthesizes unconditionally, unlike
+		// the same-name branch which requires local JSDoc).
+		const files = {
+			'src/lib/a.ts': `export const foo = 1;\n`,
+			'src/lib/b.ts': `export {foo as bar} from './a.js';\n`,
+			'src/lib/index.ts': `export * from './b.js';\n`,
+		};
+
+		await withTestProject(files, async (projectRoot) => {
+			const {sourceFiles, sourceOptions} = setupAnalysis(projectRoot, files);
+			const {modules, diagnostics} = await analyze({sourceFiles, sourceOptions});
+
+			const indexModule = modules.find((m) => m.path === 'index.ts')!;
+			assert.deepStrictEqual(indexModule.declarations, []);
+			assert.deepStrictEqual(indexModule.reExports, []);
+			assert.ok(!diagnostics.some((d) => d.kind === 'duplicate_declaration'));
+
+			const bar = modules
+				.find((m) => m.path === 'b.ts')!
+				.declarations.find((d) => d.name === 'bar');
+			assert.deepStrictEqual(bar?.aliasOf, {module: 'a.ts', name: 'foo'});
+		});
+	});
+
+	test('canonical @nodocs: the forward edge persists without a back-link target', async () => {
+		// `@nodocs` on the canonical declaration removes it from output, but
+		// the re-exporting module's source still contains the statement — the
+		// forward entry stays, with no matching declaration to back-link (the
+		// documented presence caveat shared with `aliasOf.module`).
+		const files = {
+			'src/lib/a.ts': `/** @nodocs */\nexport const foo = 1;\n`,
+			'src/lib/index.ts': `export {foo} from './a.js';\n`,
+		};
+
+		await withTestProject(files, async (projectRoot) => {
+			const {sourceFiles, sourceOptions} = setupAnalysis(projectRoot, files);
+			const {modules} = await analyze({sourceFiles, sourceOptions});
+
+			const indexModule = modules.find((m) => m.path === 'index.ts')!;
+			assert.deepStrictEqual(indexModule.reExports, [{name: 'foo', module: 'a.ts'}]);
+			const aModule = modules.find((m) => m.path === 'a.ts')!;
+			assert.deepStrictEqual(aModule.declarations, []);
 		});
 	});
 

@@ -225,7 +225,7 @@ Hierarchy: `ModuleJson[]` → `DeclarationJson[]` → `MemberJson[]`. Members ne
 
 - **Same-name** → `alsoExportedFrom` on the canonical ("same thing, more import paths"). **Position 3**: when the local export statement carries JSDoc or `@nodocs`, an alias is _also_ synthesized in the re-exporting module (so local content has a home), in addition to the link. `@nodocs` suppresses both link and synthesis. Trigger is "presence of local content," not "presence of rename" — rename and content are orthogonal axes
 - **Renamed** → synthesized declaration with `aliasOf` ("new public name pointing at existing thing"). Inherits `typeSignature`, `docComment`, `parameters`, `reactivity` from canonical; `sourceLine` undefined
-- **Star exports** → tracked in `starExports` arrays; star-projected value symbols are not materialized in the projecting module (no declarations, no links, no edges — `analyzeExports` skips symbols with no declaration in the current file, covering both direct projections and projected re-export specifiers; merged symbols count as local when any declaration is). Star-projected _namespace_ bindings are handled by the namespace classifier first and do produce `alsoExportedFrom` links (see Namespace re-exports below)
+- **Star exports** → tracked in `starExports` arrays; star-projected bindings are not materialized in the projecting module (no declarations, no links, no edges — `analyzeExports` skips symbols with no declaration in the current file; merged symbols count as local when any declaration is). The rule is uniform across binding kinds: value symbols, projected re-export specifiers, and _namespace_ bindings (the locality skip runs before the namespace classifier, so both the shared `NamespaceExport` node and projected `export {ns}` specifiers are silenced)
 
 **Forward view**: the same-name edges also publish on the re-exporting module as `ModuleJson.reExports` (`Array<ReExportJson>` — `{name, module}`, sorted by name then module; names can collide via Svelte default re-keying) so barrels are self-describing without inverting every `alsoExportedFrom` array. `mergeReExports(modules)` derives the reverse view from these fields directly. `module` is the canonical module (multi-hop resolved); `(module, name)` is the same lookup contract as `aliasOf`, including the Svelte filename-derived-name exception. Statement-level `@nodocs` suppresses entry and back-link together; the views can disagree at the margins — an entry whose canonical declaration is `@nodocs`, or whose module isn't in the analyzed set (session with partial owned set; LS resolves unowned files from disk), has no back-link. Same-name only: renames stay alias declarations, star exports stay in `starExports`
 
@@ -235,7 +235,7 @@ Hierarchy: `ModuleJson[]` → `DeclarationJson[]` → `MemberJson[]`. Members ne
 
 - Detection via `ValueModule` flag on the deeply-resolved alias (robust to N-hop chains)
 - **Origination** (`export * as ns from './x'`) → fresh `NamespaceDeclarationJson`
-- **Same-name** (N-hop chains, `export *` projection) → `alsoExportedFrom` link (Position 3 applies)
+- **Same-name** (`export {ns} from './has-namespace'`, N-hop chains of such specifiers) → `alsoExportedFrom` link (Position 3 applies). Star projection of a namespace binding is _not_ same-name — it's silenced by the locality skip like all star projection
 - **Renamed** (`export {ns as foo}`) → alias with `aliasOf` pointing at the namespace-defining file, walking the immediate-alias chain forward to find the canonical `NamespaceExport`
 
 Lock-in tests at `src/test/analyze.reexport-edges.test.ts`.
@@ -259,7 +259,6 @@ Lock-in tests at `src/test/analyze.reexport-edges.test.ts`.
 - Standalone `namespace Foo {}` declarations (low priority). Note: `export * as ns from './x'` namespace re-exports _are_ supported as `NamespaceDeclarationJson`
 - Decorators (low priority)
 - Re-exports from external packages — `export {x} from 'pkg'` and `export * from 'pkg'` leave no trace (no declarations, no `reExports` edge; external star targets are also filtered out of `starExports`). Consistent silence across both forms; no diagnostic
-
 - Per-parameter doc fields — `ParameterJson` captures `name`/`type`/`optional`/`rest`/`description`/`defaultValue`/`propertyDescriptions` only; `ComponentPropJson` includes `docFields` (`examples`, `deprecatedMessage`, `seeAlso`, `throws`, `since`), `ParameterJson` deliberately does not (function parameters rarely carry the richer per-parameter doc tags; component props commonly do). Object-property descriptions from dotted `@param obj.prop` tags _are_ captured — see `propertyDescriptions` below.
 
 ## API

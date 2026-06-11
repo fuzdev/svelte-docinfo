@@ -135,7 +135,9 @@ export interface ModuleExportsAnalysis {
 	/**
 	 * Same-name re-exports. Published as `ModuleJson.reExports` and consumed
 	 * by `mergeReExports` in phase 2 to build `alsoExportedFrom` arrays on
-	 * canonical declarations.
+	 * canonical declarations. Unsorted here and may contain exact duplicates
+	 * (Svelte default-slot re-keying) — ordering and dedup are applied at
+	 * publication in `analyze-core.ts`.
 	 */
 	reExports: Array<ReExportJson>;
 	/** Star exports (`export * from './module'`) — module paths that are fully re-exported. */

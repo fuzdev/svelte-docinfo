@@ -15,8 +15,8 @@ Breaking:
   (now `ReExportJson`)
 - `analyzeModule` returns `ModuleJson` directly instead of `{module, reExports}`
   (`ModuleAnalyzeResult` removed)
-- star-projected value symbols are no longer materialized as declarations in the
-  projecting module, and star-projected re-export bindings no longer contribute
-  `alsoExportedFrom` back-links — `starExports` is their sole encoding (this also
-  removes the spurious `duplicate_declaration` diagnostics star exports used to
-  produce). Star-projected namespace bindings still produce links
+- star projection is no longer materialized in the projecting module — value
+  symbols, projected re-export specifiers, and namespace bindings alike produce
+  no declarations, no `reExports` edges, and no `alsoExportedFrom` back-links;
+  `starExports` is the sole encoding (this also removes the spurious
+  `duplicate_declaration` diagnostics star exports used to produce)
