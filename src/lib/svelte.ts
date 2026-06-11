@@ -595,7 +595,7 @@ const extractPropsMetadata = (virtualSource: ts.SourceFile): PropsMetadata => {
 	return {bindableProps, propsDefaults, propsTypeName};
 };
 
-// ── Snippet Detection ──────────────────────────────────────────────────────
+// Snippet Detection
 
 /**
  * Check if a type string represents a `Snippet` type.
@@ -677,7 +677,7 @@ export const synthesizeSnippetTypeSignature = (parameters: Array<ParameterJsonIn
 	return `Snippet<[${inner}]>`;
 };
 
-// ── Checker-Backed Analysis ─────────────────────────────────────────────────
+// Checker-Backed Analysis
 
 /**
  * Check if a symbol name is an internal svelte2tsx identifier.

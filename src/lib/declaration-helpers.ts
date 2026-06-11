@@ -11,7 +11,7 @@
 
 import type {DeclarationJson, MemberJson, DeclarationKind, MemberKind} from './types.js';
 
-// ── Serialization ───────────────────────────────────────────────────────────
+// Serialization
 
 /**
  * JSON replacer that strips Zod default values for compact serialization.
@@ -50,7 +50,7 @@ import type {DeclarationJson, MemberJson, DeclarationKind, MemberKind} from './t
 export const compactReplacer = (_key: string, value: unknown): unknown =>
 	(Array.isArray(value) && value.length === 0) || value === false ? undefined : value;
 
-// ── Display Helpers ─────────────────────────────────────────────────────────
+// Display Helpers
 
 /**
  * Format declaration or member name with generic parameters for display.
@@ -149,7 +149,7 @@ const pascalCaseFromModulePath = (modulePath: string): string => {
 		.join('');
 };
 
-// ── Type Reference Helpers ─────────────────────────────────────────────────
+// Type Reference Helpers
 
 /**
  * Escape special regex characters in a string.
@@ -244,7 +244,7 @@ export const findTypeReferences = (
 	return refs;
 };
 
-// ── Narrowed Declaration Types ──────────────────────────────────────────────
+// Narrowed Declaration Types
 
 /**
  * Narrow a declaration by kind for type-safe field access.

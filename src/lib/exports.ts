@@ -19,7 +19,7 @@ import type {Diagnostic} from './diagnostics.js';
 import {toPosixPath} from './paths.js';
 import {MAX_FILE_CONCURRENCY, map_concurrent} from './concurrency.js';
 
-// ── Types ────────────────────────────────────────────────────────────────────
+// Types
 
 /**
  * A parsed entry from package.json exports field.
@@ -74,12 +74,12 @@ export interface ParsedExports {
 	hasExports: boolean;
 }
 
-// ── Condition priority ───────────────────────────────────────────────────────
+// Condition priority
 
 /** Priority order for selecting the condition to use for source mapping. */
 const CONDITION_PRIORITY = ['svelte', 'default', 'import', 'require'];
 
-// ── Parsing ──────────────────────────────────────────────────────────────────
+// Parsing
 
 /**
  * Read and parse the exports field from package.json.
@@ -155,7 +155,7 @@ const flattenConditions = (value: unknown, prefix?: string): Record<string, stri
 	return null;
 };
 
-// ── Source mapping ───────────────────────────────────────────────────────────
+// Source mapping
 
 /**
  * Map a dist file path to its source file path.
@@ -214,7 +214,7 @@ export const mapDistToSource = (
 	return sourceBase;
 };
 
-// ── Discovery ────────────────────────────────────────────────────────────────
+// Discovery
 
 /**
  * Select the best condition for source mapping from an export entry.

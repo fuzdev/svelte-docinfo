@@ -47,7 +47,7 @@ import {
 	type DuplicateDeclaration,
 } from './postprocess.js';
 
-// ── Duplicate handling ───────────────────────────────────────────────────────
+// Duplicate handling
 
 /**
  * Custom callback for handling duplicate declaration names.
@@ -156,7 +156,7 @@ const dispatchOnDuplicates = (
 	mode(duplicates, errorLog);
 };
 
-// ── Result types ─────────────────────────────────────────────────────────────
+// Result types
 
 /**
  * Result of `analyze`, `analyzeFromFiles`, and `AnalysisSession.query`.
@@ -258,7 +258,7 @@ const toModuleJson = (raw: ModuleAnalysis): ModuleJson => {
 	});
 };
 
-// ── Module dispatch ──────────────────────────────────────────────────────────
+// Module dispatch
 
 /**
  * Analyze a single non-Svelte source file and extract module metadata.
@@ -353,7 +353,7 @@ export const analyzeModule = (
 	return toModuleJson(raw);
 };
 
-// ── Core two-phase loop ──────────────────────────────────────────────────────
+// Core two-phase loop
 
 /**
  * Inputs to `analyzeCore`. The caller (one-shot wrapper or session.query)

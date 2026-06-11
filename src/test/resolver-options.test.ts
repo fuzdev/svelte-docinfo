@@ -14,7 +14,7 @@ const ROOT = '/proj';
 const resolveBare: ResolveImportFn = (specifier) =>
 	specifier === './b.js' ? '/proj/src/lib/b.ts' : null;
 
-// ── normalizeResolveImport: the ResolveImport union → ImportResolver coercion ──
+// normalizeResolveImport: the ResolveImport union → ImportResolver coercion
 
 test('normalizeResolveImport wraps a bare function with a synthesized identity', () => {
 	const resolver = normalizeResolveImport(resolveBare);
@@ -44,7 +44,7 @@ test('normalizeResolveImport leaves the shared no-deps resolver intact', () => {
 	assert.equal(normalizeResolveImport(noDepsResolver), noDepsResolver);
 });
 
-// ── analyzeFromFiles: contradictory resolveImport + resolveDependencies: false ─
+// analyzeFromFiles: contradictory resolveImport + resolveDependencies: false
 
 test('analyzeFromFiles throws when resolveImport is combined with resolveDependencies: false', async () => {
 	let threw = false;

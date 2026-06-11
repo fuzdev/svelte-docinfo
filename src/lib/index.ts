@@ -9,7 +9,7 @@
  * @module
  */
 
-// ── Core entry points ───────────────────────────────────────────────────────
+// Core entry points
 
 export {analyze, analyzeFromFiles} from './analyze.js';
 export type {AnalyzeOptions, AnalyzeFromFilesOptions} from './analyze.js';
@@ -27,7 +27,7 @@ export type {
 export {normalizeResolveImport} from './dep-resolver.js';
 export type {ImportResolver, ResolveImport, ResolveImportFn} from './dep-resolver.js';
 
-// ── Types (Zod schemas + TypeScript interfaces) ─────────────────────────────
+// Types (Zod schemas + TypeScript interfaces)
 
 export {
 	DeclarationKind,
@@ -57,7 +57,7 @@ export {
 	ModuleJson,
 } from './types.js';
 
-// ── Declaration helpers ────────────────────────────────────────────────────
+// Declaration helpers
 
 export {
 	getDisplayName,
@@ -68,16 +68,16 @@ export {
 	buildTypeReferencePatterns,
 } from './declaration-helpers.js';
 
-// ── Source types ────────────────────────────────────────────────────────────
+// Source types
 
 export type {SourceFileInfo, AnalyzerType} from './source.js';
 
-// ── Source options ──────────────────────────────────────────────────────────
+// Source options
 
 export {createSourceOptions, DEFAULT_SOURCE_OPTIONS} from './source-config.js';
 export type {ModuleSourceOptions, SourceOptionsDefaults} from './source-config.js';
 
-// ── Post-processing ────────────────────────────────────────────────────────
+// Post-processing
 
 export {
 	findDuplicates,
@@ -87,11 +87,11 @@ export {
 } from './postprocess.js';
 export type {DuplicateDeclaration, ExportSurface, ExportSurfaceEntry} from './postprocess.js';
 
-// ── File system constants ──────────────────────────────────────────────────
+// File system constants
 
 export {deriveIncludePatterns} from './files.js';
 
-// ── File discovery ──────────────────────────────────────────────────────────
+// File discovery
 
 export {discoverSourceFiles} from './discovery.js';
 export type {
@@ -100,7 +100,7 @@ export type {
 	DiscoverSourceFilesResult,
 } from './discovery.js';
 
-// ── Diagnostics ─────────────────────────────────────────────────────────────
+// Diagnostics
 
 export {
 	hasErrors,

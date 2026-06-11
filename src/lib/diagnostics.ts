@@ -60,7 +60,7 @@
 
 import {z} from 'zod';
 
-// ── Severity ─────────────────────────────────────────────────────────────────
+// Severity
 
 /**
  * Diagnostic severity levels.
@@ -71,7 +71,7 @@ import {z} from 'zod';
 export const DiagnosticSeverity = z.enum(['error', 'warning']);
 export type DiagnosticSeverity = z.infer<typeof DiagnosticSeverity>;
 
-// ── Kind ─────────────────────────────────────────────────────────────────────
+// Kind
 
 /**
  * Discriminant for `Diagnostic` variant types.
@@ -94,7 +94,7 @@ export const DiagnosticKind = z.enum([
 ]);
 export type DiagnosticKind = z.infer<typeof DiagnosticKind>;
 
-// ── Variants ─────────────────────────────────────────────────────────────────
+// Variants
 
 /**
  * Base diagnostic fields shared by every variant.
@@ -397,7 +397,7 @@ export const Diagnostic: z.ZodDiscriminatedUnion<
 ]);
 export type Diagnostic = z.infer<typeof Diagnostic>;
 
-// ── Helpers ────────────────────────────────────────────────────────────────
+// Helpers
 
 /**
  * Check if any error-severity diagnostics were collected.

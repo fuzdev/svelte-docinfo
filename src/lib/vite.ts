@@ -161,7 +161,7 @@ const svelteDocinfo = (options: VitePluginSvelteDocinfoOptions = {}): Plugin => 
 	// "discovery" — it ingests files the plugin hands to it.
 	let discoveryDiagnostics: Array<Diagnostic> = [];
 
-	// ── Resolver wiring ──────────────────────────────────────────────────────
+	// Resolver wiring
 	// Dev resolver: server.pluginContainer.resolveId. Stable identity across
 	// the dev session — cache hits work across HMR cycles.
 	const viteDevResolver: ImportResolver = {
@@ -176,7 +176,7 @@ const svelteDocinfo = (options: VitePluginSvelteDocinfoOptions = {}): Plugin => 
 		identity: VITE_DEV_IDENTITY,
 	};
 
-	// ── In-flight analysis tracking ─────────────────────────────────────────
+	// In-flight analysis tracking
 	// Initial analysis runs once in buildStart; HMR flushes run on debounce.
 	// `load()` awaits both so we never serve stale JSON to a freshly-importing
 	// module.
@@ -277,7 +277,7 @@ const svelteDocinfo = (options: VitePluginSvelteDocinfoOptions = {}): Plugin => 
 
 	const isWatchedFile = (file: string): boolean => isSource(file, resolvedSourceOptions);
 
-	// ── Initial analysis (cold start in buildStart) ──────────────────────────
+	// Initial analysis (cold start in buildStart)
 	const runInitialAnalysis = async (): Promise<void> => {
 		if (!session) return;
 		const {files, diagnostics} = await discoverSourceFiles({
@@ -294,7 +294,7 @@ const svelteDocinfo = (options: VitePluginSvelteDocinfoOptions = {}): Plugin => 
 		updateOutputFromQuery(result.modules, result.diagnostics);
 	};
 
-	// ── HMR flush: drain pendingChanges via setFiles + query ─────────────────
+	// HMR flush: drain pendingChanges via setFiles + query
 	const flushBatch = async (): Promise<void> => {
 		if (initialPromise) await initialPromise;
 		if (!session) return;

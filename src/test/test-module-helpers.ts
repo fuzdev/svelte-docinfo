@@ -111,7 +111,7 @@ export const createTestProgram = (files: Array<{path: string; content: string}>)
 	return ts.createProgram(Array.from(fileMap.keys()), compilerOptions, host);
 };
 
-// ── Cached program for incremental compilation ──────────────────────────────
+// Cached program for incremental compilation
 
 let _cachedParsedConfig: {options: ts.CompilerOptions; fileNames: Array<string>} | undefined;
 let _lastProgram: ts.Program | undefined;

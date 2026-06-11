@@ -330,7 +330,7 @@ const functionLikeFields = {
 	...returnFields,
 } as const;
 
-// ── MemberJson Variants ────────────────────────────────────────────────────
+// MemberJson Variants
 
 /**
  * A function member (method, call signature, method signature).
@@ -419,7 +419,7 @@ export const MemberJson: z.ZodDiscriminatedUnion<
 export type MemberJson = z.infer<typeof MemberJson>;
 export type MemberJsonInput = z.input<typeof MemberJson>;
 
-// ── DeclarationJson Variants ────────────────────────────────────────────────
+// DeclarationJson Variants
 
 /** Top-level-only fields shared by all `DeclarationJson` variants. */
 const declarationTopLevelFields = {

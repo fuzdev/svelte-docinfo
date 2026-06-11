@@ -429,7 +429,7 @@ export const createAnalysisSession = (options: AnalysisSessionOptions): Analysis
 		return getDefaultResolver();
 	};
 
-	// ── Phase 1: sync per-file transform/lex ─────────────────────────────────
+	// Phase 1: sync per-file transform/lex
 	// `resolver` is `null` when the entire batch is pre-resolved — phase 1
 	// needs no resolver identity in that case, and skipping `pickResolver`
 	// avoids constructing the lazy default for fully pre-resolved consumers.
@@ -536,7 +536,7 @@ export const createAnalysisSession = (options: AnalysisSessionOptions): Analysis
 		};
 	};
 
-	// ── Phase 3: serial per-file LS push + entry write ───────────────────────
+	// Phase 3: serial per-file LS push + entry write
 	const phase3 = (
 		pending: PendingIngest,
 		resolved: ReadonlyArray<string | null>,
@@ -618,7 +618,7 @@ export const createAnalysisSession = (options: AnalysisSessionOptions): Analysis
 		return {changed: true, diagnostics: [...pending.ingestDiagnostics]};
 	};
 
-	// ── setFiles: orchestrate three phases ───────────────────────────────────
+	// setFiles: orchestrate three phases
 	const setFiles = async (
 		files: ReadonlyArray<SourceFileInfo>,
 		opts?: SetFileOptions,

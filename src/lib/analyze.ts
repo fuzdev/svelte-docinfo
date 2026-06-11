@@ -34,7 +34,7 @@ import {
 } from './analyze-core.js';
 import type {SourceFileInfo} from './source.js';
 
-// ── analyze: one-shot, caller-supplied sourceFiles ───────────────────────────
+// analyze: one-shot, caller-supplied sourceFiles
 
 /**
  * Options for `analyze`.
@@ -94,7 +94,7 @@ export const analyze = async (options: AnalyzeOptions): Promise<AnalyzeResultJso
 	}
 };
 
-// ── analyzeFromFiles: high-level disk-discovery wrapper ──────────────────────
+// analyzeFromFiles: high-level disk-discovery wrapper
 
 /**
  * Options for `analyzeFromFiles`.
