@@ -1,5 +1,12 @@
 # svelte-docinfo
 
+## 0.5.1
+
+### Patch Changes
+
+- fix: remove errant `@nodocs` on `index.ts` module comment ([3a96842](https://github.com/fuzdev/svelte-docinfo/commit/3a96842))
+- fix: improve `@nodocs` handling to warn on module comments ([3a96842](https://github.com/fuzdev/svelte-docinfo/commit/3a96842))
+
 ## 0.5.0
 
 ### Minor Changes
