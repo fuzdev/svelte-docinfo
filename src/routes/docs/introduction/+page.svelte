@@ -201,5 +201,11 @@ const {modules} = await analyze({
 				and callback props.
 			</p>
 		</TomeSection>
+		<TomeSection>
+			<TomeSectionHeader text="Example output" />
+			<p>
+				See the <TomeLink slug="output-format" /> reference for example JSON output.
+			</p>
+		</TomeSection>
 	</section>
 </TomeContent>

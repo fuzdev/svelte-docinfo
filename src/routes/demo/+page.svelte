@@ -18,6 +18,14 @@
 			</p>
 		</a>
 	</nav>
+	<section>
+		<blockquote>
+			the demo currently shows only TS, for a Svelte example see the
+			<a href="https://github.com/fuzdev/svelte-docinfo#quick-start">readme</a>
+			and
+			<a href="{resolve('/docs/output-format')}#Examples">example docs</a>
+		</blockquote>
+	</section>
 	<footer class="mt_xl4">
 		<Breadcrumb />
 	</footer>

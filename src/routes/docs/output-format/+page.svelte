@@ -427,7 +427,17 @@ findTypeReferences('Map<string, ModuleJson[]>', names);
 
 		<TomeSection>
 			<TomeSectionHeader text="Examples" />
-			<p>A TypeScript function:</p>
+			<p>
+				The JSON output for these examples is the compact wire form described above, so empty
+				arrays, <code>false</code> booleans, and absent optional fields are stripped.
+			</p>
+			<p>A TypeScript function in <code>math.ts</code>:</p>
+			<Code
+				lang="ts"
+				content={`/** Clamp a number to a range. */
+export const clamp = (value: number, min: number, max: number): number =>
+	Math.min(Math.max(value, min), max);`}
+			/>
 			<Code
 				lang="json"
 				content={`{
@@ -440,20 +450,55 @@ findTypeReferences('Map<string, ModuleJson[]>', names);
           "kind": "function",
           "docComment": "Clamp a number to a range.",
           "typeSignature": "(value: number, min: number, max: number): number",
+          "sourceLine": 2,
           "parameters": [
             {"name": "value", "type": "number"},
             {"name": "min", "type": "number"},
             {"name": "max", "type": "number"}
           ],
-          "returnType": "number",
-          "sourceLine": 2
+          "returnType": "number"
         }
       ]
     }
   ]
 }`}
 			/>
-			<p>A Svelte component with a snippet prop, children, and an exported snippet:</p>
+			<p>
+				A Svelte component <code>Card.svelte</code> with a snippet prop, children, and an exported snippet:
+			</p>
+			<Code
+				lang="svelte"
+				content={'<!-- @component A card with a customizable header. -->\n<' +
+					`script lang="ts" module>
+	/** Default footer snippet. */
+	export {card_footer};
+</script>
+
+<` +
+					`script lang="ts">
+	import type {Snippet} from 'svelte';
+
+	const {
+		title,
+		header,
+		children,
+	}: {
+		title: string;
+		/** Custom header rendering. */
+		header?: Snippet<[title: string]>;
+		children?: Snippet;
+	} = $props();
+</script>
+
+<div class="card">
+	{#if header}{@render header(title)}{:else}<h2>{title}</h2>{/if}
+	{@render children?.()}
+</div>
+
+{#snippet card_footer(text: string)}
+	<small>{text}</small>
+{/snippet}`}
+			/>
 			<Code
 				lang="json"
 				content={`{
@@ -465,7 +510,7 @@ findTypeReferences('Map<string, ModuleJson[]>', names);
           "name": "Card",
           "kind": "component",
           "docComment": "A card with a customizable header.",
-          "acceptsChildren": true,
+          "sourceLine": 7,
           "props": [
             {"name": "title", "type": "string"},
             {
@@ -476,26 +521,32 @@ findTypeReferences('Map<string, ModuleJson[]>', names);
               "parameters": [
                 {"name": "title", "type": "string"}
               ]
-            }
+            },
+            {"name": "children", "type": "Snippet<[]>", "optional": true}
           ],
-          "sourceLine": 1
+          "acceptsChildren": true
         },
         {
           "name": "card_footer",
           "kind": "snippet",
           "docComment": "Default footer snippet.",
           "typeSignature": "Snippet<[text: string]>",
+          "sourceLine": 27,
           "parameters": [
             {"name": "text", "type": "string"}
-          ],
-          "sourceLine": 12
+          ]
         }
       ]
     }
   ]
 }`}
 			/>
-			<p>A rune module exporting reactive state (e.g., a <code>.svelte.ts</code> file):</p>
+			<p>A rune module <code>counter.svelte.ts</code> exporting reactive state:</p>
+			<Code
+				lang="ts"
+				content={`export let count = $state(0);
+export const doubled = $derived(count * 2);`}
+			/>
 			<Code
 				lang="json"
 				content={`{
@@ -507,15 +558,15 @@ findTypeReferences('Map<string, ModuleJson[]>', names);
           "name": "count",
           "kind": "variable",
           "typeSignature": "number",
-          "reactivity": "$state",
-          "sourceLine": 1
+          "sourceLine": 1,
+          "reactivity": "$state"
         },
         {
           "name": "doubled",
           "kind": "variable",
           "typeSignature": "number",
-          "reactivity": "$derived",
-          "sourceLine": 2
+          "sourceLine": 2,
+          "reactivity": "$derived"
         }
       ]
     }
@@ -523,37 +574,72 @@ findTypeReferences('Map<string, ModuleJson[]>', names);
 }`}
 			/>
 			<p>
-				A function defined in <code>math.ts</code> and re-exported under a new name from the barrel
-				<code>index.ts</code>. The canonical entry carries
-				<code>alsoExportedFrom</code> if any module re-exports it under the same name. Renames
-				synthesize a separate declaration with <code>aliasOf</code>:
+				A barrel <code>index.ts</code> that re-exports <code>clamp</code> from the
+				<code>math.ts</code> above under a new name and star-exports <code>other.ts</code>. The
+				rename synthesizes a declaration with <code>aliasOf</code> that inherits the canonical's
+				signature and docs, the star export lands on <code>starExports</code>, and the dependency
+				graph fields connect the modules. (A same-name re-export would instead add the barrel to the
+				canonical's <code>alsoExportedFrom</code>.)
 			</p>
+			<Code
+				lang="ts"
+				content={`// index.ts
+export {clamp as clampNumber} from './math.js';
+export * from './other.js';
+
+// other.ts
+export const TAU = Math.PI * 2;`}
+			/>
 			<Code
 				lang="json"
 				content={`{
   "modules": [
-    {
-      "path": "math.ts",
-      "declarations": [
-        {
-          "name": "clamp",
-          "kind": "function",
-          "typeSignature": "(value: number, min: number, max: number): number",
-          "sourceLine": 2
-        }
-      ]
-    },
     {
       "path": "index.ts",
       "declarations": [
         {
           "name": "clampNumber",
           "kind": "function",
+          "docComment": "Clamp a number to a range.",
           "typeSignature": "(value: number, min: number, max: number): number",
-          "aliasOf": {"module": "math.ts", "name": "clamp"}
+          "sourceLine": 1,
+          "aliasOf": {"module": "math.ts", "name": "clamp"},
+          "parameters": [
+            {"name": "value", "type": "number"},
+            {"name": "min", "type": "number"},
+            {"name": "max", "type": "number"}
+          ],
+          "returnType": "number"
         }
       ],
+      "dependencies": ["math.ts", "other.ts"],
       "starExports": ["other.ts"]
+    },
+    {
+      "path": "math.ts",
+      "declarations": [
+        {
+          "name": "clamp",
+          "kind": "function",
+          "docComment": "Clamp a number to a range.",
+          "typeSignature": "(value: number, min: number, max: number): number",
+          "sourceLine": 2,
+          "parameters": [
+            {"name": "value", "type": "number"},
+            {"name": "min", "type": "number"},
+            {"name": "max", "type": "number"}
+          ],
+          "returnType": "number"
+        }
+      ],
+      "dependents": ["index.ts"]
+    },
+    {
+      "path": "other.ts",
+      "declarations": [
+        {"name": "TAU", "kind": "variable", "typeSignature": "number", "sourceLine": 1}
+      ],
+      "dependents": ["index.ts"]
     }
   ]
 }`}
