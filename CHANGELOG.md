@@ -1,5 +1,11 @@
 # svelte-docinfo
 
+## 0.5.2
+
+### Patch Changes
+
+- fix: `.svelte` resolution and dedupe `ModuleJson.dependencies` ([c48e203](https://github.com/fuzdev/svelte-docinfo/commit/c48e203))
+
 ## 0.5.1
 
 ### Patch Changes
