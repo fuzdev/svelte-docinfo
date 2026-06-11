@@ -6,8 +6,8 @@
 				{
 					"name": "Calculator",
 					"kind": "component",
-					"docComment": "Calculator component for demonstrating Svelte analysis.",
-					"sourceLine": 6,
+					"docComment": "Calculator component for demonstrating Svelte analysis. A component\ncomment documents the component itself and becomes the declaration's\n`docComment`; the separate `@module` comment below documents the file\nand becomes the module's `moduleComment`. Both use the HTML comment\nform here — see `Card.svelte` for the in-script JSDoc form of each.",
+					"sourceLine": 16,
 					"props": [
 						{
 							"name": "result",
@@ -40,6 +40,7 @@
 					]
 				}
 			],
+			"moduleComment": "Module docs via the HTML comment form — coexists with the component\ndoc comment above. See `Card.svelte` for the in-script JSDoc form.",
 			"dependencies": ["math.ts"],
 			"dependents": ["index.ts"]
 		},
@@ -49,8 +50,8 @@
 				{
 					"name": "Card",
 					"kind": "component",
-					"docComment": "Card layout demonstrating `children` and snippet props —\n`acceptsChildren` and structured snippet parameters in the output.",
-					"sourceLine": 7,
+					"docComment": "Card layout demonstrating `children` and snippet props —\n`acceptsChildren` and structured snippet parameters in the output.\nComponent docs via the in-script JSDoc form — attached to the `$props()`\ndeclaration, this block becomes the component's `docComment`, with no\n`@component` tag required (only the HTML form needs that tag). See\n`Calculator.svelte` for the HTML comment form.",
+					"sourceLine": 1,
 					"props": [
 						{
 							"name": "title",
@@ -70,6 +71,7 @@
 					"acceptsChildren": true
 				}
 			],
+			"moduleComment": "Module docs via the in-script JSDoc form — the `@module` tag marks this\nblock as the `moduleComment` rather than docs for the statement below.\nSee `Calculator.svelte` for the HTML comment form.",
 			"dependents": ["index.ts"]
 		},
 		{
@@ -185,7 +187,7 @@
 							"defaultValue": "false"
 						}
 					],
-					"docComment": "Calculator component for demonstrating Svelte analysis."
+					"docComment": "Calculator component for demonstrating Svelte analysis. A component\ncomment documents the component itself and becomes the declaration's\n`docComment`; the separate `@module` comment below documents the file\nand becomes the module's `moduleComment`. Both use the HTML comment\nform here — see `Card.svelte` for the in-script JSDoc form of each."
 				},
 				{
 					"name": "Card",
@@ -209,7 +211,7 @@
 						{"name": "children", "type": "Snippet<[]>", "description": "Card body content."}
 					],
 					"acceptsChildren": true,
-					"docComment": "Card layout demonstrating `children` and snippet props —\n`acceptsChildren` and structured snippet parameters in the output."
+					"docComment": "Card layout demonstrating `children` and snippet props —\n`acceptsChildren` and structured snippet parameters in the output.\nComponent docs via the in-script JSDoc form — attached to the `$props()`\ndeclaration, this block becomes the component's `docComment`, with no\n`@component` tag required (only the HTML form needs that tag). See\n`Calculator.svelte` for the HTML comment form."
 				},
 				{
 					"name": "vector_add",
@@ -552,8 +554,8 @@
 		}
 	],
 	"sources": {
-		"Calculator.svelte": "<!--\n\t@component\n\tCalculator component for demonstrating Svelte analysis.\n-->\n\n<script lang=\"ts\">\n\timport {add, multiply, type MathConfig} from './math.js';\n\n\tlet {\n\t\tresult = $bindable(0),\n\t\tconfig,\n\t\tmode = 'add',\n\t\tdisabled = false,\n\t}: {\n\t\t/** Current result (bindable). */\n\t\tresult?: number;\n\t\t/** Math configuration. */\n\t\tconfig?: MathConfig;\n\t\t/** Operation mode. */\n\t\tmode?: 'add' | 'multiply';\n\t\t/** Disable the calculator. */\n\t\tdisabled?: boolean;\n\t} = $props();\n\n\tlet input_value = $state(0);\n\n\tconst calculate = () => {\n\t\tif (disabled) return;\n\t\tconst op = mode === 'add' ? add : multiply;\n\t\tlet value = op(result, input_value);\n\t\tif (config?.round) {\n\t\t\tconst factor = 10 ** config.precision;\n\t\t\tvalue = Math.round(value * factor) / factor;\n\t\t}\n\t\tresult = value;\n\t};\n</script>\n\n<div class=\"calculator\">\n\t<output>{result}</output>\n\t<input type=\"number\" bind:value={input_value} {disabled} />\n\t<button onclick={calculate} {disabled}>\n\t\t{mode === 'add' ? 'Add' : 'Multiply'}\n\t</button>\n</div>\n\n<style>\n\t.calculator {\n\t\tdisplay: flex;\n\t\tflex-direction: column;\n\t\tgap: 0.5rem;\n\t\tpadding: 1rem;\n\t\tborder: 1px solid #ccc;\n\t\tborder-radius: 4px;\n\t}\n\toutput {\n\t\tfont-size: 2rem;\n\t\tfont-weight: bold;\n\t}\n</style>\n",
-		"Card.svelte": "<!--\n\t@component\n\tCard layout demonstrating `children` and snippet props —\n\t`acceptsChildren` and structured snippet parameters in the output.\n-->\n\n<script lang=\"ts\">\n\timport type {Snippet} from 'svelte';\n\n\tlet {\n\t\ttitle,\n\t\theader,\n\t\tchildren,\n\t}: {\n\t\t/** Title rendered when no `header` snippet is provided. */\n\t\ttitle?: string;\n\t\t/** Custom header content, receives the resolved title. */\n\t\theader?: Snippet<[title: string]>;\n\t\t/** Card body content. */\n\t\tchildren: Snippet;\n\t} = $props();\n</script>\n\n<div class=\"card\">\n\t<div class=\"card-header\">\n\t\t{#if header}\n\t\t\t{@render header(title ?? 'untitled')}\n\t\t{:else}\n\t\t\t<h3>{title ?? 'untitled'}</h3>\n\t\t{/if}\n\t</div>\n\t<div class=\"card-body\">\n\t\t{@render children()}\n\t</div>\n</div>\n\n<style>\n\t.card {\n\t\tborder: 1px solid #ccc;\n\t\tborder-radius: 4px;\n\t}\n\t.card-header {\n\t\tpadding: 0.5rem 1rem;\n\t\tborder-bottom: 1px solid #ccc;\n\t}\n\t.card-header h3 {\n\t\tmargin: 0;\n\t}\n\t.card-body {\n\t\tpadding: 1rem;\n\t}\n</style>\n",
+		"Calculator.svelte": "<!--\n\t@component\n\tCalculator component for demonstrating Svelte analysis. A component\n\tcomment documents the component itself and becomes the declaration's\n\t`docComment`; the separate `@module` comment below documents the file\n\tand becomes the module's `moduleComment`. Both use the HTML comment\n\tform here — see `Card.svelte` for the in-script JSDoc form of each.\n-->\n\n<!--\n\t@module\n\tModule docs via the HTML comment form — coexists with the component\n\tdoc comment above. See `Card.svelte` for the in-script JSDoc form.\n-->\n\n<script lang=\"ts\">\n\timport {add, multiply, type MathConfig} from './math.js';\n\n\tlet {\n\t\tresult = $bindable(0),\n\t\tconfig,\n\t\tmode = 'add',\n\t\tdisabled = false,\n\t}: {\n\t\t/** Current result (bindable). */\n\t\tresult?: number;\n\t\t/** Math configuration. */\n\t\tconfig?: MathConfig;\n\t\t/** Operation mode. */\n\t\tmode?: 'add' | 'multiply';\n\t\t/** Disable the calculator. */\n\t\tdisabled?: boolean;\n\t} = $props();\n\n\tlet input_value = $state(0);\n\n\tconst calculate = () => {\n\t\tif (disabled) return;\n\t\tconst op = mode === 'add' ? add : multiply;\n\t\tlet value = op(result, input_value);\n\t\tif (config?.round) {\n\t\t\tconst factor = 10 ** config.precision;\n\t\t\tvalue = Math.round(value * factor) / factor;\n\t\t}\n\t\tresult = value;\n\t};\n</script>\n\n<div class=\"calculator\">\n\t<output>{result}</output>\n\t<input type=\"number\" bind:value={input_value} {disabled} />\n\t<button onclick={calculate} {disabled}>\n\t\t{mode === 'add' ? 'Add' : 'Multiply'}\n\t</button>\n</div>\n\n<style>\n\t.calculator {\n\t\tdisplay: flex;\n\t\tflex-direction: column;\n\t\tgap: 0.5rem;\n\t\tpadding: 1rem;\n\t\tborder: 1px solid #ccc;\n\t\tborder-radius: 4px;\n\t}\n\toutput {\n\t\tfont-size: 2rem;\n\t\tfont-weight: bold;\n\t}\n</style>\n",
+		"Card.svelte": "<script lang=\"ts\">\n\t/**\n\t * Module docs via the in-script JSDoc form — the `@module` tag marks this\n\t * block as the `moduleComment` rather than docs for the statement below.\n\t * See `Calculator.svelte` for the HTML comment form.\n\t * @module\n\t */\n\n\timport type {Snippet} from 'svelte';\n\n\t/**\n\t * Card layout demonstrating `children` and snippet props —\n\t * `acceptsChildren` and structured snippet parameters in the output.\n\t * Component docs via the in-script JSDoc form — attached to the `$props()`\n\t * declaration, this block becomes the component's `docComment`, with no\n\t * `@component` tag required (only the HTML form needs that tag). See\n\t * `Calculator.svelte` for the HTML comment form.\n\t */\n\tlet {\n\t\ttitle,\n\t\theader,\n\t\tchildren,\n\t}: {\n\t\t/** Title rendered when no `header` snippet is provided. */\n\t\ttitle?: string;\n\t\t/** Custom header content, receives the resolved title. */\n\t\theader?: Snippet<[title: string]>;\n\t\t/** Card body content. */\n\t\tchildren: Snippet;\n\t} = $props();\n</script>\n\n<div class=\"card\">\n\t<div class=\"card-header\">\n\t\t{#if header}\n\t\t\t{@render header(title ?? 'untitled')}\n\t\t{:else}\n\t\t\t<h3>{title ?? 'untitled'}</h3>\n\t\t{/if}\n\t</div>\n\t<div class=\"card-body\">\n\t\t{@render children()}\n\t</div>\n</div>\n\n<style>\n\t.card {\n\t\tborder: 1px solid #ccc;\n\t\tborder-radius: 4px;\n\t}\n\t.card-header {\n\t\tpadding: 0.5rem 1rem;\n\t\tborder-bottom: 1px solid #ccc;\n\t}\n\t.card-header h3 {\n\t\tmargin: 0;\n\t}\n\t.card-body {\n\t\tpadding: 1rem;\n\t}\n</style>\n",
 		"counter.svelte.ts": "/**\n * A reactive counter demonstrating Svelte 5 rune detection in plain\n * `.svelte.ts` modules — `$state`, `$state.raw`, `$derived`, and\n * `$derived.by` initializers surface on the `reactivity` field.\n * @module\n */\n\n/** A reactive counter built on Svelte 5 runes. */\nexport class Counter {\n\t/** Current count. */\n\tcount: number = $state(0);\n\t/** Past counts; replaced wholesale on change, so raw state. */\n\thistory: ReadonlyArray<number> = $state.raw([]);\n\t/** Double the current count. */\n\tdoubled: number = $derived(this.count * 2);\n\t/** Display label computed from several fields. */\n\tlabel: string = $derived.by(() => `count: ${this.count} (doubled: ${this.doubled})`);\n\n\t/**\n\t * Increment the count, recording the previous value.\n\t * @param amount - how much to add\n\t * @mutates `this`\n\t */\n\tincrement(amount: number = 1): void {\n\t\tthis.history = [...this.history, this.count];\n\t\tthis.count += amount;\n\t}\n}\n",
 		"has-issues.ts": "/**\n * This file exists to exercise the `analyze-diagnostics.js` example —\n * the `@param` below intentionally names a parameter that doesn't exist,\n * so the analyzer emits an `unknown_param` warning. Real code shouldn't\n * have this issue, but documentation slips happen, and the `diagnostics`\n * field lets consumers surface them without halting analysis.\n * @module\n */\n\n/**\n * Demonstrates a documentation mistake the analyzer catches.\n * @param missing - this name doesn't match any real parameter\n * @returns the input doubled\n */\nexport const demonstrate_typo = (value: number): number => value * 2;\n",
 		"index.ts": "/**\n * Public entry point demonstrating the re-export forms svelte-docinfo tracks.\n * @module\n */\n\n// same-name re-exports — recorded as `reExports` here\n// and `alsoExportedFrom` on the canonical declarations\nexport {add, multiply, type MathConfig} from './math.js';\nexport {Counter} from './counter.svelte.js';\nexport {default as Calculator} from './Calculator.svelte';\nexport {default as Card} from './Card.svelte';\n\n// renamed re-export — synthesizes an alias declaration with `aliasOf`\nexport {add_vector as vector_add} from './math.js';\n\n// namespace re-export — synthesizes a `namespace` declaration projecting shapes.ts\nexport * as shapes from './shapes.js';\n\n// direct external re-export — recorded on `externalReExports`, no declaration synthesized\nexport type {Snippet} from 'svelte';\n",

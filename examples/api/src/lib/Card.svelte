@@ -1,12 +1,21 @@
-<!--
-	@component
-	Card layout demonstrating `children` and snippet props —
-	`acceptsChildren` and structured snippet parameters in the output.
--->
-
 <script lang="ts">
+	/**
+	 * Module docs via the in-script JSDoc form — the `@module` tag marks this
+	 * block as the `moduleComment` rather than docs for the statement below.
+	 * See `Calculator.svelte` for the HTML comment form.
+	 * @module
+	 */
+
 	import type {Snippet} from 'svelte';
 
+	/**
+	 * Card layout demonstrating `children` and snippet props —
+	 * `acceptsChildren` and structured snippet parameters in the output.
+	 * Component docs via the in-script JSDoc form — attached to the `$props()`
+	 * declaration, this block becomes the component's `docComment`, with no
+	 * `@component` tag required (only the HTML form needs that tag). See
+	 * `Calculator.svelte` for the HTML comment form.
+	 */
 	let {
 		title,
 		header,

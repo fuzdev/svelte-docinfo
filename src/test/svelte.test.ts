@@ -715,10 +715,98 @@ let {name}: {name: string} = $props();
 		assert.include(declaration.docComment, 'Component documentation');
 	});
 
+	test('instance @module on an import does not double-count via the virtual', () => {
+		// svelte2tsx hoists instance-script imports (with leading JSDoc) to the
+		// virtual's top level — a `@module` comment attached to an import must
+		// read as the instance comment only, not also as a `<script module>` one
+		const svelteContent = `<script lang="ts">
+/**
+ * Module docs attached to the import.
+ * @module
+ */
+import {tick} from 'svelte';
+
+let {name}: {name: string} = $props();
+void tick;
+</script>
+<p>Hello {name}</p>`;
+
+		const diagnostics: Array<Diagnostic> = [];
+		const result = analyzeSvelteTestIntegration(
+			{id: '/fake/path/Hoisted.svelte', content: svelteContent},
+			'Hoisted.svelte',
+			diagnostics,
+		);
+
+		assert.ok(result.moduleComment);
+		assert.include(result.moduleComment, 'Module docs attached to the import');
+		const duplicates = diagnostics.filter((d) => d.kind === 'duplicate_comment');
+		assert.strictEqual(duplicates.length, 0);
+	});
+
+	test('extracts module comment from <script module>', () => {
+		const svelteContent = `<script module lang="ts">
+/**
+ * Module docs from the module script.
+ * @module
+ */
+export const shared = 1;
+</script>
+<p>text</p>`;
+
+		const diagnostics: Array<Diagnostic> = [];
+		const result = analyzeSvelteTestIntegration(
+			{id: '/fake/path/ModuleScript.svelte', content: svelteContent},
+			'ModuleScript.svelte',
+			diagnostics,
+		);
+
+		assert.ok(result.moduleComment);
+		assert.include(result.moduleComment, 'Module docs from the module script');
+		assert.strictEqual(diagnostics.filter((d) => d.kind === 'duplicate_comment').length, 0);
+	});
+
+	test('instance and <script module> @module comments warn as duplicates', () => {
+		const svelteContent = `<script module lang="ts">
+/**
+ * From the module script.
+ * @module
+ */
+export const shared = 1;
+</script>
+<script lang="ts">
+/**
+ * From the instance script.
+ * @module
+ */
+
+let {name}: {name: string} = $props();
+</script>
+<p>Hello {name}</p>`;
+
+		const diagnostics: Array<Diagnostic> = [];
+		const result = analyzeSvelteTestIntegration(
+			{id: '/fake/path/DualModule.svelte', content: svelteContent},
+			'DualModule.svelte',
+			diagnostics,
+		);
+
+		// Instance comment wins per the documented priority
+		assert.ok(result.moduleComment);
+		assert.include(result.moduleComment, 'From the instance script');
+
+		const duplicates = diagnostics.filter(
+			(d) => d.kind === 'duplicate_comment' && d.commentType === 'module_comment',
+		);
+		assert.strictEqual(duplicates.length, 1);
+		assert.include(duplicates[0]!.message, 'JSDoc in <script>');
+		assert.include(duplicates[0]!.message, 'JSDoc in <script module>');
+	});
+
 	test('@nodocs in a module comment warns (no module-level meaning)', () => {
-		// <script module> comments flow through analyzeExports on the virtual;
-		// instance-script and HTML comments are checked in analyzeSvelteModule —
-		// each misplaced comment warns once
+		// instance-script, <script module>, and HTML comments are all checked
+		// in analyzeSvelteModule against the original source — each misplaced
+		// comment warns once
 		const scriptModuleContent = `<script module lang="ts">
 /**
  * Module docs.

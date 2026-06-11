@@ -1,6 +1,16 @@
 <!--
 	@component
-	Calculator component for demonstrating Svelte analysis.
+	Calculator component for demonstrating Svelte analysis. A component
+	comment documents the component itself and becomes the declaration's
+	`docComment`; the separate `@module` comment below documents the file
+	and becomes the module's `moduleComment`. Both use the HTML comment
+	form here — see `Card.svelte` for the in-script JSDoc form of each.
+-->
+
+<!--
+	@module
+	Module docs via the HTML comment form — coexists with the component
+	doc comment above. See `Card.svelte` for the in-script JSDoc form.
 -->
 
 <script lang="ts">

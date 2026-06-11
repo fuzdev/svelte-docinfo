@@ -129,7 +129,11 @@ export interface DeclarationAnalysis {
  * Produced by `analyzeExports` in `typescript-exports.ts`.
  */
 export interface ModuleExportsAnalysis {
-	/** Module-level documentation comment. */
+	/**
+	 * Module-level documentation comment. Always `undefined` for svelte2tsx
+	 * virtual files — `analyzeSvelteModule` extracts Svelte module comments
+	 * from the original source instead.
+	 */
 	moduleComment?: string;
 	/** All exported declarations with `@nodocs` flags — consumer filters based on policy. */
 	declarations: Array<DeclarationAnalysis>;

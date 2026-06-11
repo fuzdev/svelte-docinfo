@@ -18,15 +18,15 @@
 			</p>
 		</a>
 	</nav>
-	<section>
+	<section class="width_atmost_sm">
 		<blockquote>
-			the extraction demo analyzes the
+			The extraction demo analyzes the
 			<a href="https://github.com/fuzdev/svelte-docinfo/tree/main/examples/api"
 				>examples/api corpus</a
 			>
-			— Svelte components with snippet props, classes, enums, overloads, runes, re-export forms, and one
-			intentional doc mistake — see also the
-			<a href="{resolve('/docs/output-format')}#Examples">example docs</a>
+			with Svelte components with snippet props, classes, enums, overloads, runes, re-export forms, and
+			one intentional doc mistake. See also the
+			<a href="{resolve('/docs/output-format')}#Examples">example docs</a>.
 		</blockquote>
 	</section>
 	<footer class="mt_xl4">

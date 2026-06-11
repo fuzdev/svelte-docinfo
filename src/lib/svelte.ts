@@ -275,18 +275,34 @@ const extractComponentSourceLine = (
  *
  * @returns the script tag content, or undefined if no matching script tag is found
  */
-export const extractScriptContent = (svelteSource: string): string | undefined => {
-	// Match <script> with any attributes, excluding module scripts:
-	// - Svelte 5: <script module> or <script lang="ts" module>
-	// - Svelte 4: <script context="module"> or <script lang="ts" context="module">
-	// Uses global regex to skip module scripts and find the instance script
+export const extractScriptContent = (svelteSource: string): string | undefined =>
+	findScriptContent(svelteSource, false);
+
+/**
+ * Extract the content of the module `<script>` tag from Svelte source.
+ *
+ * Counterpart of `extractScriptContent` with the same attribute test inverted:
+ * matches only module scripts (`<script module>`, `<script context="module">`),
+ * so the two partition a source's script tags consistently.
+ *
+ * @returns the module script tag content, or undefined if no module script is found
+ */
+export const extractModuleScriptContent = (svelteSource: string): string | undefined =>
+	findScriptContent(svelteSource, true);
+
+/**
+ * Shared scan behind `extractScriptContent`/`extractModuleScriptContent`.
+ *
+ * A script tag is a module script when its attributes contain the word
+ * `module` — covers Svelte 5 `<script module>` (with any `lang`) and
+ * Svelte 4 `<script context="module">`.
+ */
+const findScriptContent = (svelteSource: string, wantModule: boolean): string | undefined => {
 	const scriptRegex = /<script(\s+[^>]*)?>([^]*?)<\/script>/gi;
 	let match;
 	while ((match = scriptRegex.exec(svelteSource)) !== null) {
 		const attrs = match[1] ?? '';
-		// Skip module scripts (Svelte 5 `module` attribute or Svelte 4 `context="module"`)
-		if (/\bmodule\b/.test(attrs)) continue;
-		return match[2];
+		if (/\bmodule\b/.test(attrs) === wantModule) return match[2];
 	}
 	return undefined;
 };
@@ -333,9 +349,11 @@ export const extractHtmlModuleComment = (svelteSource: string): string | undefin
  * Extract module-level comment from Svelte script content.
  *
  * Parses the script content as TypeScript and delegates to `extractModuleComment`
- * for the shared `@module` tag detection logic.
+ * for the shared `@module` tag detection logic. Works on either script's
+ * content — instance `<script>` and `<script module>` (see
+ * `extractScriptContent`/`extractModuleScriptContent`).
  *
- * @param scriptContent - the content of the `<script>` tag
+ * @param scriptContent - the content of a `<script>` or `<script module>` tag
  * @returns the cleaned module comment text, or undefined if none found
  */
 export const extractSvelteModuleComment = (scriptContent: string): string | undefined => {
@@ -938,14 +956,18 @@ export const analyzeSvelteModule = (
 		return undefined;
 	}
 
-	// 1. Use analyzeExports for full checker-backed analysis (same as .ts files)
+	// 1. Use analyzeExports for full checker-backed analysis (same as .ts files).
+	// Its `moduleComment` is undefined for virtuals — the `<script module>`
+	// comment is extracted from the original source in step 4, because svelte2tsx
+	// hoists instance-script imports (with their leading JSDoc) to the virtual's
+	// top level, where an instance `@module` comment would masquerade as a
+	// `<script module>` one.
 	const {
 		declarations: rawDeclarations,
 		reExports,
 		starExports,
 		externalReExports,
 		externalStarExports,
-		moduleComment: scriptModuleComment,
 	} = analyzeExports(virtualTsSource, checker, options, diagnostics);
 
 	// 2. Filter internal svelte2tsx symbols and the default export (generated component class),
@@ -1145,12 +1167,16 @@ export const analyzeSvelteModule = (
 	const instanceModuleComment = scriptContent
 		? extractSvelteModuleComment(scriptContent)
 		: undefined;
+	const moduleScriptContent = extractModuleScriptContent(sourceFile.content);
+	const scriptModuleComment = moduleScriptContent
+		? extractSvelteModuleComment(moduleScriptContent)
+		: undefined;
 	const htmlModuleComment = extractHtmlModuleComment(sourceFile.content);
 	const moduleComment = instanceModuleComment ?? scriptModuleComment ?? htmlModuleComment;
 
-	// @nodocs has no module-level meaning — warn per misplaced comment. The
-	// <script module> source is covered by analyzeExports on the virtual above.
+	// @nodocs has no module-level meaning — warn per misplaced comment
 	warnModuleCommentNodocs(instanceModuleComment, modulePath, diagnostics);
+	warnModuleCommentNodocs(scriptModuleComment, modulePath, diagnostics);
 	warnModuleCommentNodocs(htmlModuleComment, modulePath, diagnostics);
 
 	// Warn if multiple @module sources exist

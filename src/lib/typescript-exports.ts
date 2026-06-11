@@ -364,7 +364,8 @@ const synthesizeCrossFileAlias = (
 /**
  * Analyze all exports from a TypeScript source file.
  *
- * Extracts the module-level comment via `extractModuleComment`, star exports via
+ * Extracts the module-level comment via `extractModuleComment` (skipped for
+ * svelte2tsx virtual files — see the inline note), star exports via
  * `extractStarExports`, and all exported declarations with complete metadata.
  * Handles re-exports by:
  * - Same-name re-exports: tracked in `reExports` for `alsoExportedFrom` building
@@ -395,15 +396,19 @@ export const analyzeExports = (
 
 	const isExternalFile = createIsExternalFile(options);
 
-	// Extract module-level comment
-	const moduleComment = extractModuleComment(sourceFile);
-
 	// Extract star exports (export * from './module' / 'pkg')
 	const {starExports, externalStarExports} = extractStarExports(sourceFile, checker, options);
 
 	// Normalize virtual paths once (e.g., Foo.svelte.__svelte2tsx__.ts → Foo.svelte)
 	// so re-export tracking matches real module paths
 	const currentFileName = stripVirtualSuffix(sourceFile.fileName);
+
+	// Extract module-level comment — skipped for svelte2tsx virtuals, where
+	// hoisted instance-script comments would read as module comments;
+	// `analyzeSvelteModule` extracts the `<script module>` comment from the
+	// original source instead (and owns its `@nodocs` warning)
+	const isVirtual = currentFileName !== sourceFile.fileName;
+	const moduleComment = isVirtual ? undefined : extractModuleComment(sourceFile);
 
 	warnModuleCommentNodocs(moduleComment, currentFileName, diagnostics);
 
