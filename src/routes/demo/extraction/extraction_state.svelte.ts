@@ -3,6 +3,18 @@ import {create_context} from '@fuzdev/fuz_ui/context_helpers.js';
 import type {AnalyzeResultJsonWire} from 'svelte-docinfo';
 import {isCss, isJson, isSvelte} from 'svelte-docinfo/source.js';
 
+/**
+ * Shape of the committed `extraction_data.json` artifact — analysis of the
+ * examples/api corpus paired with raw sources, produced by
+ * `extraction_data.gen.json.ts`. Serialized through `compactReplacer`, so
+ * default-bearing fields may be absent (the wire form).
+ */
+export interface ExtractionData {
+	modules: AnalyzeResultJsonWire['modules'];
+	diagnostics?: AnalyzeResultJsonWire['diagnostics'];
+	sources: Record<string, string>;
+}
+
 export interface ExtractionStateOptions {
 	modules: AnalyzeResultJsonWire['modules'];
 	/**
@@ -35,7 +47,7 @@ export class ExtractionState {
 		if (isJson(this.selected_path)) return 'json';
 		return 'ts';
 	});
-	// `modules` is already the compact wire form (the Vite plugin serializes
+	// `modules` is already the compact wire form (the gen file serializes
 	// through `compactReplacer`), so pretty-printing it directly shows exactly
 	// what consumers get.
 	readonly selected_data: string = $derived(

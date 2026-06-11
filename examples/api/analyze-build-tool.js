@@ -13,23 +13,30 @@ const dir = dirname(fileURLToPath(import.meta.url));
 // `SourceFileInfo.dependencies` to skip svelte-docinfo's own lex+resolve pass
 // for those files — the session uses the supplied paths as-is (after filtering
 // node_modules and tests via `isSource`).
-const sourceFiles = [
-	{
-		id: join(dir, 'src/lib/math.ts'),
-		content: await readFile(join(dir, 'src/lib/math.ts'), 'utf-8'),
-		dependencies: [],
-	},
-	{
-		id: join(dir, 'src/lib/has-issues.ts'),
-		content: await readFile(join(dir, 'src/lib/has-issues.ts'), 'utf-8'),
-		dependencies: [],
-	},
-	{
-		id: join(dir, 'src/lib/Calculator.svelte'),
-		content: await readFile(join(dir, 'src/lib/Calculator.svelte'), 'utf-8'),
-		dependencies: [join(dir, 'src/lib/math.ts')],
-	},
-];
+// Helper mimicking what a build tool does per file: id + content + the
+// file's resolved source-set dependencies (external imports like 'svelte'
+// are not source files and don't belong in the array).
+const loadSource = async (relativePath, dependencies = []) => ({
+	id: join(dir, relativePath),
+	content: await readFile(join(dir, relativePath), 'utf-8'),
+	dependencies: dependencies.map((d) => join(dir, d)),
+});
+
+const sourceFiles = await Promise.all([
+	loadSource('src/lib/math.ts'),
+	loadSource('src/lib/shapes.ts'),
+	loadSource('src/lib/counter.svelte.ts'),
+	loadSource('src/lib/has-issues.ts'),
+	loadSource('src/lib/Calculator.svelte', ['src/lib/math.ts']),
+	loadSource('src/lib/Card.svelte'),
+	loadSource('src/lib/index.ts', [
+		'src/lib/Calculator.svelte',
+		'src/lib/Card.svelte',
+		'src/lib/counter.svelte.ts',
+		'src/lib/math.ts',
+		'src/lib/shapes.ts',
+	]),
+]);
 
 // Let analyze() auto-create the TypeScript program with Svelte virtual files
 // for full checker-backed component analysis.

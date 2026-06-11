@@ -161,5 +161,10 @@ See [analyze-non-sveltekit.js](analyze-non-sveltekit.js) for the full script.
 The examples analyze source files in `src/lib/` (SvelteKit layout) and `src/` (plain layout):
 
 - `src/lib/math.ts` — TypeScript functions, interfaces, and JSDoc comments
+- `src/lib/shapes.ts` — classes, enums, function overloads, const assertions, and richer JSDoc tags
+- `src/lib/counter.svelte.ts` — Svelte 5 runes (`$state`, `$derived`) in a plain `.svelte.ts` module
 - `src/lib/Calculator.svelte` — Svelte 5 component with typed props
+- `src/lib/Card.svelte` — component with `children` and snippet props
+- `src/lib/has-issues.ts` — intentional doc mistake exercising the diagnostics example
+- `src/lib/index.ts` — barrel demonstrating re-export forms (same-name, rename, namespace, external)
 - `src/utils.ts` — plain TypeScript library source (non-SvelteKit example)

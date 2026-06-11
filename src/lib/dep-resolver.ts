@@ -28,8 +28,11 @@
  */
 
 import {isBuiltin} from 'node:module';
+import {dirname, isAbsolute, resolve as resolvePath} from 'node:path';
 import ts from 'typescript';
 import {init as esModuleLexerInit, parse as esModuleLexerParse} from 'es-module-lexer';
+
+import {toPosixPath} from './paths.js';
 
 /**
  * Bare import-resolver function — the convenience form.
@@ -160,8 +163,12 @@ export const isNodeBuiltin = (specifier: string): boolean => isBuiltin(specifier
  * resolver instance share the cache scope (correct, since resolver state is
  * shared too).
  *
- * Falls back to appending `.svelte` when the bare specifier doesn't resolve —
- * lets `.svelte` imports work without polluting the consumer's tsconfig.
+ * `ts.resolveModuleName` cannot resolve real `.svelte` files (no compiler
+ * option teaches it the extension), so relative and absolute `.svelte`
+ * specifiers — with or without the extension written — fall back to manual
+ * filesystem resolution against `fromFile`. Non-relative `.svelte` specifiers
+ * (tsconfig `paths` aliases, package subpaths) stay unresolved; supply a
+ * custom `resolveImport` for those setups.
  *
  * @param compilerOptions - parsed tsconfig (from `loadTsconfig`)
  * @param projectRoot - absolute project root for the module-resolution cache
@@ -178,17 +185,15 @@ export const createDefaultResolver = (
 	const resolve = (specifier: string, fromFile: string): string | null => {
 		const result = ts.resolveModuleName(specifier, fromFile, compilerOptions, ts.sys, cache);
 		if (result.resolvedModule) return result.resolvedModule.resolvedFileName;
-		// Fallback: try with .svelte extension. ts.resolveModuleName doesn't
-		// know about .svelte files unless explicitly configured.
-		if (!specifier.endsWith('.svelte')) {
-			const svelte = ts.resolveModuleName(
-				specifier + '.svelte',
-				fromFile,
-				compilerOptions,
-				ts.sys,
-				cache,
-			);
-			if (svelte.resolvedModule) return svelte.resolvedModule.resolvedFileName;
+		// ts.resolveModuleName never resolves real .svelte files — no compiler
+		// option teaches it the extension — so resolve relative/absolute
+		// specifiers manually, appending .svelte when it isn't written.
+		if (specifier.startsWith('./') || specifier.startsWith('../') || isAbsolute(specifier)) {
+			const withExt = specifier.endsWith('.svelte') ? specifier : specifier + '.svelte';
+			const candidate = isAbsolute(withExt) ? withExt : resolvePath(dirname(fromFile), withExt);
+			// posixified for parity with ts.resolveModuleName, which always
+			// returns forward-slash paths
+			if (ts.sys.fileExists(candidate)) return toPosixPath(candidate);
 		}
 		return null;
 	};

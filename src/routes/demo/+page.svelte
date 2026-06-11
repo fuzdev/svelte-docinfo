@@ -20,9 +20,12 @@
 	</nav>
 	<section>
 		<blockquote>
-			the demo currently shows only TS, for a Svelte example see the
-			<a href="https://github.com/fuzdev/svelte-docinfo#quick-start">readme</a>
-			and
+			the extraction demo analyzes the
+			<a href="https://github.com/fuzdev/svelte-docinfo/tree/main/examples/api"
+				>examples/api corpus</a
+			>
+			— Svelte components with snippet props, classes, enums, overloads, runes, re-export forms, and one
+			intentional doc mistake — see also the
 			<a href="{resolve('/docs/output-format')}#Examples">example docs</a>
 		</blockquote>
 	</section>

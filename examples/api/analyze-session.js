@@ -9,8 +9,12 @@ import {createAnalysisSession, createSourceOptions, compactReplacer} from 'svelt
 const dir = dirname(fileURLToPath(import.meta.url));
 
 const mathPath = join(dir, 'src/lib/math.ts');
+const shapesPath = join(dir, 'src/lib/shapes.ts');
+const counterPath = join(dir, 'src/lib/counter.svelte.ts');
 const issuesPath = join(dir, 'src/lib/has-issues.ts');
 const componentPath = join(dir, 'src/lib/Calculator.svelte');
+const cardPath = join(dir, 'src/lib/Card.svelte');
+const indexPath = join(dir, 'src/lib/index.ts');
 
 // A session owns a TypeScript LanguageService, a content-keyed source cache,
 // and a svelte2tsx virtual cache. Subsequent setFile/query cycles reuse
@@ -29,11 +33,19 @@ const session = createAnalysisSession({
 
 const buildFiles = async () => [
 	{id: mathPath, content: await readFile(mathPath, 'utf-8'), dependencies: []},
+	{id: shapesPath, content: await readFile(shapesPath, 'utf-8'), dependencies: []},
+	{id: counterPath, content: await readFile(counterPath, 'utf-8'), dependencies: []},
 	{id: issuesPath, content: await readFile(issuesPath, 'utf-8'), dependencies: []},
 	{
 		id: componentPath,
 		content: await readFile(componentPath, 'utf-8'),
 		dependencies: [mathPath],
+	},
+	{id: cardPath, content: await readFile(cardPath, 'utf-8'), dependencies: []},
+	{
+		id: indexPath,
+		content: await readFile(indexPath, 'utf-8'),
+		dependencies: [componentPath, cardPath, counterPath, mathPath, shapesPath],
 	},
 ];
 

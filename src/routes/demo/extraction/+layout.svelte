@@ -1,10 +1,9 @@
 <script lang="ts">
 	import {resolve} from '$app/paths';
-	import {modules} from 'virtual:svelte-docinfo';
 	import type {Snippet} from 'svelte';
 	import Breadcrumb from '@fuzdev/fuz_ui/Breadcrumb.svelte';
-	import {strip_start} from '@fuzdev/fuz_util/string.js';
 
+	import {extraction_data} from './extraction_data.js';
 	import {ExtractionState, extraction_context} from './extraction_state.svelte.js';
 
 	const {
@@ -13,17 +12,9 @@
 		children: Snippet;
 	} = $props();
 
-	// Raw source of every analyzed module, bundled into this demo's chunk only,
-	// re-keyed from Vite glob ids to module paths matching `ModuleJson.path`.
-	const sources = Object.fromEntries(
-		Object.entries(
-			import.meta.glob<string>('/src/lib/**/*.{ts,svelte,css,json}', {
-				query: '?raw',
-				import: 'default',
-				eager: true,
-			}),
-		).map(([id, content]) => [strip_start(id, '/src/lib/'), content]),
-	);
+	// Analysis and raw sources of the examples/api corpus, committed by
+	// `extraction_data.gen.json.ts` — re-run `gro gen` after corpus changes.
+	const {modules, sources} = extraction_data;
 
 	const extraction = extraction_context.set(new ExtractionState({modules, sources}));
 </script>

@@ -557,20 +557,24 @@ export const createAnalysisSession = (options: AnalysisSessionOptions): Analysis
 		// Build `unfilteredDeps` from one of two sources:
 		//   pre-resolved → caller's `file.dependencies`, posixified + filtered
 		//   lex+resolve  → resolver task outputs, already posixified, filtered
-		const unfilteredDeps: Array<string> = [];
+		// The Set dedupes in first-occurrence order — multiple statements
+		// importing the same module (or a duplicate caller-declared edge) are
+		// one edge.
+		const depSet = new Set<string>();
 		if (pending.preResolvedDeps !== undefined) {
 			for (const raw of pending.preResolvedDeps) {
 				const posix = toPosixPath(raw);
 				if (!isSource(posix, sourceOptions)) continue;
-				unfilteredDeps.push(posix);
+				depSet.add(posix);
 			}
 		} else {
 			for (const r of resolved) {
 				if (r === null) continue;
 				if (!isSource(r, sourceOptions)) continue;
-				unfilteredDeps.push(r);
+				depSet.add(r);
 			}
 		}
+		const unfilteredDeps = [...depSet];
 
 		// Build a mode-specific entry. The discriminator (`mode`) tags which
 		// cache-key field to read on the next ingest: `resolverIdentity` for
