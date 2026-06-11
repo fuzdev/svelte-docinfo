@@ -1111,6 +1111,7 @@ These are used as modifiers to buttons.
 .shadow_inset_xs { box-shadow: var(--shadow_inset_xs) color-mix(in hsl, var(--shadow_color, var(--shadow_color_umbra)) var(--shadow_alpha, var(--shadow_alpha_30)), transparent); }
 .width\:100\% { width: 100%; }
 .height\:100\% { height: 100%; }
+.width_atmost_sm { width: 100%; max-width: var(--distance_sm); }
 .width_atmost_md { width: 100%; max-width: var(--distance_md); }
 .top\:0 { top: 0; }
 .right\:0 { right: 0; }
