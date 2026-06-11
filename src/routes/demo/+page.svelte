@@ -9,7 +9,6 @@
 
 <div class="box w_100 py_xl4">
 	<h1>demo</h1>
-	<p>experiments in presenting what svelte-docinfo extracts</p>
 	<nav class="column gap_lg mt_xl">
 		<a href={resolve('/demo/extraction')} class="panel px_xl py_md">
 			<h2 class="mt_0 mb_sm">extraction</h2>

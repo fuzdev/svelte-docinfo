@@ -21,7 +21,8 @@
 	<section>
 		<p>
 			svelte-docinfo outputs JSON describing your project's exported API. The data format is a
-			hierarchy: modules contain declarations, and some declarations contain members or props.
+			hierarchy: modules contain declarations, and some declarations contain members or props. You
+			may want to skip the explanation and jump down to the <a href="#Examples">examples</a>.
 		</p>
 
 		<TomeSection>
