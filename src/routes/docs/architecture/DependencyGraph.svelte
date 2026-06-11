@@ -4,7 +4,8 @@
 	import {dependency_graph as layout} from './dependency_graph.js';
 	import {ZoomPanState} from './zoom_pan_state.svelte.js';
 
-	const library = library_context.get();
+	const get_library = library_context.get();
+	const library = $derived(get_library());
 
 	let hovered: string | null = $state(null);
 	let fullscreen = $state(false);

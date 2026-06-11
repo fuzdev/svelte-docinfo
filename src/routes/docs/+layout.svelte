@@ -16,7 +16,8 @@
 
 	const library_json = library_json_from_modules(pkg_json, modules);
 
-	library_context.set(new Library(library_json));
+	const library = new Library(library_json);
+	library_context.set(() => library);
 </script>
 
 <Docs {tomes}>
