@@ -4,7 +4,7 @@
 	import {extraction_context} from './extraction_state.svelte.js';
 
 	// keeps the code block from clipping inside the scrolling pane
-	const CODE_STYLE = 'max-width: none; min-height: 100%; overflow: visible;';
+	const CODE_STYLE = 'max-width: none; min-height: 100%; overflow: visible; background: none;';
 
 	const extraction = extraction_context.get();
 </script>
