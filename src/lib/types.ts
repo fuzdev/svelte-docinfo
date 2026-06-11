@@ -428,6 +428,12 @@ const declarationTopLevelFields = {
 	 * The canonical declaration lives in this module's `declarations` array;
 	 * these paths are additional import locations for the same thing.
 	 *
+	 * The same edges appear from the re-exporting side as `ModuleJson.reExports`
+	 * — use that when asking "what does this module re-export" instead of
+	 * inverting these arrays. The two can disagree at the margins: a `reExports`
+	 * entry whose canonical declaration is `@nodocs` (or whose module isn't in
+	 * the analyzed set) has no back-link here.
+	 *
 	 * **Consumer note**: To build a complete re-export map, scan two fields:
 	 * 1. `alsoExportedFrom` on each declaration — same-name re-exports
 	 * 2. `aliasOf` on declarations — renamed re-exports (separate declarations)
@@ -639,6 +645,98 @@ export type DeclarationJson = z.infer<typeof DeclarationJson>;
 export type DeclarationJsonInput = z.input<typeof DeclarationJson>;
 
 /**
+ * A same-name re-export edge, from the re-exporting module's side.
+ *
+ * Each entry on `ModuleJson.reExports` records that the module's source
+ * contains `export {name} from ...` where the canonical declaration lives in
+ * `module`. This is the forward view of the same fact that
+ * `alsoExportedFrom` records on the canonical declaration — consumers
+ * resolve the canonical by `(module, name)`, the same lookup contract as
+ * `aliasOf`.
+ *
+ * Same-name re-exports of analyzed source only. Renamed re-exports appear as
+ * declarations with `aliasOf` in the re-exporting module; star exports live
+ * in `ModuleJson.starExports`; external re-exports in
+ * `ModuleJson.externalReExports` / `externalStarExports`. Use
+ * `resolveExportSurface` (in `postprocess.ts`) to combine all of these into
+ * a module's full export surface — it handles the name dedup (a documented
+ * same-name re-export appears both here and as a synthesized alias
+ * declaration) and the ES star semantics (explicit exports shadow
+ * star-projected ones, names ambiguous between stars are excluded,
+ * `default` doesn't project).
+ *
+ * `module` points at the *canonical* module (multi-hop chains are resolved),
+ * not the immediate specifier in the export statement. For Svelte default-slot
+ * re-exports (`export {default} from './X.svelte'`), `name` is the component
+ * name derived from the filename (`'X'`), matching the canonical declaration's
+ * name — the same exception documented on `aliasOf`. Because of that
+ * re-keying, two entries in one module can share a `name` (a re-keyed
+ * component colliding with a same-name re-export from another module);
+ * `(module, name)` pairs remain unique (exact duplicates are deduped at
+ * construction).
+ *
+ * `@nodocs` on the export statement suppresses the entry (and the
+ * `alsoExportedFrom` back-link). When the canonical declaration itself is
+ * `@nodocs`, or the canonical module isn't part of the analyzed set, the
+ * entry still exists but has no matching back-link — the same presence
+ * caveat as `aliasOf.module` and `starExports`.
+ */
+export const ReExportJson = z.strictObject({
+	/** Exported name — the canonical declaration's name in `module`. */
+	name: z.string(),
+	/** Module path (relative to `sourceRoot`) where the canonical declaration lives. */
+	module: z.string(),
+	/**
+	 * Whether the statement (`export type {A} from ...`) or specifier
+	 * (`export {type A} from ...`) is type-only — the name is erased at
+	 * runtime and importable only via `import type`.
+	 */
+	typeOnly: z.boolean().default(false),
+	/**
+	 * 1-based line of the export specifier in this module's source. When
+	 * identical `(name, module)` edges are deduped (Svelte default-slot
+	 * re-keying), the smallest line is kept.
+	 */
+	sourceLine: z.number().optional(),
+});
+export type ReExportJson = z.infer<typeof ReExportJson>;
+export type ReExportJsonInput = z.input<typeof ReExportJson>;
+
+/**
+ * A re-export whose immediate target is outside the analyzed source set —
+ * `export {x} from 'pkg'`, `export {x as y} from 'pkg'`, or
+ * `export * as ns from 'pkg'`.
+ *
+ * `specifier` is the module specifier as written (usually a package name);
+ * there is no canonical declaration to resolve, so these entries are flat
+ * facts about the statement rather than edges into the module graph.
+ *
+ * Only statements that *directly* reference the external specifier are
+ * captured. Forms that stay silent: `import {x} from 'pkg'; export {x};`
+ * (import-then-export), re-export chains that reach a package through
+ * another source module (that module owns the entry), and specifiers the
+ * checker can't resolve. Statement-level `@nodocs` suppresses the entry.
+ */
+export const ExternalReExportJson = z.strictObject({
+	/** Public exported name from this module. */
+	name: z.string(),
+	/** Module specifier as written in the statement (e.g. `'pkg'`). */
+	specifier: z.string(),
+	/**
+	 * The name inside the external module when renamed
+	 * (`export {x as y} from 'pkg'` → `'x'`). Omitted for same-name
+	 * re-exports and namespace form (`export * as ns`).
+	 */
+	originalName: z.string().optional(),
+	/** Whether the statement or specifier is type-only — see `ReExportJson.typeOnly`. */
+	typeOnly: z.boolean().default(false),
+	/** 1-based line of the export specifier in this module's source. */
+	sourceLine: z.number().optional(),
+});
+export type ExternalReExportJson = z.infer<typeof ExternalReExportJson>;
+export type ExternalReExportJsonInput = z.input<typeof ExternalReExportJson>;
+
+/**
  * Metadata for a source module — the top-level container in the data model.
  *
  * `analyze` and `analyzeFromFiles` return `Array<ModuleJson>` sorted alphabetically by `path`.
@@ -663,9 +761,31 @@ export const ModuleJson = z.strictObject({
 	dependents: z.array(z.string()).default([]),
 	/**
 	 * Modules fully re-exported via `export * from './module'`.
-	 * Paths are relative to `sourceRoot`.
+	 * Paths are relative to `sourceRoot`. Statement-level `@nodocs`
+	 * suppresses the entry, like the other re-export encodings.
 	 */
 	starExports: z.array(z.string()).default([]),
+	/**
+	 * Same-name re-exports in this module's source, sorted by `name` then
+	 * `module` (names can collide — see `ReExportJson`). The forward view of
+	 * `alsoExportedFrom` — see `ReExportJson` for the full contract (canonical
+	 * resolution, Svelte default-slot naming, `@nodocs` suppression, presence
+	 * caveats).
+	 */
+	reExports: z.array(ReExportJson).default([]),
+	/**
+	 * Re-exports whose immediate target is an external package, sorted by
+	 * `name` then `specifier`. See `ExternalReExportJson` for which forms
+	 * are captured.
+	 */
+	externalReExports: z.array(ExternalReExportJson).default([]),
+	/**
+	 * External modules fully re-exported via `export * from 'pkg'`, as
+	 * written (statement order). The projected names are unknown — the
+	 * package isn't analyzed. Statement-level `@nodocs` suppresses the
+	 * entry; unresolvable specifiers are skipped.
+	 */
+	externalStarExports: z.array(z.string()).default([]),
 	/**
 	 * Whether the module is a placeholder for a file that couldn't be analyzed.
 	 *

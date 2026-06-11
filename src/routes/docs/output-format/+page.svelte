@@ -62,6 +62,20 @@
 				<li><code>dependencies</code>: paths of modules this file imports</li>
 				<li><code>dependents</code>: paths of modules that import this file</li>
 				<li><code>starExports</code>: <code>export * from './module'</code> patterns</li>
+				<li>
+					<code>reExports</code>: same-name re-export edges (<code
+						>{`{name, module, typeOnly, sourceLine}`}</code
+					>) in this module's source — the forward view of <code>alsoExportedFrom</code> (see Re-exports
+					below)
+				</li>
+				<li>
+					<code>externalReExports</code>: direct re-exports from packages (<code
+						>{`{name, specifier, originalName?, typeOnly, sourceLine}`}</code
+					>)
+				</li>
+				<li>
+					<code>externalStarExports</code>: <code>export * from 'pkg'</code> specifiers as written
+				</li>
 			</ul>
 			<p>
 				Array fields (<code>declarations</code>, <code>dependencies</code>, etc.) are omitted from
@@ -149,19 +163,31 @@
 			<ul>
 				<li>
 					<strong>Same-name</strong>: the canonical declaration carries an
-					<code>alsoExportedFrom</code> array listing the modules that re-export it. One declaration,
-					multiple import paths.
+					<code>alsoExportedFrom</code> array listing the modules that re-export it. One
+					declaration, multiple import paths. The same edges publish from the re-exporting side as
+					<code>ModuleJson.reExports</code> (<code>{`{name, module, typeOnly, sourceLine}`}</code>,
+					with
+					<code>module</code> the canonical module, multi-hop resolved), so barrels are
+					self-describing without inverting every <code>alsoExportedFrom</code> array.
 				</li>
 				<li>
 					<strong>Renamed</strong>: a synthesized declaration appears in the re-exporting module
 					with <code>aliasOf: {`{module, name}`}</code> pointing at the canonical. Inherits
 					<code>typeSignature</code>, <code>docComment</code>, <code>parameters</code>,
 					<code>reactivity</code>, and <code>defaultValue</code> from the canonical;
-					<code>sourceLine</code> is undefined.
+					<code>sourceLine</code> is the local export specifier's line.
 				</li>
 				<li>
 					<strong>Star exports</strong>: <code>export * from './x'</code> patterns are tracked
 					separately on <code>ModuleJson.starExports</code> and don't synthesize per-declaration entries.
+				</li>
+				<li>
+					<strong>External re-exports</strong>: statements directly referencing a package (<code
+						>{`export {x} from 'pkg'`}</code
+					>, <code>export * as ns from 'pkg'</code>,
+					<code>export * from 'pkg'</code>) land on <code>externalReExports</code> /
+					<code>externalStarExports</code> — flat statement facts with the specifier as written, no canonical
+					to resolve.
 				</li>
 			</ul>
 			<p>
@@ -170,6 +196,14 @@
 				live, even when the name is unchanged. The trigger is "presence of local content," not
 				"presence of rename." Local doc-comment fields apply first and stick; canonical fields only
 				fill gaps. <code>@nodocs</code> on a re-export suppresses both the link and the synthesis.
+			</p>
+			<p>
+				To compute a module's complete export surface from these encodings, use
+				<code>resolveExportSurface(modules, path)</code> — it combines declarations, re-export
+				edges, externals, and transitively-resolved star exports with ES semantics (explicit exports
+				shadow star-projected names, names ambiguous between stars are excluded,
+				<code>default</code> never projects), and reports unresolved or external star targets whose names
+				it can't know.
 			</p>
 			<p>
 				<strong>Default-slot entries</strong> carry <code>name === "default"</code> (see the

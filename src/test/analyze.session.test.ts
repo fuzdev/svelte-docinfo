@@ -210,6 +210,43 @@ describe('createAnalysisSession', {timeout: 30_000}, () => {
 		);
 	});
 
+	test('reExports edge survives when the canonical module is outside the owned set', async () => {
+		// The LS host falls back to disk reads for non-owned files, so a barrel
+		// re-exporting from an unowned source file still resolves the canonical
+		// and publishes the forward edge — but no module (and so no
+		// alsoExportedFrom back-link) exists for it in the result. This is the
+		// documented presence caveat shared with `aliasOf.module` and
+		// `starExports`.
+		await withTestProject(
+			{
+				'src/lib/a.ts': `export const foo = 1;\n`,
+				'src/lib/barrel.ts': `export {foo} from './a.js';\n`,
+			},
+			async (projectRoot) => {
+				const session = createAnalysisSession({
+					sourceOptions: createSourceOptions(projectRoot),
+				});
+				try {
+					// own only the barrel — a.ts exists on disk but is never set
+					await session.setFile({
+						id: join(projectRoot, 'src/lib/barrel.ts'),
+						content: `export {foo} from './a.js';\n`,
+					});
+					const {modules} = session.query();
+					assert.deepStrictEqual(
+						modules.map((m) => m.path),
+						['barrel.ts'],
+					);
+					assert.deepStrictEqual(modules[0]!.reExports, [
+						{name: 'foo', module: 'a.ts', typeOnly: false, sourceLine: 1},
+					]);
+				} finally {
+					session.dispose();
+				}
+			},
+		);
+	});
+
 	test('has and list reflect owned set', async () => {
 		await withTestProject(
 			{

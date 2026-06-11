@@ -174,7 +174,11 @@ All three produce the same JSON shape:
 }
 ```
 
-For many more worked examples — source input paired with the exact JSON `svelte-docinfo` emits — browse the [test fixtures](https://github.com/fuzdev/svelte-docinfo/tree/main/src/test/fixtures), where each case sits beside its `expected.json`.
+For examples of source input paired with the exact JSON `svelte-docinfo` emits:
+
+- see svelte-docinfo's own source code's extracted JSON at
+  [svelte-docinfo.fuz.dev/demo/extraction](https://svelte-docinfo.fuz.dev/demo/extraction)
+- browse the [test fixtures](https://github.com/fuzdev/svelte-docinfo/tree/main/src/test/fixtures)
 
 ## Vite plugin
 
@@ -314,7 +318,7 @@ See the [API docs](https://svelte-docinfo.fuz.dev/docs/api) for the full referen
 - **Enums**: regular and const, with member values and per-member JSDoc
 - **Function overloads**: all public overload signatures with per-overload JSDoc
 - **Dependency graphs**: tracks imports between modules and computes dependents
-- **Re-export tracking**: `alsoExportedFrom` arrays, `aliasOf` for renames, `starExports` for `export * from './x'`
+- **Re-export tracking**: `alsoExportedFrom` arrays on canonical declarations plus the forward view `ModuleJson.reExports` (so barrels are self-describing), `aliasOf` for renames, `starExports` for `export * from './x'`, and `externalReExports`/`externalStarExports` for direct re-exports from packages — with `resolveExportSurface()` to combine them all into a module's full export surface using ES star semantics
 - **Namespace re-exports**: `export * as ns from './x'` synthesized as `kind: 'namespace'`
 - **Source locations**: file and line for every declaration
 - **Build-tool agnostic**: works with any source: file system, build pipeline, or in-memory

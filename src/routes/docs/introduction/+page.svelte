@@ -161,9 +161,10 @@ const {modules} = await analyze({
 					so the same patterns can be captured in any analyzed file
 				</li>
 				<li>
-					<strong>re-export tracking</strong>: <code>alsoExportedFrom</code> arrays,
-					<code>aliasOf</code> for renames, default-slot entries named <code>"default"</code>, and
-					<code>export * from</code> patterns
+					<strong>re-export tracking</strong>: <code>alsoExportedFrom</code> arrays with the forward
+					view on <code>ModuleJson.reExports</code>, <code>aliasOf</code> for renames, default-slot
+					entries named <code>"default"</code>, <code>export * from</code> patterns, direct external
+					re-exports, and <code>resolveExportSurface()</code> to combine them all with ES star semantics
 				</li>
 				<li>
 					<strong>dependency graphs</strong>: tracks imports between modules and computes dependents

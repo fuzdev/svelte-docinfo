@@ -53,6 +53,8 @@ export {
 	SnippetDeclarationJson,
 	NamespaceDeclarationJson,
 	DeclarationJson,
+	ReExportJson,
+	ExternalReExportJson,
 	ModuleJson,
 } from './types.js';
 
@@ -78,8 +80,13 @@ export type {ModuleSourceOptions, SourceOptionsDefaults} from './source-config.j
 
 // ── Post-processing ────────────────────────────────────────────────────────
 
-export {findDuplicates, mergeReExports, resolveComponentAliases} from './postprocess.js';
-export type {DuplicateDeclaration, ReExportEntry} from './postprocess.js';
+export {
+	findDuplicates,
+	mergeReExports,
+	resolveComponentAliases,
+	resolveExportSurface,
+} from './postprocess.js';
+export type {DuplicateDeclaration, ExportSurface, ExportSurfaceEntry} from './postprocess.js';
 
 // ── File system constants ──────────────────────────────────────────────────
 

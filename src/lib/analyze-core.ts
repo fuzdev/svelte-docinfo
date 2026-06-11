@@ -30,7 +30,7 @@ import ts from 'typescript';
 import {z} from 'zod';
 
 import {ModuleJson, type ModuleJsonInput} from './types.js';
-import type {ModuleAnalysis, ReExportInfo} from './declaration-build.js';
+import type {ModuleAnalysis} from './declaration-build.js';
 import {Diagnostic} from './diagnostics.js';
 import type {AnalysisLog} from './log.js';
 import {analyzeTypescriptModule} from './typescript-exports.js';
@@ -43,7 +43,7 @@ import {
 	findDuplicates,
 	mergeReExports,
 	resolveComponentAliases,
-	type ReExportEntry,
+	compareStrings,
 	type DuplicateDeclaration,
 } from './postprocess.js';
 
@@ -216,28 +216,46 @@ export interface AnalyzeResultJsonWire {
 	diagnostics: Array<Diagnostic>;
 }
 
-/**
- * Result of analyzing a single module.
- *
- * `alsoExportedFrom` on declarations is always empty from this path —
- * cross-module re-export resolution requires all modules.
- */
-export interface ModuleAnalyzeResult {
-	module: ModuleJson;
-	reExports: Array<ReExportInfo>;
-}
-
-const toModuleAnalyzeResult = (raw: ModuleAnalysis): ModuleAnalyzeResult => {
+const toModuleJson = (raw: ModuleAnalysis): ModuleJson => {
 	const filtered = raw.declarations.filter((d) => !d.nodocs).map((d) => d.declaration);
-	const module: ModuleJson = ModuleJson.parse({
+	// sorted for deterministic, environment-independent output —
+	// getExportsOfModule order is a TS implementation detail. Module tie-break
+	// because names can collide: a Svelte default-slot re-export re-keys to
+	// the component name, which a same-name re-export from another module may
+	// also use. The same re-keying can produce exact-duplicate edges
+	// (component + same-name script-module export from one file) — deduped on
+	// `(name, module)` so those pairs stay unique; the sourceLine tie-break
+	// makes the dedup deterministic (smallest line survives)
+	const reExports = raw.reExports
+		.slice()
+		.sort(
+			(a, b) =>
+				compareStrings(a.name, b.name) ||
+				compareStrings(a.module, b.module) ||
+				(a.sourceLine ?? 0) - (b.sourceLine ?? 0),
+		)
+		.filter(
+			(r, i, arr) => i === 0 || r.name !== arr[i - 1]!.name || r.module !== arr[i - 1]!.module,
+		);
+	const externalReExports = raw.externalReExports
+		.slice()
+		.sort(
+			(a, b) =>
+				compareStrings(a.name, b.name) ||
+				compareStrings(a.specifier, b.specifier) ||
+				(a.sourceLine ?? 0) - (b.sourceLine ?? 0),
+		);
+	return ModuleJson.parse({
 		path: raw.path,
 		declarations: filtered,
 		dependencies: raw.dependencies,
 		dependents: raw.dependents,
 		starExports: raw.starExports,
+		reExports,
+		externalReExports,
+		externalStarExports: raw.externalStarExports,
 		...(raw.moduleComment ? {moduleComment: raw.moduleComment} : {}),
 	});
-	return {module, reExports: raw.reExports};
 };
 
 // ── Module dispatch ──────────────────────────────────────────────────────────
@@ -258,6 +276,10 @@ const toModuleAnalyzeResult = (raw: ModuleAnalysis): ModuleAnalyzeResult => {
  *
  * Returns `undefined` when the file is skipped; the diagnostic is added to
  * `diagnostics` so the caller can keep iterating.
+ *
+ * `alsoExportedFrom` on returned declarations is always empty from this path —
+ * cross-module re-export resolution requires all modules (`mergeReExports`
+ * consumes the returned module's `reExports` in phase 2).
  */
 export const analyzeModule = (
 	sourceFile: SourceFileInfo & {dependents?: ReadonlyArray<string>},
@@ -265,7 +287,7 @@ export const analyzeModule = (
 	options: ModuleSourceOptions,
 	diagnostics: Array<Diagnostic>,
 	log?: AnalysisLog,
-): ModuleAnalyzeResult | undefined => {
+): ModuleJson | undefined => {
 	const checker = program.getTypeChecker();
 	const modulePath = extractPath(sourceFile.id, options);
 	const analyzerType = options.getAnalyzerType(sourceFile.id);
@@ -313,6 +335,8 @@ export const analyzeModule = (
 			dependents,
 			starExports: [],
 			reExports: [],
+			externalReExports: [],
+			externalStarExports: [],
 		};
 	} else {
 		diagnostics.push({
@@ -326,7 +350,7 @@ export const analyzeModule = (
 		return undefined;
 	}
 
-	return toModuleAnalyzeResult(raw);
+	return toModuleJson(raw);
 };
 
 // ── Core two-phase loop ──────────────────────────────────────────────────────
@@ -386,9 +410,8 @@ export const analyzeCore = (inputs: AnalyzeCoreInputs): AnalyzeResultJson => {
 	const diagnostics: Array<Diagnostic> = [];
 
 	const modules: Array<ModuleJson> = [];
-	const collectedReExports: Array<ReExportEntry> = [];
 
-	// Phase 1: analyze every module, collect re-exports
+	// Phase 1: analyze every module (forward re-export edges land on `ModuleJson.reExports`)
 	for (const sourceFile of sourceFiles) {
 		// Failed-transform Svelte file: synthesize placeholder ModuleJson so
 		// the modules array reflects the full owned set. The originating
@@ -412,7 +435,7 @@ export const analyzeCore = (inputs: AnalyzeCoreInputs): AnalyzeResultJson => {
 			continue;
 		}
 
-		let result: ModuleAnalyzeResult | undefined;
+		let mod: ModuleJson | undefined;
 
 		const virtualFile = svelteVirtualFiles.get(sourceFile.id);
 		if (virtualFile) {
@@ -427,25 +450,21 @@ export const analyzeCore = (inputs: AnalyzeCoreInputs): AnalyzeResultJson => {
 				virtualFile,
 			);
 			if (raw) {
-				result = toModuleAnalyzeResult(raw);
+				mod = toModuleJson(raw);
 			} else {
 				log?.error(`Svelte module analysis failed: ${sourceFile.id}`);
 			}
 		} else {
-			result = analyzeModule(sourceFile, program, sourceOptions, diagnostics, log);
+			mod = analyzeModule(sourceFile, program, sourceOptions, diagnostics, log);
 		}
 
-		if (!result) continue;
+		if (!mod) continue;
 
-		modules.push(result.module);
-
-		for (const reExport of result.reExports) {
-			collectedReExports.push({reExportingModule: result.module.path, reExport});
-		}
+		modules.push(mod);
 	}
 
-	// Phase 2a: build alsoExportedFrom arrays
-	mergeReExports(modules, collectedReExports);
+	// Phase 2a: build alsoExportedFrom arrays from the modules' forward edges
+	mergeReExports(modules);
 	// Phase 2b: fill component-only fields on renamed component aliases —
 	// canonical components are only fully populated after phase 1 finishes.
 	resolveComponentAliases(modules);

@@ -791,7 +791,7 @@ export const localValue = 'local';
 
 		// Each re-export should reference the original module
 		for (const reExport of result.reExports) {
-			assert.strictEqual(reExport.originalModule, 'helpers.ts');
+			assert.strictEqual(reExport.module, 'helpers.ts');
 		}
 	});
 
@@ -880,7 +880,7 @@ export {utilB as renamedUtil} from './utils.js';
 		// reExports should contain utilA
 		assert.strictEqual(result.reExports.length, 1);
 		assert.strictEqual(result.reExports[0]!.name, 'utilA');
-		assert.strictEqual(result.reExports[0]!.originalModule, 'utils.ts');
+		assert.strictEqual(result.reExports[0]!.module, 'utils.ts');
 	});
 
 	test('picks up JSDoc from within-file alias export statements', () => {
@@ -1098,7 +1098,7 @@ export {original} from './b.js';
 		assert.strictEqual(bResult.declarations.length, 0); // No direct declarations
 		assert.strictEqual(bResult.reExports.length, 1);
 		assert.strictEqual(bResult.reExports[0]!.name, 'original');
-		assert.strictEqual(bResult.reExports[0]!.originalModule, 'c.ts');
+		assert.strictEqual(bResult.reExports[0]!.module, 'c.ts');
 
 		// Analyze A - TypeScript resolves re-export chains to original source
 		const aFile = sourceFiles.get('/src/lib/a.ts')!;
@@ -1108,7 +1108,7 @@ export {original} from './b.js';
 		assert.strictEqual(aResult.reExports[0]!.name, 'original');
 		// TypeScript's getAliasedSymbol resolves to the ORIGINAL source (C), not intermediate (B)
 		// This is expected behavior - re-export chains resolve to origin
-		assert.strictEqual(aResult.reExports[0]!.originalModule, 'c.ts');
+		assert.strictEqual(aResult.reExports[0]!.module, 'c.ts');
 	});
 
 	test('handles mixed direct exports and re-export chains', () => {
@@ -1183,10 +1183,41 @@ export const indexValue = 'index';
 		// Direct export should be in declarations
 		assert.ok(result.declarations.some((d) => d.declaration.name === 'indexValue'));
 
-		// TypeScript expands export * to individual symbols via getExportsOfModule,
-		// which are then tracked as reExports (same-name re-exports from source modules)
-		// The count depends on how TypeScript resolves the star export
-		// At minimum, we've verified the starExports array captures the namespace-level info
+		// Star-projected symbols are NOT materialized: TypeScript expands
+		// `export *` to the target module's own symbols via getExportsOfModule,
+		// and analyzeExports skips them (foreign declaration file, no Alias
+		// flag) — `starExports` is their sole encoding. Only the direct export
+		// remains.
+		assert.strictEqual(result.declarations.length, 1);
+		assert.deepStrictEqual(result.reExports, []);
+	});
+
+	test('keeps locally-declared exports when module augmentation merges foreign declarations', () => {
+		// Cross-file merged symbols can carry `valueDeclaration` (or
+		// `declarations[0]`) in the augmenting file — the star-projection skip
+		// must test whether ANY declaration is local, not just one of them,
+		// or a.ts's own interface vanishes depending on bind order.
+		const {program, sourceFiles} = createMultiFileProgram([
+			{
+				path: '/src/lib/a.ts',
+				content: `export interface Config {\n\ta: string;\n}\n`,
+			},
+			{
+				path: '/src/lib/b.ts',
+				content: `import './a.js';\n\ndeclare module './a.js' {\n\texport const Config: number;\n}\n\nexport const other = 1;\n`,
+			},
+		]);
+		const checker = program.getTypeChecker();
+
+		const diagnostics: Array<Diagnostic> = [];
+		const aFile = sourceFiles.get('/src/lib/a.ts')!;
+		const virtualOptions = createVirtualSourceOptions();
+		const result = analyzeExports(aFile, checker, virtualOptions, diagnostics);
+
+		assert.ok(
+			result.declarations.some((d) => d.declaration.name === 'Config'),
+			'merged symbol with a local declaration must not be skipped',
+		);
 	});
 
 	test('handles multiple star exports', () => {
@@ -1314,7 +1345,7 @@ export {foo} from './a.js';
 		// foo should appear in reExports only once (TypeScript deduplicates symbols)
 		const fooReExports = result.reExports.filter((r) => r.name === 'foo');
 		assert.strictEqual(fooReExports.length, 1, 'foo should appear in reExports exactly once');
-		assert.strictEqual(fooReExports[0]!.originalModule, 'a.ts');
+		assert.strictEqual(fooReExports[0]!.module, 'a.ts');
 
 		// starExports should still track the namespace-level export
 		assert.strictEqual(result.starExports.length, 1);
@@ -1362,7 +1393,7 @@ describe('type-only re-exports', () => {
 		assert.strictEqual(result.declarations.length, 0);
 		assert.strictEqual(result.reExports.length, 1);
 		assert.strictEqual(result.reExports[0]!.name, 'A');
-		assert.strictEqual(result.reExports[0]!.originalModule, 'types.ts');
+		assert.strictEqual(result.reExports[0]!.module, 'types.ts');
 	});
 
 	test('handles renamed type-only re-exports with aliasOf', () => {
