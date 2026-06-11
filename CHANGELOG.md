@@ -1,5 +1,11 @@
 # svelte-docinfo
 
+## 0.5.3
+
+### Patch Changes
+
+- fix: `docComment` and `moduleComment` collision ([40bcb7c](https://github.com/fuzdev/svelte-docinfo/commit/40bcb7c))
+
 ## 0.5.2
 
 ### Patch Changes
