@@ -134,6 +134,10 @@ const {modules} = await analyze({
 				>/<code>@throws</code>. Per the TSDoc spec, those tags are scoped to the function symbol and
 				live on the parent declaration.
 			</p>
+			<p>
+				Svelte 4 features like slots are not supported. Svelte context usage is one gap that could
+				be probably be sufficiently filled.
+			</p>
 		</TomeSection>
 		<TomeSection>
 			<TomeSectionHeader text="Key features" />
