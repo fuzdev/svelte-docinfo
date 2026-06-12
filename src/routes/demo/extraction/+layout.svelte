@@ -42,7 +42,7 @@
 	.extraction {
 		height: 100%;
 		display: grid;
-		grid-template-columns: 375px minmax(0, 1fr) minmax(0, 1fr);
+		grid-template-columns: 200px minmax(0, 1fr) minmax(0, 1fr);
 	}
 	.sidebar {
 		display: flex;
