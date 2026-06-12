@@ -15,6 +15,12 @@ export interface ExtractionData {
 	sources: Record<string, string>;
 }
 
+/**
+ * Which of the three regions is visible in the narrow single-pane layout.
+ * Inert on wide screens, where all three render side by side.
+ */
+export type ExtractionView = 'modules' | 'source' | 'data';
+
 export interface ExtractionStateOptions {
 	modules: AnalyzeResultJsonWire['modules'];
 	/**
@@ -33,6 +39,9 @@ export class ExtractionState {
 	// the lazily-evaluated `$derived` initializers below satisfy use-before-init
 	readonly modules: AnalyzeResultJsonWire['modules'] = [];
 	readonly sources: Record<string, string> = {};
+
+	// tab selection for the narrow single-pane layout; ignored on wide screens
+	active_view: ExtractionView = $state('modules');
 
 	// the barrel is the natural default at the bare root; fall back to the first module
 	readonly default_path: string = $derived(

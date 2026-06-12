@@ -11,7 +11,7 @@
 
 <!-- the two panes are grid items of the layout's `.extraction` grid -->
 {#if extraction.selected_module}
-	<div class="extraction-pane">
+	<div class="extraction-pane" data-pane="source">
 		<Code
 			content={extraction.selected_source}
 			lang={extraction.selected_lang}
@@ -19,7 +19,7 @@
 			style={CODE_STYLE}
 		/>
 	</div>
-	<div class="extraction-pane">
+	<div class="extraction-pane" data-pane="data">
 		<Code content={extraction.selected_data} lang="json" nomargin style={CODE_STYLE} />
 	</div>
 {:else}
