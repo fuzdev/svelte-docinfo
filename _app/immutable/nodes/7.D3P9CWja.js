@@ -1,0 +1,1 @@
+import"../chunks/DsnmJJEf.js";import{e as o,$ as e}from"../chunks/DmFXex3J.js";import{h as r}from"../chunks/Cf-2ezV9.js";import{E as a}from"../chunks/7QsGtAVS.js";function p(t){r("1ytbt6q",i=>{o(()=>{e.title="extraction - svelte-docinfo"})}),a(t,{})}export{p as component};
