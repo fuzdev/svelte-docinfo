@@ -23,7 +23,7 @@ dependency of `svelte-docinfo` and is installed transitively.
 ## Run
 
 ```bash
-npm install
+npm i
 npm run analyze          # run all six examples
 npm run analyze:simple   # run just the simple example
 ```

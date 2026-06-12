@@ -9,7 +9,7 @@ and sends HMR updates, so your docs stay in sync as you edit.
 ## Run
 
 ```bash
-npm install
+npm i
 npm run dev      # dev server with HMR — edit source files and see updates
 npm run build    # production build
 ```

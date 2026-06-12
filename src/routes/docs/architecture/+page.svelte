@@ -21,8 +21,7 @@
 	<section>
 		<p>
 			svelte-docinfo analyzes its own source and draws the result below. Each node is one module
-			under <code>src/lib/</code>; each arrow is an internal import. Layers fall out of the import
-			graph itself, not asserted in prose but observed in data. Hover any module to isolate its
+			under <code>src/lib/</code>; each arrow is an internal import. Hover any module to isolate its
 			immediate neighbors; click to jump to its API page.
 		</p>
 

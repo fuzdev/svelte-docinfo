@@ -59,7 +59,7 @@
 				Published as <code>svelte-docinfo</code> to
 				<a href="https://www.npmjs.com/package/svelte-docinfo">npm</a>:
 			</p>
-			<code class="panel p_md mb_lg display:block">npm install svelte-docinfo -D</code>
+			<code class="panel p_md mb_lg display:block">npm i -D svelte-docinfo</code>
 		</TomeSection>
 		<TomeSection>
 			<TomeSectionHeader text="Usage" />
