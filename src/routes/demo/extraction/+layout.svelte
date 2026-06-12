@@ -70,7 +70,7 @@
 	.extraction {
 		height: 100%;
 		display: grid;
-		grid-template-columns: 200px minmax(0, 1fr) minmax(0, 1fr);
+		grid-template-columns: 375px minmax(0, 1fr) minmax(0, 1fr);
 	}
 	/* the tab bar only drives the narrow single-pane layout; hidden when the
 	   three regions sit side by side */
