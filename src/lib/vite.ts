@@ -250,11 +250,11 @@ const svelteDocinfo = (options: VitePluginSvelteDocinfoOptions = {}): Plugin => 
 		const mod = server.moduleGraph.getModuleById(RESOLVED_VIRTUAL_ID);
 		if (!mod) return;
 		server.moduleGraph.invalidateModule(mod);
-		// Hardcoded Vite URL encoding for \0 prefix on virtual modules.
+		// Hardcoded Vite URL encoding for the `\0` prefix on virtual modules.
 		// Not a documented Vite public API — if Vite changes the encoding in a
 		// future release, HMR silently stops firing (initial load still works
-		// through the public resolveId/load hooks). Same pattern as
-		// vite_plugin_fuz_css; update both if Vite exposes a proper API.
+		// through the public resolveId/load hooks). Revisit if Vite exposes a
+		// proper API for invalidating a virtual module by id.
 		const hmrPath = '/@id/__x00__virtual:svelte-docinfo';
 		server.hot.send({
 			type: 'update',
