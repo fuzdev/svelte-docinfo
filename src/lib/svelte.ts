@@ -45,6 +45,7 @@ import {
 import {type SourceFileInfo, getComponentName, SVELTE_VIRTUAL_SUFFIX} from './source.js';
 import {type ModuleSourceOptions, extractDependencies} from './source-config.js';
 import {type Diagnostic} from './diagnostics.js';
+import {to_error_message} from './error.js';
 import {toPosixPath} from './paths.js';
 
 /** Resolved source map type (avoids repeating the verbose `InstanceType<...>` inline). */
@@ -124,7 +125,7 @@ export const transformSvelteSource = (sourceFile: SourceFileInfo): TransformResu
 		diagnostics.push({
 			kind: 'transform_failed',
 			file: posixId,
-			message: `svelte2tsx failed to transform Svelte source: ${err instanceof Error ? err.message : String(err)}`,
+			message: `svelte2tsx failed to transform Svelte source: ${to_error_message(err)}`,
 			severity: 'error',
 		});
 		return {virtual: undefined, diagnostics};
@@ -139,7 +140,7 @@ export const transformSvelteSource = (sourceFile: SourceFileInfo): TransformResu
 		diagnostics.push({
 			kind: 'source_map_failed',
 			file: posixId,
-			message: `Failed to parse svelte2tsx source map: ${err instanceof Error ? err.message : String(err)}. Line/column positions for this file will reference virtual TypeScript output instead of the original Svelte source.`,
+			message: `Failed to parse svelte2tsx source map: ${to_error_message(err)}. Line/column positions for this file will reference virtual TypeScript output instead of the original Svelte source.`,
 			severity: 'warning',
 		});
 	}
@@ -743,7 +744,7 @@ const detectChildrenSnippet = (
 		diagnostics.push({
 			kind: 'svelte_prop_failed',
 			file: filePath,
-			message: `Failed to resolve type for "children" in ${componentName} while detecting acceptsChildren: ${err instanceof Error ? err.message : String(err)}`,
+			message: `Failed to resolve type for "children" in ${componentName} while detecting acceptsChildren: ${to_error_message(err)}`,
 			severity: 'warning',
 			componentName,
 			propName: 'children',
@@ -890,7 +891,7 @@ const extractPropsViaChecker = (
 				file: filePath,
 				line: finalLine,
 				column: finalColumn,
-				message: `Failed to resolve type for prop "${prop.name}" in ${componentName}, falling back to 'any': ${err instanceof Error ? err.message : String(err)}`,
+				message: `Failed to resolve type for prop "${prop.name}" in ${componentName}, falling back to 'any': ${to_error_message(err)}`,
 				severity: 'warning',
 				componentName,
 				propName: prop.name,

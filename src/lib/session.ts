@@ -36,6 +36,7 @@ import {
 	type AnalysisLanguageServiceOptions,
 } from './typescript-program.js';
 import type {Diagnostic} from './diagnostics.js';
+import {to_error_message} from './error.js';
 import type {AnalysisLog} from './log.js';
 import {transformSvelteSource, type SvelteVirtualFile} from './svelte.js';
 import {
@@ -517,7 +518,7 @@ export const createAnalysisSession = (options: AnalysisSessionOptions): Analysis
 				ingestDiagnostics.push({
 					kind: 'import_parse_failed',
 					file: file.id,
-					message: `Failed to parse imports: ${err instanceof Error ? err.message : String(err)}`,
+					message: `Failed to parse imports: ${to_error_message(err)}`,
 					severity: 'warning',
 				});
 			}
@@ -713,7 +714,7 @@ export const createAnalysisSession = (options: AnalysisSessionOptions): Analysis
 				return {
 					...t,
 					resolved: null,
-					error: err instanceof Error ? err.message : String(err),
+					error: to_error_message(err),
 				};
 			}
 		});

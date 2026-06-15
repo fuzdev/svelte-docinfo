@@ -27,6 +27,7 @@ import {analyzeFromFiles} from './analyze.js';
 import type {OnDuplicates} from './analyze-core.js';
 import type {Discovery} from './discovery.js';
 import {hasErrors} from './diagnostics.js';
+import {to_error_message} from './error.js';
 import type {AnalysisLog} from './log.js';
 import {compactReplacer} from './declaration-helpers.js';
 
@@ -330,7 +331,7 @@ Examples:
 			} catch (error) {
 				// Friendly one-line error for users; full stack only on DEBUG=1
 				// so CI logs and bug reports can still capture it on demand.
-				const message = error instanceof Error ? error.message : String(error);
+				const message = to_error_message(error);
 				console.error(`error: ${message}`);
 				if (process.env.DEBUG) {
 					console.error(error);

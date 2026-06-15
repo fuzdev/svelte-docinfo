@@ -26,6 +26,7 @@ import type {
 } from './types.js';
 import type {DeclarationJsonBuild, MemberJsonBuild} from './declaration-build.js';
 import {type Diagnostic, type MisplacedTagDiagnostic} from './diagnostics.js';
+import {to_error_message} from './error.js';
 import {applyToDeclaration, parseComment, type TsdocParsedComment} from './tsdoc.js';
 import {type IsExternalFile} from './typescript-program.js';
 
@@ -693,7 +694,7 @@ export const emitCallOrConstructSignature = (
 			file: loc.file,
 			line: loc.line,
 			column: loc.column,
-			message: `Failed to analyze ${signatureKind} signatures for ${errorContext.kindLabel} "${declaration.name}": ${err instanceof Error ? err.message : String(err)}`,
+			message: `Failed to analyze ${signatureKind} signatures for ${errorContext.kindLabel} "${declaration.name}": ${to_error_message(err)}`,
 			severity: 'warning',
 			functionName: declaration.name ?? '<default export>',
 		});

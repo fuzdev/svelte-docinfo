@@ -20,6 +20,7 @@ import ts from 'typescript';
 import type {MemberKind, DeclarationModifier} from './types.js';
 import type {DeclarationJsonBuild, MemberJsonBuild} from './declaration-build.js';
 import {type Diagnostic} from './diagnostics.js';
+import {to_error_message} from './error.js';
 import {parseComment, applyToDeclaration, type TsdocParsedComment} from './tsdoc.js';
 import {type IsExternalFile} from './typescript-program.js';
 import {
@@ -150,7 +151,7 @@ const emitLocalIndexSignature = (
 			file: loc.file,
 			line: loc.line,
 			column: loc.column,
-			message: `Failed to extract ${kind} index signature for type "${declaration.name ?? '<default export>'}": ${err instanceof Error ? err.message : String(err)}`,
+			message: `Failed to extract ${kind} index signature for type "${declaration.name ?? '<default export>'}": ${to_error_message(err)}`,
 			severity: 'warning',
 			symbolName: declaration.name ?? '<default export>',
 		});

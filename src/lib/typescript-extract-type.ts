@@ -22,6 +22,7 @@ import ts from 'typescript';
 
 import type {DeclarationJsonBuild, MemberJsonBuild} from './declaration-build.js';
 import {type Diagnostic} from './diagnostics.js';
+import {to_error_message} from './error.js';
 import {parseComment, applyToDeclaration} from './tsdoc.js';
 import {type IsExternalFile} from './typescript-program.js';
 import {
@@ -64,7 +65,7 @@ export const extractTypeInfo = (
 			file: loc.file,
 			line: loc.line,
 			column: loc.column,
-			message: `Failed to extract type for "${declaration.name}": ${err instanceof Error ? err.message : String(err)}`,
+			message: `Failed to extract type for "${declaration.name}": ${to_error_message(err)}`,
 			severity: 'warning',
 			symbolName: declaration.name ?? '<default export>',
 		});
@@ -170,7 +171,7 @@ export const extractTypeInfo = (
 						file: loc.file,
 						line: loc.line,
 						column: loc.column,
-						message: `Failed to analyze interface method "${methodName}": ${err instanceof Error ? err.message : String(err)}`,
+						message: `Failed to analyze interface method "${methodName}": ${to_error_message(err)}`,
 						severity: 'warning',
 						functionName: methodName,
 					});
@@ -253,7 +254,7 @@ export const extractEnumInfo = (
 			file: loc.file,
 			line: loc.line,
 			column: loc.column,
-			message: `Failed to extract type for "${declaration.name}": ${err instanceof Error ? err.message : String(err)}`,
+			message: `Failed to extract type for "${declaration.name}": ${to_error_message(err)}`,
 			severity: 'warning',
 			symbolName: declaration.name ?? '<default export>',
 		});
@@ -293,7 +294,7 @@ export const extractEnumInfo = (
 				file: loc.file,
 				line: loc.line,
 				column: loc.column,
-				message: `Failed to extract type for enum member "${memberName}" in "${declaration.name}": ${err instanceof Error ? err.message : String(err)}`,
+				message: `Failed to extract type for enum member "${memberName}" in "${declaration.name}": ${to_error_message(err)}`,
 				severity: 'warning',
 				symbolName: memberName,
 			});

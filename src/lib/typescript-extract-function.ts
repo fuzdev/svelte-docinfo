@@ -16,6 +16,7 @@ import ts from 'typescript';
 
 import type {DeclarationJsonBuild} from './declaration-build.js';
 import {type Diagnostic} from './diagnostics.js';
+import {to_error_message} from './error.js';
 import type {TsdocParsedComment} from './tsdoc.js';
 import {
 	detectReactivity,
@@ -59,7 +60,7 @@ export const extractFunctionInfo = (
 			file: loc.file,
 			line: loc.line,
 			column: loc.column,
-			message: `Failed to analyze signature for "${symbol.name}": ${err instanceof Error ? err.message : String(err)}`,
+			message: `Failed to analyze signature for "${symbol.name}": ${to_error_message(err)}`,
 			severity: 'warning',
 			functionName: symbol.name,
 		});
@@ -117,7 +118,7 @@ export const extractVariableInfo = (
 			file: loc.file,
 			line: loc.line,
 			column: loc.column,
-			message: `Failed to extract type for variable "${symbol.name}": ${err instanceof Error ? err.message : String(err)}`,
+			message: `Failed to extract type for variable "${symbol.name}": ${to_error_message(err)}`,
 			severity: 'warning',
 			symbolName: symbol.name,
 		});

@@ -16,6 +16,7 @@ import {glob} from 'tinyglobby';
 
 import type {SourceFileInfo} from './source.js';
 import type {Diagnostic} from './diagnostics.js';
+import {to_error_message} from './error.js';
 import {toPosixPath} from './paths.js';
 import {MAX_FILE_CONCURRENCY, map_concurrent} from './concurrency.js';
 
@@ -297,7 +298,7 @@ export const discoverFromExports = async (
 					kind: 'module_unreadable',
 					severity: 'error',
 					file: toPosixPath(relative(projectRoot, absPath)),
-					message: `Could not read file discovered via package.json exports: ${err instanceof Error ? err.message : String(err)}`,
+					message: `Could not read file discovered via package.json exports: ${to_error_message(err)}`,
 				});
 				return null;
 			}

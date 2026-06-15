@@ -17,6 +17,7 @@ import ts from 'typescript';
 import type {MemberKind, DeclarationModifier} from './types.js';
 import type {DeclarationJsonBuild, MemberJsonBuild} from './declaration-build.js';
 import {type Diagnostic} from './diagnostics.js';
+import {to_error_message} from './error.js';
 import {parseComment, applyToDeclaration} from './tsdoc.js';
 import {
 	detectReactivity,
@@ -185,7 +186,7 @@ export const extractClassInfo = (
 					file: loc.file,
 					line: loc.line,
 					column: loc.column,
-					message: `Failed to analyze member "${memberName}" in class "${className}": ${err instanceof Error ? err.message : String(err)}`,
+					message: `Failed to analyze member "${memberName}" in class "${className}": ${to_error_message(err)}`,
 					severity: 'warning',
 					className,
 					memberName,
@@ -281,7 +282,7 @@ export const extractClassInfo = (
 				file: loc.file,
 				line: loc.line,
 				column: loc.column,
-				message: `Failed to analyze accessor "${accessorName}" in class "${className}": ${err instanceof Error ? err.message : String(err)}`,
+				message: `Failed to analyze accessor "${accessorName}" in class "${className}": ${to_error_message(err)}`,
 				severity: 'warning',
 				className,
 				memberName: accessorName,
