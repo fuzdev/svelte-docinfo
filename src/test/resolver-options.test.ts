@@ -5,8 +5,8 @@ import {
 	noDepsResolver,
 	type ImportResolver,
 	type ResolveImportFn,
-} from '$lib/dep-resolver.js';
-import {analyzeFromFiles} from '$lib/analyze.js';
+} from '$lib/dep-resolver.ts';
+import {analyzeFromFiles} from '$lib/analyze.ts';
 
 const ROOT = '/proj';
 

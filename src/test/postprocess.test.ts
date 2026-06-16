@@ -1,14 +1,14 @@
 import {test, assert, describe} from 'vitest';
 
-import {ComponentDeclarationJson, ModuleJson, type DeclarationKind} from '$lib/types.js';
+import {ComponentDeclarationJson, ModuleJson, type DeclarationKind} from '$lib/types.ts';
 import {
 	findDuplicates,
 	sortModules,
 	mergeReExports,
 	resolveComponentAliases,
 	computeDependents,
-} from '$lib/postprocess.js';
-import {type SourceFileInfo} from '$lib/source.js';
+} from '$lib/postprocess.ts';
+import {type SourceFileInfo} from '$lib/source.ts';
 
 /** Parse a partial module through Zod to fill in array defaults. */
 const m = (input: {path: string; [key: string]: unknown}): ModuleJson => ModuleJson.parse(input);

@@ -8,7 +8,7 @@
  * @module
  */
 
-import {runCli} from './cli.js';
+import {runCli} from './cli.ts';
 
 try {
 	const exitCode = await runCli();

@@ -8,25 +8,25 @@ import {
 	extractScriptContent,
 	extractSvelteModuleComment,
 	extractHtmlModuleComment,
-} from '$lib/svelte.js';
-import {createAnalysisProgram} from '$lib/typescript-program.js';
-import {type Diagnostic, hasErrors, hasWarnings, warningsOf} from '$lib/diagnostics.js';
-import type {ModuleAnalysis} from '$lib/declaration-build.js';
-import type {SourceFileInfo} from '$lib/source.js';
-import type {ModuleSourceOptions} from '$lib/source-config.js';
+} from '$lib/svelte.ts';
+import {createAnalysisProgram} from '$lib/typescript-program.ts';
+import {type Diagnostic, hasErrors, hasWarnings, warningsOf} from '$lib/diagnostics.ts';
+import type {ModuleAnalysis} from '$lib/declaration-build.ts';
+import type {SourceFileInfo} from '$lib/source.ts';
+import type {ModuleSourceOptions} from '$lib/source-config.ts';
 
 import {
 	loadFixtures,
 	validateDeclarationStructures,
 	fixtureNameToComponentName,
 	type SvelteFixture,
-} from './fixtures/svelte/svelte-test-helpers.js';
-import {normalizeJson, FIXTURES_SVELTE_DIR} from './test-helpers.js';
+} from './fixtures/svelte/svelte-test-helpers.ts';
+import {normalizeJson, FIXTURES_SVELTE_DIR} from './test-helpers.ts';
 import {
 	testSourceOptions,
 	createTestSourceOptions,
 	createCachedAnalysisProgram,
-} from './test-module-helpers.js';
+} from './test-module-helpers.ts';
 
 /** Read fixture file content for analysis. */
 const readFixture = (filePath: string): string => readFileSync(filePath, 'utf-8');

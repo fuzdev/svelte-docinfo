@@ -1,16 +1,16 @@
 import ts from 'typescript';
 
-import {DeclarationJson, type DeclarationJsonInput} from '$lib/types.js';
-import type {DeclarationJsonBuild} from '$lib/declaration-build.js';
-import {inferDeclarationKind} from '$lib/typescript-extract-shared.js';
-import {extractFunctionInfo, extractVariableInfo} from '$lib/typescript-extract-function.js';
-import {extractTypeInfo, extractEnumInfo} from '$lib/typescript-extract-type.js';
-import {extractClassInfo} from '$lib/typescript-extract-class.js';
-import {extractModuleComment} from '$lib/typescript-exports.js';
-import {parseComment, applyToDeclaration} from '$lib/tsdoc.js';
-import type {Diagnostic} from '$lib/diagnostics.js';
+import {DeclarationJson, type DeclarationJsonInput} from '$lib/types.ts';
+import type {DeclarationJsonBuild} from '$lib/declaration-build.ts';
+import {inferDeclarationKind} from '$lib/typescript-extract-shared.ts';
+import {extractFunctionInfo, extractVariableInfo} from '$lib/typescript-extract-function.ts';
+import {extractTypeInfo, extractEnumInfo} from '$lib/typescript-extract-type.ts';
+import {extractClassInfo} from '$lib/typescript-extract-class.ts';
+import {extractModuleComment} from '$lib/typescript-exports.ts';
+import {parseComment, applyToDeclaration} from '$lib/tsdoc.ts';
+import type {Diagnostic} from '$lib/diagnostics.ts';
 
-import {loadFixturesGeneric} from '../../test-helpers.js';
+import {loadFixturesGeneric} from '../../test-helpers.ts';
 
 export type TsFixtureCategory =
 	| 'function'

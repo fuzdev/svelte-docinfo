@@ -20,12 +20,12 @@
 import {join} from 'node:path';
 import {describe, test, assert} from 'vitest';
 
-import {analyze} from '$lib/analyze.js';
-import {byKind, type Diagnostic} from '$lib/diagnostics.js';
-import type {SourceFileInfo} from '$lib/source.js';
-import {createSourceOptions} from '$lib/source-config.js';
+import {analyze} from '$lib/analyze.ts';
+import {byKind, type Diagnostic} from '$lib/diagnostics.ts';
+import type {SourceFileInfo} from '$lib/source.ts';
+import {createSourceOptions} from '$lib/source-config.ts';
 
-import {withTestProject} from './test-helpers.js';
+import {withTestProject} from './test-helpers.ts';
 
 const createSourceFiles = (
 	projectRoot: string,

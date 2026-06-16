@@ -1,6 +1,6 @@
-import type {DeclarationJsonInput} from '$lib/types.js';
+import type {DeclarationJsonInput} from '$lib/types.ts';
 
-import {loadFixturesGeneric} from '../../test-helpers.js';
+import {loadFixturesGeneric} from '../../test-helpers.ts';
 
 export interface SvelteFixture {
 	name: string;

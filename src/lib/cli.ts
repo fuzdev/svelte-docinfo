@@ -23,13 +23,13 @@ import {writeFile, readFile} from 'node:fs/promises';
 import {resolve} from 'node:path';
 import picomatch from 'picomatch';
 
-import {analyzeFromFiles} from './analyze.js';
-import type {OnDuplicates} from './analyze-core.js';
-import type {Discovery} from './discovery.js';
-import {hasErrors} from './diagnostics.js';
-import {to_error_message} from './error.js';
-import type {AnalysisLog} from './log.js';
-import {compactReplacer} from './declaration-helpers.js';
+import {analyzeFromFiles} from './analyze.ts';
+import type {OnDuplicates} from './analyze-core.ts';
+import type {Discovery} from './discovery.ts';
+import {hasErrors} from './diagnostics.ts';
+import {to_error_message} from './error.ts';
+import type {AnalysisLog} from './log.ts';
+import {compactReplacer} from './declaration-helpers.ts';
 
 /** Collect repeatable option values into an array. */
 const collect = (value: string, previous: Array<string> | undefined): Array<string> =>

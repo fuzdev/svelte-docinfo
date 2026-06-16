@@ -1,4 +1,4 @@
-import type {SvgData} from '@fuzdev/fuz_ui/svg.js';
+import type {SvgData} from '@fuzdev/fuz_ui/svg.ts';
 
 export const logo_svelte_docinfo = {
 	label: 'a cyan scroll with curling ends',

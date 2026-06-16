@@ -1,7 +1,7 @@
 import {page} from '$app/state';
-import {create_context} from '@fuzdev/fuz_ui/context_helpers.js';
-import type {AnalyzeResultJsonWire} from 'svelte-docinfo';
-import {isCss, isJson, isSvelte} from 'svelte-docinfo/source.js';
+import {create_context} from '@fuzdev/fuz_ui/context_helpers.ts';
+import type {AnalyzeResultJsonWire} from '$lib/index.js';
+import {isCss, isJson, isSvelte} from '$lib/source.ts';
 
 /**
  * Shape of the committed `extraction_data.json` artifact — analysis of the

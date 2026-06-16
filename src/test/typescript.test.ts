@@ -1,11 +1,11 @@
 import {test, assert, describe, beforeAll} from 'vitest';
 import ts from 'typescript';
 
-import {DeclarationJson, type DeclarationJsonInput} from '$lib/types.js';
-import {createAnalysisProgram} from '$lib/typescript-program.js';
-import {detectReactivity, extractSignatureParameters} from '$lib/typescript-extract-shared.js';
-import {analyzeExports, analyzeTypescriptModule} from '$lib/typescript-exports.js';
-import {type Diagnostic, hasErrors, hasWarnings} from '$lib/diagnostics.js';
+import {DeclarationJson, type DeclarationJsonInput} from '$lib/types.ts';
+import {createAnalysisProgram} from '$lib/typescript-program.ts';
+import {detectReactivity, extractSignatureParameters} from '$lib/typescript-extract-shared.ts';
+import {analyzeExports, analyzeTypescriptModule} from '$lib/typescript-exports.ts';
+import {type Diagnostic, hasErrors, hasWarnings} from '$lib/diagnostics.ts';
 
 import {
 	loadFixtures,
@@ -15,13 +15,13 @@ import {
 	createFixtureProgram,
 	extractDeclarationFromSource,
 	type TsFixture,
-} from './fixtures/ts/ts-test-helpers.js';
-import {normalizeJson} from './test-helpers.js';
+} from './fixtures/ts/ts-test-helpers.ts';
+import {normalizeJson} from './test-helpers.ts';
 import {
 	testSourceOptions,
 	createTestSourceOptions,
 	createVirtualSourceOptions,
-} from './test-module-helpers.js';
+} from './test-module-helpers.ts';
 
 let fixtures: Array<TsFixture> = [];
 

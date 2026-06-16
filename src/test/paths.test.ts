@@ -12,22 +12,22 @@
 import {test, assert, describe} from 'vitest';
 import {join} from 'node:path';
 
-import {toPosixPath} from '$lib/paths.js';
+import {toPosixPath} from '$lib/paths.ts';
 import {
 	createSourceOptions,
 	extractPath,
 	isSource,
 	normalizeSourceOptions,
 	type ModuleSourceOptions,
-} from '$lib/source-config.js';
-import {createAnalysisSession} from '$lib/session.js';
-import {analyze, analyzeFromFiles} from '$lib/analyze.js';
-import {SVELTE_VIRTUAL_SUFFIX, type SourceFileInfo} from '$lib/source.js';
-import {transformSvelteSource} from '$lib/svelte.js';
-import {loadFile, globFiles} from '$lib/files.js';
-import {discoverFromExports} from '$lib/exports.js';
+} from '$lib/source-config.ts';
+import {createAnalysisSession} from '$lib/session.ts';
+import {analyze, analyzeFromFiles} from '$lib/analyze.ts';
+import {SVELTE_VIRTUAL_SUFFIX, type SourceFileInfo} from '$lib/source.ts';
+import {transformSvelteSource} from '$lib/svelte.ts';
+import {loadFile, globFiles} from '$lib/files.ts';
+import {discoverFromExports} from '$lib/exports.ts';
 
-import {withTestProject} from './test-helpers.js';
+import {withTestProject} from './test-helpers.ts';
 
 /**
  * Convert a POSIX absolute path to its native-Windows shape (backslash

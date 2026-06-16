@@ -6,8 +6,8 @@
 
 import {test, assert, describe} from 'vitest';
 
-import {analyzeFromFiles} from '$lib/analyze.js';
-import {errorsOf} from '$lib/diagnostics.js';
+import {analyzeFromFiles} from '$lib/analyze.ts';
+import {errorsOf} from '$lib/diagnostics.ts';
 
 import {
 	createTestProject,
@@ -18,7 +18,7 @@ import {
 	assertHasComponentDeclaration,
 	assertHasParameters,
 	assertHasProps,
-} from './test-helpers.js';
+} from './test-helpers.ts';
 
 describe('analyzeFromFiles', {timeout: 15_000}, () => {
 	describe('basic functionality', () => {

@@ -9,10 +9,10 @@
 
 import {test, assert, describe} from 'vitest';
 
-import {discoverSourceFiles} from '$lib/discovery.js';
-import {createSourceOptions} from '$lib/source-config.js';
+import {discoverSourceFiles} from '$lib/discovery.ts';
+import {createSourceOptions} from '$lib/source-config.ts';
 
-import {withTestProject} from './test-helpers.js';
+import {withTestProject} from './test-helpers.ts';
 
 describe('discoverSourceFiles', () => {
 	test('derives include from sourcePaths when no include is supplied (glob mode)', async () => {

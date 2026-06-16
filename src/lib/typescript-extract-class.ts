@@ -14,18 +14,18 @@
 
 import ts from 'typescript';
 
-import type {MemberKind, DeclarationModifier} from './types.js';
-import type {DeclarationJsonBuild, MemberJsonBuild} from './declaration-build.js';
-import {type Diagnostic} from './diagnostics.js';
-import {to_error_message} from './error.js';
-import {parseComment, applyToDeclaration} from './tsdoc.js';
+import type {MemberKind, DeclarationModifier} from './types.ts';
+import type {DeclarationJsonBuild, MemberJsonBuild} from './declaration-build.ts';
+import {type Diagnostic} from './diagnostics.ts';
+import {to_error_message} from './error.ts';
+import {parseComment, applyToDeclaration} from './tsdoc.ts';
 import {
 	detectReactivity,
 	extractModifiers,
 	getNodeLocation,
 	parseGenericParam,
 	populateCallableMember,
-} from './typescript-extract-shared.js';
+} from './typescript-extract-shared.ts';
 
 /**
  * Extract class information with rich member metadata.

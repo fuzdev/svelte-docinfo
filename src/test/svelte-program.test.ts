@@ -9,11 +9,11 @@
 import {test, assert, describe} from 'vitest';
 import {join} from 'node:path';
 
-import {analyze} from '$lib/analyze.js';
-import {transformSvelteSource, type SvelteVirtualFile} from '$lib/svelte.js';
-import {createAnalysisProgram} from '$lib/typescript-program.js';
-import type {SourceFileInfo} from '$lib/source.js';
-import {createSourceOptions} from '$lib/source-config.js';
+import {analyze} from '$lib/analyze.ts';
+import {transformSvelteSource, type SvelteVirtualFile} from '$lib/svelte.ts';
+import {createAnalysisProgram} from '$lib/typescript-program.ts';
+import type {SourceFileInfo} from '$lib/source.ts';
+import {createSourceOptions} from '$lib/source-config.ts';
 
 import {
 	withTestProject,
@@ -21,7 +21,7 @@ import {
 	assertHasDeclaration,
 	assertHasComponentDeclaration,
 	assertHasProps,
-} from './test-helpers.js';
+} from './test-helpers.ts';
 
 /** Create source file infos from a files map, filtering to analyzable types. */
 const createSourceFiles = (

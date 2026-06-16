@@ -14,16 +14,16 @@
 
 import ts from 'typescript';
 
-import type {DeclarationJsonBuild} from './declaration-build.js';
-import {type Diagnostic} from './diagnostics.js';
-import {to_error_message} from './error.js';
-import type {TsdocParsedComment} from './tsdoc.js';
+import type {DeclarationJsonBuild} from './declaration-build.ts';
+import {type Diagnostic} from './diagnostics.ts';
+import {to_error_message} from './error.ts';
+import type {TsdocParsedComment} from './tsdoc.ts';
 import {
 	detectReactivity,
 	getNodeLocation,
 	parseGenericParam,
 	populateCallableMember,
-} from './typescript-extract-shared.js';
+} from './typescript-extract-shared.ts';
 
 /**
  * Extract function/method information including parameters

@@ -12,7 +12,7 @@ import {
 	DEFAULT_SOURCE_OPTIONS,
 	type ModuleSourceOptions,
 	type SourceOptionsDefaults,
-} from '$lib/source-config.js';
+} from '$lib/source-config.ts';
 
 /** Default project root for tests. */
 export const TEST_PROJECT_ROOT = '/home/user/project';

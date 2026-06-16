@@ -28,25 +28,25 @@ import {VERSION} from 'svelte/compiler';
 import {svelte2tsx} from 'svelte2tsx';
 import ts from 'typescript';
 
-import type {ComponentPropJsonInput, GenericParamJson, ParameterJsonInput} from './types.js';
+import type {ComponentPropJsonInput, GenericParamJson, ParameterJsonInput} from './types.ts';
 import type {
 	DeclarationJsonBuild,
 	DeclarationAnalysis,
 	ModuleAnalysis,
-} from './declaration-build.js';
-import {parseComment, applyToDeclaration, type TsdocParsedComment} from './tsdoc.js';
-import {type IsExternalFile, createIsExternalFile} from './typescript-program.js';
-import {parseGenericParam, filterExternalProperties} from './typescript-extract-shared.js';
+} from './declaration-build.ts';
+import {parseComment, applyToDeclaration, type TsdocParsedComment} from './tsdoc.ts';
+import {type IsExternalFile, createIsExternalFile} from './typescript-program.ts';
+import {parseGenericParam, filterExternalProperties} from './typescript-extract-shared.ts';
 import {
 	extractModuleComment,
 	analyzeExports,
 	warnModuleCommentNodocs,
-} from './typescript-exports.js';
-import {type SourceFileInfo, getComponentName, SVELTE_VIRTUAL_SUFFIX} from './source.js';
-import {type ModuleSourceOptions, extractDependencies} from './source-config.js';
-import {type Diagnostic} from './diagnostics.js';
-import {to_error_message} from './error.js';
-import {toPosixPath} from './paths.js';
+} from './typescript-exports.ts';
+import {type SourceFileInfo, getComponentName, SVELTE_VIRTUAL_SUFFIX} from './source.ts';
+import {type ModuleSourceOptions, extractDependencies} from './source-config.ts';
+import {type Diagnostic} from './diagnostics.ts';
+import {to_error_message} from './error.ts';
+import {toPosixPath} from './paths.ts';
 
 /** Resolved source map type (avoids repeating the verbose `InstanceType<...>` inline). */
 type SourceMap = InstanceType<typeof TraceMap>;

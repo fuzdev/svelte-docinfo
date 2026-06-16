@@ -12,7 +12,7 @@ import {readFileSync} from 'node:fs';
 import {test, assert, describe} from 'vitest';
 import {ZodError} from 'zod';
 
-import {DeclarationJson, MemberJson, type ConstructorMemberJson, ModuleJson} from '$lib/types.js';
+import {DeclarationJson, MemberJson, type ConstructorMemberJson, ModuleJson} from '$lib/types.ts';
 import {
 	getDisplayName,
 	generateImport,
@@ -20,8 +20,8 @@ import {
 	isKind,
 	findTypeReferences,
 	buildTypeReferencePatterns,
-} from '$lib/declaration-helpers.js';
-import {AnalyzeResultJson} from '$lib/analyze-core.js';
+} from '$lib/declaration-helpers.ts';
+import {AnalyzeResultJson} from '$lib/analyze-core.ts';
 
 const d = (input: {name?: string; kind: string; [key: string]: unknown}): DeclarationJson =>
 	DeclarationJson.parse(input);

@@ -22,10 +22,10 @@
 import {join, dirname} from 'node:path';
 import ts from 'typescript';
 
-import type {AnalysisLog} from './log.js';
-import {SVELTE_VIRTUAL_SUFFIX} from './source.js';
-import {type ModuleSourceOptions, getSourceRoot} from './source-config.js';
-import {toPosixPath} from './paths.js';
+import type {AnalysisLog} from './log.ts';
+import {SVELTE_VIRTUAL_SUFFIX} from './source.ts';
+import {type ModuleSourceOptions, getSourceRoot} from './source-config.ts';
+import {toPosixPath} from './paths.ts';
 
 /**
  * Base configuration shared by every entry point in this module.

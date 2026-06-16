@@ -2,14 +2,14 @@ import type {Task} from '@fuzdev/gro';
 import {readFile, writeFile} from 'node:fs/promises';
 import {join} from 'node:path';
 
-import {analyzeSvelteModule, transformSvelteSource} from '$lib/svelte.js';
-import {createAnalysisProgram} from '$lib/typescript-program.js';
-import type {Diagnostic} from '$lib/diagnostics.js';
-import {compactReplacer} from '$lib/declaration-helpers.js';
-import {createSourceOptions} from '$lib/source-config.js';
+import {analyzeSvelteModule, transformSvelteSource} from '$lib/svelte.ts';
+import {createAnalysisProgram} from '$lib/typescript-program.ts';
+import type {Diagnostic} from '$lib/diagnostics.ts';
+import {compactReplacer} from '$lib/declaration-helpers.ts';
+import {createSourceOptions} from '$lib/source-config.ts';
 
-import {discoverFixtureDirs} from '../../test-helpers.js';
-import {fixtureNameToComponentName} from './svelte-test-helpers.js';
+import {discoverFixtureDirs} from '../../test-helpers.ts';
+import {fixtureNameToComponentName} from './svelte-test-helpers.ts';
 
 export const task: Task = {
 	summary: 'generate expected.json files for svelte fixtures',

@@ -14,9 +14,9 @@
 import {resolve, relative} from 'node:path';
 import picomatch from 'picomatch';
 
-import {type AnalyzerType, type SourceFileInfo, getDefaultAnalyzer} from './source.js';
-import {toPosixPath} from './paths.js';
-import {compareStrings} from './postprocess.js';
+import {type AnalyzerType, type SourceFileInfo, getDefaultAnalyzer} from './source.ts';
+import {toPosixPath} from './paths.ts';
+import {compareStrings} from './postprocess.ts';
 
 /**
  * Configuration for module source detection and path extraction.

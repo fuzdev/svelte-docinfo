@@ -9,7 +9,7 @@
  * @module
  */
 
-import type {DeclarationJson, MemberJson, DeclarationKind, MemberKind} from './types.js';
+import type {DeclarationJson, MemberJson, DeclarationKind, MemberKind} from './types.ts';
 
 // Serialization
 

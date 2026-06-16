@@ -1,8 +1,8 @@
-import type {Gen} from '@fuzdev/gro/gen.js';
-import {analyzeFromFiles} from 'svelte-docinfo/analyze.js';
+import type {Gen} from '@fuzdev/gro/gen.ts';
+import {analyzeFromFiles} from '$lib/analyze.ts';
 import {dirname, join} from 'node:path';
 
-import {compute_layout, type LayoutInput} from './graph_layout.js';
+import {compute_layout, type LayoutInput} from './graph_layout.ts';
 
 export const gen: Gen = async ({origin_id, log}) => {
 	const here = dirname(origin_id);

@@ -11,12 +11,12 @@
  * @module
  */
 
-import type {SourceFileInfo} from './source.js';
-import {type ModuleSourceOptions, getSourceRoot} from './source-config.js';
-import type {Diagnostic} from './diagnostics.js';
-import type {AnalysisLog} from './log.js';
-import {globFiles, deriveIncludePatterns} from './files.js';
-import {discoverFromExports} from './exports.js';
+import type {SourceFileInfo} from './source.ts';
+import {type ModuleSourceOptions, getSourceRoot} from './source-config.ts';
+import type {Diagnostic} from './diagnostics.ts';
+import type {AnalysisLog} from './log.ts';
+import {globFiles, deriveIncludePatterns} from './files.ts';
+import {discoverFromExports} from './exports.ts';
 
 /**
  * Discovery strategy for source files.

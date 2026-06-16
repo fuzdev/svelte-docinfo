@@ -23,12 +23,12 @@ import type {
 	ParameterJson,
 	OverloadJsonInput,
 	Reactivity,
-} from './types.js';
-import type {DeclarationJsonBuild, MemberJsonBuild} from './declaration-build.js';
-import {type Diagnostic, type MisplacedTagDiagnostic} from './diagnostics.js';
-import {to_error_message} from './error.js';
-import {applyToDeclaration, parseComment, type TsdocParsedComment} from './tsdoc.js';
-import {type IsExternalFile} from './typescript-program.js';
+} from './types.ts';
+import type {DeclarationJsonBuild, MemberJsonBuild} from './declaration-build.ts';
+import {type Diagnostic, type MisplacedTagDiagnostic} from './diagnostics.ts';
+import {to_error_message} from './error.ts';
+import {applyToDeclaration, parseComment, type TsdocParsedComment} from './tsdoc.ts';
+import {type IsExternalFile} from './typescript-program.ts';
 
 /**
  * Infer declaration kind from symbol and node.

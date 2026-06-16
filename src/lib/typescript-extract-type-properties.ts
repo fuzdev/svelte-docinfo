@@ -17,12 +17,12 @@
 
 import ts from 'typescript';
 
-import type {MemberKind, DeclarationModifier} from './types.js';
-import type {DeclarationJsonBuild, MemberJsonBuild} from './declaration-build.js';
-import {type Diagnostic} from './diagnostics.js';
-import {to_error_message} from './error.js';
-import {parseComment, applyToDeclaration, type TsdocParsedComment} from './tsdoc.js';
-import {type IsExternalFile} from './typescript-program.js';
+import type {MemberKind, DeclarationModifier} from './types.ts';
+import type {DeclarationJsonBuild, MemberJsonBuild} from './declaration-build.ts';
+import {type Diagnostic} from './diagnostics.ts';
+import {to_error_message} from './error.ts';
+import {parseComment, applyToDeclaration, type TsdocParsedComment} from './tsdoc.ts';
+import {type IsExternalFile} from './typescript-program.ts';
 import {
 	emitCallOrConstructSignature,
 	filterExternalProperties,
@@ -30,7 +30,7 @@ import {
 	isExternalIntersectionBranch,
 	populateCallableMember,
 	resolveIntersectionTypeNode,
-} from './typescript-extract-shared.js';
+} from './typescript-extract-shared.ts';
 
 /**
  * Check whether a resolved type has properties worth extracting for documentation.

@@ -11,7 +11,7 @@
 
 import {test, assert, describe} from 'vitest';
 
-import {type SourceFileInfo, getDefaultAnalyzer} from '$lib/source.js';
+import {type SourceFileInfo, getDefaultAnalyzer} from '$lib/source.ts';
 import {
 	extractPath,
 	extractDependencies,
@@ -21,10 +21,10 @@ import {
 	createSourceOptions,
 	DEFAULT_SOURCE_OPTIONS,
 	type ModuleSourceOptions,
-} from '$lib/source-config.js';
+} from '$lib/source-config.ts';
 
-import {testMockOptions} from './test-module-helpers.js';
-import {TEST_PATHS, TEST_FILES} from './test-constants.js';
+import {testMockOptions} from './test-module-helpers.ts';
+import {TEST_PATHS, TEST_FILES} from './test-constants.ts';
 
 describe('extractPath', () => {
 	test('extracts path from absolute source ID', () => {

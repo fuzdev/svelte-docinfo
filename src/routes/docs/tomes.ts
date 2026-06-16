@@ -1,14 +1,14 @@
-import type {Tome} from '@fuzdev/fuz_ui/tome.js';
-import IntroductionPage from '$routes/docs/introduction/+page.svelte';
-import ArchitecturePage from '$routes/docs/architecture/+page.svelte';
-import CliPage from '$routes/docs/cli/+page.svelte';
-import VitePluginPage from '$routes/docs/vite-plugin/+page.svelte';
-import SessionPage from '$routes/docs/session/+page.svelte';
-import BuildToolsPage from '$routes/docs/build-tools/+page.svelte';
-import OutputFormatPage from '$routes/docs/output-format/+page.svelte';
-import TagsPage from '$routes/docs/tags/+page.svelte';
-import DiagnosticsPage from '$routes/docs/diagnostics/+page.svelte';
-import ApiPage from '$routes/docs/api/+page.svelte';
+import type {Tome} from '@fuzdev/fuz_ui/tome.ts';
+import IntroductionPage from './introduction/+page.svelte';
+import ArchitecturePage from './architecture/+page.svelte';
+import CliPage from './cli/+page.svelte';
+import VitePluginPage from './vite-plugin/+page.svelte';
+import SessionPage from './session/+page.svelte';
+import BuildToolsPage from './build-tools/+page.svelte';
+import OutputFormatPage from './output-format/+page.svelte';
+import TagsPage from './tags/+page.svelte';
+import DiagnosticsPage from './diagnostics/+page.svelte';
+import ApiPage from './api/+page.svelte';
 
 export const tomes: Array<Tome> = [
 	{

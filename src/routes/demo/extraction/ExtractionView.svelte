@@ -1,7 +1,7 @@
 <script lang="ts">
 	import Code from '@fuzdev/fuz_code/Code.svelte';
 
-	import {extraction_context} from './extraction_state.svelte.js';
+	import {extraction_context} from './extraction_state.svelte.ts';
 
 	// keeps the code block from clipping inside the scrolling pane
 	const CODE_STYLE = 'max-width: none; min-height: 100%; overflow: visible; background: none;';

@@ -5,7 +5,7 @@
 import {spawn} from 'node:child_process';
 import {join} from 'node:path';
 
-import {runCli} from '$lib/cli.js';
+import {runCli} from '$lib/cli.ts';
 
 /**
  * Result of capturing console output.

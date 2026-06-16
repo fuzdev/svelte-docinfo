@@ -16,7 +16,7 @@ import {
 	isCss,
 	isJson,
 	getDefaultAnalyzer,
-} from '$lib/source.js';
+} from '$lib/source.ts';
 
 describe('getComponentName', () => {
 	test('extracts component name from simple path', () => {

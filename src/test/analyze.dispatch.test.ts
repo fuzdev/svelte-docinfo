@@ -1,10 +1,10 @@
 import {test, assert, describe} from 'vitest';
 
-import {analyzeModule} from '$lib/analyze-core.js';
-import {type ModuleSourceOptions} from '$lib/source-config.js';
-import {byKind, hasErrors, hasWarnings, warningsOf, type Diagnostic} from '$lib/diagnostics.js';
+import {analyzeModule} from '$lib/analyze-core.ts';
+import {type ModuleSourceOptions} from '$lib/source-config.ts';
+import {byKind, hasErrors, hasWarnings, warningsOf, type Diagnostic} from '$lib/diagnostics.ts';
 
-import {createTestSourceOptions, createTestProgram} from './test-module-helpers.js';
+import {createTestSourceOptions, createTestProgram} from './test-module-helpers.ts';
 
 describe('analyzeModule', {timeout: 10_000}, () => {
 	const options: ModuleSourceOptions = createTestSourceOptions('/project', {

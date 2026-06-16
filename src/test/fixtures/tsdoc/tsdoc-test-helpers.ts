@@ -1,9 +1,9 @@
 import ts from 'typescript';
 
-import type {TsdocParsedComment} from '$lib/tsdoc.js';
-import {parseComment} from '$lib/tsdoc.js';
+import type {TsdocParsedComment} from '$lib/tsdoc.ts';
+import {parseComment} from '$lib/tsdoc.ts';
 
-import {loadFixturesGeneric} from '../../test-helpers.js';
+import {loadFixturesGeneric} from '../../test-helpers.ts';
 
 export interface TsdocFixture {
 	name: string;

@@ -26,7 +26,7 @@ import type {
 	Reactivity,
 	ReExportJsonInput,
 	ExternalReExportJsonInput,
-} from './types.js';
+} from './types.ts';
 
 /**
  * Permissive type for constructing members incrementally before Zod validation.

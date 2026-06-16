@@ -48,7 +48,7 @@
 
 import ts from 'typescript';
 
-import type {DeclarationJsonBuild, MemberJsonBuild} from './declaration-build.js';
+import type {DeclarationJsonBuild, MemberJsonBuild} from './declaration-build.ts';
 
 /**
  * Parsed JSDoc/TSDoc comment with structured metadata.

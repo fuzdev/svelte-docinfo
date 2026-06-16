@@ -20,19 +20,19 @@
 
 import ts from 'typescript';
 
-import type {DeclarationJsonBuild, MemberJsonBuild} from './declaration-build.js';
-import {type Diagnostic} from './diagnostics.js';
-import {to_error_message} from './error.js';
-import {parseComment, applyToDeclaration} from './tsdoc.js';
-import {type IsExternalFile} from './typescript-program.js';
+import type {DeclarationJsonBuild, MemberJsonBuild} from './declaration-build.ts';
+import {type Diagnostic} from './diagnostics.ts';
+import {to_error_message} from './error.ts';
+import {parseComment, applyToDeclaration} from './tsdoc.ts';
+import {type IsExternalFile} from './typescript-program.ts';
 import {
 	emitCallOrConstructSignature,
 	extractModifiers,
 	getNodeLocation,
 	parseGenericParam,
 	populateCallableMember,
-} from './typescript-extract-shared.js';
-import {extractTypeAliasProperties} from './typescript-extract-type-properties.js';
+} from './typescript-extract-shared.ts';
+import {extractTypeAliasProperties} from './typescript-extract-type-properties.ts';
 
 /**
  * Extract type/interface information with rich property metadata.

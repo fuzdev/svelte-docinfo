@@ -2,8 +2,8 @@ import type {Task} from '@fuzdev/gro';
 import {join} from 'node:path';
 import ts from 'typescript';
 
-import {runUpdateTask} from '../../test-helpers.js';
-import {findAndParseTsdoc} from './tsdoc-test-helpers.js';
+import {runUpdateTask} from '../../test-helpers.ts';
+import {findAndParseTsdoc} from './tsdoc-test-helpers.ts';
 
 export const task: Task = {
 	summary: 'generate expected.json files for tsdoc fixtures',

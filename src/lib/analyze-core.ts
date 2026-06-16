@@ -29,15 +29,15 @@
 import ts from 'typescript';
 import {z} from 'zod';
 
-import {ModuleJson, type ModuleJsonInput} from './types.js';
-import type {ModuleAnalysis} from './declaration-build.js';
-import {Diagnostic} from './diagnostics.js';
-import type {AnalysisLog} from './log.js';
-import {analyzeTypescriptModule} from './typescript-exports.js';
-import {analyzeSvelteModule, type SvelteVirtualFile} from './svelte.js';
-import {stripVirtualSuffix, type SourceFileInfo, getComponentName} from './source.js';
-import {type ModuleSourceOptions, extractPath, extractDependencies} from './source-config.js';
-import {toPosixPath} from './paths.js';
+import {ModuleJson, type ModuleJsonInput} from './types.ts';
+import type {ModuleAnalysis} from './declaration-build.ts';
+import {Diagnostic} from './diagnostics.ts';
+import type {AnalysisLog} from './log.ts';
+import {analyzeTypescriptModule} from './typescript-exports.ts';
+import {analyzeSvelteModule, type SvelteVirtualFile} from './svelte.ts';
+import {stripVirtualSuffix, type SourceFileInfo, getComponentName} from './source.ts';
+import {type ModuleSourceOptions, extractPath, extractDependencies} from './source-config.ts';
+import {toPosixPath} from './paths.ts';
 import {
 	sortModules,
 	findDuplicates,
@@ -45,7 +45,7 @@ import {
 	resolveComponentAliases,
 	compareStrings,
 	type DuplicateDeclaration,
-} from './postprocess.js';
+} from './postprocess.ts';
 
 // Duplicate handling
 

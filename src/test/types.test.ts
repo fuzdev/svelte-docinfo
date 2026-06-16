@@ -1,6 +1,6 @@
 import {test, assert} from 'vitest';
 
-import {ComponentPropJson, OverloadJson} from '$lib/types.js';
+import {ComponentPropJson, OverloadJson} from '$lib/types.ts';
 
 // `ComponentPropJson.parameters` is a deliberate exception to the array-field
 // `.default([])` policy: absence marks a prop with no structured parameters,

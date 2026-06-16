@@ -1,12 +1,12 @@
 import {test, assert, describe} from 'vitest';
 
-import {filterExternalProperties} from '$lib/typescript-extract-shared.js';
-import {extractTypeInfo} from '$lib/typescript-extract-type.js';
-import type {IsExternalFile} from '$lib/typescript-program.js';
-import {type Diagnostic} from '$lib/diagnostics.js';
-import type {DeclarationJsonBuild, MemberJsonBuild} from '$lib/declaration-build.js';
+import {filterExternalProperties} from '$lib/typescript-extract-shared.ts';
+import {extractTypeInfo} from '$lib/typescript-extract-type.ts';
+import type {IsExternalFile} from '$lib/typescript-program.ts';
+import {type Diagnostic} from '$lib/diagnostics.ts';
+import type {DeclarationJsonBuild, MemberJsonBuild} from '$lib/declaration-build.ts';
 
-import {createMultiFileProgram, findTypeAlias} from './fixtures/ts/ts-test-helpers.js';
+import {createMultiFileProgram, findTypeAlias} from './fixtures/ts/ts-test-helpers.ts';
 
 /**
  * Local convenience wrapper that returns the checker directly — the tests in

@@ -3,8 +3,8 @@
 	import type {Snippet} from 'svelte';
 	import Breadcrumb from '@fuzdev/fuz_ui/Breadcrumb.svelte';
 
-	import {extraction_data} from './extraction_data.js';
-	import {ExtractionState, extraction_context} from './extraction_state.svelte.js';
+	import {extraction_data} from './extraction_data.ts';
+	import {ExtractionState, extraction_context} from './extraction_state.svelte.ts';
 
 	const {
 		children,

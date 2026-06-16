@@ -17,9 +17,9 @@ import {readFile} from 'node:fs/promises';
 import {resolve, isAbsolute} from 'node:path';
 import {glob} from 'tinyglobby';
 
-import type {SourceFileInfo} from './source.js';
-import {toPosixPath} from './paths.js';
-import {MAX_FILE_CONCURRENCY, map_concurrent} from './concurrency.js';
+import type {SourceFileInfo} from './source.ts';
+import {toPosixPath} from './paths.ts';
+import {MAX_FILE_CONCURRENCY, map_concurrent} from './concurrency.ts';
 
 /**
  * Load a single source file from disk.

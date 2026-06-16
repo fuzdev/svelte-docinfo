@@ -1,8 +1,8 @@
 <script lang="ts">
-	import {library_context} from '@fuzdev/fuz_ui/library.svelte.js';
+	import {library_context} from '@fuzdev/fuz_ui/library.svelte.ts';
 
-	import {dependency_graph as layout} from './dependency_graph.js';
-	import {ZoomPanState} from './zoom_pan_state.svelte.js';
+	import {dependency_graph as layout} from './dependency_graph.ts';
+	import {ZoomPanState} from './zoom_pan_state.svelte.ts';
 
 	const get_library = library_context.get();
 	const library = $derived(get_library());

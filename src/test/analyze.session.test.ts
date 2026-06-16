@@ -26,12 +26,12 @@
 import {test, assert, describe, vi, beforeEach, afterEach} from 'vitest';
 import {join} from 'node:path';
 
-import {createAnalysisSession} from '$lib/session.js';
-import * as svelteModule from '$lib/svelte.js';
-import type {SourceFileInfo} from '$lib/source.js';
-import {createSourceOptions} from '$lib/source-config.js';
+import {createAnalysisSession} from '$lib/session.ts';
+import * as svelteModule from '$lib/svelte.ts';
+import type {SourceFileInfo} from '$lib/source.ts';
+import {createSourceOptions} from '$lib/source-config.ts';
 
-import {withTestProject} from './test-helpers.js';
+import {withTestProject} from './test-helpers.ts';
 
 const TS_FILE = (root: string) => join(root, 'src/lib/math.ts');
 const SVELTE_FILE = (root: string) => join(root, 'src/lib/Button.svelte');

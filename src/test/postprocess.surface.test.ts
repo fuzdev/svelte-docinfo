@@ -7,8 +7,8 @@
 
 import {test, assert, describe} from 'vitest';
 
-import {ModuleJson} from '$lib/types.js';
-import {resolveExportSurface} from '$lib/postprocess.js';
+import {ModuleJson} from '$lib/types.ts';
+import {resolveExportSurface} from '$lib/postprocess.ts';
 
 /** Parse a partial module through Zod to fill in array defaults. */
 const m = (input: {path: string; [key: string]: unknown}): ModuleJson => ModuleJson.parse(input);

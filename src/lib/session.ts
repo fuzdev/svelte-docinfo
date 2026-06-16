@@ -34,11 +34,11 @@ import {
 	loadTsconfig,
 	type AnalysisLanguageService,
 	type AnalysisLanguageServiceOptions,
-} from './typescript-program.js';
-import type {Diagnostic} from './diagnostics.js';
-import {to_error_message} from './error.js';
-import type {AnalysisLog} from './log.js';
-import {transformSvelteSource, type SvelteVirtualFile} from './svelte.js';
+} from './typescript-program.ts';
+import type {Diagnostic} from './diagnostics.ts';
+import {to_error_message} from './error.ts';
+import type {AnalysisLog} from './log.ts';
+import {transformSvelteSource, type SvelteVirtualFile} from './svelte.ts';
 import {
 	type ImportResolver,
 	type ResolveImport,
@@ -47,18 +47,18 @@ import {
 	isNodeBuiltin,
 	lexImports,
 	normalizeResolveImport,
-} from './dep-resolver.js';
-import type {SourceFileInfo} from './source.js';
-import {type ModuleSourceOptions, isSource, normalizeSourceOptions} from './source-config.js';
-import {toPosixPath} from './paths.js';
-import {MAX_RESOLVE_CONCURRENCY, map_concurrent} from './concurrency.js';
+} from './dep-resolver.ts';
+import type {SourceFileInfo} from './source.ts';
+import {type ModuleSourceOptions, isSource, normalizeSourceOptions} from './source-config.ts';
+import {toPosixPath} from './paths.ts';
+import {MAX_RESOLVE_CONCURRENCY, map_concurrent} from './concurrency.ts';
 import {
 	analyzeCore,
 	normalizeDiagnosticPaths,
 	AnalyzeResultJson,
 	type OnDuplicates,
-} from './analyze-core.js';
-import {computeDependents} from './postprocess.js';
+} from './analyze-core.ts';
+import {computeDependents} from './postprocess.ts';
 
 /**
  * Options for a per-file or per-batch resolver override.

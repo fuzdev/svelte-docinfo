@@ -8,7 +8,7 @@ import {readdir, readFile, writeFile, mkdir, rm} from 'node:fs/promises';
 import {join, relative} from 'node:path';
 import {tmpdir} from 'node:os';
 
-import {compareStrings} from '$lib/postprocess.js';
+import {compareStrings} from '$lib/postprocess.ts';
 
 /**
  * Result of creating a test project.
@@ -228,7 +228,7 @@ import type {
 	DeclarationJson,
 	FunctionDeclarationJson,
 	ComponentDeclarationJson,
-} from '$lib/types.js';
+} from '$lib/types.ts';
 
 /**
  * Assert that a module has a specific dependency.

@@ -2,9 +2,9 @@ import {test, assert, describe} from 'vitest';
 import {writeFile, mkdir, chmod} from 'node:fs/promises';
 import {join} from 'node:path';
 
-import {parsePackageExports, mapDistToSource, discoverFromExports} from '$lib/exports.js';
+import {parsePackageExports, mapDistToSource, discoverFromExports} from '$lib/exports.ts';
 
-import {withTestDir} from './test-helpers.js';
+import {withTestDir} from './test-helpers.ts';
 
 describe('parsePackageExports', () => {
 	test('parses object conditions', async () => {

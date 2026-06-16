@@ -5,7 +5,7 @@ import {readdir, readFile, rm} from 'node:fs/promises';
 import {existsSync} from 'node:fs';
 import {join} from 'node:path';
 
-import {AnalyzeResultJson} from '$lib/analyze-core.js';
+import {AnalyzeResultJson} from '$lib/analyze-core.ts';
 
 import {
 	EXAMPLES_API_DIR,
@@ -13,7 +13,7 @@ import {
 	PROJECT_ROOT,
 	runCliCapture,
 	runSubprocess,
-} from './test-cli-helpers.js';
+} from './test-cli-helpers.ts';
 
 const runScript = (script: string, cwd: string) => runSubprocess('node', [script], {cwd});
 

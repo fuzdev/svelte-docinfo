@@ -32,7 +32,7 @@ import {dirname, isAbsolute, resolve as resolvePath} from 'node:path';
 import ts from 'typescript';
 import {init as esModuleLexerInit, parse as esModuleLexerParse} from 'es-module-lexer';
 
-import {toPosixPath} from './paths.js';
+import {toPosixPath} from './paths.ts';
 
 /**
  * Bare import-resolver function — the convenience form.

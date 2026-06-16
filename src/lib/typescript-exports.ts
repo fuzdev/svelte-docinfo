@@ -19,27 +19,27 @@ import type {
 	ModuleAnalysis,
 	ModuleExportsAnalysis,
 	DeclarationJsonBuild,
-} from './declaration-build.js';
-import type {ReExportJsonInput, ExternalReExportJsonInput} from './types.js';
-import type {Diagnostic} from './diagnostics.js';
-import {parseComment, applyToDeclaration, cleanComment} from './tsdoc.js';
+} from './declaration-build.ts';
+import type {ReExportJsonInput, ExternalReExportJsonInput} from './types.ts';
+import type {Diagnostic} from './diagnostics.ts';
+import {parseComment, applyToDeclaration, cleanComment} from './tsdoc.ts';
 import {
 	type SourceFileInfo,
 	stripVirtualSuffix,
 	SVELTE_VIRTUAL_SUFFIX,
 	getComponentName,
-} from './source.js';
+} from './source.ts';
 import {
 	type ModuleSourceOptions,
 	extractDependencies,
 	extractPath,
 	isSource,
-} from './source-config.js';
-import {type IsExternalFile, createIsExternalFile} from './typescript-program.js';
-import {inferDeclarationKind} from './typescript-extract-shared.js';
-import {extractFunctionInfo, extractVariableInfo} from './typescript-extract-function.js';
-import {extractTypeInfo, extractEnumInfo} from './typescript-extract-type.js';
-import {extractClassInfo} from './typescript-extract-class.js';
+} from './source-config.ts';
+import {type IsExternalFile, createIsExternalFile} from './typescript-program.ts';
+import {inferDeclarationKind} from './typescript-extract-shared.ts';
+import {extractFunctionInfo, extractVariableInfo} from './typescript-extract-function.ts';
+import {extractTypeInfo, extractEnumInfo} from './typescript-extract-type.ts';
+import {extractClassInfo} from './typescript-extract-class.ts';
 
 /**
  * Analyze a TypeScript file and extract module metadata.

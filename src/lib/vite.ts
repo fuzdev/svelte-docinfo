@@ -41,21 +41,21 @@
 import {readFile} from 'node:fs/promises';
 import type {Logger as ViteLogger, Plugin, ViteDevServer} from 'vite';
 
-import {createAnalysisSession, type AnalysisSession} from './session.js';
-import type {OnDuplicates} from './analyze-core.js';
-import {discoverSourceFiles, type Discovery} from './discovery.js';
-import type {SourceFileInfo} from './source.js';
-import type {Diagnostic} from './diagnostics.js';
-import type {AnalysisLog} from './log.js';
-import {compactReplacer} from './declaration-helpers.js';
+import {createAnalysisSession, type AnalysisSession} from './session.ts';
+import type {OnDuplicates} from './analyze-core.ts';
+import {discoverSourceFiles, type Discovery} from './discovery.ts';
+import type {SourceFileInfo} from './source.ts';
+import type {Diagnostic} from './diagnostics.ts';
+import type {AnalysisLog} from './log.ts';
+import {compactReplacer} from './declaration-helpers.ts';
 import {
 	createSourceOptions,
 	isSource,
 	type ModuleSourceOptions,
 	type SourceOptionsDefaults,
-} from './source-config.js';
-import {noDepsResolver, type ImportResolver} from './dep-resolver.js';
-import {toPosixPath} from './paths.js';
+} from './source-config.ts';
+import {noDepsResolver, type ImportResolver} from './dep-resolver.ts';
+import {toPosixPath} from './paths.ts';
 
 const VIRTUAL_ID = 'virtual:svelte-docinfo';
 const RESOLVED_VIRTUAL_ID = '\0virtual:svelte-docinfo';

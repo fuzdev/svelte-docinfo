@@ -12,9 +12,9 @@
 import {test, assert, describe} from 'vitest';
 import {join} from 'node:path';
 
-import {loadFile, globFiles, deriveIncludePatterns} from '$lib/files.js';
+import {loadFile, globFiles, deriveIncludePatterns} from '$lib/files.ts';
 
-import {withTestProject} from './test-helpers.js';
+import {withTestProject} from './test-helpers.ts';
 
 describe('loadFile', () => {
 	test('loads file with absolute path', async () => {

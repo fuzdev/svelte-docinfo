@@ -12,15 +12,15 @@
 import {test, assert, describe, beforeAll} from 'vitest';
 import ts from 'typescript';
 
-import {cleanComment, parseComment} from '$lib/tsdoc.js';
+import {cleanComment, parseComment} from '$lib/tsdoc.ts';
 
 import {
 	loadFixtures,
 	validateTsdocStructure,
 	findAndParseTsdoc,
 	type TsdocFixture,
-} from './fixtures/tsdoc/tsdoc-test-helpers.js';
-import {normalizeJson} from './test-helpers.js';
+} from './fixtures/tsdoc/tsdoc-test-helpers.ts';
+import {normalizeJson} from './test-helpers.ts';
 
 let fixtures: Array<TsdocFixture> = [];
 

@@ -14,11 +14,11 @@ import {readFile, access} from 'node:fs/promises';
 import {join, relative, resolve} from 'node:path';
 import {glob} from 'tinyglobby';
 
-import type {SourceFileInfo} from './source.js';
-import type {Diagnostic} from './diagnostics.js';
-import {to_error_message} from './error.js';
-import {toPosixPath} from './paths.js';
-import {MAX_FILE_CONCURRENCY, map_concurrent} from './concurrency.js';
+import type {SourceFileInfo} from './source.ts';
+import type {Diagnostic} from './diagnostics.ts';
+import {to_error_message} from './error.ts';
+import {toPosixPath} from './paths.ts';
+import {MAX_FILE_CONCURRENCY, map_concurrent} from './concurrency.ts';
 
 // Types
 

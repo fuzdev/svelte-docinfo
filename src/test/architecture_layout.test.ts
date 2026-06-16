@@ -9,9 +9,9 @@
 
 import {test, assert, describe} from 'vitest';
 
-import {compute_layout, type LayoutInput} from '$routes/docs/architecture/graph_layout.js';
-import {dependency_graph} from '$routes/docs/architecture/dependency_graph.js';
-import {analyzeFromFiles} from 'svelte-docinfo';
+import {compute_layout, type LayoutInput} from '$routes/docs/architecture/graph_layout.ts';
+import {dependency_graph} from '$routes/docs/architecture/dependency_graph.ts';
+import {analyzeFromFiles} from '$lib/index.js';
 
 describe('compute_layout', () => {
 	test('synthetic acyclic graph assigns layers from sinks upward', () => {

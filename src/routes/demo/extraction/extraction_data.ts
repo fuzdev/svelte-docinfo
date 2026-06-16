@@ -1,4 +1,4 @@
-import type {ExtractionData} from './extraction_state.svelte.js';
+import type {ExtractionData} from './extraction_state.svelte.ts';
 import json from './extraction_data.json' with {type: 'json'};
 
 // double cast: the JSON file's inferred literal type widens enum-like fields

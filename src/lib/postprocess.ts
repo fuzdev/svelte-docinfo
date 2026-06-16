@@ -13,9 +13,9 @@
  * @module
  */
 
-import type {ComponentDeclarationJson, DeclarationJson, ModuleJson} from './types.js';
-import type {SourceFileInfo} from './source.js';
-import {toPosixPath} from './paths.js';
+import type {ComponentDeclarationJson, DeclarationJson, ModuleJson} from './types.ts';
+import type {SourceFileInfo} from './source.ts';
+import {toPosixPath} from './paths.ts';
 
 /**
  * Posixify every entry in `arr`. Returns the same array reference when no

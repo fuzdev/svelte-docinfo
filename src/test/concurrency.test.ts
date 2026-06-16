@@ -10,7 +10,7 @@
 
 import {test, assert, describe} from 'vitest';
 
-import {map_concurrent} from '$lib/concurrency.js';
+import {map_concurrent} from '$lib/concurrency.ts';
 
 // Tiny resolved-after-N-microtasks delay; avoids real timers so suite stays fast.
 const microtask_delay = (n: number): Promise<void> => {

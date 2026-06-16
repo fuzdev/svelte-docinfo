@@ -17,22 +17,22 @@
  * @module
  */
 
-import {errorsOf, formatDiagnostic, warningsOf} from './diagnostics.js';
-import type {AnalysisLog} from './log.js';
-import {createAnalysisSession, type AnalysisSession} from './session.js';
+import {errorsOf, formatDiagnostic, warningsOf} from './diagnostics.ts';
+import type {AnalysisLog} from './log.ts';
+import {createAnalysisSession, type AnalysisSession} from './session.ts';
 import {
 	createSourceOptions,
 	type ModuleSourceOptions,
 	type SourceOptionsDefaults,
-} from './source-config.js';
-import {discoverSourceFiles, type Discovery} from './discovery.js';
-import {noDepsResolver, type ResolveImport} from './dep-resolver.js';
+} from './source-config.ts';
+import {discoverSourceFiles, type Discovery} from './discovery.ts';
+import {noDepsResolver, type ResolveImport} from './dep-resolver.ts';
 import {
 	normalizeDiagnosticPaths,
 	type AnalyzeResultJson,
 	type OnDuplicates,
-} from './analyze-core.js';
-import type {SourceFileInfo} from './source.js';
+} from './analyze-core.ts';
+import type {SourceFileInfo} from './source.ts';
 
 // analyze: one-shot, caller-supplied sourceFiles
 

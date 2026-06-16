@@ -1,8 +1,8 @@
-import type {Gen} from '@fuzdev/gro/gen.js';
+import type {Gen} from '@fuzdev/gro/gen.ts';
 import {readFile} from 'node:fs/promises';
 import {dirname, join} from 'node:path';
-import {analyzeFromFiles} from 'svelte-docinfo/analyze.js';
-import {compactReplacer} from 'svelte-docinfo/declaration-helpers.js';
+import {analyzeFromFiles} from '$lib/analyze.ts';
+import {compactReplacer} from '$lib/declaration-helpers.ts';
 
 /**
  * Analyzes the ../../../../examples/api corpus for the extraction demo, pairing

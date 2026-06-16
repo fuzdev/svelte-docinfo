@@ -14,15 +14,15 @@
 import {test, assert, describe} from 'vitest';
 import {join} from 'node:path';
 
-import {analyze, type AnalyzeOptions} from '$lib/analyze.js';
-import {throwOnDuplicates} from '$lib/analyze-core.js';
-import {byKind, errorsOf, hasErrors, hasWarnings, warningsOf} from '$lib/diagnostics.js';
-import type {SourceFileInfo} from '$lib/source.js';
-import {createSourceOptions} from '$lib/source-config.js';
-import {type DuplicateDeclaration} from '$lib/postprocess.js';
-import {ModuleJson} from '$lib/types.js';
+import {analyze, type AnalyzeOptions} from '$lib/analyze.ts';
+import {throwOnDuplicates} from '$lib/analyze-core.ts';
+import {byKind, errorsOf, hasErrors, hasWarnings, warningsOf} from '$lib/diagnostics.ts';
+import type {SourceFileInfo} from '$lib/source.ts';
+import {createSourceOptions} from '$lib/source-config.ts';
+import {type DuplicateDeclaration} from '$lib/postprocess.ts';
+import {ModuleJson} from '$lib/types.ts';
 
-import {withTestProject} from './test-helpers.js';
+import {withTestProject} from './test-helpers.ts';
 
 /**
  * Create source files from a project for analysis.

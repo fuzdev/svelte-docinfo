@@ -2,14 +2,14 @@ import type {Task} from '@fuzdev/gro';
 import {join} from 'node:path';
 import ts from 'typescript';
 
-import {compactReplacer} from '$lib/declaration-helpers.js';
+import {compactReplacer} from '$lib/declaration-helpers.ts';
 
-import {runUpdateTask} from '../../test-helpers.js';
+import {runUpdateTask} from '../../test-helpers.ts';
 import {
 	createTestProgram,
 	extractDeclarationFromSource,
 	inferCategoryFromName,
-} from './ts-test-helpers.js';
+} from './ts-test-helpers.ts';
 
 export const task: Task = {
 	summary: 'generate expected.json files for ts fixtures',
