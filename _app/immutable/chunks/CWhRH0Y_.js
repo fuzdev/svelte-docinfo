@@ -1,0 +1,1 @@
+import{st as e,ut as t}from"./B1I_stDj.js";function n(n){let r=Symbol(),i=()=>{let t=e(r);return t===void 0?n?.():t};return{get:e=>{let t=i();if(t===void 0)throw Error(e??`context value is not set`);return t},get_maybe:i,set:(e=n?.())=>t(r,e)}}export{n as t};

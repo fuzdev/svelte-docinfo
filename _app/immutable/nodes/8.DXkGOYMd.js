@@ -1,0 +1,1 @@
+import{W as e,Y as t,ct as n,lt as r,v as i}from"../chunks/B1I_stDj.js";import"../chunks/xihTtKlq.js";import{n as a}from"../chunks/B8BlYujS.js";import{t as o}from"../chunks/BFEpsSmu2.js";function s(s,c){r(c,!0);let l=a.get();i(`l7ch43`,n=>{e(()=>{t.title=`${l.selected_path??``} - extraction - svelte-docinfo`})}),o(s,{}),n()}export{s as component};

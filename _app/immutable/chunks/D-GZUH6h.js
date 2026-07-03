@@ -1,1 +1,0 @@
-import{k as o,l as v,m as l,E as y,o as T,q as f,u as m,B as p,v as i,H as A,w as E}from"./DmFXex3J.js";function g(d,_,e){var s;o&&(s=E,v());var r=new p(d);l(()=>{var a=_()??null;if(o){var h=T(s),u=h===A,c=a!==null;if(u!==c){var t=f();m(t),r.anchor=t,i(!1),r.ensure(a,a&&(n=>e(n,a))),i(!0);return}}r.ensure(a,a&&(n=>e(n,a)))},y)}export{g as c};
