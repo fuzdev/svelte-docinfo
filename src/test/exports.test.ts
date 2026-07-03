@@ -390,6 +390,55 @@ describe('discoverFromExports', () => {
 		});
 	});
 
+	test('honors exclude for nested wildcard matches', async () => {
+		// Recursive wildcard expansion means `exclude` now governs nested files
+		// that a non-recursive `src/lib/*.ts` glob never reached. A co-located
+		// test file (or any excluded subtree) must still be dropped.
+		await withTestDir(async (dir) => {
+			await mkdir(join(dir, 'src/lib/auth'), {recursive: true});
+			await writeFile(join(dir, 'src/lib/auth/session.ts'), 'export const s = 1;');
+			await writeFile(join(dir, 'src/lib/auth/session.test.ts'), 'export const t = 1;');
+			await writeFile(
+				join(dir, 'package.json'),
+				JSON.stringify({
+					exports: {'./*.js': {types: './dist/*.d.ts', default: './dist/*.js'}},
+				}),
+			);
+
+			const {files} = await discoverFromExports({
+				projectRoot: dir,
+				exclude: ['**/*.test.ts'],
+			});
+			assert.ok(files);
+			assert.strictEqual(files.length, 1);
+			assert.ok(files[0]!.id.endsWith('src/lib/auth/session.ts'));
+		});
+	});
+
+	test('bare-root wildcard (empty sourceDir) does not recurse into subdirectories', async () => {
+		// Guard the deliberate non-widening: an empty `sourceDir` maps `./dist/*.js`
+		// to a bare `*.ts`. Widening that to a project-root `**` would rake in
+		// `node_modules`/`dist`, so it must stay a single-segment match. Only the
+		// root-level file is found; the nested one is not.
+		await withTestDir(async (dir) => {
+			await mkdir(join(dir, 'nested'), {recursive: true});
+			await writeFile(join(dir, 'root.ts'), 'export const r = 0;');
+			await writeFile(join(dir, 'nested/deep.ts'), 'export const d = 1;');
+			await writeFile(
+				join(dir, 'package.json'),
+				JSON.stringify({
+					exports: {'./*.js': {types: './dist/*.d.ts', default: './dist/*.js'}},
+				}),
+			);
+
+			const {files} = await discoverFromExports({projectRoot: dir, sourceDir: ''});
+			assert.ok(files);
+			assert.strictEqual(files.length, 1);
+			assert.ok(files[0]!.id.endsWith('root.ts'));
+			assert.ok(!files.some((f) => f.id.endsWith('deep.ts')));
+		});
+	});
+
 	test('deduplicates across .js and .ts patterns', async () => {
 		await withTestDir(async (dir) => {
 			await mkdir(join(dir, 'src/lib'), {recursive: true});

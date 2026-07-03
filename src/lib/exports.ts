@@ -344,19 +344,28 @@ const resolveConcreteExport = async (
  * `./*.js` key resolves `./auth/session.js` with `*` capturing `auth/session`.
  * A plain glob `*`, by contrast, stops at a directory separator, so globbing
  * the mapped `src/lib/*.ts` would match only top-level modules and silently
- * drop every nested one. When the wildcard sits at a path-segment boundary
+ * drop every nested one. When the wildcard sits after a directory separator
  * (the ubiquitous `<dir>/*.ext` shape), splice in a globstar segment so the
  * glob crosses directories the way Node's resolver does; the globstar matches
- * zero-or-more segments, so top-level files still match. A mid-segment wildcard
- * (`prefix-*.ts`) has no faithful globstar translation and is left matching
- * same-directory files only.
+ * zero-or-more segments, so top-level files still match.
+ *
+ * Two shapes are deliberately left un-widened:
+ * - A mid-segment wildcard (`prefix-*.ts`) has no faithful globstar translation.
+ * - A bare-root wildcard (`*.ts`, from an empty `sourceDir`) would widen to a
+ *   project-root `**` that rakes in `node_modules`/`dist`. Empty `sourceDir`
+ *   only arises from the multi-`sourcePaths` no-common-prefix layout (which
+ *   `discoverSourceFiles` short-circuits before reaching here) or an explicit
+ *   `sourceRoot: ''`; leaving it non-recursive matches the prior behavior
+ *   without the explosion risk.
+ *
+ * Both fall through to matching same-directory files only.
  */
 const toRecursiveExportGlob = (pattern: string): string => {
 	const star = pattern.indexOf('*');
 	if (star === -1) return pattern;
 	const before = pattern.slice(0, star);
 	const after = pattern.slice(star + 1);
-	if (before === '' || before.endsWith('/')) return `${before}**/*${after}`;
+	if (before.endsWith('/')) return `${before}**/*${after}`;
 	return pattern;
 };
 
