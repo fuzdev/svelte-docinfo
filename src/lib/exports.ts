@@ -338,6 +338,29 @@ const resolveConcreteExport = async (
 };
 
 /**
+ * Widen an exports-derived source pattern into a directory-crossing glob.
+ *
+ * A package.json `exports` wildcard matches subpaths *including* `/` — the
+ * `./*.js` key resolves `./auth/session.js` with `*` capturing `auth/session`.
+ * A plain glob `*`, by contrast, stops at a directory separator, so globbing
+ * the mapped `src/lib/*.ts` would match only top-level modules and silently
+ * drop every nested one. When the wildcard sits at a path-segment boundary
+ * (the ubiquitous `<dir>/*.ext` shape), splice in a globstar segment so the
+ * glob crosses directories the way Node's resolver does; the globstar matches
+ * zero-or-more segments, so top-level files still match. A mid-segment wildcard
+ * (`prefix-*.ts`) has no faithful globstar translation and is left matching
+ * same-directory files only.
+ */
+const toRecursiveExportGlob = (pattern: string): string => {
+	const star = pattern.indexOf('*');
+	if (star === -1) return pattern;
+	const before = pattern.slice(0, star);
+	const after = pattern.slice(star + 1);
+	if (before === '' || before.endsWith('/')) return `${before}**/*${after}`;
+	return pattern;
+};
+
+/**
  * Expand a wildcard export pattern to matching source files.
  */
 const expandWildcardExport = async (
@@ -348,10 +371,12 @@ const expandWildcardExport = async (
 	exclude: Array<string> | undefined,
 	discovered: Map<string, string>,
 ): Promise<void> => {
-	const sourcePattern = mapDistToSource(distPath, condition, mappingOptions);
-	if (!sourcePattern) return;
+	const mappedPattern = mapDistToSource(distPath, condition, mappingOptions);
+	if (!mappedPattern) return;
 
-	// Convert mapped pattern to glob: "src/lib/*.ts" is already a valid glob
+	// The exports `*` crosses directory separators; a glob `*` does not — widen
+	// it so nested modules aren't silently dropped.
+	const sourcePattern = toRecursiveExportGlob(mappedPattern);
 	const patterns = [sourcePattern];
 
 	// For .ts patterns, also try .svelte and .js

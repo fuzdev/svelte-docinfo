@@ -358,6 +358,38 @@ describe('discoverFromExports', () => {
 		});
 	});
 
+	test('discovers wildcard exports in nested directories', async () => {
+		// A package.json `exports` wildcard (`./*.js`) matches subpaths including
+		// `/` — `@scope/pkg/auth/session.js` resolves through it — so discovery
+		// must recurse into subdirectories, not just the top-level source dir.
+		await withTestDir(async (dir) => {
+			await mkdir(join(dir, 'src/lib/auth'), {recursive: true});
+			await mkdir(join(dir, 'src/lib/db/deep'), {recursive: true});
+			await writeFile(join(dir, 'src/lib/root.ts'), 'export const r = 0;');
+			await writeFile(join(dir, 'src/lib/auth/session.ts'), 'export const s = 1;');
+			await writeFile(join(dir, 'src/lib/auth/Login.svelte'), '<div>login</div>');
+			await writeFile(join(dir, 'src/lib/db/deep/nested.ts'), 'export const n = 2;');
+			await writeFile(
+				join(dir, 'package.json'),
+				JSON.stringify({
+					exports: {
+						'./*.js': {types: './dist/*.d.ts', default: './dist/*.js'},
+						'./*.svelte': {svelte: './dist/*.svelte', default: './dist/*.svelte'},
+					},
+				}),
+			);
+
+			const {files} = await discoverFromExports({projectRoot: dir});
+			assert.ok(files);
+			const paths = files.map((f) => f.id).sort();
+			assert.strictEqual(files.length, 4);
+			assert.ok(paths.some((p) => p.endsWith('src/lib/root.ts')));
+			assert.ok(paths.some((p) => p.endsWith('src/lib/auth/session.ts')));
+			assert.ok(paths.some((p) => p.endsWith('src/lib/auth/Login.svelte')));
+			assert.ok(paths.some((p) => p.endsWith('src/lib/db/deep/nested.ts')));
+		});
+	});
+
 	test('deduplicates across .js and .ts patterns', async () => {
 		await withTestDir(async (dir) => {
 			await mkdir(join(dir, 'src/lib'), {recursive: true});
