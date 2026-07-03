@@ -1,5 +1,12 @@
 # svelte-docinfo
 
+## 0.5.4
+
+### Patch Changes
+
+- fix: non-root module detection with Node-resolving rules for glob exports ([4570f3e](https://github.com/fuzdev/svelte-docinfo/commit/4570f3e))
+- refactor: add `to_error_message` and `error.ts` ([d145381](https://github.com/fuzdev/svelte-docinfo/commit/d145381))
+
 ## 0.5.3
 
 ### Patch Changes

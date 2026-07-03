@@ -1,6 +1,6 @@
 {
   "name": "svelte-docinfo",
-  "version": "0.5.3",
+  "version": "0.5.4",
   "description": "static analysis for TypeScript and Svelte",
   "glyph": "📜",
   "logo": "logo.svg",
