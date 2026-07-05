@@ -46,7 +46,7 @@ and [fuz_ui](https://github.com/fuzdev/fuz_ui) components.
 were mostly written by Claude Code with uneven human guidance.
 The first release took 5 months of intermittent work and ~500 manual commits
 to [extract its initial implementation from fuz_ui](https://github.com/fuzdev/fuz_ui/pull/107),
-which was more limited and grew slowly over years without AI assistance.
+which was more limited, lacking the fancy TS compiler usage, and grew slowly over years without AI assistance.
 
 ## Quick start
 
