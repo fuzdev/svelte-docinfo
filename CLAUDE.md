@@ -33,7 +33,7 @@ this repo — make the edits and stop, the user commits.
 
 **Low-level** (compiler API wrappers)
 
-- `typescript-program.ts` — program / language-service creation: `createAnalysisProgram(AnalysisProgramOptions)` (one-shot `ts.Program`), `createAnalysisLanguageService(AnalysisLanguageServiceOptions)` (persistent `ts.LanguageService` with versioned `IScriptSnapshot`s — `getProgram`/`setFile`/`deleteFile`/`hasFile`/`dispose`), `loadTsconfig(LoadTsconfigOptions?)` (returns `{compilerOptions, rootFileNames}` without building a program; used by the session's lazy default `ImportResolver`), `IsExternalFile`/`createIsExternalFile`. Options hierarchy: `LoadTsconfigOptions` (projectRoot/tsconfig/compilerOptions) ← `AnalysisProgramOptions` (+virtualFiles) ← `AnalysisLanguageServiceOptions` (+documentRegistry). `AnalysisSessionOptions` (`analyze.ts`) extends `Omit<AnalysisLanguageServiceOptions, 'projectRoot' | 'virtualFiles'>`. Internal `resolveSvelteVirtualSpecifier` keeps `.svelte` resolution identical across both program paths
+- `typescript-program.ts` — program / language-service creation: `createAnalysisProgram(AnalysisProgramOptions)` (one-shot `ts.Program`), `createAnalysisLanguageService(AnalysisLanguageServiceOptions)` (persistent `ts.LanguageService` with versioned `IScriptSnapshot`s — `getProgram`/`setFile`/`deleteFile`/`hasFile`/`dispose`), `loadTsconfig(LoadTsconfigOptions?)` (returns `{compilerOptions, rootFileNames}` without building a program; used by the session's lazy default `ImportResolver`), `IsExternalFile`/`createIsExternalFile`. Options hierarchy: `LoadTsconfigOptions` (projectRoot/tsconfig/compilerOptions) ← `AnalysisProgramOptions` (+virtualFiles) ← `AnalysisLanguageServiceOptions` (+documentRegistry). `AnalysisSessionOptions` (`session.ts`) extends `Omit<AnalysisLanguageServiceOptions, 'projectRoot' | 'virtualFiles'>`. Internal `resolveSvelteVirtualSpecifier` keeps `.svelte` resolution identical across both program paths
 - Per-kind extractors at `typescript-extract-*.ts` (`@internal`, not stable API) — split per kind, imported directly (no barrel). Used by `analyzeDeclaration` and fixture-based tests:
   - `typescript-extract-shared.ts` — cross-kind helpers: `inferDeclarationKind`, `extractSignatureParameters`, `populateCallableMember` (shared signature→member projection for functions, methods, constructors, type-alias function properties), `emitCallOrConstructSignature` (interface + type-alias property processing), `parseGenericParam`, `extractModifiers`, `getNodeLocation`, `detectReactivity`, `filterExternalProperties`, `isExternalIntersectionBranch`, `resolveIntersectionTypeNode`
   - `typescript-extract-function.ts` — `extractFunctionInfo`, `extractVariableInfo`
@@ -75,6 +75,10 @@ this repo — make the edits and stop, the user commits.
 
 - `cli.ts` — `runCli()` with commander argument parsing
 - `main.ts` — entry point with shebang (compiles to `dist/main.js`)
+
+**Other**
+
+- `logo.ts` — static SVG logo data for the docs site (fuz_ui `Svg`); not analysis logic, not in the barrel
 
 **Barrel export**: `import {...} from 'svelte-docinfo'` re-exports the common API surface. Direct imports (e.g., `svelte-docinfo/typescript-exports.js`) expose each module's full public API for power users.
 
@@ -225,7 +229,7 @@ Hierarchy: `ModuleJson[]` → `DeclarationJson[]` → `MemberJson[]`. Members ne
 `findDuplicates()` detects duplicate declaration names across modules — by canonical identity, resolving `aliasOf` chains first, so an alias and its canonical (Position-3 synthesis, `export {default as Foo} from './Foo.svelte'`) are one thing, not a collision; `@nodocs` excludes declarations from both documentation and duplicate checking. Two encodings, content-conditional shape:
 
 - **Same-name** → `alsoExportedFrom` on the canonical ("same thing, more import paths"). **Position 3**: when the local export statement carries JSDoc or `@nodocs`, an alias is _also_ synthesized in the re-exporting module (so local content has a home), in addition to the link. `@nodocs` suppresses both link and synthesis. Trigger is "presence of local content," not "presence of rename" — rename and content are orthogonal axes
-- **Renamed** → synthesized declaration with `aliasOf` ("new public name pointing at existing thing"). Inherits `typeSignature`, `docComment`, `parameters`, `reactivity` from canonical; `sourceLine` is the local export specifier's line (not the canonical's location)
+- **Renamed** → synthesized declaration with `aliasOf` ("new public name pointing at existing thing"). The alias is a full re-analysis of the canonical in its own source file, so it inherits the whole analyzed shape (`typeSignature`, `docComment`, `parameters`, `reactivity`, `defaultValue`, …); `sourceLine` is the local export specifier's line (not the canonical's location)
 - **Star exports** → tracked in `starExports` arrays; statement-level `@nodocs` suppresses the entry (the same rule as the other two encodings). Star-projected bindings are not materialized in the projecting module (no declarations, no links, no edges — `analyzeExports` skips symbols with no declaration in the current file; merged symbols count as local when any declaration is). The rule is uniform across binding kinds: value symbols, projected re-export specifiers, and _namespace_ bindings (the locality skip runs before the namespace classifier, so both the shared `NamespaceExport` node and projected `export {ns}` specifiers are silenced)
 
 **Forward view**: the same-name edges also publish on the re-exporting module as `ModuleJson.reExports` (`Array<ReExportJson>` — `{name, module, typeOnly, sourceLine}`, sorted by name then module with sourceLine tie-break; names can collide via Svelte default re-keying) so barrels are self-describing without inverting every `alsoExportedFrom` array. `mergeReExports(modules)` derives the reverse view from these fields directly. `module` is the canonical module (multi-hop resolved); `(module, name)` is the same lookup contract as `aliasOf`, including the Svelte filename-derived-name exception. Statement-level `@nodocs` suppresses entry and back-link together; the views can disagree at the margins — an entry whose canonical declaration is `@nodocs`, or whose module isn't in the analyzed set (session with partial owned set; LS resolves unowned files from disk), has no back-link. Same-name only: renames stay alias declarations, star exports stay in `starExports`
@@ -283,7 +287,7 @@ npx svelte-docinfo --pretty           # pretty-print
 ```
 
 - `[project-root]` – Project root directory (default: cwd)
-- `-i, --include <pattern>` – Include pattern (repeatable, replaces exports discovery)
+- `-i, --include <pattern>` – Include pattern (repeatable, replaces exports discovery; incompatible with `--discovery exports`)
 - `-e, --exclude <pattern>` – Exclude glob, applied at discovery and analysis (repeatable)
 - `-o, --output <file>` – Output file (default: stdout; `-` is the explicit stdout sentinel)
 - `--discovery <mode>` – `auto` | `exports` | `glob` (default: `auto` — exports first, glob fallback). `exports` is strict and throws when package.json exports is missing
@@ -301,11 +305,11 @@ Compact JSON by default. Exit codes: 0 (success), 1 (analysis errors), 2 (CLI er
 
 ### Ecosystem Integration
 
-fuz_ui's `library_gen.ts` wraps `analyze()` with `SourceJson` metadata, producing `library.json` for runtime documentation. See `references/documentation_system.md` in the fuz-stack skill for the full pipeline from analysis to rendered Tome pages and API routes.
+fuz_ui and fuz_css consume `virtual:svelte-docinfo` directly — each has a hand-written `src/routes/library.ts` combining `modules` with `virtual:pkg.json` via fuz_util's `library_json_from_modules()`, feeding fuz_ui's `Library` class for runtime documentation. See `references/documentation-system.md` in the fuz-stack skill for the full pipeline from analysis to rendered Tome pages and API routes.
 
 ## Dependencies
 
-**Core**: `typescript`, `commander`, `tinyglobby`, `es-module-lexer`, `@jridgewell/trace-mapping`
+**Core**: `typescript`, `commander`, `tinyglobby`, `picomatch`, `es-module-lexer`, `@jridgewell/trace-mapping`
 
 **Peer** (required): `svelte` 5+, `svelte2tsx`, `zod` 4+ — `svelte`/`svelte2tsx`
 are eagerly imported on every entry (`svelte.ts` is statically reachable from all

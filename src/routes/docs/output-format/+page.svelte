@@ -249,10 +249,12 @@
 				members never contain their own members.
 			</p>
 			<p>
-				Member <code>name</code> is the user-chosen identifier in most cases, but three synthesized
-				sentinels appear when no source identifier exists: <code>"constructor"</code> (class
-				constructor), <code>"(construct)"</code> (construct signature on an interface or type
-				alias), and <code>"(call)"</code> (call signature on an interface or type alias).
+				Member <code>name</code> is the user-chosen identifier in most cases, but synthesized names
+				appear when no source identifier exists: <code>"constructor"</code> (class constructor),
+				<code>"(construct)"</code> (construct signature on an interface or type alias),
+				<code>"(call)"</code> (call signature on an interface or type alias), and bracketed
+				index-signature names like <code>"[key: string]"</code> (the parameter name and key type as
+				written for interfaces; a synthesized <code>key</code> for type aliases).
 			</p>
 		</TomeSection>
 

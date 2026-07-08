@@ -296,7 +296,7 @@ Use `discovery: 'exports'` for strict mode that throws if `package.json` has no 
 When you already have file contents in memory,
 use `analyze` instead of `analyzeFromFiles` to skip file discovery.
 For just the discovery step (without running analysis), use
-`discoverSourceFiles` from `svelte-docinfo/discovery.js`.
+`discoverSourceFiles` (also in the main `svelte-docinfo` import).
 
 For long-lived consumers (a Vite plugin reacting to file edits, an LSP-style tool),
 `createAnalysisSession` returns a persistent handle that reuses parsed ASTs across calls

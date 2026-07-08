@@ -15,10 +15,12 @@ from a single function call to full control over file discovery and diagnostics.
 ## Dependencies
 
 This example lists `svelte` and `svelte2tsx` as explicit dependencies because
-the `file:../..` link doesn't auto-install peer dependencies — those two are
-the only peer deps of `svelte-docinfo`. Everything else (`typescript`,
-`tinyglobby`, `es-module-lexer`, `@jridgewell/trace-mapping`) is a regular
-dependency of `svelte-docinfo` and is installed transitively.
+the `file:../..` link doesn't auto-install peer dependencies. `svelte-docinfo`
+has three peer deps — `svelte`, `svelte2tsx`, and `zod` — but `zod` resolves
+through the linked package's own `node_modules`, so only the Svelte pair needs
+declaring here. Everything else (`typescript`, `tinyglobby`, `picomatch`,
+`es-module-lexer`, `@jridgewell/trace-mapping`) is a regular dependency of
+`svelte-docinfo` and is installed transitively.
 
 ## Run
 

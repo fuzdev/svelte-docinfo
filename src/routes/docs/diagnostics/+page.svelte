@@ -284,8 +284,11 @@ for (const d of byKind(diagnostics, 'misplaced_tag')) {
 		<TomeSection>
 			<TomeSectionHeader text="Consuming diagnostics" />
 			<p>
-				The <TomeLink slug="cli">CLI</TomeLink> always emits the structured <code>diagnostics</code>
-				field alongside <code>modules</code> in JSON output, and also prints warnings and errors to stderr:
+				The <TomeLink slug="cli">CLI</TomeLink> emits the structured <code>diagnostics</code> field
+				alongside <code>modules</code> in JSON output — stripped from the wire when empty, so parse
+				through <DeclarationLink name="AnalyzeResultJson" /> to restore the default
+				<code>[]</code>. Progress messages go to stderr; the structured diagnostics appear only in
+				the JSON:
 			</p>
 			<Code
 				lang="bash"

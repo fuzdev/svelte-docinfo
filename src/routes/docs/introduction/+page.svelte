@@ -136,7 +136,7 @@ const {modules} = await analyze({
 			</p>
 			<p>
 				Svelte 4 features like slots are not supported. Svelte context usage is one gap that could
-				be probably be sufficiently filled.
+				probably be sufficiently filled.
 			</p>
 		</TomeSection>
 		<TomeSection>

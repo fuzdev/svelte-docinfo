@@ -152,9 +152,10 @@ svelteDocinfo({
 				configs fail at startup rather than at first analysis
 			</li>
 			<li>
-				<strong>buildStart</strong>: discovers the source set, reads file contents, and runs
-				<DeclarationLink name="createAnalysisSession" />'s <code>analyze</code>; caches the
-				serialized JSON result
+				<strong>buildStart</strong>: creates a fresh
+				<DeclarationLink name="createAnalysisSession" /> session, discovers the source set, ingests file
+				contents via <code>setFiles</code>, and runs <code>query</code>; caches the serialized JSON
+				result
 			</li>
 			<li>
 				<strong>resolveId / load</strong>: serves the cached result as
