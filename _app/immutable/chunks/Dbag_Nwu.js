@@ -1,0 +1,1 @@
+const r=(t,n)=>!n||!t.startsWith(n)?t:t.substring(n.length),s=(t,n)=>!n||!t.endsWith(n)?t:t.substring(0,t.length-n.length),a=(t,n)=>t.startsWith(n)?t:n+t,i=(t,n)=>t.endsWith(n)?t:t+n;export{r as a,a as b,i as e,s};

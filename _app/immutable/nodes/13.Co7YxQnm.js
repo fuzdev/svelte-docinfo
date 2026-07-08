@@ -1,1 +1,0 @@
-import{t as e}from"../chunks/BQ8BigMl2.js";export{e as component};
