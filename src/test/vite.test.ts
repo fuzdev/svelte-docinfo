@@ -8,27 +8,27 @@
  * - Serving a valid empty-modules virtual module for projects with no source files
  */
 
-import {test, assert, describe} from 'vitest';
-import {mkdtemp, rm, writeFile, mkdir} from 'node:fs/promises';
-import {tmpdir} from 'node:os';
-import {join} from 'node:path';
+import { test, assert, describe } from 'vitest';
+import { mkdtemp, rm, writeFile, mkdir } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 
 import svelteDocinfo from '$lib/vite.ts';
 
 const withTempProject = async (
 	files: Record<string, string>,
-	fn: (dir: string) => Promise<void>,
+	fn: (dir: string) => Promise<void>
 ): Promise<void> => {
 	const dir = await mkdtemp(join(tmpdir(), 'svelte-docinfo-vite-'));
 	try {
 		for (const [path, content] of Object.entries(files)) {
 			const full = join(dir, path);
-			await mkdir(join(full, '..'), {recursive: true});
+			await mkdir(join(full, '..'), { recursive: true });
 			await writeFile(full, content);
 		}
 		await fn(dir);
 	} finally {
-		await rm(dir, {recursive: true, force: true});
+		await rm(dir, { recursive: true, force: true });
 	}
 };
 
@@ -72,7 +72,7 @@ describe('svelteDocinfo', () => {
 			exclude: ['**/*.test.ts'],
 			resolveDependencies: false,
 			discovery: 'glob',
-			hmrDebounceMs: 200,
+			hmrDebounceMs: 200
 		});
 		assert.ok(plugin);
 		assert.equal(plugin.name, 'vite-plugin-svelte-docinfo');
@@ -90,11 +90,11 @@ describe('svelteDocinfo', () => {
 		await withTempProject(
 			{
 				'tsconfig.json': JSON.stringify({
-					compilerOptions: {module: 'nodenext', moduleResolution: 'nodenext'},
-					include: ['src/**/*.ts'],
+					compilerOptions: { module: 'nodenext', moduleResolution: 'nodenext' },
+					include: ['src/**/*.ts']
 				}),
 				'src/lib/a.ts': "import {b} from './b.js';\nexport const a = b + 1;\n",
-				'src/lib/b.ts': 'export const b = 1;\n',
+				'src/lib/b.ts': 'export const b = 1;\n'
 			},
 			async (dir) => {
 				// `resolveDependencies` defaults to `true`, so this exercises the
@@ -102,15 +102,15 @@ describe('svelteDocinfo', () => {
 				const plugin = svelteDocinfo({
 					projectRoot: dir,
 					discovery: 'glob',
-					include: ['src/**/*.ts'],
+					include: ['src/**/*.ts']
 				});
 				const configResolved = plugin.configResolved as unknown as (cfg: {
 					root: string;
 					command: string;
-					logger: {info: () => void; warn: () => void; error: () => void};
+					logger: { info: () => void; warn: () => void; error: () => void };
 				}) => void;
-				const noopLogger = {info: () => {}, warn: () => {}, error: () => {}};
-				configResolved({root: dir, command: 'build', logger: noopLogger});
+				const noopLogger = { info: () => {}, warn: () => {}, error: () => {} };
+				configResolved({ root: dir, command: 'build', logger: noopLogger });
 
 				let resolveCalls = 0;
 				const buildStart = plugin.buildStart as unknown as (this: {
@@ -120,12 +120,12 @@ describe('svelteDocinfo', () => {
 					resolve: async () => {
 						resolveCalls++;
 						return null;
-					},
+					}
 				});
 				assert.equal(
 					resolveCalls,
 					0,
-					'build mode must not route dep resolution through this.resolve',
+					'build mode must not route dep resolution through this.resolve'
 				);
 
 				const load = plugin.load as (id: string) => Promise<string | undefined>;
@@ -140,7 +140,7 @@ describe('svelteDocinfo', () => {
 				const a = modules.find((m) => m.path === 'a.ts');
 				assert.ok(a, 'expected a.ts module');
 				assert.deepEqual(a.dependencies, ['b.ts'], 'relative edge a → b resolved via TS default');
-			},
+			}
 		);
 	});
 
@@ -153,11 +153,11 @@ describe('svelteDocinfo', () => {
 		// `loadTsconfig`; an empty project still needs a tsconfig.json to satisfy
 		// that. Beyond that, `discovery: 'glob'` with no source files tests the
 		// path that produced finding #1.
-		await withTempProject({'tsconfig.json': '{}'}, async (dir) => {
+		await withTempProject({ 'tsconfig.json': '{}' }, async (dir) => {
 			const plugin = svelteDocinfo({
 				projectRoot: dir,
 				discovery: 'glob',
-				resolveDependencies: false,
+				resolveDependencies: false
 			});
 			// Drive the lifecycle hooks the way Vite would, with the minimum
 			// surface needed to reach `runInitialAnalysis` → `updateOutputFromQuery`.
@@ -167,15 +167,15 @@ describe('svelteDocinfo', () => {
 			const configResolved = plugin.configResolved as unknown as (cfg: {
 				root: string;
 				command: string;
-				logger: {info: () => void; warn: () => void; error: () => void};
+				logger: { info: () => void; warn: () => void; error: () => void };
 			}) => void;
-			const noopLogger = {info: () => {}, warn: () => {}, error: () => {}};
-			configResolved({root: dir, command: 'build', logger: noopLogger});
+			const noopLogger = { info: () => {}, warn: () => {}, error: () => {} };
+			configResolved({ root: dir, command: 'build', logger: noopLogger });
 
 			const buildStart = plugin.buildStart as unknown as (this: {
 				resolve: () => Promise<null>;
 			}) => Promise<void>;
-			await buildStart.call({resolve: async () => null});
+			await buildStart.call({ resolve: async () => null });
 
 			const load = plugin.load as (id: string) => Promise<string | undefined>;
 			const code = await load('\0virtual:svelte-docinfo');

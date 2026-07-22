@@ -20,19 +20,19 @@
 
 import ts from 'typescript';
 
-import type {DeclarationJsonBuild, MemberJsonBuild} from './declaration-build.ts';
-import {type Diagnostic} from './diagnostics.ts';
-import {to_error_message} from './error.ts';
-import {parseComment, applyToDeclaration} from './tsdoc.ts';
-import {type IsExternalFile} from './typescript-program.ts';
+import type { DeclarationJsonBuild, MemberJsonBuild } from './declaration-build.ts';
+import { type Diagnostic } from './diagnostics.ts';
+import { to_error_message } from './error.ts';
+import { parseComment, applyToDeclaration } from './tsdoc.ts';
+import { type IsExternalFile } from './typescript-program.ts';
 import {
 	emitCallOrConstructSignature,
 	extractModifiers,
 	getNodeLocation,
 	parseGenericParam,
-	populateCallableMember,
+	populateCallableMember
 } from './typescript-extract-shared.ts';
-import {extractTypeAliasProperties} from './typescript-extract-type-properties.ts';
+import { extractTypeAliasProperties } from './typescript-extract-type-properties.ts';
 
 /**
  * Extract type/interface information with rich property metadata.
@@ -51,7 +51,7 @@ export const extractTypeInfo = (
 	checker: ts.TypeChecker,
 	declaration: DeclarationJsonBuild,
 	diagnostics: Array<Diagnostic>,
-	isExternalFile: IsExternalFile,
+	isExternalFile: IsExternalFile
 ): void => {
 	let nodeType: ts.Type | undefined;
 	try {
@@ -67,7 +67,7 @@ export const extractTypeInfo = (
 			column: loc.column,
 			message: `Failed to extract type for "${declaration.name}": ${to_error_message(err)}`,
 			severity: 'warning',
-			symbolName: declaration.name ?? '<default export>',
+			symbolName: declaration.name ?? '<default export>'
 		});
 	}
 
@@ -96,7 +96,7 @@ export const extractTypeInfo = (
 				const propName = member.name.text;
 				const propDeclaration: MemberJsonBuild = {
 					name: propName,
-					kind: 'variable',
+					kind: 'variable'
 				};
 
 				if (member.questionToken) {
@@ -126,7 +126,7 @@ export const extractTypeInfo = (
 
 				const methodDeclaration: MemberJsonBuild = {
 					name: methodName,
-					kind: 'function',
+					kind: 'function'
 				};
 
 				if (member.questionToken) {
@@ -160,7 +160,7 @@ export const extractTypeInfo = (
 							methodTsdoc,
 							member,
 							methodName,
-							diagnostics,
+							diagnostics
 						);
 					}
 				} catch (err) {
@@ -173,7 +173,7 @@ export const extractTypeInfo = (
 						column: loc.column,
 						message: `Failed to analyze interface method "${methodName}": ${to_error_message(err)}`,
 						severity: 'warning',
-						functionName: methodName,
+						functionName: methodName
 					});
 				}
 
@@ -183,7 +183,7 @@ export const extractTypeInfo = (
 				if (param && ts.isIdentifier(param.name) && param.type) {
 					const keyType = param.type.getText();
 					const name = `[${param.name.text}: ${keyType}]`;
-					const indexDeclaration: MemberJsonBuild = {name, kind: 'variable'};
+					const indexDeclaration: MemberJsonBuild = { name, kind: 'variable' };
 
 					if (member.type) {
 						indexDeclaration.typeSignature = member.type.getText();
@@ -200,7 +200,7 @@ export const extractTypeInfo = (
 		// signatures resolve through `getCallSignatures()` but their docs are
 		// intentionally not surfaced here.
 		const interfaceType = nodeType ?? checker.getTypeAtLocation(node);
-		const errorContext = {node, kindLabel: 'interface'};
+		const errorContext = { node, kindLabel: 'interface' };
 
 		emitCallOrConstructSignature(
 			() => interfaceType.getCallSignatures(),
@@ -210,7 +210,7 @@ export const extractTypeInfo = (
 			declaration,
 			checker,
 			diagnostics,
-			errorContext,
+			errorContext
 		);
 
 		emitCallOrConstructSignature(
@@ -221,7 +221,7 @@ export const extractTypeInfo = (
 			declaration,
 			checker,
 			diagnostics,
-			errorContext,
+			errorContext
 		);
 	}
 };
@@ -240,7 +240,7 @@ export const extractEnumInfo = (
 	node: ts.Node,
 	checker: ts.TypeChecker,
 	declaration: DeclarationJsonBuild,
-	diagnostics: Array<Diagnostic>,
+	diagnostics: Array<Diagnostic>
 ): void => {
 	// Extract type signature
 	try {
@@ -256,7 +256,7 @@ export const extractEnumInfo = (
 			column: loc.column,
 			message: `Failed to extract type for "${declaration.name}": ${to_error_message(err)}`,
 			severity: 'warning',
-			symbolName: declaration.name ?? '<default export>',
+			symbolName: declaration.name ?? '<default export>'
 		});
 	}
 
@@ -272,7 +272,7 @@ export const extractEnumInfo = (
 
 		const memberDeclaration: MemberJsonBuild = {
 			name: memberName,
-			kind: 'variable',
+			kind: 'variable'
 		};
 
 		// Extract TSDoc
@@ -296,7 +296,7 @@ export const extractEnumInfo = (
 				column: loc.column,
 				message: `Failed to extract type for enum member "${memberName}" in "${declaration.name}": ${to_error_message(err)}`,
 				severity: 'warning',
-				symbolName: memberName,
+				symbolName: memberName
 			});
 		}
 

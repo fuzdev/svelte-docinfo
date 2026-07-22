@@ -7,6 +7,6 @@
  * @param ctx.nested.deep - a deeply nested property
  * @returns the label
  */
-export function fn(ctx: {node: string; label: string; nested: {deep: boolean}}): string {
+export function fn(ctx: { node: string; label: string; nested: { deep: boolean } }): string {
 	return ctx.label;
 }

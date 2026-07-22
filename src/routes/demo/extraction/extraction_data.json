@@ -64,9 +64,9 @@
 							"type": "Snippet<[title: string]>",
 							"optional": true,
 							"description": "Custom header content, receives the resolved title.",
-							"parameters": [{"name": "title", "type": "string"}]
+							"parameters": [{ "name": "title", "type": "string" }]
 						},
-						{"name": "children", "type": "Snippet<[]>", "description": "Card body content."}
+						{ "name": "children", "type": "Snippet<[]>", "description": "Card body content." }
 					],
 					"acceptsChildren": true
 				}
@@ -142,7 +142,7 @@
 					"docComment": "Demonstrates a documentation mistake the analyzer catches.",
 					"typeSignature": "(value: number): number",
 					"sourceLine": 15,
-					"parameters": [{"name": "value", "type": "number"}],
+					"parameters": [{ "name": "value", "type": "number" }],
 					"returnType": "number",
 					"returnDescription": "the input doubled"
 				}
@@ -156,7 +156,7 @@
 					"name": "Calculator",
 					"kind": "component",
 					"sourceLine": 10,
-					"aliasOf": {"module": "Calculator.svelte", "name": "Calculator"},
+					"aliasOf": { "module": "Calculator.svelte", "name": "Calculator" },
 					"props": [
 						{
 							"name": "result",
@@ -193,7 +193,7 @@
 					"name": "Card",
 					"kind": "component",
 					"sourceLine": 11,
-					"aliasOf": {"module": "Card.svelte", "name": "Card"},
+					"aliasOf": { "module": "Card.svelte", "name": "Card" },
 					"props": [
 						{
 							"name": "title",
@@ -206,9 +206,9 @@
 							"type": "Snippet<[title: string]>",
 							"optional": true,
 							"description": "Custom header content, receives the resolved title.",
-							"parameters": [{"name": "title", "type": "string"}]
+							"parameters": [{ "name": "title", "type": "string" }]
 						},
-						{"name": "children", "type": "Snippet<[]>", "description": "Card body content."}
+						{ "name": "children", "type": "Snippet<[]>", "description": "Card body content." }
 					],
 					"acceptsChildren": true,
 					"docComment": "Card layout demonstrating `children` and snippet props —\n`acceptsChildren` and structured snippet parameters in the output.\nComponent docs via the in-script JSDoc form — attached to the `$props()`\ndeclaration, this block becomes the component's `docComment`, with no\n`@component` tag required (only the HTML form needs that tag). See\n`Calculator.svelte` for the HTML comment form."
@@ -219,15 +219,15 @@
 					"docComment": "Add vectors in place.",
 					"typeSignature": "(target: Vector2, source: Vector2): void",
 					"sourceLine": 14,
-					"mutates": {"target": "modifies x and y fields"},
-					"aliasOf": {"module": "math.ts", "name": "add_vector"},
+					"mutates": { "target": "modifies x and y fields" },
+					"aliasOf": { "module": "math.ts", "name": "add_vector" },
 					"parameters": [
-						{"name": "target", "type": "Vector2", "description": "vector to mutate"},
-						{"name": "source", "type": "Vector2", "description": "vector to add"}
+						{ "name": "target", "type": "Vector2", "description": "vector to mutate" },
+						{ "name": "source", "type": "Vector2", "description": "vector to add" }
 					],
 					"returnType": "void"
 				},
-				{"name": "shapes", "kind": "namespace", "sourceLine": 17, "module": "shapes.ts"}
+				{ "name": "shapes", "kind": "namespace", "sourceLine": 17, "module": "shapes.ts" }
 			],
 			"moduleComment": "Public entry point demonstrating the re-export forms svelte-docinfo tracks.",
 			"dependencies": [
@@ -238,13 +238,13 @@
 				"shapes.ts"
 			],
 			"reExports": [
-				{"name": "add", "module": "math.ts", "sourceLine": 8},
-				{"name": "Counter", "module": "counter.svelte.ts", "sourceLine": 9},
-				{"name": "MathConfig", "module": "math.ts", "typeOnly": true, "sourceLine": 8},
-				{"name": "multiply", "module": "math.ts", "sourceLine": 8}
+				{ "name": "add", "module": "math.ts", "sourceLine": 8 },
+				{ "name": "Counter", "module": "counter.svelte.ts", "sourceLine": 9 },
+				{ "name": "MathConfig", "module": "math.ts", "typeOnly": true, "sourceLine": 8 },
+				{ "name": "multiply", "module": "math.ts", "sourceLine": 8 }
 			],
 			"externalReExports": [
-				{"name": "Snippet", "specifier": "svelte", "typeOnly": true, "sourceLine": 20}
+				{ "name": "Snippet", "specifier": "svelte", "typeOnly": true, "sourceLine": 20 }
 			]
 		},
 		{
@@ -259,8 +259,8 @@
 					"examples": ["```ts\nadd(2, 3) // 5\n```"],
 					"alsoExportedFrom": ["index.ts"],
 					"parameters": [
-						{"name": "a", "type": "number", "description": "first number"},
-						{"name": "b", "type": "number", "description": "second number"}
+						{ "name": "a", "type": "number", "description": "first number" },
+						{ "name": "b", "type": "number", "description": "second number" }
 					],
 					"returnType": "number",
 					"returnDescription": "the sum"
@@ -273,8 +273,8 @@
 					"sourceLine": 24,
 					"alsoExportedFrom": ["index.ts"],
 					"parameters": [
-						{"name": "a", "type": "number", "description": "first number"},
-						{"name": "b", "type": "number", "description": "second number"}
+						{ "name": "a", "type": "number", "description": "first number" },
+						{ "name": "b", "type": "number", "description": "second number" }
 					],
 					"returnType": "number",
 					"returnDescription": "the product"
@@ -308,8 +308,8 @@
 					"typeSignature": "Vector2",
 					"sourceLine": 35,
 					"members": [
-						{"name": "x", "kind": "variable", "typeSignature": "number"},
-						{"name": "y", "kind": "variable", "typeSignature": "number"}
+						{ "name": "x", "kind": "variable", "typeSignature": "number" },
+						{ "name": "y", "kind": "variable", "typeSignature": "number" }
 					]
 				},
 				{
@@ -318,10 +318,10 @@
 					"docComment": "Add vectors in place.",
 					"typeSignature": "(target: Vector2, source: Vector2): void",
 					"sourceLine": 46,
-					"mutates": {"target": "modifies x and y fields"},
+					"mutates": { "target": "modifies x and y fields" },
 					"parameters": [
-						{"name": "target", "type": "Vector2", "description": "vector to mutate"},
-						{"name": "source", "type": "Vector2", "description": "vector to add"}
+						{ "name": "target", "type": "Vector2", "description": "vector to mutate" },
+						{ "name": "source", "type": "Vector2", "description": "vector to add" }
 					],
 					"returnType": "void"
 				}
@@ -342,13 +342,13 @@
 						"```ts\nshape_area(new Rectangle(2, 3)) // 6\nshape_area(1) // Math.PI\n```"
 					],
 					"parameters": [
-						{"name": "shape", "type": "HasArea", "description": "the shape to measure"}
+						{ "name": "shape", "type": "HasArea", "description": "the shape to measure" }
 					],
 					"overloads": [
 						{
 							"typeSignature": "(shape: HasArea): number",
 							"parameters": [
-								{"name": "shape", "type": "HasArea", "description": "the shape to measure"}
+								{ "name": "shape", "type": "HasArea", "description": "the shape to measure" }
 							],
 							"returnType": "number",
 							"docComment": "Compute the area of a shape.",
@@ -357,7 +357,7 @@
 						{
 							"typeSignature": "(radius: number): number",
 							"parameters": [
-								{"name": "radius", "type": "number", "description": "circle radius in units"}
+								{ "name": "radius", "type": "number", "description": "circle radius in units" }
 							],
 							"returnType": "number",
 							"docComment": "Compute the area of a circle from its radius.",
@@ -374,8 +374,8 @@
 					"typeSignature": "ShapeKind",
 					"sourceLine": 8,
 					"members": [
-						{"name": "Circle", "kind": "variable", "typeSignature": "ShapeKind.Circle"},
-						{"name": "Rectangle", "kind": "variable", "typeSignature": "ShapeKind.Rectangle"}
+						{ "name": "Circle", "kind": "variable", "typeSignature": "ShapeKind.Circle" },
+						{ "name": "Rectangle", "kind": "variable", "typeSignature": "ShapeKind.Rectangle" }
 					]
 				},
 				{
@@ -385,10 +385,10 @@
 					"typeSignature": "Direction",
 					"sourceLine": 14,
 					"members": [
-						{"name": "North", "kind": "variable", "typeSignature": "Direction.North"},
-						{"name": "East", "kind": "variable", "typeSignature": "Direction.East"},
-						{"name": "South", "kind": "variable", "typeSignature": "Direction.South"},
-						{"name": "West", "kind": "variable", "typeSignature": "Direction.West"}
+						{ "name": "North", "kind": "variable", "typeSignature": "Direction.North" },
+						{ "name": "East", "kind": "variable", "typeSignature": "Direction.East" },
+						{ "name": "South", "kind": "variable", "typeSignature": "Direction.South" },
+						{ "name": "West", "kind": "variable", "typeSignature": "Direction.West" }
 					]
 				},
 				{
@@ -463,10 +463,10 @@
 							"name": "constructor",
 							"kind": "constructor",
 							"typeSignature": "(width: number, height: number): Rectangle",
-							"throws": [{"description": "`RangeError` when either dimension is negative"}],
+							"throws": [{ "description": "`RangeError` when either dimension is negative" }],
 							"parameters": [
-								{"name": "width", "type": "number", "description": "initial width"},
-								{"name": "height", "type": "number", "description": "initial height"}
+								{ "name": "width", "type": "number", "description": "initial width" },
+								{ "name": "height", "type": "number", "description": "initial height" }
 							]
 						},
 						{
@@ -514,7 +514,7 @@
 					"typeSignature": "(shape: HasArea, options?: { precision?: number | undefined; label?: string | undefined; }): string",
 					"sourceLine": 127,
 					"parameters": [
-						{"name": "shape", "type": "HasArea", "description": "the shape to describe"},
+						{ "name": "shape", "type": "HasArea", "description": "the shape to describe" },
 						{
 							"name": "options",
 							"type": "{ precision?: number | undefined; label?: string | undefined; }",

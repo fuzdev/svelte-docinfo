@@ -14,13 +14,13 @@
 -->
 
 <script lang="ts">
-	import {add, multiply, type MathConfig} from './math.js';
+	import { add, multiply, type MathConfig } from './math.js';
 
 	let {
 		result = $bindable(0),
 		config,
 		mode = 'add',
-		disabled = false,
+		disabled = false
 	}: {
 		/** Current result (bindable). */
 		result?: number;

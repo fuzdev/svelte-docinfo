@@ -1,7 +1,7 @@
 <script lang="ts">
 	let {
 		prop1 = $bindable(),
-		prop2 = $bindable(),
+		prop2 = $bindable()
 	}: {
 		/** Description 1 */
 		prop1: string;

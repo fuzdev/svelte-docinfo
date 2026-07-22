@@ -9,5 +9,5 @@ export type A = {
 		};
 		e: boolean;
 	};
-	f: Array<{g: string}>;
+	f: Array<{ g: string }>;
 };

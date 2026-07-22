@@ -1,7 +1,7 @@
-import {page} from '$app/state';
-import {create_context} from '@fuzdev/fuz_ui/context_helpers.ts';
-import type {AnalyzeResultJsonWire} from '$lib/index.js';
-import {isCss, isJson, isSvelte} from '$lib/source.ts';
+import { page } from '$app/state';
+import { create_context } from '@fuzdev/fuz_ui/context_helpers.ts';
+import type { AnalyzeResultJsonWire } from '$lib/index.js';
+import { isCss, isJson, isSvelte } from '$lib/source.ts';
 
 /**
  * Shape of the committed `extraction_data.json` artifact — analysis of the
@@ -45,7 +45,7 @@ export class ExtractionState {
 
 	// the barrel is the natural default at the bare root; fall back to the first module
 	readonly default_path: string = $derived(
-		this.modules.find((m) => m.path === 'index.ts')?.path ?? this.modules[0]?.path ?? '',
+		this.modules.find((m) => m.path === 'index.ts')?.path ?? this.modules[0]?.path ?? ''
 	);
 	readonly selected_path: string = $derived(page.params.module_path ?? this.default_path);
 	readonly selected_module = $derived(this.modules.find((m) => m.path === this.selected_path));
@@ -60,7 +60,7 @@ export class ExtractionState {
 	// through `compactReplacer`), so pretty-printing it directly shows exactly
 	// what consumers get.
 	readonly selected_data: string = $derived(
-		this.selected_module ? JSON.stringify(this.selected_module, null, '\t') : '',
+		this.selected_module ? JSON.stringify(this.selected_module, null, '\t') : ''
 	);
 
 	constructor(options: ExtractionStateOptions) {

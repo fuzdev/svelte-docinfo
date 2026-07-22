@@ -18,18 +18,18 @@
  * @module
  */
 
-import {Command, type OptionValues} from 'commander';
-import {writeFile, readFile} from 'node:fs/promises';
-import {resolve} from 'node:path';
+import { Command, type OptionValues } from 'commander';
+import { writeFile, readFile } from 'node:fs/promises';
+import { resolve } from 'node:path';
 import picomatch from 'picomatch';
 
-import {analyzeFromFiles} from './analyze.ts';
-import type {OnDuplicates} from './analyze-core.ts';
-import type {Discovery} from './discovery.ts';
-import {hasErrors} from './diagnostics.ts';
-import {to_error_message} from './error.ts';
-import type {AnalysisLog} from './log.ts';
-import {compactReplacer} from './declaration-helpers.ts';
+import { analyzeFromFiles } from './analyze.ts';
+import type { OnDuplicates } from './analyze-core.ts';
+import type { Discovery } from './discovery.ts';
+import { hasErrors } from './diagnostics.ts';
+import { to_error_message } from './error.ts';
+import type { AnalysisLog } from './log.ts';
+import { compactReplacer } from './declaration-helpers.ts';
 
 /** Collect repeatable option values into an array. */
 const collect = (value: string, previous: Array<string> | undefined): Array<string> =>
@@ -140,13 +140,13 @@ export const runCli = async (argv: Array<string> = process.argv): Promise<number
 			attempted.push(pkgUrl.href);
 			try {
 				const content = await readFile(pkgUrl, 'utf-8');
-				return JSON.parse(content) as {version: string};
+				return JSON.parse(content) as { version: string };
 			} catch {
 				continue;
 			}
 		}
 		throw new Error(
-			`svelte-docinfo: failed to load package.json for version. Attempted: ${attempted.join(', ')}`,
+			`svelte-docinfo: failed to load package.json for version. Attempted: ${attempted.join(', ')}`
 		);
 	})();
 
@@ -159,13 +159,13 @@ export const runCli = async (argv: Array<string> = process.argv): Promise<number
 			'-i, --include <pattern>',
 			'Include pattern (repeatable, replaces exports discovery; ' +
 				'incompatible with --discovery exports)',
-			collect,
+			collect
 		)
 		.option(
 			'-e, --exclude <pattern>',
 			'Exclude glob (applied at discovery and analysis, repeatable; ' +
 				'fully replaces defaults — does not merge with **/*.test.ts, **/*.spec.ts)',
-			collect,
+			collect
 		)
 		.option('-o, --output <file>', 'Output file (default: stdout; pass `-` for explicit stdout)')
 		.option('--no-resolve-dependencies', 'Disable dependency resolution')
@@ -174,7 +174,7 @@ export const runCli = async (argv: Array<string> = process.argv): Promise<number
 			`Source file discovery strategy: ${DISCOVERY_VALUES.join('|')} ` +
 				'(default: auto — exports first, glob fallback). ' +
 				'`exports` is strict and fails if package.json exports is missing or empty ' +
-				'(also incompatible with --include).',
+				'(also incompatible with --include).'
 		)
 		.option('--dist-dir <dir>', 'Dist directory for exports discovery (default: dist)')
 		.option(
@@ -182,17 +182,17 @@ export const runCli = async (argv: Array<string> = process.argv): Promise<number
 			'Source directory relative to project root (default: src/lib). ' +
 				'Repeatable for monorepos. Drives the implicit include glob for the ' +
 				'glob-discovery fallback when no --include is provided.',
-			collect,
+			collect
 		)
 		.option(
 			'--source-root <dir>',
 			'Prefix stripped from module paths in output (default: the source-dir, ' +
-				'or longest common prefix when multiple). Pass `.` to keep paths project-relative.',
+				'or longest common prefix when multiple). Pass `.` to keep paths project-relative.'
 		)
 		.option(
 			'--on-duplicates <mode>',
 			`Dispatch on duplicate declaration names across modules: ${ON_DUPLICATES_VALUES.join('|')} ` +
-				'(default: emit duplicate_declaration diagnostic, no dispatch)',
+				'(default: emit duplicate_declaration diagnostic, no dispatch)'
 		)
 		.option(
 			'--only <pattern>',
@@ -200,13 +200,13 @@ export const runCli = async (argv: Array<string> = process.argv): Promise<number
 				'Full project is still analyzed — re-exports/dependents stay correct — ' +
 				'but only matching modules are emitted. Diagnostics are not filtered ' +
 				'and may reference modules dropped from output.',
-			collect,
+			collect
 		)
 		.option('--pretty', 'Pretty-print JSON output', false)
 		.option(
 			'-q, --quiet',
 			'Suppress info messages on stderr (warnings and errors still print)',
-			false,
+			false
 		)
 		.addHelpText(
 			'after',
@@ -225,7 +225,7 @@ Examples:
   $ svelte-docinfo --on-duplicates throw          Enforce flat namespace
   $ svelte-docinfo --only 'components/**'         Emit only modules under components/
   $ svelte-docinfo --only '*.svelte'              Emit only Svelte modules (top-level)
-  $ svelte-docinfo | jq .                         Pipe to jq for readable output`,
+  $ svelte-docinfo | jq .                         Pipe to jq for readable output`
 		)
 		.action(async (projectRoot: string, raw: OptionValues) => {
 			try {
@@ -234,13 +234,13 @@ Examples:
 				if (raw.onDuplicates !== undefined && !isOnDuplicatesFlag(raw.onDuplicates)) {
 					throw new Error(
 						`Invalid --on-duplicates value: "${raw.onDuplicates}". ` +
-							`Expected one of: ${ON_DUPLICATES_VALUES.join(', ')}`,
+							`Expected one of: ${ON_DUPLICATES_VALUES.join(', ')}`
 					);
 				}
 				if (raw.discovery !== undefined && !isDiscoveryFlag(raw.discovery)) {
 					throw new Error(
 						`Invalid --discovery value: "${raw.discovery}". ` +
-							`Expected one of: ${DISCOVERY_VALUES.join(', ')}`,
+							`Expected one of: ${DISCOVERY_VALUES.join(', ')}`
 					);
 				}
 
@@ -256,7 +256,7 @@ Examples:
 					onDuplicates: raw.onDuplicates,
 					only: raw.only,
 					quiet: raw.quiet,
-					pretty: raw.pretty,
+					pretty: raw.pretty
 				};
 
 				const resolvedRoot = resolve(projectRoot);
@@ -266,7 +266,7 @@ Examples:
 				const log: AnalysisLog = {
 					info: options.quiet ? () => {} : (msg: string) => console.error(msg),
 					warn: (msg: string) => console.error(`warning: ${msg}`),
-					error: (msg: string) => console.error(`error: ${msg}`),
+					error: (msg: string) => console.error(`error: ${msg}`)
 				};
 
 				// Build sourceOptions only when source-dir or source-root is specified,
@@ -277,23 +277,23 @@ Examples:
 				const sourceOptions =
 					options.sourceDir !== undefined || options.sourceRoot !== undefined
 						? {
-								...(options.sourceDir !== undefined ? {sourcePaths: options.sourceDir} : {}),
-								...(options.sourceRoot !== undefined ? {sourceRoot: options.sourceRoot} : {}),
+								...(options.sourceDir !== undefined ? { sourcePaths: options.sourceDir } : {}),
+								...(options.sourceRoot !== undefined ? { sourceRoot: options.sourceRoot } : {})
 							}
 						: undefined;
 
 				const onDuplicates: OnDuplicates | undefined = options.onDuplicates;
 
-				const {modules, diagnostics} = await analyzeFromFiles({
+				const { modules, diagnostics } = await analyzeFromFiles({
 					projectRoot: resolvedRoot,
 					include: options.include,
 					exclude: options.exclude,
 					resolveDependencies: options.resolveDependencies,
 					discovery: options.discovery,
 					distDir: options.distDir,
-					...(sourceOptions !== undefined ? {sourceOptions} : {}),
-					...(onDuplicates !== undefined ? {onDuplicates} : {}),
-					log,
+					...(sourceOptions !== undefined ? { sourceOptions } : {}),
+					...(onDuplicates !== undefined ? { onDuplicates } : {}),
+					log
 				});
 
 				// `--only` is an output-only filter: analysis ran against the full
@@ -312,9 +312,9 @@ Examples:
 				// (`jq '.diagnostics | length'` returns `0` on `{}` since jq treats
 				// null length as 0) don't need the parse step.
 				const jsonOutput = JSON.stringify(
-					{modules: emittedModules, diagnostics},
+					{ modules: emittedModules, diagnostics },
 					compactReplacer,
-					options.pretty ? 2 : undefined,
+					options.pretty ? 2 : undefined
 				);
 
 				// Write output. `-o -` is the conventional stdout sentinel

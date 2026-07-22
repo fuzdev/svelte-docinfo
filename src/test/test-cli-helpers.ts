@@ -2,10 +2,10 @@
  * CLI-specific test helpers for subprocess execution and console capture.
  */
 
-import {spawn} from 'node:child_process';
-import {join} from 'node:path';
+import { spawn } from 'node:child_process';
+import { join } from 'node:path';
 
-import {runCli} from '$lib/cli.ts';
+import { runCli } from '$lib/cli.ts';
 
 /**
  * Result of capturing console output.
@@ -42,7 +42,7 @@ export const captureConsoleLog = (): ConsoleCaptureResult => {
 		lines,
 		restore: () => {
 			console.log = original;
-		},
+		}
 	};
 };
 
@@ -57,7 +57,7 @@ export const captureConsoleError = (): ConsoleCaptureResult => {
 		lines,
 		restore: () => {
 			console.error = original;
-		},
+		}
 	};
 };
 
@@ -77,7 +77,7 @@ export const captureConsole = (): {
 		restore: () => {
 			logCapture.restore();
 			errorCapture.restore();
-		},
+		}
 	};
 };
 
@@ -109,15 +109,15 @@ export interface RunSubprocessOptions {
 export const runSubprocess = (
 	command: string,
 	args: Array<string> = [],
-	options: RunSubprocessOptions = {},
+	options: RunSubprocessOptions = {}
 ): Promise<SubprocessResult> =>
 	new Promise((resolve) => {
-		const proc = spawn(command, args, {shell: false, cwd: options.cwd});
+		const proc = spawn(command, args, { shell: false, cwd: options.cwd });
 		let stdout = '';
 		let stderr = '';
 		proc.stdout.on('data', (d: Buffer) => (stdout += d.toString()));
 		proc.stderr.on('data', (d: Buffer) => (stderr += d.toString()));
-		proc.on('close', (code) => resolve({code, stdout, stderr}));
+		proc.on('close', (code) => resolve({ code, stdout, stderr }));
 	});
 
 /**
@@ -132,7 +132,7 @@ export const runSubprocess = (
 export const runNodeSubprocess = (
 	scriptPath: string,
 	args: Array<string> = [],
-	options: RunSubprocessOptions = {},
+	options: RunSubprocessOptions = {}
 ): Promise<SubprocessResult> => runSubprocess('node', [scriptPath, ...args], options);
 
 /**
@@ -161,7 +161,7 @@ export const runCliCapture = async (argv: Array<string>): Promise<CliCaptureResu
 		return {
 			exitCode,
 			stdout: [...capture.logs],
-			stderr: [...capture.errors],
+			stderr: [...capture.errors]
 		};
 	} finally {
 		capture.restore();

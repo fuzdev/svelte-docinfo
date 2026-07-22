@@ -1,13 +1,13 @@
 <script lang="ts">
-	type A = {a: number};
+	type A = { a: number };
 
 	let {
-		prop1 = {a: 1},
+		prop1 = { a: 1 },
 		prop2 = {},
 		prop3 = [1, 2, 3],
 		prop4 = [],
 		prop5 = `text`,
-		prop6 = $bindable(null),
+		prop6 = $bindable(null)
 	}: {
 		/** Description 1 */
 		prop1?: A;

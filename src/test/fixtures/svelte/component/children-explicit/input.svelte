@@ -1,8 +1,8 @@
 <script lang="ts">
-	import type {Snippet} from 'svelte';
+	import type { Snippet } from 'svelte';
 
 	let {
-		children,
+		children
 	}: {
 		/** Description 1 */
 		children: Snippet;

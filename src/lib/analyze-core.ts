@@ -27,24 +27,24 @@
  */
 
 import ts from 'typescript';
-import {z} from 'zod';
+import { z } from 'zod';
 
-import {ModuleJson, type ModuleJsonInput} from './types.ts';
-import type {ModuleAnalysis} from './declaration-build.ts';
-import {Diagnostic} from './diagnostics.ts';
-import type {AnalysisLog} from './log.ts';
-import {analyzeTypescriptModule} from './typescript-exports.ts';
-import {analyzeSvelteModule, type SvelteVirtualFile} from './svelte.ts';
-import {stripVirtualSuffix, type SourceFileInfo, getComponentName} from './source.ts';
-import {type ModuleSourceOptions, extractPath, extractDependencies} from './source-config.ts';
-import {toPosixPath} from './paths.ts';
+import { ModuleJson, type ModuleJsonInput } from './types.ts';
+import type { ModuleAnalysis } from './declaration-build.ts';
+import { Diagnostic } from './diagnostics.ts';
+import type { AnalysisLog } from './log.ts';
+import { analyzeTypescriptModule } from './typescript-exports.ts';
+import { analyzeSvelteModule, type SvelteVirtualFile } from './svelte.ts';
+import { stripVirtualSuffix, type SourceFileInfo, getComponentName } from './source.ts';
+import { type ModuleSourceOptions, extractPath, extractDependencies } from './source-config.ts';
+import { toPosixPath } from './paths.ts';
 import {
 	sortModules,
 	findDuplicates,
 	mergeReExports,
 	resolveComponentAliases,
 	compareStrings,
-	type DuplicateDeclaration,
+	type DuplicateDeclaration
 } from './postprocess.ts';
 
 // Duplicate handling
@@ -60,7 +60,7 @@ import {
  */
 export type OnDuplicatesCallback = (
 	duplicates: Map<string, Array<DuplicateDeclaration>>,
-	log: Pick<AnalysisLog, 'error'>,
+	log: Pick<AnalysisLog, 'error'>
 ) => void;
 
 /**
@@ -102,7 +102,7 @@ const formatDuplicates = (duplicates: Map<string, Array<DuplicateDeclaration>>):
 	const details = Array.from(duplicates)
 		.map(([name, occurrences]) => {
 			const locations = occurrences
-				.map(({declaration, module}) => {
+				.map(({ declaration, module }) => {
 					const lineInfo = declaration.sourceLine !== undefined ? `:${declaration.sourceLine}` : '';
 					return `    - ${module}${lineInfo} (${declaration.kind})`;
 				})
@@ -122,7 +122,7 @@ const formatDuplicates = (duplicates: Map<string, Array<DuplicateDeclaration>>):
 
 const emitDuplicateDiagnostics = (
 	diagnostics: Array<Diagnostic>,
-	duplicates: Map<string, Array<DuplicateDeclaration>>,
+	duplicates: Map<string, Array<DuplicateDeclaration>>
 ): void => {
 	for (const [name, occurrences] of duplicates) {
 		const first = occurrences[0]!;
@@ -134,7 +134,7 @@ const emitDuplicateDiagnostics = (
 			message: `Duplicate declaration "${name}" defined in: ${modules.join(', ')}`,
 			severity: 'warning',
 			declarationName: name,
-			modules,
+			modules
 		});
 	}
 };
@@ -142,13 +142,13 @@ const emitDuplicateDiagnostics = (
 const dispatchOnDuplicates = (
 	mode: OnDuplicates,
 	duplicates: Map<string, Array<DuplicateDeclaration>>,
-	log?: AnalysisLog,
+	log?: AnalysisLog
 ): void => {
 	if (duplicates.size === 0) return;
 	if (mode === 'throw') {
 		throw new Error(formatDuplicates(duplicates));
 	}
-	const errorLog: Pick<AnalysisLog, 'error'> = log ?? {error: (msg) => console.error(msg)};
+	const errorLog: Pick<AnalysisLog, 'error'> = log ?? { error: (msg) => console.error(msg) };
 	if (mode === 'warn') {
 		errorLog.error(formatDuplicates(duplicates));
 		return;
@@ -185,7 +185,7 @@ const dispatchOnDuplicates = (
  */
 export const AnalyzeResultJson = z.strictObject({
 	modules: z.array(ModuleJson).default([]),
-	diagnostics: z.array(Diagnostic).default([]),
+	diagnostics: z.array(Diagnostic).default([])
 });
 export type AnalyzeResultJson = z.infer<typeof AnalyzeResultJson>;
 
@@ -232,10 +232,10 @@ const toModuleJson = (raw: ModuleAnalysis): ModuleJson => {
 			(a, b) =>
 				compareStrings(a.name, b.name) ||
 				compareStrings(a.module, b.module) ||
-				(a.sourceLine ?? 0) - (b.sourceLine ?? 0),
+				(a.sourceLine ?? 0) - (b.sourceLine ?? 0)
 		)
 		.filter(
-			(r, i, arr) => i === 0 || r.name !== arr[i - 1]!.name || r.module !== arr[i - 1]!.module,
+			(r, i, arr) => i === 0 || r.name !== arr[i - 1]!.name || r.module !== arr[i - 1]!.module
 		);
 	const externalReExports = raw.externalReExports
 		.slice()
@@ -243,7 +243,7 @@ const toModuleJson = (raw: ModuleAnalysis): ModuleJson => {
 			(a, b) =>
 				compareStrings(a.name, b.name) ||
 				compareStrings(a.specifier, b.specifier) ||
-				(a.sourceLine ?? 0) - (b.sourceLine ?? 0),
+				(a.sourceLine ?? 0) - (b.sourceLine ?? 0)
 		);
 	return ModuleJson.parse({
 		path: raw.path,
@@ -254,7 +254,7 @@ const toModuleJson = (raw: ModuleAnalysis): ModuleJson => {
 		reExports,
 		externalReExports,
 		externalStarExports: raw.externalStarExports,
-		...(raw.moduleComment ? {moduleComment: raw.moduleComment} : {}),
+		...(raw.moduleComment ? { moduleComment: raw.moduleComment } : {})
 	});
 };
 
@@ -282,11 +282,11 @@ const toModuleJson = (raw: ModuleAnalysis): ModuleJson => {
  * consumes the returned module's `reExports` in phase 2).
  */
 export const analyzeModule = (
-	sourceFile: SourceFileInfo & {dependents?: ReadonlyArray<string>},
+	sourceFile: SourceFileInfo & { dependents?: ReadonlyArray<string> },
 	program: ts.Program,
 	options: ModuleSourceOptions,
 	diagnostics: Array<Diagnostic>,
-	log?: AnalysisLog,
+	log?: AnalysisLog
 ): ModuleJson | undefined => {
 	const checker = program.getTypeChecker();
 	const modulePath = extractPath(sourceFile.id, options);
@@ -301,7 +301,7 @@ export const analyzeModule = (
 			message:
 				'Svelte files require program integration. Use createAnalysisSession or analyze()/analyzeFromFiles() instead.',
 			severity: 'warning',
-			reason: 'requires_program',
+			reason: 'requires_program'
 		});
 		log?.warn(`Svelte file skipped in analyzeModule: ${sourceFile.id}`);
 		return undefined;
@@ -313,7 +313,7 @@ export const analyzeModule = (
 				file: modulePath,
 				message: `Could not get source file from program: ${sourceFile.id}`,
 				severity: 'warning',
-				reason: 'not_in_program',
+				reason: 'not_in_program'
 			});
 			log?.warn(`Could not get source file from program: ${sourceFile.id}`);
 			return undefined;
@@ -324,10 +324,10 @@ export const analyzeModule = (
 			modulePath,
 			checker,
 			options,
-			diagnostics,
+			diagnostics
 		);
 	} else if (analyzerType === 'css' || analyzerType === 'json') {
-		const {dependencies, dependents} = extractDependencies(sourceFile, options);
+		const { dependencies, dependents } = extractDependencies(sourceFile, options);
 		raw = {
 			path: modulePath,
 			declarations: [],
@@ -336,7 +336,7 @@ export const analyzeModule = (
 			starExports: [],
 			reExports: [],
 			externalReExports: [],
-			externalStarExports: [],
+			externalStarExports: []
 		};
 	} else {
 		diagnostics.push({
@@ -344,7 +344,7 @@ export const analyzeModule = (
 			file: modulePath,
 			message: `No analyzer for file type: ${sourceFile.id}`,
 			severity: 'warning',
-			reason: 'no_analyzer',
+			reason: 'no_analyzer'
 		});
 		log?.warn(`No analyzer for file: ${sourceFile.id}`);
 		return undefined;
@@ -403,7 +403,7 @@ export const analyzeCore = (inputs: AnalyzeCoreInputs): AnalyzeResultJson => {
 		svelteVirtualFiles,
 		transformFailedIds,
 		onDuplicates,
-		log,
+		log
 	} = inputs;
 
 	const checker = program.getTypeChecker();
@@ -420,7 +420,7 @@ export const analyzeCore = (inputs: AnalyzeCoreInputs): AnalyzeResultJson => {
 		if (transformFailedIds?.has(sourceFile.id)) {
 			const modulePath = extractPath(sourceFile.id, sourceOptions);
 			const componentName = getComponentName(modulePath);
-			const {dependencies, dependents} = extractDependencies(sourceFile, sourceOptions);
+			const { dependencies, dependents } = extractDependencies(sourceFile, sourceOptions);
 			modules.push(
 				ModuleJson.parse({
 					path: modulePath,
@@ -428,8 +428,8 @@ export const analyzeCore = (inputs: AnalyzeCoreInputs): AnalyzeResultJson => {
 					dependencies,
 					dependents,
 					starExports: [],
-					partial: true,
-				}),
+					partial: true
+				})
 			);
 			log?.warn(`Svelte component ${componentName} marked partial (transform failed at ingest)`);
 			continue;
@@ -447,7 +447,7 @@ export const analyzeCore = (inputs: AnalyzeCoreInputs): AnalyzeResultJson => {
 				sourceOptions,
 				diagnostics,
 				program,
-				virtualFile,
+				virtualFile
 			);
 			if (raw) {
 				mod = toModuleJson(raw);
@@ -485,7 +485,7 @@ export const analyzeCore = (inputs: AnalyzeCoreInputs): AnalyzeResultJson => {
 
 	return {
 		modules: sortedModules,
-		diagnostics,
+		diagnostics
 	};
 };
 
@@ -505,7 +505,7 @@ export const analyzeCore = (inputs: AnalyzeCoreInputs): AnalyzeResultJson => {
  */
 export const normalizeDiagnosticPaths = (
 	diagnostics: Array<Diagnostic>,
-	projectRoot: string,
+	projectRoot: string
 ): void => {
 	const prefix = projectRoot.endsWith('/') ? projectRoot : projectRoot + '/';
 	for (const d of diagnostics) {

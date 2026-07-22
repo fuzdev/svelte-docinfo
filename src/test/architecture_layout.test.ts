@@ -7,26 +7,26 @@
  *   represented as a node, every edge references valid nodes, layer monotonicity holds
  */
 
-import {test, assert, describe} from 'vitest';
+import { test, assert, describe } from 'vitest';
 
-import {compute_layout, type LayoutInput} from '$routes/docs/architecture/graph_layout.ts';
-import {dependency_graph} from '$routes/docs/architecture/dependency_graph.ts';
-import {analyzeFromFiles} from '$lib/index.js';
+import { compute_layout, type LayoutInput } from '$routes/docs/architecture/graph_layout.ts';
+import { dependency_graph } from '$routes/docs/architecture/dependency_graph.ts';
+import { analyzeFromFiles } from '$lib/index.js';
 
 describe('compute_layout', () => {
 	test('synthetic acyclic graph assigns layers from sinks upward', () => {
 		// A → B → D → E → F
 		//  \→ C ↗
 		const input: LayoutInput = {
-			nodes: [{id: 'A'}, {id: 'B'}, {id: 'C'}, {id: 'D'}, {id: 'E'}, {id: 'F'}],
+			nodes: [{ id: 'A' }, { id: 'B' }, { id: 'C' }, { id: 'D' }, { id: 'E' }, { id: 'F' }],
 			edges: [
-				{src: 'A', tgt: 'B'},
-				{src: 'A', tgt: 'C'},
-				{src: 'B', tgt: 'D'},
-				{src: 'C', tgt: 'D'},
-				{src: 'D', tgt: 'E'},
-				{src: 'E', tgt: 'F'},
-			],
+				{ src: 'A', tgt: 'B' },
+				{ src: 'A', tgt: 'C' },
+				{ src: 'B', tgt: 'D' },
+				{ src: 'C', tgt: 'D' },
+				{ src: 'D', tgt: 'E' },
+				{ src: 'E', tgt: 'F' }
+			]
 		};
 		const out = compute_layout(input);
 
@@ -60,12 +60,12 @@ describe('compute_layout', () => {
 	test('inserts dummy waypoints on edges spanning multiple layers', () => {
 		// A → B → C with an extra A → C skipping B
 		const out = compute_layout({
-			nodes: [{id: 'A'}, {id: 'B'}, {id: 'C'}],
+			nodes: [{ id: 'A' }, { id: 'B' }, { id: 'C' }],
 			edges: [
-				{src: 'A', tgt: 'B'},
-				{src: 'B', tgt: 'C'},
-				{src: 'A', tgt: 'C'},
-			],
+				{ src: 'A', tgt: 'B' },
+				{ src: 'B', tgt: 'C' },
+				{ src: 'A', tgt: 'C' }
+			]
 		});
 		const ac = out.edges.find((e) => e.src === 'A' && e.tgt === 'C')!;
 		// Endpoints + one dummy midway = 3 waypoints
@@ -75,12 +75,12 @@ describe('compute_layout', () => {
 	test('breaks cycles by reversing one back-edge per loop', () => {
 		// A → B → C → A
 		const out = compute_layout({
-			nodes: [{id: 'A'}, {id: 'B'}, {id: 'C'}],
+			nodes: [{ id: 'A' }, { id: 'B' }, { id: 'C' }],
 			edges: [
-				{src: 'A', tgt: 'B'},
-				{src: 'B', tgt: 'C'},
-				{src: 'C', tgt: 'A'},
-			],
+				{ src: 'A', tgt: 'B' },
+				{ src: 'B', tgt: 'C' },
+				{ src: 'C', tgt: 'A' }
+			]
 		});
 		assert.strictEqual(out.edges.filter((e) => e.reversed).length, 1);
 
@@ -99,13 +99,13 @@ describe('compute_layout', () => {
 
 	test('ignores edges referencing unknown nodes and self-loops', () => {
 		const out = compute_layout({
-			nodes: [{id: 'A'}, {id: 'B'}],
+			nodes: [{ id: 'A' }, { id: 'B' }],
 			edges: [
-				{src: 'A', tgt: 'B'},
-				{src: 'A', tgt: 'A'}, // self-loop
-				{src: 'A', tgt: 'Z'}, // unknown target
-				{src: 'Y', tgt: 'B'}, // unknown source
-			],
+				{ src: 'A', tgt: 'B' },
+				{ src: 'A', tgt: 'A' }, // self-loop
+				{ src: 'A', tgt: 'Z' }, // unknown target
+				{ src: 'Y', tgt: 'B' } // unknown source
+			]
 		});
 		assert.strictEqual(out.edges.length, 1);
 		assert.strictEqual(out.edges[0]!.src, 'A');
@@ -113,7 +113,7 @@ describe('compute_layout', () => {
 	});
 
 	test('empty input produces an empty layout with sane viewbox', () => {
-		const out = compute_layout({nodes: [], edges: []});
+		const out = compute_layout({ nodes: [], edges: [] });
 		assert.strictEqual(out.nodes.length, 0);
 		assert.strictEqual(out.edges.length, 0);
 		assert(out.viewbox.width > 0 && out.viewbox.height > 0);
@@ -122,9 +122,9 @@ describe('compute_layout', () => {
 
 describe('dependency_graph artifact', () => {
 	test('every analyzed module appears as a node', async () => {
-		const {modules} = await analyzeFromFiles({
+		const { modules } = await analyzeFromFiles({
 			projectRoot: process.cwd(),
-			exclude: ['**/*.test.ts', '**/index.ts'],
+			exclude: ['**/*.test.ts', '**/index.ts']
 		});
 		const node_ids = new Set(dependency_graph.nodes.map((n) => n.id));
 		for (const m of modules) {
@@ -152,7 +152,7 @@ describe('dependency_graph artifact', () => {
 	});
 
 	test('all node coordinates lie within the viewbox', () => {
-		const {width, height} = dependency_graph.viewbox;
+		const { width, height } = dependency_graph.viewbox;
 		for (const n of dependency_graph.nodes) {
 			assert(n.x >= 0, `${n.id}.x = ${n.x}`);
 			assert(n.y >= 0, `${n.id}.y = ${n.y}`);

@@ -1,9 +1,9 @@
 <script lang="ts">
-	import type {Snippet} from 'svelte';
+	import type { Snippet } from 'svelte';
 
 	let {
 		prop1,
-		prop2,
+		prop2
 	}: {
 		/** Description 1 */
 		prop1: Snippet;

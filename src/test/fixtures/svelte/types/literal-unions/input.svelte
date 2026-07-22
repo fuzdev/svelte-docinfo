@@ -2,7 +2,7 @@
 	let {
 		prop1,
 		prop2,
-		prop3,
+		prop3
 	}: {
 		/** Description 1 */
 		prop1: 1 | 2 | 3;

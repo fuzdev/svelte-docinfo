@@ -4,5 +4,5 @@
 export const a = {
 	b: 'value',
 	c: 1,
-	d: ['a', 'b', 'c'],
+	d: ['a', 'b', 'c']
 } as const;

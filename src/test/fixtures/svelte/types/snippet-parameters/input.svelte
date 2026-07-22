@@ -1,9 +1,9 @@
 <script lang="ts">
-	import type {Snippet} from 'svelte';
+	import type { Snippet } from 'svelte';
 
 	let {
 		content,
-		header,
+		header
 	}: {
 		/** Description 1 */
 		content: Snippet<[text: string, index: number]>;

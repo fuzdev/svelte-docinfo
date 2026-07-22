@@ -1,9 +1,9 @@
 <script lang="ts" generics="T">
-	import type {Snippet} from 'svelte';
+	import type { Snippet } from 'svelte';
 
 	let {
 		data,
-		row,
+		row
 	}: {
 		/** Description 1 */
 		data: T[];

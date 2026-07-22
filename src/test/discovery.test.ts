@@ -7,12 +7,12 @@
  * fallback instead of silently defaulting to `src/lib`.
  */
 
-import {test, assert, describe} from 'vitest';
+import { test, assert, describe } from 'vitest';
 
-import {discoverSourceFiles} from '$lib/discovery.ts';
-import {createSourceOptions} from '$lib/source-config.ts';
+import { discoverSourceFiles } from '$lib/discovery.ts';
+import { createSourceOptions } from '$lib/source-config.ts';
 
-import {withTestProject} from './test-helpers.ts';
+import { withTestProject } from './test-helpers.ts';
 
 describe('discoverSourceFiles', () => {
 	test('derives include from sourcePaths when no include is supplied (glob mode)', async () => {
@@ -20,22 +20,22 @@ describe('discoverSourceFiles', () => {
 			{
 				'packages/foo/a.ts': 'export const a = 1;',
 				'packages/foo/nested/b.ts': 'export const b = 2;',
-				'src/lib/elsewhere.ts': 'export const c = 3;',
+				'src/lib/elsewhere.ts': 'export const c = 3;'
 			},
 			async (projectRoot) => {
 				const sourceOptions = createSourceOptions(projectRoot, {
-					sourcePaths: ['packages/foo'],
+					sourcePaths: ['packages/foo']
 				});
-				const {files} = await discoverSourceFiles({
+				const { files } = await discoverSourceFiles({
 					sourceOptions,
-					discovery: 'glob',
+					discovery: 'glob'
 				});
 
 				const ids = files.map((f) => f.id).sort();
 				assert.strictEqual(files.length, 2);
 				assert.ok(ids.every((id) => id.includes('/packages/foo/')));
 				assert.ok(!ids.some((id) => id.includes('elsewhere.ts')));
-			},
+			}
 		);
 	});
 
@@ -44,16 +44,16 @@ describe('discoverSourceFiles', () => {
 			{
 				'packages/foo/a.ts': 'export const a = 1;',
 				'packages/bar/b.ts': 'export const b = 2;',
-				'src/lib/elsewhere.ts': 'export const c = 3;',
+				'src/lib/elsewhere.ts': 'export const c = 3;'
 			},
 			async (projectRoot) => {
 				const sourceOptions = createSourceOptions(projectRoot, {
 					sourcePaths: ['packages/foo', 'packages/bar'],
-					sourceRoot: 'packages',
+					sourceRoot: 'packages'
 				});
-				const {files} = await discoverSourceFiles({
+				const { files } = await discoverSourceFiles({
 					sourceOptions,
-					discovery: 'glob',
+					discovery: 'glob'
 				});
 
 				const ids = files.map((f) => f.id).sort();
@@ -61,7 +61,7 @@ describe('discoverSourceFiles', () => {
 				assert.ok(ids.some((id) => id.endsWith('packages/foo/a.ts')));
 				assert.ok(ids.some((id) => id.endsWith('packages/bar/b.ts')));
 				assert.ok(!ids.some((id) => id.includes('elsewhere.ts')));
-			},
+			}
 		);
 	});
 
@@ -71,21 +71,21 @@ describe('discoverSourceFiles', () => {
 		await withTestProject(
 			{
 				'packages/foo/keep/a.ts': 'export const a = 1;',
-				'packages/foo/skip/b.ts': 'export const b = 2;',
+				'packages/foo/skip/b.ts': 'export const b = 2;'
 			},
 			async (projectRoot) => {
 				const sourceOptions = createSourceOptions(projectRoot, {
-					sourcePaths: ['packages/foo'],
+					sourcePaths: ['packages/foo']
 				});
-				const {files} = await discoverSourceFiles({
+				const { files } = await discoverSourceFiles({
 					sourceOptions,
 					include: ['packages/foo/keep/**/*.ts'],
-					discovery: 'glob',
+					discovery: 'glob'
 				});
 
 				assert.strictEqual(files.length, 1);
 				assert.ok(files[0]!.id.endsWith('keep/a.ts'));
-			},
+			}
 		);
 	});
 
@@ -101,21 +101,21 @@ describe('discoverSourceFiles', () => {
 				// package.json with exports field — would normally trigger exports discovery
 				'package.json': JSON.stringify({
 					name: 'test-pkg',
-					exports: {'./*': './dist/*.js'},
-				}),
+					exports: { './*': './dist/*.js' }
+				})
 			},
 			async (projectRoot) => {
 				const sourceOptions = createSourceOptions(projectRoot, {
-					sourcePaths: ['src/lib', 'lib/utils'],
+					sourcePaths: ['src/lib', 'lib/utils']
 				});
-				const {files} = await discoverSourceFiles({sourceOptions});
+				const { files } = await discoverSourceFiles({ sourceOptions });
 
 				// Glob fallback finds both files via deriveIncludePatterns
 				const ids = files.map((f) => f.id).sort();
 				assert.strictEqual(files.length, 2);
 				assert.ok(ids.some((id) => id.endsWith('src/lib/a.ts')));
 				assert.ok(ids.some((id) => id.endsWith('lib/utils/b.ts')));
-			},
+			}
 		);
 	});
 
@@ -126,16 +126,16 @@ describe('discoverSourceFiles', () => {
 				'lib/utils/b.ts': 'export const b = 2;',
 				'package.json': JSON.stringify({
 					name: 'test-pkg',
-					exports: {'./*': './dist/*.js'},
-				}),
+					exports: { './*': './dist/*.js' }
+				})
 			},
 			async (projectRoot) => {
 				const sourceOptions = createSourceOptions(projectRoot, {
-					sourcePaths: ['src/lib', 'lib/utils'],
+					sourcePaths: ['src/lib', 'lib/utils']
 				});
 				let caught: Error | undefined;
 				try {
-					await discoverSourceFiles({sourceOptions, discovery: 'exports'});
+					await discoverSourceFiles({ sourceOptions, discovery: 'exports' });
 				} catch (err) {
 					caught = err as Error;
 				}
@@ -143,7 +143,7 @@ describe('discoverSourceFiles', () => {
 				assert.match(caught.message, /source paths share no common prefix/);
 				// Must NOT fall back to the generic "resolved to no source files" message.
 				assert.notMatch(caught.message, /resolved to no source files/);
-			},
+			}
 		);
 	});
 
@@ -154,18 +154,18 @@ describe('discoverSourceFiles', () => {
 			{
 				'src/lib/a.ts': 'export const a = 1;',
 				'src/lib/nested/b.ts': 'export const b = 2;',
-				'other/c.ts': 'export const c = 3;',
+				'other/c.ts': 'export const c = 3;'
 			},
 			async (projectRoot) => {
 				const sourceOptions = createSourceOptions(projectRoot);
-				const {files} = await discoverSourceFiles({
+				const { files } = await discoverSourceFiles({
 					sourceOptions,
-					discovery: 'glob',
+					discovery: 'glob'
 				});
 
 				assert.strictEqual(files.length, 2);
 				assert.ok(files.every((f) => f.id.includes('/src/lib/')));
-			},
+			}
 		);
 	});
 });

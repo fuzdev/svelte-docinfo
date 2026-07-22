@@ -17,22 +17,22 @@
  * @module
  */
 
-import {errorsOf, formatDiagnostic, warningsOf} from './diagnostics.ts';
-import type {AnalysisLog} from './log.ts';
-import {createAnalysisSession, type AnalysisSession} from './session.ts';
+import { errorsOf, formatDiagnostic, warningsOf } from './diagnostics.ts';
+import type { AnalysisLog } from './log.ts';
+import { createAnalysisSession, type AnalysisSession } from './session.ts';
 import {
 	createSourceOptions,
 	type ModuleSourceOptions,
-	type SourceOptionsDefaults,
+	type SourceOptionsDefaults
 } from './source-config.ts';
-import {discoverSourceFiles, type Discovery} from './discovery.ts';
-import {noDepsResolver, type ResolveImport} from './dep-resolver.ts';
+import { discoverSourceFiles, type Discovery } from './discovery.ts';
+import { noDepsResolver, type ResolveImport } from './dep-resolver.ts';
 import {
 	normalizeDiagnosticPaths,
 	type AnalyzeResultJson,
-	type OnDuplicates,
+	type OnDuplicates
 } from './analyze-core.ts';
-import type {SourceFileInfo} from './source.ts';
+import type { SourceFileInfo } from './source.ts';
 
 // analyze: one-shot, caller-supplied sourceFiles
 
@@ -78,16 +78,16 @@ export const analyze = async (options: AnalyzeOptions): Promise<AnalyzeResultJso
 	const session = createAnalysisSession({
 		sourceOptions: options.sourceOptions,
 		log: options.log,
-		resolveImport: options.resolveImport,
+		resolveImport: options.resolveImport
 	});
 	try {
 		const ingest = await session.setFiles(options.sourceFiles);
-		const query = session.query({onDuplicates: options.onDuplicates, log: options.log});
+		const query = session.query({ onDuplicates: options.onDuplicates, log: options.log });
 		// Concat is safe by spec — ingest diagnostics are paths-normalized in
 		// session.setFiles; query diagnostics are normalized in analyze-core.
 		return {
 			modules: query.modules,
-			diagnostics: [...ingest.diagnostics, ...query.diagnostics],
+			diagnostics: [...ingest.diagnostics, ...query.diagnostics]
 		};
 	} finally {
 		session.dispose();
@@ -171,7 +171,7 @@ export interface AnalyzeFromFilesOptions {
  * @throws Error if `sourceOptions` validation fails or `tsconfig.json` is missing
  */
 export const analyzeFromFiles = async (
-	options: AnalyzeFromFilesOptions,
+	options: AnalyzeFromFilesOptions
 ): Promise<AnalyzeResultJson> => {
 	const {
 		projectRoot,
@@ -183,7 +183,7 @@ export const analyzeFromFiles = async (
 		onDuplicates,
 		log,
 		discovery,
-		distDir,
+		distDir
 	} = options;
 
 	// A custom resolver with resolution turned off is a contradiction — the
@@ -193,7 +193,7 @@ export const analyzeFromFiles = async (
 		throw new Error(
 			'`resolveImport` cannot be combined with `resolveDependencies: false` — ' +
 				'dependency resolution is disabled, so the resolver would never be consulted. ' +
-				'Remove `resolveImport`, or set `resolveDependencies: true` (the default).',
+				'Remove `resolveImport`, or set `resolveDependencies: true` (the default).'
 		);
 	}
 
@@ -201,17 +201,17 @@ export const analyzeFromFiles = async (
 	// `sourceOptions.exclude` (no array merge). Apply before
 	// `createSourceOptions` so the normalized options carry a single source
 	// of truth.
-	const mergedSourceOptions = exclude !== undefined ? {...sourceOptions, exclude} : sourceOptions;
+	const mergedSourceOptions = exclude !== undefined ? { ...sourceOptions, exclude } : sourceOptions;
 	const resolvedSourceOptions = createSourceOptions(projectRoot, mergedSourceOptions);
 	const normalizedProjectRoot = resolvedSourceOptions.projectRoot;
 
 	// Step 1: discover files.
-	const {files: discoveredFiles, diagnostics: discoveryDiagnostics} = await discoverSourceFiles({
+	const { files: discoveredFiles, diagnostics: discoveryDiagnostics } = await discoverSourceFiles({
 		sourceOptions: resolvedSourceOptions,
 		include,
 		discovery,
 		distDir,
-		log,
+		log
 	});
 
 	// Step 2: build the session-default resolver. When dep-resolution is
@@ -228,15 +228,15 @@ export const analyzeFromFiles = async (
 	const session: AnalysisSession = createAnalysisSession({
 		sourceOptions: resolvedSourceOptions,
 		log,
-		resolveImport: sessionResolver,
+		resolveImport: sessionResolver
 	});
 	let result: AnalyzeResultJson;
 	try {
 		const ingest = await session.setFiles(discoveredFiles);
-		const query = session.query({onDuplicates, log});
+		const query = session.query({ onDuplicates, log });
 		result = {
 			modules: query.modules,
-			diagnostics: [...ingest.diagnostics, ...query.diagnostics],
+			diagnostics: [...ingest.diagnostics, ...query.diagnostics]
 		};
 	} finally {
 		session.dispose();

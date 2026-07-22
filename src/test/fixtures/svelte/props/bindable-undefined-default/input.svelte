@@ -2,7 +2,7 @@
 	let {
 		prop1 = $bindable(undefined),
 		prop2 = $bindable(),
-		prop3 = undefined,
+		prop3 = undefined
 	}: {
 		/** Description 1 */
 		prop1?: string;

@@ -1,12 +1,12 @@
-import {test, assert} from 'vitest';
+import { test, assert } from 'vitest';
 
 import {
 	normalizeResolveImport,
 	noDepsResolver,
 	type ImportResolver,
-	type ResolveImportFn,
+	type ResolveImportFn
 } from '$lib/dep-resolver.ts';
-import {analyzeFromFiles} from '$lib/analyze.ts';
+import { analyzeFromFiles } from '$lib/analyze.ts';
 
 const ROOT = '/proj';
 
@@ -32,7 +32,7 @@ test('normalizeResolveImport gives bare functions a fresh identity per call', ()
 });
 
 test('normalizeResolveImport passes a token-paired resolver through unchanged', () => {
-	const resolver: ImportResolver = {resolve: () => null, identity: 'stable'};
+	const resolver: ImportResolver = { resolve: () => null, identity: 'stable' };
 	assert.equal(normalizeResolveImport(resolver), resolver);
 });
 
@@ -52,7 +52,7 @@ test('analyzeFromFiles throws when resolveImport is combined with resolveDepende
 		await analyzeFromFiles({
 			projectRoot: ROOT,
 			resolveDependencies: false,
-			resolveImport: resolveBare,
+			resolveImport: resolveBare
 		});
 	} catch (err) {
 		threw = true;
@@ -67,7 +67,7 @@ test('analyzeFromFiles does not trip the guard for resolveDependencies: false al
 	// on an empty/nonexistent root must not surface the options error.
 	let optionsError = false;
 	try {
-		await analyzeFromFiles({projectRoot: ROOT, resolveDependencies: false});
+		await analyzeFromFiles({ projectRoot: ROOT, resolveDependencies: false });
 	} catch (err) {
 		if ((err as Error).message.includes('resolveImport')) optionsError = true;
 	}

@@ -13,7 +13,7 @@
  * @module
  */
 
-import {z} from 'zod';
+import { z } from 'zod';
 
 import type {
 	DeclarationKind,
@@ -25,7 +25,7 @@ import type {
 	ComponentPropJsonInput,
 	Reactivity,
 	ReExportJsonInput,
-	ExternalReExportJsonInput,
+	ExternalReExportJsonInput
 } from './types.ts';
 
 /**
@@ -54,7 +54,7 @@ export interface MemberJsonBuild {
 	examples?: Array<string>;
 	deprecatedMessage?: string;
 	seeAlso?: Array<string>;
-	throws?: Array<{type?: string; description: string}>;
+	throws?: Array<{ type?: string; description: string }>;
 	since?: string;
 	mutates?: Record<string, string>;
 	reactivity?: Reactivity;
@@ -87,7 +87,7 @@ export interface DeclarationJsonBuild {
 	examples?: Array<string>;
 	deprecatedMessage?: string;
 	seeAlso?: Array<string>;
-	throws?: Array<{type?: string; description: string}>;
+	throws?: Array<{ type?: string; description: string }>;
 	since?: string;
 	mutates?: Record<string, string>;
 	extends?: string | Array<string>;
@@ -98,7 +98,7 @@ export interface DeclarationJsonBuild {
 	acceptsChildren?: boolean;
 	lang?: 'js';
 	alsoExportedFrom?: Array<string>;
-	aliasOf?: {module: string; name: string};
+	aliasOf?: { module: string; name: string };
 	reactivity?: Reactivity;
 	partial?: boolean;
 	/** Source module path for `kind: 'namespace'` declarations (`export * as ns from './x'`). */

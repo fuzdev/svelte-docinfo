@@ -8,22 +8,22 @@
  * - isKind - type narrowing for DeclarationJson and MemberJson
  */
 
-import {readFileSync} from 'node:fs';
-import {test, assert, describe} from 'vitest';
-import {ZodError} from 'zod';
+import { readFileSync } from 'node:fs';
+import { test, assert, describe } from 'vitest';
+import { ZodError } from 'zod';
 
-import {DeclarationJson, MemberJson, type ConstructorMemberJson, ModuleJson} from '$lib/types.ts';
+import { DeclarationJson, MemberJson, type ConstructorMemberJson, ModuleJson } from '$lib/types.ts';
 import {
 	getDisplayName,
 	generateImport,
 	compactReplacer,
 	isKind,
 	findTypeReferences,
-	buildTypeReferencePatterns,
+	buildTypeReferencePatterns
 } from '$lib/declaration-helpers.ts';
-import {AnalyzeResultJson} from '$lib/analyze-core.ts';
+import { AnalyzeResultJson } from '$lib/analyze-core.ts';
 
-const d = (input: {name?: string; kind: string; [key: string]: unknown}): DeclarationJson =>
+const d = (input: { name?: string; kind: string; [key: string]: unknown }): DeclarationJson =>
 	DeclarationJson.parse(input);
 
 describe('getDisplayName', () => {
@@ -31,7 +31,7 @@ describe('getDisplayName', () => {
 		test('returns name for function without generics', () => {
 			const declaration = d({
 				name: 'add',
-				kind: 'function',
+				kind: 'function'
 			});
 
 			const result = getDisplayName(declaration);
@@ -42,7 +42,7 @@ describe('getDisplayName', () => {
 		test('returns name for type without generics', () => {
 			const declaration = d({
 				name: 'Config',
-				kind: 'type',
+				kind: 'type'
 			});
 
 			const result = getDisplayName(declaration);
@@ -53,7 +53,7 @@ describe('getDisplayName', () => {
 		test('returns name for class without generics', () => {
 			const declaration = d({
 				name: 'Service',
-				kind: 'class',
+				kind: 'class'
 			});
 
 			const result = getDisplayName(declaration);
@@ -64,7 +64,7 @@ describe('getDisplayName', () => {
 		test('returns name for variable', () => {
 			const declaration = d({
 				name: 'VERSION',
-				kind: 'variable',
+				kind: 'variable'
 			});
 
 			const result = getDisplayName(declaration);
@@ -75,7 +75,7 @@ describe('getDisplayName', () => {
 		test('returns name for component', () => {
 			const declaration = d({
 				name: 'Button',
-				kind: 'component',
+				kind: 'component'
 			});
 
 			const result = getDisplayName(declaration);
@@ -87,7 +87,7 @@ describe('getDisplayName', () => {
 			const declaration = d({
 				name: 'Simple',
 				kind: 'type',
-				genericParams: [],
+				genericParams: []
 			});
 
 			const result = getDisplayName(declaration);
@@ -101,7 +101,7 @@ describe('getDisplayName', () => {
 			const declaration = d({
 				name: 'Container',
 				kind: 'type',
-				genericParams: [{name: 'T'}],
+				genericParams: [{ name: 'T' }]
 			});
 
 			const result = getDisplayName(declaration);
@@ -113,7 +113,7 @@ describe('getDisplayName', () => {
 			const declaration = d({
 				name: 'Map',
 				kind: 'type',
-				genericParams: [{name: 'K'}, {name: 'V'}],
+				genericParams: [{ name: 'K' }, { name: 'V' }]
 			});
 
 			const result = getDisplayName(declaration);
@@ -125,7 +125,7 @@ describe('getDisplayName', () => {
 			const declaration = d({
 				name: 'KeyOf',
 				kind: 'type',
-				genericParams: [{name: 'T', constraint: 'object'}],
+				genericParams: [{ name: 'T', constraint: 'object' }]
 			});
 
 			const result = getDisplayName(declaration);
@@ -137,7 +137,7 @@ describe('getDisplayName', () => {
 			const declaration = d({
 				name: 'Optional',
 				kind: 'type',
-				genericParams: [{name: 'T', defaultType: 'unknown'}],
+				genericParams: [{ name: 'T', defaultType: 'unknown' }]
 			});
 
 			const result = getDisplayName(declaration);
@@ -149,7 +149,7 @@ describe('getDisplayName', () => {
 			const declaration = d({
 				name: 'Bounded',
 				kind: 'type',
-				genericParams: [{name: 'T', constraint: 'string', defaultType: '"default"'}],
+				genericParams: [{ name: 'T', constraint: 'string', defaultType: '"default"' }]
 			});
 
 			const result = getDisplayName(declaration);
@@ -162,10 +162,10 @@ describe('getDisplayName', () => {
 				name: 'Complex',
 				kind: 'type',
 				genericParams: [
-					{name: 'K', constraint: 'string'},
-					{name: 'V'},
-					{name: 'R', defaultType: 'void'},
-				],
+					{ name: 'K', constraint: 'string' },
+					{ name: 'V' },
+					{ name: 'R', defaultType: 'void' }
+				]
 			});
 
 			const result = getDisplayName(declaration);
@@ -177,7 +177,7 @@ describe('getDisplayName', () => {
 			const declaration = d({
 				name: 'identity',
 				kind: 'function',
-				genericParams: [{name: 'T'}],
+				genericParams: [{ name: 'T' }]
 			});
 
 			const result = getDisplayName(declaration);
@@ -189,7 +189,7 @@ describe('getDisplayName', () => {
 			const declaration = d({
 				name: 'Stack',
 				kind: 'class',
-				genericParams: [{name: 'T'}],
+				genericParams: [{ name: 'T' }]
 			});
 
 			const result = getDisplayName(declaration);
@@ -208,7 +208,7 @@ describe('generateImport', () => {
 			'type',
 			'config.ts',
 			'@my/lib',
-			"import type {Config} from '@my/lib/config.js';",
+			"import type {Config} from '@my/lib/config.js';"
 		],
 		[
 			'type import for interface-like type',
@@ -216,7 +216,7 @@ describe('generateImport', () => {
 			'type',
 			'utils/options.ts',
 			'@pkg/core',
-			"import type {Options} from '@pkg/core/utils/options.js';",
+			"import type {Options} from '@pkg/core/utils/options.js';"
 		],
 		[
 			'type import for interface declaration',
@@ -224,8 +224,8 @@ describe('generateImport', () => {
 			'interface',
 			'config.ts',
 			'@my/lib',
-			"import type {Config} from '@my/lib/config.js';",
-		],
+			"import type {Config} from '@my/lib/config.js';"
+		]
 	];
 
 	const VALUE_IMPORT_CASES: Array<[string, string, string, string, string, string]> = [
@@ -235,7 +235,7 @@ describe('generateImport', () => {
 			'function',
 			'math.ts',
 			'@my/lib',
-			"import {add} from '@my/lib/math.js';",
+			"import {add} from '@my/lib/math.js';"
 		],
 		[
 			'value import for variable',
@@ -243,7 +243,7 @@ describe('generateImport', () => {
 			'variable',
 			'constants.ts',
 			'@my/lib',
-			"import {VERSION} from '@my/lib/constants.js';",
+			"import {VERSION} from '@my/lib/constants.js';"
 		],
 		[
 			'value import for class',
@@ -251,7 +251,7 @@ describe('generateImport', () => {
 			'class',
 			'service.ts',
 			'@my/lib',
-			"import {Service} from '@my/lib/service.js';",
+			"import {Service} from '@my/lib/service.js';"
 		],
 		[
 			'default import for component',
@@ -259,8 +259,8 @@ describe('generateImport', () => {
 			'component',
 			'Button.svelte',
 			'@my/ui',
-			"import Button from '@my/ui/Button.svelte';",
-		],
+			"import Button from '@my/ui/Button.svelte';"
+		]
 	];
 
 	const DEFAULT_EXPORT_CASES: Array<[string, string, string, string, string]> = [
@@ -269,43 +269,43 @@ describe('generateImport', () => {
 			'function',
 			'helper.ts',
 			'@my/lib',
-			"import Helper from '@my/lib/helper.js';",
+			"import Helper from '@my/lib/helper.js';"
 		],
 		[
 			'PascalCase from kebab-case name',
 			'class',
 			'my-component.ts',
 			'@my/lib',
-			"import MyComponent from '@my/lib/my-component.js';",
+			"import MyComponent from '@my/lib/my-component.js';"
 		],
 		[
 			'PascalCase from camelCase name',
 			'function',
 			'stringUtils.ts',
 			'@my/lib',
-			"import StringUtils from '@my/lib/stringUtils.js';",
+			"import StringUtils from '@my/lib/stringUtils.js';"
 		],
 		[
 			'default Svelte component',
 			'component',
 			'Button.svelte',
 			'@my/ui',
-			"import Button from '@my/ui/Button.svelte';",
+			"import Button from '@my/ui/Button.svelte';"
 		],
 		[
 			'default from JS file',
 			'function',
 			'helper.js',
 			'@my/lib',
-			"import Helper from '@my/lib/helper.js';",
+			"import Helper from '@my/lib/helper.js';"
 		],
 		[
 			'PascalCase from nested path',
 			'variable',
 			'utils/helpers.ts',
 			'@pkg/lib',
-			"import UtilsHelpers from '@pkg/lib/utils/helpers.js';",
-		],
+			"import UtilsHelpers from '@pkg/lib/utils/helpers.js';"
+		]
 	];
 
 	const PATH_HANDLING_CASES: Array<[string, string, string, string, string, string]> = [
@@ -315,7 +315,7 @@ describe('generateImport', () => {
 			'function',
 			'utils.ts',
 			'@my/lib',
-			"import {foo} from '@my/lib/utils.js';",
+			"import {foo} from '@my/lib/utils.js';"
 		],
 		[
 			'handles nested paths',
@@ -323,7 +323,7 @@ describe('generateImport', () => {
 			'function',
 			'a/b/c/deep.ts',
 			'@my/lib',
-			"import {deep} from '@my/lib/a/b/c/deep.js';",
+			"import {deep} from '@my/lib/a/b/c/deep.js';"
 		],
 		[
 			'preserves .svelte extension',
@@ -331,7 +331,7 @@ describe('generateImport', () => {
 			'component',
 			'Card.svelte',
 			'@my/ui',
-			"import Card from '@my/ui/Card.svelte';",
+			"import Card from '@my/ui/Card.svelte';"
 		],
 		[
 			'handles scoped packages',
@@ -339,7 +339,7 @@ describe('generateImport', () => {
 			'function',
 			'util.ts',
 			'@scope/package',
-			"import {util} from '@scope/package/util.js';",
+			"import {util} from '@scope/package/util.js';"
 		],
 		[
 			'handles unscoped packages',
@@ -347,19 +347,19 @@ describe('generateImport', () => {
 			'function',
 			'util.ts',
 			'my-package',
-			"import {util} from 'my-package/util.js';",
-		],
+			"import {util} from 'my-package/util.js';"
+		]
 	];
 
 	describe('type imports', () => {
 		test.each(TYPE_IMPORT_CASES)('%s', (_label, name, kind, modulePath, lib, expected) => {
-			assert.strictEqual(generateImport(d({name, kind}), modulePath, lib), expected);
+			assert.strictEqual(generateImport(d({ name, kind }), modulePath, lib), expected);
 		});
 	});
 
 	describe('value imports', () => {
 		test.each(VALUE_IMPORT_CASES)('%s', (_label, name, kind, modulePath, lib, expected) => {
-			assert.strictEqual(generateImport(d({name, kind}), modulePath, lib), expected);
+			assert.strictEqual(generateImport(d({ name, kind }), modulePath, lib), expected);
 		});
 	});
 
@@ -367,27 +367,27 @@ describe('generateImport', () => {
 		test.each(DEFAULT_EXPORT_CASES)('%s', (_label, kind, modulePath, lib, expected) => {
 			// Default-slot entries are named `'default'` (the symbol's actual name in
 			// JS); the import binding is derived by PascalCasing the module path.
-			assert.strictEqual(generateImport(d({name: 'default', kind}), modulePath, lib), expected);
+			assert.strictEqual(generateImport(d({ name: 'default', kind }), modulePath, lib), expected);
 		});
 
 		test('default-slot entry uses PascalCased module name', () => {
 			assert.strictEqual(
-				generateImport(d({name: 'default', kind: 'function'}), 'a.ts', '@pkg/lib'),
-				"import A from '@pkg/lib/a.js';",
+				generateImport(d({ name: 'default', kind: 'function' }), 'a.ts', '@pkg/lib'),
+				"import A from '@pkg/lib/a.js';"
 			);
 		});
 
 		test('default-slot entry with kebab-case path uses PascalCased binding', () => {
 			assert.strictEqual(
-				generateImport(d({name: 'default', kind: 'function'}), 'foo-bar.ts', '@pkg/lib'),
-				"import FooBar from '@pkg/lib/foo-bar.js';",
+				generateImport(d({ name: 'default', kind: 'function' }), 'foo-bar.ts', '@pkg/lib'),
+				"import FooBar from '@pkg/lib/foo-bar.js';"
 			);
 		});
 	});
 
 	describe('path and library name handling', () => {
 		test.each(PATH_HANDLING_CASES)('%s', (_label, name, kind, modulePath, lib, expected) => {
-			assert.strictEqual(generateImport(d({name, kind}), modulePath, lib), expected);
+			assert.strictEqual(generateImport(d({ name, kind }), modulePath, lib), expected);
 		});
 	});
 });
@@ -396,39 +396,39 @@ describe('compactReplacer', () => {
 	const serialize = (value: unknown): unknown => JSON.parse(JSON.stringify(value, compactReplacer));
 
 	test('strips empty arrays from objects', () => {
-		const result = serialize({name: 'foo', declarations: []});
+		const result = serialize({ name: 'foo', declarations: [] });
 
-		assert.deepStrictEqual(result, {name: 'foo'});
+		assert.deepStrictEqual(result, { name: 'foo' });
 	});
 
 	test('preserves non-empty arrays', () => {
-		const result = serialize({name: 'foo', declarations: [{name: 'bar'}]});
+		const result = serialize({ name: 'foo', declarations: [{ name: 'bar' }] });
 
-		assert.deepStrictEqual(result, {name: 'foo', declarations: [{name: 'bar'}]});
+		assert.deepStrictEqual(result, { name: 'foo', declarations: [{ name: 'bar' }] });
 	});
 
 	test('strips nested empty arrays', () => {
-		const result = serialize({outer: [{inner: []}]});
+		const result = serialize({ outer: [{ inner: [] }] });
 
-		assert.deepStrictEqual(result, {outer: [{}]});
+		assert.deepStrictEqual(result, { outer: [{}] });
 	});
 
 	test('preserves non-array primitives', () => {
-		const result = serialize({str: 'hello', num: 42, bool: true, nil: null});
+		const result = serialize({ str: 'hello', num: 42, bool: true, nil: null });
 
-		assert.deepStrictEqual(result, {str: 'hello', num: 42, bool: true, nil: null});
+		assert.deepStrictEqual(result, { str: 'hello', num: 42, bool: true, nil: null });
 	});
 
 	test('preserves non-empty nested arrays', () => {
-		const result = serialize({tags: ['a', 'b'], empty: []});
+		const result = serialize({ tags: ['a', 'b'], empty: [] });
 
-		assert.deepStrictEqual(result, {tags: ['a', 'b']});
+		assert.deepStrictEqual(result, { tags: ['a', 'b'] });
 	});
 
 	test('strips false booleans', () => {
-		const result = serialize({name: 'foo', active: false, visible: true});
+		const result = serialize({ name: 'foo', active: false, visible: true });
 
-		assert.deepStrictEqual(result, {name: 'foo', visible: true});
+		assert.deepStrictEqual(result, { name: 'foo', visible: true });
 	});
 
 	test('strips empty array and false at the root', () => {
@@ -444,7 +444,7 @@ describe('compactReplacer', () => {
 	});
 
 	test('round-trips DeclarationJson through Zod parse', () => {
-		const original = d({name: 'test', kind: 'function'});
+		const original = d({ name: 'test', kind: 'function' });
 		const json = JSON.stringify(original, compactReplacer);
 		const restored = DeclarationJson.parse(JSON.parse(json));
 
@@ -468,7 +468,7 @@ describe('compactReplacer', () => {
 		const matches = Array.from(code.matchAll(/z\.boolean\(\)\.default\(([^)]+)\)/g));
 		assert.ok(
 			matches.length > 0,
-			'Expected at least one z.boolean().default(...) in types.ts (regex broke?)',
+			'Expected at least one z.boolean().default(...) in types.ts (regex broke?)'
 		);
 		const violations = matches.map((m) => m[1]!.trim()).filter((arg) => arg !== 'false');
 		assert.deepStrictEqual(
@@ -477,7 +477,7 @@ describe('compactReplacer', () => {
 			`Found ${violations.length} z.boolean().default(...) call(s) with non-false default: ${violations.join(', ')}. ` +
 				`compactReplacer in declaration-helpers.ts strips every false boolean from compact output, ` +
 				`which only round-trips correctly when every defaulted boolean defaults to false. ` +
-				`Either change the default to false, or extend compactReplacer + this test.`,
+				`Either change the default to false, or extend compactReplacer + this test.`
 		);
 	});
 
@@ -489,16 +489,16 @@ describe('compactReplacer', () => {
 					{
 						name: 'add',
 						kind: 'function',
-						parameters: [{name: 'a', type: 'number'}],
-						returnType: 'number',
+						parameters: [{ name: 'a', type: 'number' }],
+						returnType: 'number'
 					},
-					{name: 'Config', kind: 'interface', members: [{name: 'debug', kind: 'variable'}]},
-					{name: 'VERSION', kind: 'variable', typeSignature: 'string'},
+					{ name: 'Config', kind: 'interface', members: [{ name: 'debug', kind: 'variable' }] },
+					{ name: 'VERSION', kind: 'variable', typeSignature: 'string' }
 				],
 				moduleComment: 'Utility module.',
 				dependencies: ['core.ts'],
-				starExports: ['helpers.ts'],
-			}),
+				starExports: ['helpers.ts']
+			})
 		];
 
 		const json = JSON.stringify(original, compactReplacer);
@@ -543,31 +543,34 @@ describe('compactReplacer', () => {
 						typeSignature: '<T>(a: T, b?: number, ...rest: string[]): T',
 						modifiers: [],
 						sourceLine: 10,
-						genericParams: [{name: 'T', constraint: 'string', defaultType: 'unknown'}],
+						genericParams: [{ name: 'T', constraint: 'string', defaultType: 'unknown' }],
 						examples: ['fn("x")'],
 						deprecatedMessage: 'Use fn2.',
 						seeAlso: ['fn2', '{@link https://fuz.dev}'],
-						throws: [{type: 'TypeError', description: 'on bad input'}, {description: 'generic'}],
+						throws: [
+							{ type: 'TypeError', description: 'on bad input' },
+							{ description: 'generic' }
+						],
 						since: '1.0.0',
-						mutates: {a: 'mutated', 'this.foo': 'compound path'},
+						mutates: { a: 'mutated', 'this.foo': 'compound path' },
 						partial: false,
 						parameters: [
-							{name: 'a', type: 'T', description: 'first'},
-							{name: 'b', type: 'number', optional: true},
-							{name: 'rest', type: 'string[]', rest: true},
+							{ name: 'a', type: 'T', description: 'first' },
+							{ name: 'b', type: 'number', optional: true },
+							{ name: 'rest', type: 'string[]', rest: true }
 						],
 						overloads: [
 							{
 								typeSignature: '(a: string): string',
-								parameters: [{name: 'a', type: 'string'}],
+								parameters: [{ name: 'a', type: 'string' }],
 								returnType: 'string',
 								genericParams: [],
-								docComment: 'String form.',
-							},
+								docComment: 'String form.'
+							}
 						],
 						returnType: 'T',
 						returnDescription: 'echo',
-						alsoExportedFrom: ['barrel.ts'],
+						alsoExportedFrom: ['barrel.ts']
 					},
 					// ClassDeclarationJson — implements, extends, members (all 3 kinds)
 					{
@@ -580,24 +583,24 @@ describe('compactReplacer', () => {
 							{
 								name: 'constructor',
 								kind: 'constructor',
-								parameters: [{name: 'x', type: 'number'}],
-								overloads: [],
+								parameters: [{ name: 'x', type: 'number' }],
+								overloads: []
 							},
 							{
 								name: 'method',
 								kind: 'function',
 								parameters: [],
 								returnType: 'void',
-								optional: false,
+								optional: false
 							},
 							{
 								name: 'field',
 								kind: 'variable',
 								typeSignature: 'string',
 								optional: false,
-								reactivity: '$state',
-							},
-						],
+								reactivity: '$state'
+							}
+						]
 					},
 					// InterfaceDeclarationJson — extends list, members with optional `?`,
 					// plus a `(construct)` construct-signature member exercising the
@@ -608,22 +611,22 @@ describe('compactReplacer', () => {
 						kind: 'interface',
 						extends: ['Base1', 'Base2'],
 						members: [
-							{name: 'maybe', kind: 'variable', typeSignature: 'string', optional: true},
+							{ name: 'maybe', kind: 'variable', typeSignature: 'string', optional: true },
 							{
 								name: 'method',
 								kind: 'function',
 								parameters: [],
 								returnType: 'void',
-								optional: true,
+								optional: true
 							},
 							{
 								name: '(construct)',
 								kind: 'constructor',
 								typeSignature: 'new (x: number) => I1',
-								parameters: [{name: 'x', type: 'number'}],
-								overloads: [],
-							},
-						],
+								parameters: [{ name: 'x', type: 'number' }],
+								overloads: []
+							}
+						]
 					},
 					// TypeDeclarationJson — intersects, members
 					{
@@ -631,23 +634,23 @@ describe('compactReplacer', () => {
 						kind: 'type',
 						typeSignature: '{a: string} & External',
 						intersects: ['External'],
-						members: [{name: 'a', kind: 'variable', typeSignature: 'string', optional: false}],
+						members: [{ name: 'a', kind: 'variable', typeSignature: 'string', optional: false }]
 					},
 					// VariableDeclarationJson — reactivity
 					{
 						name: 'count',
 						kind: 'variable',
 						typeSignature: 'number',
-						reactivity: '$state',
+						reactivity: '$state'
 					},
 					// EnumDeclarationJson — members
 					{
 						name: 'E',
 						kind: 'enum',
 						members: [
-							{name: 'A', kind: 'variable', optional: false},
-							{name: 'B', kind: 'variable', optional: false},
-						],
+							{ name: 'A', kind: 'variable', optional: false },
+							{ name: 'B', kind: 'variable', optional: false }
+						]
 					},
 					// ComponentDeclarationJson — props, acceptsChildren, lang, intersects
 					{
@@ -657,63 +660,63 @@ describe('compactReplacer', () => {
 						acceptsChildren: true,
 						intersects: ['HTMLAttributes<HTMLDivElement>'],
 						props: [
-							{name: 'value', type: 'string', description: 'Description'},
+							{ name: 'value', type: 'string', description: 'Description' },
 							{
 								name: 'onChange',
 								type: '(v: string) => void',
 								optional: true,
 								bindable: false,
-								examples: ['onChange={(v) => console.log(v)}'],
+								examples: ['onChange={(v) => console.log(v)}']
 							},
 							{
 								name: 'binding',
 								type: 'string',
 								bindable: true,
-								optional: false,
+								optional: false
 							},
 							{
 								name: 'children',
 								type: 'Snippet<[item: string]>',
 								optional: true,
-								parameters: [{name: 'item', type: 'string'}],
-							},
-						],
+								parameters: [{ name: 'item', type: 'string' }]
+							}
+						]
 					},
 					// SnippetDeclarationJson — parameters
 					{
 						name: 'greet',
 						kind: 'snippet',
 						typeSignature: 'Snippet<[name: string]>',
-						parameters: [{name: 'name', type: 'string'}],
+						parameters: [{ name: 'name', type: 'string' }]
 					},
 					// NamespaceDeclarationJson — module pointer
-					{name: 'ns', kind: 'namespace', module: 'inner.ts'},
+					{ name: 'ns', kind: 'namespace', module: 'inner.ts' },
 					// Default-slot entry — name === 'default', partial extraction
 					{
 						name: 'default',
 						kind: 'function',
 						partial: true,
 						parameters: [],
-						returnType: 'void',
+						returnType: 'void'
 					},
 					// Aliased entry — exercises aliasOf shape with named canonical
 					{
 						name: 'Renamed',
 						kind: 'function',
-						aliasOf: {module: 'other.ts', name: 'Original'},
+						aliasOf: { module: 'other.ts', name: 'Original' }
 					},
 					// Aliased entry — exercises aliasOf shape with default canonical
 					{
 						name: 'RenamedDefault',
 						kind: 'function',
-						aliasOf: {module: 'default-source.ts', name: 'default'},
-					},
+						aliasOf: { module: 'default-source.ts', name: 'default' }
+					}
 				],
 				moduleComment: 'Module comment.',
 				dependencies: ['inner.ts', 'other.ts'],
 				dependents: ['consumer.ts'],
-				starExports: ['barrel.ts'],
-			}),
+				starExports: ['barrel.ts']
+			})
 		];
 
 		const json = JSON.stringify(fixture, compactReplacer);
@@ -727,8 +730,8 @@ describe('compactReplacer', () => {
 			modules: [
 				{
 					path: 'utils.ts',
-					declarations: [{name: 'add', kind: 'function', returnType: 'number'}],
-				},
+					declarations: [{ name: 'add', kind: 'function', returnType: 'number' }]
+				}
 			],
 			diagnostics: [
 				{
@@ -737,9 +740,9 @@ describe('compactReplacer', () => {
 					message: 'Duplicate "add"',
 					severity: 'warning',
 					declarationName: 'add',
-					modules: ['utils.ts', 'other.ts'],
-				},
-			],
+					modules: ['utils.ts', 'other.ts']
+				}
+			]
 		});
 
 		const json = JSON.stringify(original, compactReplacer);
@@ -752,7 +755,7 @@ describe('compactReplacer', () => {
 		// Both arrays empty — wire form collapses to `{}`, schema restores `[]`.
 		// This is the case the old CLI top-level carve-out worked around;
 		// schema-validated round-trip makes the carve-out unnecessary.
-		const original = AnalyzeResultJson.parse({modules: [], diagnostics: []});
+		const original = AnalyzeResultJson.parse({ modules: [], diagnostics: [] });
 
 		const json = JSON.stringify(original, compactReplacer);
 		assert.strictEqual(json, '{}');
@@ -766,8 +769,8 @@ describe('compactReplacer', () => {
 	test('AnalyzeResultJson envelope round-trips through compactReplacer (mixed empty)', () => {
 		// Modules populated, diagnostics empty.
 		const a = AnalyzeResultJson.parse({
-			modules: [{path: 'a.ts', declarations: []}],
-			diagnostics: [],
+			modules: [{ path: 'a.ts', declarations: [] }],
+			diagnostics: []
 		});
 		const aJson = JSON.stringify(a, compactReplacer);
 		assert.deepStrictEqual(AnalyzeResultJson.parse(JSON.parse(aJson)), a);
@@ -781,9 +784,9 @@ describe('compactReplacer', () => {
 					file: 'b.ts',
 					message: 'Skipped',
 					severity: 'warning',
-					reason: 'no_analyzer',
-				},
-			],
+					reason: 'no_analyzer'
+				}
+			]
 		});
 		const bJson = JSON.stringify(b, compactReplacer);
 		assert.deepStrictEqual(AnalyzeResultJson.parse(JSON.parse(bJson)), b);
@@ -799,17 +802,17 @@ describe('isKind', () => {
 		['narrows interface declarations', 'interface', true],
 		['narrows variable declarations', 'variable', true],
 		['narrows enum declarations', 'enum', true],
-		['narrows component declarations', 'component', true],
+		['narrows component declarations', 'component', true]
 	];
 
 	describe('DeclarationJson narrowing', () => {
 		test.each(DECLARATION_CASES)('%s', (_label, kind, expected) => {
-			const declaration = d({name: 'test', kind});
+			const declaration = d({ name: 'test', kind });
 			assert.strictEqual(isKind(declaration, kind as 'function'), expected);
 		});
 
 		test('rejects mismatched kind', () => {
-			const declaration = d({name: 'test', kind: 'function'});
+			const declaration = d({ name: 'test', kind: 'function' });
 			assert.isFalse(isKind(declaration, 'class'));
 		});
 
@@ -817,8 +820,8 @@ describe('isKind', () => {
 			const declaration = d({
 				name: 'add',
 				kind: 'function',
-				parameters: [{name: 'a', type: 'number'}],
-				returnType: 'number',
+				parameters: [{ name: 'a', type: 'number' }],
+				returnType: 'number'
 			});
 
 			if (isKind(declaration, 'function')) {
@@ -834,7 +837,7 @@ describe('isKind', () => {
 			const declaration = d({
 				name: 'MyClass',
 				kind: 'class',
-				members: [{name: 'method', kind: 'function'}],
+				members: [{ name: 'method', kind: 'function' }]
 			});
 
 			if (isKind(declaration, 'class')) {
@@ -848,7 +851,7 @@ describe('isKind', () => {
 			const declaration = d({
 				name: 'MyInterface',
 				kind: 'interface',
-				members: [{name: 'prop', kind: 'variable'}],
+				members: [{ name: 'prop', kind: 'variable' }]
 			});
 
 			if (isKind(declaration, 'interface')) {
@@ -860,23 +863,23 @@ describe('isKind', () => {
 	});
 
 	describe('MemberJson narrowing', () => {
-		const member = (input: {name: string; kind: string; [key: string]: unknown}): MemberJson =>
+		const member = (input: { name: string; kind: string; [key: string]: unknown }): MemberJson =>
 			MemberJson.parse(input);
 
 		test('narrows function members', () => {
-			const m = member({name: 'method', kind: 'function'});
+			const m = member({ name: 'method', kind: 'function' });
 			assert.isTrue(isKind(m, 'function'));
 			assert.isFalse(isKind(m, 'variable'));
 		});
 
 		test('narrows variable members', () => {
-			const m = member({name: 'prop', kind: 'variable'});
+			const m = member({ name: 'prop', kind: 'variable' });
 			assert.isTrue(isKind(m, 'variable'));
 			assert.isFalse(isKind(m, 'function'));
 		});
 
 		test('narrows constructor members', () => {
-			const m = member({name: 'constructor', kind: 'constructor'});
+			const m = member({ name: 'constructor', kind: 'constructor' });
 			assert.isTrue(isKind(m, 'constructor'));
 			assert.isFalse(isKind(m, 'function'));
 		});
@@ -885,7 +888,7 @@ describe('isKind', () => {
 			const m = member({
 				name: 'constructor',
 				kind: 'constructor',
-				parameters: [{name: 'x', type: 'number'}],
+				parameters: [{ name: 'x', type: 'number' }]
 			});
 
 			if (isKind(m, 'constructor')) {
@@ -898,7 +901,7 @@ describe('isKind', () => {
 		});
 
 		test('constructor accepts (construct) sentinel for interface/type construct signatures', () => {
-			const m = member({name: '(construct)', kind: 'constructor'});
+			const m = member({ name: '(construct)', kind: 'constructor' });
 			assert.isTrue(isKind(m, 'constructor'));
 			if (isKind(m, 'constructor')) {
 				assert.strictEqual(m.name, '(construct)');
@@ -906,8 +909,8 @@ describe('isKind', () => {
 		});
 
 		test('constructor rejects arbitrary name strings (literal-union narrow)', () => {
-			assert.throws(() => member({name: 'init', kind: 'constructor'}));
-			assert.throws(() => member({name: '', kind: 'constructor'}));
+			assert.throws(() => member({ name: 'init', kind: 'constructor' }));
+			assert.throws(() => member({ name: '', kind: 'constructor' }));
 		});
 	});
 });
@@ -1109,22 +1112,22 @@ describe('findTypeReferences', () => {
 
 describe('Zod schema validation', () => {
 	test('ModuleJson rejects unknown keys (strictObject)', () => {
-		assert.throws(() => ModuleJson.parse({path: 'foo.ts', unknownField: true}), ZodError);
+		assert.throws(() => ModuleJson.parse({ path: 'foo.ts', unknownField: true }), ZodError);
 	});
 
 	test('DeclarationJson rejects unknown keys (strictObject)', () => {
 		assert.throws(
-			() => DeclarationJson.parse({name: 'foo', kind: 'function', unknownField: true}),
-			ZodError,
+			() => DeclarationJson.parse({ name: 'foo', kind: 'function', unknownField: true }),
+			ZodError
 		);
 	});
 
 	test('DeclarationJson rejects invalid kind', () => {
-		assert.throws(() => DeclarationJson.parse({name: 'foo', kind: 'invalid'}), ZodError);
+		assert.throws(() => DeclarationJson.parse({ name: 'foo', kind: 'invalid' }), ZodError);
 	});
 
 	test('MemberJson rejects invalid kind', () => {
-		assert.throws(() => MemberJson.parse({name: 'foo', kind: 'class'}), ZodError);
+		assert.throws(() => MemberJson.parse({ name: 'foo', kind: 'class' }), ZodError);
 	});
 
 	test('InterfaceDeclarationJson rejects "properties" key', () => {
@@ -1133,9 +1136,9 @@ describe('Zod schema validation', () => {
 				DeclarationJson.parse({
 					name: 'A',
 					kind: 'interface',
-					properties: [{name: 'a', kind: 'variable'}],
+					properties: [{ name: 'a', kind: 'variable' }]
 				}),
-			ZodError,
+			ZodError
 		);
 	});
 
@@ -1145,18 +1148,18 @@ describe('Zod schema validation', () => {
 				DeclarationJson.parse({
 					name: 'A',
 					kind: 'type',
-					properties: [{name: 'a', kind: 'variable'}],
+					properties: [{ name: 'a', kind: 'variable' }]
 				}),
-			ZodError,
+			ZodError
 		);
 	});
 
 	test('all container kinds use "members" uniformly', () => {
 		const containers = [
-			{name: 'A', kind: 'class', members: [{name: 'a', kind: 'variable'}]},
-			{name: 'A', kind: 'interface', members: [{name: 'a', kind: 'variable'}]},
-			{name: 'A', kind: 'type', members: [{name: 'a', kind: 'variable'}]},
-			{name: 'A', kind: 'enum', members: [{name: 'a', kind: 'variable'}]},
+			{ name: 'A', kind: 'class', members: [{ name: 'a', kind: 'variable' }] },
+			{ name: 'A', kind: 'interface', members: [{ name: 'a', kind: 'variable' }] },
+			{ name: 'A', kind: 'type', members: [{ name: 'a', kind: 'variable' }] },
+			{ name: 'A', kind: 'enum', members: [{ name: 'a', kind: 'variable' }] }
 		] as const;
 
 		for (const input of containers) {

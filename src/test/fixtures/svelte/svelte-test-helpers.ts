@@ -1,6 +1,6 @@
-import type {DeclarationJsonInput} from '$lib/types.ts';
+import type { DeclarationJsonInput } from '$lib/types.ts';
 
-import {loadFixturesGeneric} from '../../test-helpers.ts';
+import { loadFixturesGeneric } from '../../test-helpers.ts';
 
 export interface SvelteFixture {
 	name: string;
@@ -39,7 +39,7 @@ export const fixtureNameToComponentName = (name: string): string => {
 export const loadFixtures = async (): Promise<Array<SvelteFixture>> => {
 	return loadFixturesGeneric<Array<DeclarationJsonInput>>({
 		fixturesDir: import.meta.dirname,
-		inputExtension: '.svelte',
+		inputExtension: '.svelte'
 	});
 };
 

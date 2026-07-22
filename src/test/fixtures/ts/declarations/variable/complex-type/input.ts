@@ -8,5 +8,5 @@ export const a: {
 } = {
 	b: 1,
 	c: 2,
-	d: ['value'],
+	d: ['value']
 };

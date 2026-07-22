@@ -6,7 +6,7 @@
 	import DeclarationLink from '@fuzdev/fuz_ui/DeclarationLink.svelte';
 	import ModuleLink from '@fuzdev/fuz_ui/ModuleLink.svelte';
 	import TomeLink from '@fuzdev/fuz_ui/TomeLink.svelte';
-	import {tome_get_by_slug} from '@fuzdev/fuz_ui/tome.ts';
+	import { tome_get_by_slug } from '@fuzdev/fuz_ui/tome.ts';
 
 	const LIBRARY_ITEM_NAME = 'build-tools';
 

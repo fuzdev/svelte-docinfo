@@ -1,19 +1,19 @@
-import type {Task} from '@fuzdev/gro';
-import {join} from 'node:path';
+import type { Task } from '@fuzdev/gro';
+import { join } from 'node:path';
 import ts from 'typescript';
 
-import {compactReplacer} from '$lib/declaration-helpers.ts';
+import { compactReplacer } from '$lib/declaration-helpers.ts';
 
-import {runUpdateTask} from '../../test-helpers.ts';
+import { runUpdateTask } from '../../test-helpers.ts';
 import {
 	createTestProgram,
 	extractDeclarationFromSource,
-	inferCategoryFromName,
+	inferCategoryFromName
 } from './ts-test-helpers.ts';
 
 export const task: Task = {
 	summary: 'generate expected.json files for ts fixtures',
-	run: async ({log}) => {
+	run: async ({ log }) => {
 		await runUpdateTask(
 			{
 				fixturesDir: join(import.meta.dirname),
@@ -26,13 +26,13 @@ export const task: Task = {
 						input,
 						ts.ScriptTarget.Latest,
 						true,
-						ts.ScriptKind.TS,
+						ts.ScriptKind.TS
 					);
 					const checker = createTestProgram(sourceFile, `${name}.ts`).getTypeChecker();
 					return extractDeclarationFromSource(sourceFile, checker, category);
-				},
+				}
 			},
-			log,
+			log
 		);
-	},
+	}
 };

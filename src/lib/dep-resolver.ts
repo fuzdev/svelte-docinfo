@@ -27,12 +27,12 @@
  * @module
  */
 
-import {isBuiltin} from 'node:module';
-import {dirname, isAbsolute, resolve as resolvePath} from 'node:path';
+import { isBuiltin } from 'node:module';
+import { dirname, isAbsolute, resolve as resolvePath } from 'node:path';
 import ts from 'typescript';
-import {init as esModuleLexerInit, parse as esModuleLexerParse} from 'es-module-lexer';
+import { init as esModuleLexerInit, parse as esModuleLexerParse } from 'es-module-lexer';
 
-import {toPosixPath} from './paths.ts';
+import { toPosixPath } from './paths.ts';
 
 /**
  * Bare import-resolver function — the convenience form.
@@ -47,7 +47,7 @@ import {toPosixPath} from './paths.ts';
  */
 export type ResolveImportFn = (
 	specifier: string,
-	fromFile: string,
+	fromFile: string
 ) => string | null | Promise<string | null>;
 
 /**
@@ -104,7 +104,7 @@ export type ResolveImport = ResolveImportFn | ImportResolver;
  * override.
  */
 export const normalizeResolveImport = (
-	value: ResolveImport | undefined,
+	value: ResolveImport | undefined
 ): ImportResolver | undefined =>
 	value === undefined ? undefined : typeof value === 'function' ? wrapResolveImport(value) : value;
 
@@ -175,12 +175,12 @@ export const isNodeBuiltin = (specifier: string): boolean => isBuiltin(specifier
  */
 export const createDefaultResolver = (
 	compilerOptions: ts.CompilerOptions,
-	projectRoot: string,
+	projectRoot: string
 ): ImportResolver => {
 	const cache = ts.createModuleResolutionCache(
 		projectRoot,
 		ts.sys.useCaseSensitiveFileNames ? (f) => f : (f) => f.toLowerCase(),
-		compilerOptions,
+		compilerOptions
 	);
 	const resolve = (specifier: string, fromFile: string): string | null => {
 		const result = ts.resolveModuleName(specifier, fromFile, compilerOptions, ts.sys, cache);
@@ -197,7 +197,7 @@ export const createDefaultResolver = (
 		}
 		return null;
 	};
-	return {resolve, identity: Symbol('ts-default')};
+	return { resolve, identity: Symbol('ts-default') };
 };
 
 /**
@@ -217,10 +217,10 @@ export const createDefaultResolver = (
  */
 export const wrapResolveImport = (
 	resolveImport: ResolveImportFn,
-	identity: string | symbol = Symbol('wrapped'),
+	identity: string | symbol = Symbol('wrapped')
 ): ImportResolver => ({
 	resolve: resolveImport,
-	identity,
+	identity
 });
 
 /**
@@ -240,5 +240,5 @@ export const wrapResolveImport = (
  */
 export const noDepsResolver: ImportResolver = {
 	resolve: () => null,
-	identity: 'no-deps',
+	identity: 'no-deps'
 };

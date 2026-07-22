@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type {Snippet} from 'svelte';
+	import type { Snippet } from 'svelte';
 
 	type A = 'a' | 'b' | 'c' | 'd';
 
@@ -13,7 +13,7 @@
 		prop2,
 		prop3,
 		prop4,
-		prop5,
+		prop5
 	}: {
 		/** Description 1 */
 		prop1: A;

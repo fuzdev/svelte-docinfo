@@ -13,13 +13,13 @@
  * @module
  */
 
-import {readFile} from 'node:fs/promises';
-import {resolve, isAbsolute} from 'node:path';
-import {glob} from 'tinyglobby';
+import { readFile } from 'node:fs/promises';
+import { resolve, isAbsolute } from 'node:path';
+import { glob } from 'tinyglobby';
 
-import type {SourceFileInfo} from './source.ts';
-import {toPosixPath} from './paths.ts';
-import {MAX_FILE_CONCURRENCY, map_concurrent} from './concurrency.ts';
+import type { SourceFileInfo } from './source.ts';
+import { toPosixPath } from './paths.ts';
+import { MAX_FILE_CONCURRENCY, map_concurrent } from './concurrency.ts';
 
 /**
  * Load a single source file from disk.
@@ -43,7 +43,7 @@ export const loadFile = async (path: string, projectRoot: string): Promise<Sourc
 
 	return {
 		id: toPosixPath(absolutePath),
-		content,
+		content
 	};
 };
 
@@ -101,18 +101,18 @@ export interface GlobFilesOptions {
  * ```
  */
 export const globFiles = async (options: GlobFilesOptions): Promise<Array<SourceFileInfo>> => {
-	const {projectRoot, include, exclude} = options;
+	const { projectRoot, include, exclude } = options;
 
 	const filePaths = await glob(include, {
 		cwd: projectRoot,
 		ignore: exclude,
-		absolute: true,
+		absolute: true
 	});
 
 	// Bounded concurrency to keep FD pressure under the typical ulimit on
 	// large projects. See `concurrency.ts`.
 	return map_concurrent(filePaths, MAX_FILE_CONCURRENCY, async (id) => {
 		const content = await readFile(id, 'utf-8');
-		return {id: toPosixPath(id), content};
+		return { id: toPosixPath(id), content };
 	});
 };

@@ -11,36 +11,36 @@
  * - Log wiring (discovery/diagnostic messages on stderr)
  */
 
-import {test, assert, describe, beforeAll} from 'vitest';
-import {readFile, chmod} from 'node:fs/promises';
-import {existsSync} from 'node:fs';
-import {join} from 'node:path';
+import { test, assert, describe, beforeAll } from 'vitest';
+import { readFile, chmod } from 'node:fs/promises';
+import { existsSync } from 'node:fs';
+import { join } from 'node:path';
 
-import {withTestProject} from './test-helpers.ts';
-import {runCliCapture, runNodeSubprocess, PROJECT_ROOT} from './test-cli-helpers.ts';
-import {AnalyzeResultJson} from '$lib/analyze-core.ts';
+import { withTestProject } from './test-helpers.ts';
+import { runCliCapture, runNodeSubprocess, PROJECT_ROOT } from './test-cli-helpers.ts';
+import { AnalyzeResultJson } from '$lib/analyze-core.ts';
 
 /** Simple project with one module. */
 const SIMPLE_PROJECT = {
 	'src/lib/math.ts': 'export const add = 1;',
-	'tsconfig.json': JSON.stringify({compilerOptions: {}}),
+	'tsconfig.json': JSON.stringify({ compilerOptions: {} })
 };
 
 /** Project with two modules that import each other. */
 const TWO_MODULE_PROJECT = {
 	'src/lib/a.ts': `import {b} from './b.js';\nexport const a = b;`,
 	'src/lib/b.ts': 'export const b = 1;',
-	'tsconfig.json': JSON.stringify({compilerOptions: {}}),
+	'tsconfig.json': JSON.stringify({ compilerOptions: {} })
 };
 
-describe('runCli', {timeout: 15_000}, () => {
+describe('runCli', { timeout: 15_000 }, () => {
 	test('returns 0 on successful analysis', async () => {
 		await withTestProject(SIMPLE_PROJECT, async (projectRoot) => {
-			const {exitCode, stdout} = await runCliCapture([
+			const { exitCode, stdout } = await runCliCapture([
 				'node',
 				'svelte-docinfo',
 				projectRoot,
-				'--quiet',
+				'--quiet'
 			]);
 
 			assert.strictEqual(exitCode, 0);
@@ -57,13 +57,13 @@ describe('runCli', {timeout: 15_000}, () => {
 		await withTestProject(SIMPLE_PROJECT, async (projectRoot) => {
 			const outputFile = join(projectRoot, 'output.json');
 
-			const {exitCode} = await runCliCapture([
+			const { exitCode } = await runCliCapture([
 				'node',
 				'svelte-docinfo',
 				projectRoot,
 				'--output',
 				outputFile,
-				'--quiet',
+				'--quiet'
 			]);
 
 			assert.strictEqual(exitCode, 0);
@@ -76,13 +76,13 @@ describe('runCli', {timeout: 15_000}, () => {
 
 	test('--output - writes to stdout (conventional stdout sentinel)', async () => {
 		await withTestProject(SIMPLE_PROJECT, async (projectRoot) => {
-			const {exitCode, stdout} = await runCliCapture([
+			const { exitCode, stdout } = await runCliCapture([
 				'node',
 				'svelte-docinfo',
 				projectRoot,
 				'--output',
 				'-',
-				'--quiet',
+				'--quiet'
 			]);
 
 			assert.strictEqual(exitCode, 0);
@@ -103,16 +103,16 @@ describe('runCli', {timeout: 15_000}, () => {
 			{
 				'src/lib/math.ts': 'export const add = 1;',
 				'src/other/utils.ts': 'export const util = 2;',
-				'tsconfig.json': JSON.stringify({compilerOptions: {}}),
+				'tsconfig.json': JSON.stringify({ compilerOptions: {} })
 			},
 			async (projectRoot) => {
-				const {exitCode, stdout} = await runCliCapture([
+				const { exitCode, stdout } = await runCliCapture([
 					'node',
 					'svelte-docinfo',
 					projectRoot,
 					'--include',
 					'src/other/**/*.ts',
-					'--quiet',
+					'--quiet'
 				]);
 
 				assert.strictEqual(exitCode, 0);
@@ -121,9 +121,9 @@ describe('runCli', {timeout: 15_000}, () => {
 				assert.strictEqual(output.modules.length, 1);
 				assert.ok(
 					output.modules[0].path.endsWith('utils.ts'),
-					`Expected path ending in utils.ts, got: ${output.modules[0].path}`,
+					`Expected path ending in utils.ts, got: ${output.modules[0].path}`
 				);
-			},
+			}
 		);
 	});
 
@@ -132,16 +132,16 @@ describe('runCli', {timeout: 15_000}, () => {
 			{
 				'src/lib/math.ts': 'export const add = 1;',
 				'src/lib/math.test.ts': 'test("math", () => {});',
-				'tsconfig.json': JSON.stringify({compilerOptions: {}}),
+				'tsconfig.json': JSON.stringify({ compilerOptions: {} })
 			},
 			async (projectRoot) => {
-				const {exitCode, stdout} = await runCliCapture([
+				const { exitCode, stdout } = await runCliCapture([
 					'node',
 					'svelte-docinfo',
 					projectRoot,
 					'--exclude',
 					'**/*.test.ts',
-					'--quiet',
+					'--quiet'
 				]);
 
 				assert.strictEqual(exitCode, 0);
@@ -149,18 +149,18 @@ describe('runCli', {timeout: 15_000}, () => {
 				const output = JSON.parse(stdout.join('\n'));
 				assert.strictEqual(output.modules.length, 1);
 				assert.ok(output.modules[0].path.endsWith('math.ts'), 'Surviving module should be math.ts');
-			},
+			}
 		);
 	});
 
 	test('--no-resolve-dependencies disables dependency resolution', async () => {
 		await withTestProject(TWO_MODULE_PROJECT, async (projectRoot) => {
-			const {exitCode, stdout} = await runCliCapture([
+			const { exitCode, stdout } = await runCliCapture([
 				'node',
 				'svelte-docinfo',
 				projectRoot,
 				'--no-resolve-dependencies',
-				'--quiet',
+				'--quiet'
 			]);
 
 			assert.strictEqual(exitCode, 0);
@@ -175,11 +175,11 @@ describe('runCli', {timeout: 15_000}, () => {
 
 	test('AnalyzeResultJson restores empty diagnostics array from compact wire format', async () => {
 		await withTestProject(SIMPLE_PROJECT, async (projectRoot) => {
-			const {exitCode, stdout} = await runCliCapture([
+			const { exitCode, stdout } = await runCliCapture([
 				'node',
 				'svelte-docinfo',
 				projectRoot,
-				'--quiet',
+				'--quiet'
 			]);
 
 			assert.strictEqual(exitCode, 0);
@@ -200,39 +200,39 @@ describe('runCli', {timeout: 15_000}, () => {
 				'package.json': JSON.stringify({
 					name: 'test-pkg',
 					exports: {
-						'.': {default: './dist/index.js'},
-						'./util': {default: './dist/util.js'},
-					},
+						'.': { default: './dist/index.js' },
+						'./util': { default: './dist/util.js' }
+					}
 				}),
 				'src/lib/index.ts': 'export const x = 1;',
 				'src/lib/util.ts': 'export const y = 2;',
-				'tsconfig.json': JSON.stringify({compilerOptions: {}}),
+				'tsconfig.json': JSON.stringify({ compilerOptions: {} })
 			},
 			async (projectRoot) => {
 				const unreadableFile = join(projectRoot, 'src/lib/index.ts');
 				try {
 					await chmod(unreadableFile, 0o111);
-					const {exitCode} = await runCliCapture([
+					const { exitCode } = await runCliCapture([
 						'node',
 						'svelte-docinfo',
 						projectRoot,
-						'--quiet',
+						'--quiet'
 					]);
 
 					assert.strictEqual(exitCode, 1);
 				} finally {
 					await chmod(unreadableFile, 0o644).catch(() => undefined);
 				}
-			},
+			}
 		);
 	});
 
 	test('returns 2 on invalid project path (errors bypass --quiet)', async () => {
-		const {exitCode, stderr} = await runCliCapture([
+		const { exitCode, stderr } = await runCliCapture([
 			'node',
 			'svelte-docinfo',
 			'/nonexistent/path/that/does/not/exist',
-			'--quiet',
+			'--quiet'
 		]);
 
 		assert.strictEqual(exitCode, 2);
@@ -240,7 +240,7 @@ describe('runCli', {timeout: 15_000}, () => {
 		// Catch block formats them as `error: <message>` (lowercase, matching log.error).
 		assert.ok(
 			stderr.some((e) => e.startsWith('error:')),
-			`CLI errors should appear on stderr as "error: <msg>" even when quiet, got: ${stderr.join('; ')}`,
+			`CLI errors should appear on stderr as "error: <msg>" even when quiet, got: ${stderr.join('; ')}`
 		);
 	});
 
@@ -248,14 +248,14 @@ describe('runCli', {timeout: 15_000}, () => {
 		await withTestProject(
 			{
 				'src/lib/readme.md': '# Not a TypeScript file',
-				'tsconfig.json': JSON.stringify({compilerOptions: {}}),
+				'tsconfig.json': JSON.stringify({ compilerOptions: {} })
 			},
 			async (projectRoot) => {
-				const {exitCode, stdout} = await runCliCapture([
+				const { exitCode, stdout } = await runCliCapture([
 					'node',
 					'svelte-docinfo',
 					projectRoot,
-					'--quiet',
+					'--quiet'
 				]);
 
 				assert.strictEqual(exitCode, 0);
@@ -263,7 +263,7 @@ describe('runCli', {timeout: 15_000}, () => {
 				// Both arrays empty → wire form is `{}`; schema restores `[]`.
 				const output = AnalyzeResultJson.parse(JSON.parse(stdout.join('\n')));
 				assert.strictEqual(output.modules.length, 0);
-			},
+			}
 		);
 	});
 
@@ -273,10 +273,10 @@ describe('runCli', {timeout: 15_000}, () => {
 				'src/lib/a.ts': 'export const a = 1;',
 				'src/other/b.ts': 'export const b = 2;',
 				'src/extra/c.ts': 'export const c = 3;',
-				'tsconfig.json': JSON.stringify({compilerOptions: {}}),
+				'tsconfig.json': JSON.stringify({ compilerOptions: {} })
 			},
 			async (projectRoot) => {
-				const {exitCode, stdout} = await runCliCapture([
+				const { exitCode, stdout } = await runCliCapture([
 					'node',
 					'svelte-docinfo',
 					projectRoot,
@@ -284,7 +284,7 @@ describe('runCli', {timeout: 15_000}, () => {
 					'src/lib/**/*.ts',
 					'--include',
 					'src/other/**/*.ts',
-					'--quiet',
+					'--quiet'
 				]);
 
 				assert.strictEqual(exitCode, 0);
@@ -292,7 +292,7 @@ describe('runCli', {timeout: 15_000}, () => {
 				const output = JSON.parse(stdout.join('\n'));
 				// Should include lib and other, but not extra
 				assert.strictEqual(output.modules.length, 2);
-			},
+			}
 		);
 	});
 
@@ -303,14 +303,14 @@ describe('runCli', {timeout: 15_000}, () => {
 let {label}: {label: string} = $props();
 </script>
 <button>{label}</button>`,
-				'tsconfig.json': JSON.stringify({compilerOptions: {}}),
+				'tsconfig.json': JSON.stringify({ compilerOptions: {} })
 			},
 			async (projectRoot) => {
-				const {exitCode, stdout} = await runCliCapture([
+				const { exitCode, stdout } = await runCliCapture([
 					'node',
 					'svelte-docinfo',
 					projectRoot,
-					'--quiet',
+					'--quiet'
 				]);
 
 				assert.strictEqual(exitCode, 0);
@@ -319,18 +319,18 @@ let {label}: {label: string} = $props();
 				assert.strictEqual(output.modules.length, 1);
 				assert.ok(output.modules[0].path.endsWith('Button.svelte'));
 				assert.strictEqual(output.modules[0].declarations[0].kind, 'component');
-			},
+			}
 		);
 	});
 
 	test('--no-resolve-dependencies still includes empty diagnostics', async () => {
 		await withTestProject(TWO_MODULE_PROJECT, async (projectRoot) => {
-			const {exitCode, stdout} = await runCliCapture([
+			const { exitCode, stdout } = await runCliCapture([
 				'node',
 				'svelte-docinfo',
 				projectRoot,
 				'--no-resolve-dependencies',
-				'--quiet',
+				'--quiet'
 			]);
 
 			assert.strictEqual(exitCode, 0);
@@ -348,7 +348,7 @@ let {label}: {label: string} = $props();
 
 	test('default output is compact JSON', async () => {
 		await withTestProject(SIMPLE_PROJECT, async (projectRoot) => {
-			const {stdout} = await runCliCapture(['node', 'svelte-docinfo', projectRoot, '--quiet']);
+			const { stdout } = await runCliCapture(['node', 'svelte-docinfo', projectRoot, '--quiet']);
 
 			// Compact JSON is a single line (no indentation)
 			assert.strictEqual(stdout.length, 1, 'Compact output should be a single line');
@@ -358,12 +358,12 @@ let {label}: {label: string} = $props();
 
 	test('--pretty produces indented output', async () => {
 		await withTestProject(SIMPLE_PROJECT, async (projectRoot) => {
-			const {stdout} = await runCliCapture([
+			const { stdout } = await runCliCapture([
 				'node',
 				'svelte-docinfo',
 				projectRoot,
 				'--pretty',
-				'--quiet',
+				'--quiet'
 			]);
 
 			const raw = stdout.join('\n');
@@ -386,7 +386,7 @@ let {label}: {label: string} = $props();
 				'--pretty',
 				'--output',
 				outputFile,
-				'--quiet',
+				'--quiet'
 			]);
 
 			const content = await readFile(outputFile, 'utf-8');
@@ -397,12 +397,12 @@ let {label}: {label: string} = $props();
 
 	test('--pretty formats both modules and diagnostics', async () => {
 		await withTestProject(SIMPLE_PROJECT, async (projectRoot) => {
-			const {stdout} = await runCliCapture([
+			const { stdout } = await runCliCapture([
 				'node',
 				'svelte-docinfo',
 				projectRoot,
 				'--pretty',
-				'--quiet',
+				'--quiet'
 			]);
 
 			const raw = stdout.join('\n');
@@ -420,11 +420,11 @@ let {label}: {label: string} = $props();
 			{
 				'package.json': JSON.stringify({
 					name: 'test-pkg',
-					exports: {'.': {default: './dist/index.js'}},
+					exports: { '.': { default: './dist/index.js' } }
 				}),
 				'src/lib/index.ts': 'export const fromExports = 1;',
 				'src/lib/other.ts': 'export const fromGlob = 2;',
-				'tsconfig.json': JSON.stringify({compilerOptions: {}}),
+				'tsconfig.json': JSON.stringify({ compilerOptions: {} })
 			},
 			async (projectRoot) => {
 				// Without -i, exports discovery finds only index.ts
@@ -440,24 +440,24 @@ let {label}: {label: string} = $props();
 					projectRoot,
 					'-i',
 					'src/lib/other.ts',
-					'--quiet',
+					'--quiet'
 				]);
 				const includeOutput = JSON.parse(includeRun.stdout.join('\n'));
 				assert.strictEqual(includeOutput.modules.length, 1);
 				assert.ok(includeOutput.modules[0].path.includes('other'));
-			},
+			}
 		);
 	});
 
 	test('returns 2 when --output path is unwritable', async () => {
 		await withTestProject(SIMPLE_PROJECT, async (projectRoot) => {
-			const {exitCode} = await runCliCapture([
+			const { exitCode } = await runCliCapture([
 				'node',
 				'svelte-docinfo',
 				projectRoot,
 				'--output',
 				'/nonexistent/dir/output.json',
-				'--quiet',
+				'--quiet'
 			]);
 
 			assert.strictEqual(exitCode, 2);
@@ -468,22 +468,22 @@ let {label}: {label: string} = $props();
 		await withTestProject(SIMPLE_PROJECT, async (projectRoot) => {
 			const outputFile = join(projectRoot, 'output.json');
 
-			const {stderr} = await runCliCapture([
+			const { stderr } = await runCliCapture([
 				'node',
 				'svelte-docinfo',
 				projectRoot,
 				'--output',
 				outputFile,
-				'--quiet',
+				'--quiet'
 			]);
 
 			assert.ok(
 				!stderr.some((e) => e.includes('Wrote output')),
-				'Should not show "Wrote output" when quiet',
+				'Should not show "Wrote output" when quiet'
 			);
 			assert.ok(
 				!stderr.some((e) => e.includes('Discovered')),
-				'Should not show discovery messages when quiet',
+				'Should not show discovery messages when quiet'
 			);
 
 			// Verify output file was still written despite --quiet
@@ -491,7 +491,7 @@ let {label}: {label: string} = $props();
 			const output = JSON.parse(content);
 			assert.ok(
 				Array.isArray(output.modules),
-				'Output file should contain valid JSON with modules',
+				'Output file should contain valid JSON with modules'
 			);
 		});
 	});
@@ -512,26 +512,26 @@ let {label}: {label: string} = $props();
 	 */
 	let {x = 0}: {x?: number} = $props();
 </script>`,
-				'tsconfig.json': JSON.stringify({compilerOptions: {}}),
+				'tsconfig.json': JSON.stringify({ compilerOptions: {} })
 			},
 			async (projectRoot) => {
-				const {exitCode, stderr} = await runCliCapture([
+				const { exitCode, stderr } = await runCliCapture([
 					'node',
 					'svelte-docinfo',
 					projectRoot,
-					'--quiet',
+					'--quiet'
 				]);
 
 				assert.strictEqual(exitCode, 0, 'Warnings should not fail the run');
 				assert.ok(
 					stderr.some((e) => e.includes('Both HTML @component comment and JSDoc')),
-					`Expected duplicate_comment warning on stderr under --quiet, got: ${stderr.join('; ')}`,
+					`Expected duplicate_comment warning on stderr under --quiet, got: ${stderr.join('; ')}`
 				);
 				assert.ok(
 					!stderr.some((e) => e.includes('Discovered')),
-					'Info messages should still be suppressed by --quiet',
+					'Info messages should still be suppressed by --quiet'
 				);
-			},
+			}
 		);
 	});
 
@@ -539,21 +539,21 @@ let {label}: {label: string} = $props();
 		await withTestProject(SIMPLE_PROJECT, async (projectRoot) => {
 			const outputFile = join(projectRoot, 'output.json');
 
-			const {stderr} = await runCliCapture([
+			const { stderr } = await runCliCapture([
 				'node',
 				'svelte-docinfo',
 				projectRoot,
 				'--output',
-				outputFile,
+				outputFile
 			]);
 
 			assert.ok(
 				stderr.some((e) => e.includes('Wrote output')),
-				'Should report output location',
+				'Should report output location'
 			);
 			assert.ok(
 				stderr.some((e) => e.includes('Discovered')),
-				`Expected discovery message on stderr, got: ${stderr.join('; ')}`,
+				`Expected discovery message on stderr, got: ${stderr.join('; ')}`
 			);
 		});
 	});
@@ -564,10 +564,10 @@ let {label}: {label: string} = $props();
 				'src/lib/a.ts': 'export const a = 1;',
 				'src/lib/b.util.ts': 'export const b = 2;',
 				'src/lib/c.helper.ts': 'export const c = 3;',
-				'tsconfig.json': JSON.stringify({compilerOptions: {}}),
+				'tsconfig.json': JSON.stringify({ compilerOptions: {} })
 			},
 			async (projectRoot) => {
-				const {exitCode, stdout} = await runCliCapture([
+				const { exitCode, stdout } = await runCliCapture([
 					'node',
 					'svelte-docinfo',
 					projectRoot,
@@ -575,7 +575,7 @@ let {label}: {label: string} = $props();
 					'**/*.util.ts',
 					'--exclude',
 					'**/*.helper.ts',
-					'--quiet',
+					'--quiet'
 				]);
 
 				assert.strictEqual(exitCode, 0);
@@ -583,7 +583,7 @@ let {label}: {label: string} = $props();
 				const output = JSON.parse(stdout.join('\n'));
 				assert.strictEqual(output.modules.length, 1);
 				assert.ok(output.modules[0].path.endsWith('a.ts'));
-			},
+			}
 		);
 	});
 
@@ -592,12 +592,12 @@ let {label}: {label: string} = $props();
 			{
 				'src/utils.ts': 'export const util = 1;',
 				'src/lib/ignored.ts': 'export const ignored = 2;',
-				'tsconfig.json': JSON.stringify({compilerOptions: {}}),
+				'tsconfig.json': JSON.stringify({ compilerOptions: {} })
 			},
 			async (projectRoot) => {
 				// --source-dir derives include glob automatically, so --discovery glob
 				// (glob fallback) discovers files in the custom source directory
-				const {exitCode, stdout} = await runCliCapture([
+				const { exitCode, stdout } = await runCliCapture([
 					'node',
 					'svelte-docinfo',
 					projectRoot,
@@ -605,7 +605,7 @@ let {label}: {label: string} = $props();
 					'src',
 					'--discovery',
 					'glob',
-					'--quiet',
+					'--quiet'
 				]);
 
 				assert.strictEqual(exitCode, 0);
@@ -613,10 +613,10 @@ let {label}: {label: string} = $props();
 				const output = JSON.parse(stdout.join('\n'));
 				// With --source-dir src, both files are in source scope
 				assert.strictEqual(output.modules.length, 2);
-				const paths = output.modules.map((m: {path: string}) => m.path).sort();
+				const paths = output.modules.map((m: { path: string }) => m.path).sort();
 				assert.ok(paths[0].endsWith('lib/ignored.ts'));
 				assert.ok(paths[1].endsWith('utils.ts'));
-			},
+			}
 		);
 	});
 
@@ -625,19 +625,19 @@ let {label}: {label: string} = $props();
 			{
 				'package.json': JSON.stringify({
 					name: 'test-pkg',
-					exports: {'.': {default: './dist/index.js'}},
+					exports: { '.': { default: './dist/index.js' } }
 				}),
 				'src/index.ts': 'export const main = 1;',
-				'tsconfig.json': JSON.stringify({compilerOptions: {}}),
+				'tsconfig.json': JSON.stringify({ compilerOptions: {} })
 			},
 			async (projectRoot) => {
-				const {exitCode, stdout} = await runCliCapture([
+				const { exitCode, stdout } = await runCliCapture([
 					'node',
 					'svelte-docinfo',
 					projectRoot,
 					'--source-dir',
 					'src',
-					'--quiet',
+					'--quiet'
 				]);
 
 				assert.strictEqual(exitCode, 0);
@@ -645,7 +645,7 @@ let {label}: {label: string} = $props();
 				const output = JSON.parse(stdout.join('\n'));
 				assert.strictEqual(output.modules.length, 1);
 				assert.strictEqual(output.modules[0].path, 'index.ts');
-			},
+			}
 		);
 	});
 
@@ -654,11 +654,11 @@ let {label}: {label: string} = $props();
 			{
 				'src/a.ts': 'export const a = 1;',
 				'src/b.ts': 'export const b = 2;',
-				'tsconfig.json': JSON.stringify({compilerOptions: {}}),
+				'tsconfig.json': JSON.stringify({ compilerOptions: {} })
 			},
 			async (projectRoot) => {
 				// Explicit --include should take precedence over --source-dir derived glob
-				const {exitCode, stdout} = await runCliCapture([
+				const { exitCode, stdout } = await runCliCapture([
 					'node',
 					'svelte-docinfo',
 					projectRoot,
@@ -666,7 +666,7 @@ let {label}: {label: string} = $props();
 					'src',
 					'--include',
 					'src/a.ts',
-					'--quiet',
+					'--quiet'
 				]);
 
 				assert.strictEqual(exitCode, 0);
@@ -674,7 +674,7 @@ let {label}: {label: string} = $props();
 				const output = JSON.parse(stdout.join('\n'));
 				assert.strictEqual(output.modules.length, 1);
 				assert.strictEqual(output.modules[0].path, 'a.ts');
-			},
+			}
 		);
 	});
 
@@ -684,13 +684,13 @@ let {label}: {label: string} = $props();
 				'src/lib/a.ts': 'export const a = 1;',
 				'src/routes/b.ts': 'export const b = 2;',
 				'src/other/c.ts': 'export const c = 3;',
-				'tsconfig.json': JSON.stringify({compilerOptions: {}}),
+				'tsconfig.json': JSON.stringify({ compilerOptions: {} })
 			},
 			async (projectRoot) => {
 				// Two source-dirs share `src` as auto-derived sourceRoot, so module
 				// paths come out as `lib/a.ts` and `routes/b.ts`. `src/other/c.ts`
 				// is outside both source-dirs and should be excluded.
-				const {exitCode, stdout} = await runCliCapture([
+				const { exitCode, stdout } = await runCliCapture([
 					'node',
 					'svelte-docinfo',
 					projectRoot,
@@ -700,15 +700,15 @@ let {label}: {label: string} = $props();
 					'src/routes',
 					'--discovery',
 					'glob',
-					'--quiet',
+					'--quiet'
 				]);
 
 				assert.strictEqual(exitCode, 0);
 
 				const output = JSON.parse(stdout.join('\n'));
-				const paths = output.modules.map((m: {path: string}) => m.path).sort();
+				const paths = output.modules.map((m: { path: string }) => m.path).sort();
 				assert.deepStrictEqual(paths, ['lib/a.ts', 'routes/b.ts']);
-			},
+			}
 		);
 	});
 
@@ -717,13 +717,13 @@ let {label}: {label: string} = $props();
 			{
 				'src/lib/a.ts': 'export const a = 1;',
 				'lib/utils/b.ts': 'export const b = 2;',
-				'tsconfig.json': JSON.stringify({compilerOptions: {}}),
+				'tsconfig.json': JSON.stringify({ compilerOptions: {} })
 			},
 			async (projectRoot) => {
 				// `src/lib` and `lib/utils` share no common prefix. `--source-root .`
 				// (aliased to '' internally) anchors path extraction at projectRoot,
 				// so module paths come out as `src/lib/a.ts` and `lib/utils/b.ts`.
-				const {exitCode, stdout} = await runCliCapture([
+				const { exitCode, stdout } = await runCliCapture([
 					'node',
 					'svelte-docinfo',
 					projectRoot,
@@ -735,15 +735,15 @@ let {label}: {label: string} = $props();
 					'.',
 					'--discovery',
 					'glob',
-					'--quiet',
+					'--quiet'
 				]);
 
 				assert.strictEqual(exitCode, 0);
 
 				const output = JSON.parse(stdout.join('\n'));
-				const paths = output.modules.map((m: {path: string}) => m.path).sort();
+				const paths = output.modules.map((m: { path: string }) => m.path).sort();
 				assert.deepStrictEqual(paths, ['lib/utils/b.ts', 'src/lib/a.ts']);
-			},
+			}
 		);
 	});
 
@@ -752,12 +752,12 @@ let {label}: {label: string} = $props();
 			{
 				'src/lib/a.ts': 'export const a = 1;',
 				'lib/utils/b.ts': 'export const b = 2;',
-				'tsconfig.json': JSON.stringify({compilerOptions: {}}),
+				'tsconfig.json': JSON.stringify({ compilerOptions: {} })
 			},
 			async (projectRoot) => {
 				// Same scenario as above but without `--source-root` — auto-derive
 				// returns '' for no-common-prefix sourcePaths instead of throwing.
-				const {exitCode, stdout} = await runCliCapture([
+				const { exitCode, stdout } = await runCliCapture([
 					'node',
 					'svelte-docinfo',
 					projectRoot,
@@ -767,15 +767,15 @@ let {label}: {label: string} = $props();
 					'lib/utils',
 					'--discovery',
 					'glob',
-					'--quiet',
+					'--quiet'
 				]);
 
 				assert.strictEqual(exitCode, 0);
 
 				const output = JSON.parse(stdout.join('\n'));
-				const paths = output.modules.map((m: {path: string}) => m.path).sort();
+				const paths = output.modules.map((m: { path: string }) => m.path).sort();
 				assert.deepStrictEqual(paths, ['lib/utils/b.ts', 'src/lib/a.ts']);
-			},
+			}
 		);
 	});
 
@@ -784,12 +784,12 @@ let {label}: {label: string} = $props();
 			{
 				'packages/lib/a.ts': 'export const a = 1;',
 				'packages/ui/b.ts': 'export const b = 2;',
-				'tsconfig.json': JSON.stringify({compilerOptions: {}}),
+				'tsconfig.json': JSON.stringify({ compilerOptions: {} })
 			},
 			async (projectRoot) => {
 				// Explicit --source-root anchors path extraction at `packages`,
 				// so module paths come out as `lib/a.ts` and `ui/b.ts`.
-				const {exitCode, stdout} = await runCliCapture([
+				const { exitCode, stdout } = await runCliCapture([
 					'node',
 					'svelte-docinfo',
 					projectRoot,
@@ -801,15 +801,15 @@ let {label}: {label: string} = $props();
 					'packages',
 					'--discovery',
 					'glob',
-					'--quiet',
+					'--quiet'
 				]);
 
 				assert.strictEqual(exitCode, 0);
 
 				const output = JSON.parse(stdout.join('\n'));
-				const paths = output.modules.map((m: {path: string}) => m.path).sort();
+				const paths = output.modules.map((m: { path: string }) => m.path).sort();
 				assert.deepStrictEqual(paths, ['lib/a.ts', 'ui/b.ts']);
-			},
+			}
 		);
 	});
 
@@ -818,43 +818,43 @@ let {label}: {label: string} = $props();
 			{
 				'src/lib/a.ts': 'export const dup = 1;',
 				'src/lib/b.ts': 'export const dup = 2;',
-				'tsconfig.json': JSON.stringify({compilerOptions: {}}),
+				'tsconfig.json': JSON.stringify({ compilerOptions: {} })
 			},
 			async (projectRoot) => {
-				const {exitCode, stderr} = await runCliCapture([
+				const { exitCode, stderr } = await runCliCapture([
 					'node',
 					'svelte-docinfo',
 					projectRoot,
 					'--on-duplicates',
 					'throw',
-					'--quiet',
+					'--quiet'
 				]);
 
 				// Throw bubbles to the catch block → exit 2 with friendly error.
 				assert.strictEqual(exitCode, 2);
 				assert.ok(
 					stderr.some((e) => e.includes('duplicate')),
-					`Expected duplicate-name error on stderr, got: ${stderr.join('; ')}`,
+					`Expected duplicate-name error on stderr, got: ${stderr.join('; ')}`
 				);
-			},
+			}
 		);
 	});
 
 	test('--on-duplicates rejects invalid values', async () => {
 		await withTestProject(SIMPLE_PROJECT, async (projectRoot) => {
-			const {exitCode, stderr} = await runCliCapture([
+			const { exitCode, stderr } = await runCliCapture([
 				'node',
 				'svelte-docinfo',
 				projectRoot,
 				'--on-duplicates',
 				'bogus',
-				'--quiet',
+				'--quiet'
 			]);
 
 			assert.strictEqual(exitCode, 2);
 			assert.ok(
 				stderr.some((e) => e.includes('Invalid --on-duplicates')),
-				`Expected validation error for --on-duplicates, got: ${stderr.join('; ')}`,
+				`Expected validation error for --on-duplicates, got: ${stderr.join('; ')}`
 			);
 		});
 	});
@@ -864,11 +864,11 @@ let {label}: {label: string} = $props();
 			{
 				'package.json': JSON.stringify({
 					name: 'test-pkg',
-					exports: {'.': {default: './dist/index.js'}},
+					exports: { '.': { default: './dist/index.js' } }
 				}),
 				'src/lib/index.ts': 'export const fromExports = 1;',
 				'src/lib/extra.ts': 'export const extra = 2;',
-				'tsconfig.json': JSON.stringify({compilerOptions: {}}),
+				'tsconfig.json': JSON.stringify({ compilerOptions: {} })
 			},
 			async (projectRoot) => {
 				// With auto discovery (default), only index.ts is found via exports
@@ -883,11 +883,11 @@ let {label}: {label: string} = $props();
 					projectRoot,
 					'--discovery',
 					'glob',
-					'--quiet',
+					'--quiet'
 				]);
 				const globOutput = JSON.parse(globRun.stdout.join('\n'));
 				assert.strictEqual(globOutput.modules.length, 2);
-			},
+			}
 		);
 	});
 
@@ -896,45 +896,45 @@ let {label}: {label: string} = $props();
 			{
 				'package.json': JSON.stringify({
 					name: 'test-pkg',
-					exports: {'.': {default: './dist/index.js'}},
+					exports: { '.': { default: './dist/index.js' } }
 				}),
 				'src/lib/index.ts': 'export const main = 1;',
-				'tsconfig.json': JSON.stringify({compilerOptions: {}}),
+				'tsconfig.json': JSON.stringify({ compilerOptions: {} })
 			},
 			async (projectRoot) => {
-				const {exitCode, stdout} = await runCliCapture([
+				const { exitCode, stdout } = await runCliCapture([
 					'node',
 					'svelte-docinfo',
 					projectRoot,
 					'--discovery',
 					'exports',
-					'--quiet',
+					'--quiet'
 				]);
 
 				assert.strictEqual(exitCode, 0);
 				const output = JSON.parse(stdout.join('\n'));
 				assert.strictEqual(output.modules.length, 1);
 				assert.strictEqual(output.modules[0].path, 'index.ts');
-			},
+			}
 		);
 	});
 
 	test('--discovery exports throws when package.json has no exports', async () => {
 		await withTestProject(SIMPLE_PROJECT, async (projectRoot) => {
 			// SIMPLE_PROJECT has no package.json at all — strict mode should throw.
-			const {exitCode, stderr} = await runCliCapture([
+			const { exitCode, stderr } = await runCliCapture([
 				'node',
 				'svelte-docinfo',
 				projectRoot,
 				'--discovery',
 				'exports',
-				'--quiet',
+				'--quiet'
 			]);
 
 			assert.strictEqual(exitCode, 2);
 			assert.ok(
 				stderr.some((e) => e.includes("discovery: 'exports' failed")),
-				`Expected strict-exports error on stderr, got: ${stderr.join('; ')}`,
+				`Expected strict-exports error on stderr, got: ${stderr.join('; ')}`
 			);
 		});
 	});
@@ -944,13 +944,13 @@ let {label}: {label: string} = $props();
 			{
 				'package.json': JSON.stringify({
 					name: 'test-pkg',
-					exports: {'.': {default: './dist/index.js'}},
+					exports: { '.': { default: './dist/index.js' } }
 				}),
 				'src/lib/index.ts': 'export const main = 1;',
-				'tsconfig.json': JSON.stringify({compilerOptions: {}}),
+				'tsconfig.json': JSON.stringify({ compilerOptions: {} })
 			},
 			async (projectRoot) => {
-				const {exitCode, stderr} = await runCliCapture([
+				const { exitCode, stderr } = await runCliCapture([
 					'node',
 					'svelte-docinfo',
 					projectRoot,
@@ -958,15 +958,15 @@ let {label}: {label: string} = $props();
 					'exports',
 					'--include',
 					'src/**/*.ts',
-					'--quiet',
+					'--quiet'
 				]);
 
 				assert.strictEqual(exitCode, 2);
 				assert.ok(
 					stderr.some((e) => e.includes("discovery: 'exports' is incompatible with `include`")),
-					`Expected incompatibility error on stderr, got: ${stderr.join('; ')}`,
+					`Expected incompatibility error on stderr, got: ${stderr.join('; ')}`
 				);
-			},
+			}
 		);
 	});
 
@@ -976,16 +976,16 @@ let {label}: {label: string} = $props();
 				'src/lib/a.ts': 'export const a = 1;',
 				'src/lib/b.ts': 'export const b = 2;',
 				'src/lib/sub/c.ts': 'export const c = 3;',
-				'tsconfig.json': JSON.stringify({compilerOptions: {}}),
+				'tsconfig.json': JSON.stringify({ compilerOptions: {} })
 			},
 			async (projectRoot) => {
-				const {exitCode, stdout} = await runCliCapture([
+				const { exitCode, stdout } = await runCliCapture([
 					'node',
 					'svelte-docinfo',
 					projectRoot,
 					'--only',
 					'sub/**',
-					'--quiet',
+					'--quiet'
 				]);
 
 				assert.strictEqual(exitCode, 0);
@@ -994,9 +994,9 @@ let {label}: {label: string} = $props();
 				assert.strictEqual(output.modules.length, 1);
 				assert.ok(
 					output.modules[0].path.endsWith('sub/c.ts'),
-					`Expected module under sub/, got: ${output.modules[0].path}`,
+					`Expected module under sub/, got: ${output.modules[0].path}`
 				);
-			},
+			}
 		);
 	});
 
@@ -1006,10 +1006,10 @@ let {label}: {label: string} = $props();
 				'src/lib/a.ts': 'export const a = 1;',
 				'src/lib/b.ts': 'export const b = 2;',
 				'src/lib/c.ts': 'export const c = 3;',
-				'tsconfig.json': JSON.stringify({compilerOptions: {}}),
+				'tsconfig.json': JSON.stringify({ compilerOptions: {} })
 			},
 			async (projectRoot) => {
-				const {exitCode, stdout} = await runCliCapture([
+				const { exitCode, stdout } = await runCliCapture([
 					'node',
 					'svelte-docinfo',
 					projectRoot,
@@ -1017,27 +1017,27 @@ let {label}: {label: string} = $props();
 					'a.ts',
 					'--only',
 					'c.ts',
-					'--quiet',
+					'--quiet'
 				]);
 
 				assert.strictEqual(exitCode, 0);
 
 				const output = JSON.parse(stdout.join('\n'));
-				const paths = output.modules.map((m: {path: string}) => m.path).sort();
+				const paths = output.modules.map((m: { path: string }) => m.path).sort();
 				assert.deepStrictEqual(paths, ['a.ts', 'c.ts']);
-			},
+			}
 		);
 	});
 
 	test('--only with no matches emits empty modules array', async () => {
 		await withTestProject(SIMPLE_PROJECT, async (projectRoot) => {
-			const {exitCode, stdout} = await runCliCapture([
+			const { exitCode, stdout } = await runCliCapture([
 				'node',
 				'svelte-docinfo',
 				projectRoot,
 				'--only',
 				'nope/**',
-				'--quiet',
+				'--quiet'
 			]);
 
 			assert.strictEqual(exitCode, 0);
@@ -1058,16 +1058,16 @@ let {label}: {label: string} = $props();
 				'src/lib/a.ts': 'export const dup = 1;',
 				'src/lib/b.ts': 'export const dup = 2;',
 				'src/lib/wanted.ts': 'export const wanted = 3;',
-				'tsconfig.json': JSON.stringify({compilerOptions: {}}),
+				'tsconfig.json': JSON.stringify({ compilerOptions: {} })
 			},
 			async (projectRoot) => {
-				const {exitCode, stdout} = await runCliCapture([
+				const { exitCode, stdout } = await runCliCapture([
 					'node',
 					'svelte-docinfo',
 					projectRoot,
 					'--only',
 					'wanted.ts',
-					'--quiet',
+					'--quiet'
 				]);
 
 				assert.strictEqual(exitCode, 0);
@@ -1079,9 +1079,9 @@ let {label}: {label: string} = $props();
 				assert.ok(only_module.path.endsWith('wanted.ts'));
 				assert.ok(
 					output.diagnostics.some((d) => d.kind === 'duplicate_declaration'),
-					`Expected duplicate_declaration diagnostic to pass through --only filter, got: ${JSON.stringify(output.diagnostics)}`,
+					`Expected duplicate_declaration diagnostic to pass through --only filter, got: ${JSON.stringify(output.diagnostics)}`
 				);
-			},
+			}
 		);
 	});
 
@@ -1091,10 +1091,10 @@ let {label}: {label: string} = $props();
 				'src/lib/a.ts': 'export const a = 1;',
 				'src/other/b.ts': 'export const b = 2;',
 				'src/other/c.ts': 'export const c = 3;',
-				'tsconfig.json': JSON.stringify({compilerOptions: {}}),
+				'tsconfig.json': JSON.stringify({ compilerOptions: {} })
 			},
 			async (projectRoot) => {
-				const {exitCode, stdout} = await runCliCapture([
+				const { exitCode, stdout } = await runCliCapture([
 					'node',
 					'svelte-docinfo',
 					projectRoot,
@@ -1104,7 +1104,7 @@ let {label}: {label: string} = $props();
 					'src/other',
 					'--only',
 					'b.ts',
-					'--quiet',
+					'--quiet'
 				]);
 
 				assert.strictEqual(exitCode, 0);
@@ -1112,25 +1112,25 @@ let {label}: {label: string} = $props();
 				const output = JSON.parse(stdout.join('\n'));
 				assert.strictEqual(output.modules.length, 1);
 				assert.ok(output.modules[0].path.endsWith('b.ts'));
-			},
+			}
 		);
 	});
 
 	test('--discovery rejects invalid values', async () => {
 		await withTestProject(SIMPLE_PROJECT, async (projectRoot) => {
-			const {exitCode, stderr} = await runCliCapture([
+			const { exitCode, stderr } = await runCliCapture([
 				'node',
 				'svelte-docinfo',
 				projectRoot,
 				'--discovery',
 				'bogus',
-				'--quiet',
+				'--quiet'
 			]);
 
 			assert.strictEqual(exitCode, 2);
 			assert.ok(
 				stderr.some((e) => e.includes('Invalid --discovery')),
-				`Expected validation error for --discovery, got: ${stderr.join('; ')}`,
+				`Expected validation error for --discovery, got: ${stderr.join('; ')}`
 			);
 		});
 	});
@@ -1152,15 +1152,15 @@ describe('runCli (subprocess tests)', () => {
 		assert.strictEqual(result.code, 0, `Help should exit with code 0\nstderr: ${result.stderr}`);
 		assert.ok(
 			result.stdout.includes('svelte-docinfo'),
-			`Help output should mention command name, got: ${result.stdout}`,
+			`Help output should mention command name, got: ${result.stdout}`
 		);
 		assert.ok(
 			result.stdout.includes('--output') || result.stdout.includes('-o'),
-			'Help output should mention --output flag',
+			'Help output should mention --output flag'
 		);
 		assert.ok(
 			result.stdout.includes('--include') || result.stdout.includes('-i'),
-			'Help output should mention --include flag',
+			'Help output should mention --include flag'
 		);
 		assert.ok(result.stdout.includes('--pretty'), 'Help should mention --pretty');
 		assert.ok(result.stdout.includes('Examples:'), 'Help should show examples section');
@@ -1172,7 +1172,7 @@ describe('runCli (subprocess tests)', () => {
 		assert.strictEqual(result.code, 0, `Version should exit with code 0\nstderr: ${result.stderr}`);
 		assert.ok(
 			/^\d+\.\d+\.\d+/.test(result.stdout.trim()),
-			`Version output should be semver format, got: "${result.stdout.trim()}"`,
+			`Version output should be semver format, got: "${result.stdout.trim()}"`
 		);
 	});
 
@@ -1182,7 +1182,7 @@ describe('runCli (subprocess tests)', () => {
 		assert.strictEqual(result.code, 0, `-V should exit with code 0\nstderr: ${result.stderr}`);
 		assert.ok(
 			/^\d+\.\d+\.\d+/.test(result.stdout.trim()),
-			`Version output should be semver format, got: "${result.stdout.trim()}"`,
+			`Version output should be semver format, got: "${result.stdout.trim()}"`
 		);
 	});
 
@@ -1197,7 +1197,7 @@ describe('runCli (subprocess tests)', () => {
 describe('runCli (default project root)', () => {
 	test('uses current working directory when no path argument provided', async () => {
 		// Run without project path - should use cwd (which is this project)
-		const {exitCode, stdout} = await runCliCapture(['node', 'svelte-docinfo', '--quiet']);
+		const { exitCode, stdout } = await runCliCapture(['node', 'svelte-docinfo', '--quiet']);
 
 		assert.strictEqual(exitCode, 0, 'Should succeed with cwd as project root');
 		assert.ok(stdout.length > 0, 'Should produce output');

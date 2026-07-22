@@ -4,11 +4,11 @@
  * temporary test project creation, and generic fixture loading/updating patterns.
  */
 
-import {readdir, readFile, writeFile, mkdir, rm} from 'node:fs/promises';
-import {join, relative} from 'node:path';
-import {tmpdir} from 'node:os';
+import { readdir, readFile, writeFile, mkdir, rm } from 'node:fs/promises';
+import { join, relative } from 'node:path';
+import { tmpdir } from 'node:os';
 
-import {compareStrings} from '$lib/postprocess.ts';
+import { compareStrings } from '$lib/postprocess.ts';
 
 /**
  * Result of creating a test project.
@@ -45,20 +45,20 @@ export interface TestProjectResult {
  * ```
  */
 export const createTestDir = async (
-	prefix = 'svelte-docinfo-test',
-): Promise<{path: string; cleanup: () => Promise<void>}> => {
+	prefix = 'svelte-docinfo-test'
+): Promise<{ path: string; cleanup: () => Promise<void> }> => {
 	const path = join(tmpdir(), `${prefix}-${Date.now()}`);
-	await mkdir(path, {recursive: true});
+	await mkdir(path, { recursive: true });
 
 	const cleanup = async () => {
 		try {
-			await rm(path, {recursive: true, force: true});
+			await rm(path, { recursive: true, force: true });
 		} catch {
 			// Ignore cleanup errors
 		}
 	};
 
-	return {path, cleanup};
+	return { path, cleanup };
 };
 
 /**
@@ -69,9 +69,9 @@ export const createTestDir = async (
  */
 export const withTestDir = async (
 	fn: (dir: string) => Promise<void>,
-	prefix?: string,
+	prefix?: string
 ): Promise<void> => {
-	const {path, cleanup} = await createTestDir(prefix);
+	const { path, cleanup } = await createTestDir(prefix);
 	try {
 		await fn(path);
 	} finally {
@@ -113,23 +113,23 @@ export const createTestProject = async (
 		baseDir?: string;
 		/** Whether to include a default tsconfig.json. Default: true */
 		tsconfig?: boolean;
-	} = {},
+	} = {}
 ): Promise<TestProjectResult> => {
-	const {baseDir = tmpdir(), tsconfig = true} = options;
+	const { baseDir = tmpdir(), tsconfig = true } = options;
 
 	// Create unique project directory
 	const projectRoot = join(baseDir, `proj-${Date.now()}-${Math.random().toString(36).slice(2)}`);
 
 	// Add default tsconfig if not provided
-	const filesToWrite = {...files};
+	const filesToWrite = { ...files };
 	if (tsconfig && !filesToWrite['tsconfig.json']) {
 		filesToWrite['tsconfig.json'] = JSON.stringify({
 			compilerOptions: {
 				module: 'ESNext',
 				moduleResolution: 'bundler',
 				target: 'ESNext',
-				strict: true,
-			},
+				strict: true
+			}
 		});
 	}
 
@@ -137,19 +137,19 @@ export const createTestProject = async (
 	for (const [relPath, content] of Object.entries(filesToWrite)) {
 		const absPath = join(projectRoot, relPath);
 		const dir = join(absPath, '..');
-		await mkdir(dir, {recursive: true});
+		await mkdir(dir, { recursive: true });
 		await writeFile(absPath, content, 'utf-8');
 	}
 
 	const cleanup = async () => {
 		try {
-			await rm(projectRoot, {recursive: true, force: true});
+			await rm(projectRoot, { recursive: true, force: true });
 		} catch {
 			// Ignore cleanup errors
 		}
 	};
 
-	return {projectRoot, cleanup};
+	return { projectRoot, cleanup };
 };
 
 /**
@@ -168,9 +168,9 @@ export const createTestProject = async (
 export const withTestProject = async (
 	files: Record<string, string>,
 	fn: (projectRoot: string) => Promise<void>,
-	options?: Parameters<typeof createTestProject>[1],
+	options?: Parameters<typeof createTestProject>[1]
 ): Promise<void> => {
-	const {projectRoot, cleanup} = await createTestProject(files, options);
+	const { projectRoot, cleanup } = await createTestProject(files, options);
 	try {
 		await fn(projectRoot);
 	} finally {
@@ -222,12 +222,12 @@ export const normalizeJson = (obj: any): any => {
 	return obj;
 };
 
-import {assert} from 'vitest';
+import { assert } from 'vitest';
 import type {
 	ModuleJson,
 	DeclarationJson,
 	FunctionDeclarationJson,
-	ComponentDeclarationJson,
+	ComponentDeclarationJson
 } from '$lib/types.ts';
 
 /**
@@ -240,13 +240,13 @@ import type {
 export const assertHasDependency = (
 	module: ModuleJson,
 	dependencyPath: string,
-	message?: string,
+	message?: string
 ): void => {
 	assert.ok(module.dependencies, message ?? `Expected ${module.path} to have dependencies`);
 	assert.ok(
 		module.dependencies.some((d) => d.endsWith(dependencyPath)),
 		message ??
-			`Expected ${module.path} to depend on ${dependencyPath}. Found: ${module.dependencies.join(', ')}`,
+			`Expected ${module.path} to depend on ${dependencyPath}. Found: ${module.dependencies.join(', ')}`
 	);
 };
 
@@ -260,13 +260,13 @@ export const assertHasDependency = (
 export const assertHasDependent = (
 	module: ModuleJson,
 	dependentPath: string,
-	message?: string,
+	message?: string
 ): void => {
 	assert.ok(module.dependents, message ?? `Expected ${module.path} to have dependents`);
 	assert.ok(
 		module.dependents.some((d) => d.endsWith(dependentPath)),
 		message ??
-			`Expected ${module.path} to be depended upon by ${dependentPath}. Found: ${module.dependents.join(', ')}`,
+			`Expected ${module.path} to be depended upon by ${dependentPath}. Found: ${module.dependents.join(', ')}`
 	);
 };
 
@@ -295,7 +295,7 @@ export const assertHasDeclaration = (module: ModuleJson, name: string): Declarat
  */
 export const assertHasComponentDeclaration = (
 	module: ModuleJson,
-	name: string,
+	name: string
 ): ComponentDeclarationJson => {
 	const decl = assertHasDeclaration(module, name);
 	assert.strictEqual(decl.kind, 'component', `Expected "${name}" to be a component`);
@@ -311,22 +311,22 @@ export const assertHasComponentDeclaration = (
  */
 export const assertHasParameters = (
 	declaration: FunctionDeclarationJson,
-	paramNames: Array<string>,
+	paramNames: Array<string>
 ): void => {
 	assert.ok(
 		declaration.parameters,
-		`Expected declaration "${declaration.name}" to have parameters`,
+		`Expected declaration "${declaration.name}" to have parameters`
 	);
 	assert.strictEqual(
 		declaration.parameters.length,
 		paramNames.length,
-		`Expected ${paramNames.length} parameters, got ${declaration.parameters.length}`,
+		`Expected ${paramNames.length} parameters, got ${declaration.parameters.length}`
 	);
 	const actualNames = declaration.parameters.map((p) => p.name);
 	assert.deepStrictEqual(
 		actualNames,
 		paramNames,
-		`Parameter names don't match. Expected: ${paramNames.join(', ')}, Got: ${actualNames.join(', ')}`,
+		`Parameter names don't match. Expected: ${paramNames.join(', ')}, Got: ${actualNames.join(', ')}`
 	);
 };
 
@@ -338,24 +338,24 @@ export const assertHasParameters = (
  */
 export const assertHasProps = (
 	declaration: ComponentDeclarationJson,
-	propNames: Array<string>,
+	propNames: Array<string>
 ): void => {
 	assert.strictEqual(
 		declaration.kind,
 		'component',
-		`Expected "${declaration.name}" to be a component`,
+		`Expected "${declaration.name}" to be a component`
 	);
 	assert.ok(declaration.props, `Expected component "${declaration.name}" to have props`);
 	assert.strictEqual(
 		declaration.props.length,
 		propNames.length,
-		`Expected ${propNames.length} props, got ${declaration.props.length}`,
+		`Expected ${propNames.length} props, got ${declaration.props.length}`
 	);
 	const actualNames = declaration.props.map((p) => p.name);
 	assert.deepStrictEqual(
 		actualNames,
 		propNames,
-		`Prop names don't match. Expected: ${propNames.join(', ')}, Got: ${actualNames.join(', ')}`,
+		`Prop names don't match. Expected: ${propNames.join(', ')}, Got: ${actualNames.join(', ')}`
 	);
 };
 
@@ -407,22 +407,22 @@ export interface FixtureLoaderConfig<T> {
  */
 export const discoverFixtureDirs = async (
 	baseDir: string,
-	inputExtension: string,
-): Promise<Array<{path: string; name: string}>> => {
-	const results: Array<{path: string; name: string}> = [];
+	inputExtension: string
+): Promise<Array<{ path: string; name: string }>> => {
+	const results: Array<{ path: string; name: string }> = [];
 
 	const scan = async (dir: string): Promise<void> => {
-		const entries = await readdir(dir, {withFileTypes: true});
+		const entries = await readdir(dir, { withFileTypes: true });
 
 		// Check if this directory contains an input file
 		const hasInputFile = entries.some(
-			(entry) => entry.isFile() && entry.name === `input${inputExtension}`,
+			(entry) => entry.isFile() && entry.name === `input${inputExtension}`
 		);
 
 		if (hasInputFile) {
 			// This is a fixture directory
 			const name = relative(baseDir, dir);
-			results.push({path: dir, name});
+			results.push({ path: dir, name });
 		} else {
 			// Recurse into subdirectories
 			for (const entry of entries) {
@@ -456,21 +456,21 @@ export const discoverFixtureDirs = async (
  * ```
  */
 export const loadFixturesGeneric = async <T>(
-	config: FixtureLoaderConfig<T>,
+	config: FixtureLoaderConfig<T>
 ): Promise<Array<GenericFixture<T>>> => {
-	const {fixturesDir, inputExtension, transformExpected} = config;
+	const { fixturesDir, inputExtension, transformExpected } = config;
 
 	// Recursively discover all fixture directories
 	const fixtureDirs = await discoverFixtureDirs(fixturesDir, inputExtension);
 
 	return await Promise.all(
-		fixtureDirs.map(async ({path: fixtureDir, name}) => {
+		fixtureDirs.map(async ({ path: fixtureDir, name }) => {
 			const input = await readFile(join(fixtureDir, `input${inputExtension}`), 'utf-8');
 			const expectedText = await readFile(join(fixtureDir, 'expected.json'), 'utf-8');
 			const expectedJson = JSON.parse(expectedText);
 			const expected = transformExpected ? transformExpected(expectedJson) : expectedJson;
-			return {name, input, expected};
-		}),
+			return { name, input, expected };
+		})
 	);
 };
 
@@ -518,9 +518,9 @@ export interface UpdateTaskConfig<TInput, TOutput> {
  */
 export const runUpdateTask = async <TInput = string, TOutput = any>(
 	config: UpdateTaskConfig<TInput, TOutput>,
-	log: {info: (msg: string) => void},
-): Promise<{generatedCount: number; skippedCount: number}> => {
-	const {fixturesDir, inputExtension, process, jsonReplacer} = config;
+	log: { info: (msg: string) => void }
+): Promise<{ generatedCount: number; skippedCount: number }> => {
+	const { fixturesDir, inputExtension, process, jsonReplacer } = config;
 
 	// Recursively discover all fixture directories
 	const fixtureDirs = await discoverFixtureDirs(fixturesDir, inputExtension);
@@ -531,7 +531,7 @@ export const runUpdateTask = async <TInput = string, TOutput = any>(
 	let skippedCount = 0;
 
 	await Promise.all(
-		fixtureDirs.map(async ({path: fixtureDir, name}) => {
+		fixtureDirs.map(async ({ path: fixtureDir, name }) => {
 			const inputPath = join(fixtureDir, `input${inputExtension}`);
 			const expectedPath = join(fixtureDir, 'expected.json');
 
@@ -554,9 +554,9 @@ export const runUpdateTask = async <TInput = string, TOutput = any>(
 				await writeFile(expectedPath, output);
 				log.info(`generated ${name}/expected.json`);
 			}
-		}),
+		})
 	);
 
 	log.info(`done! generated: ${generatedCount}, skipped: ${skippedCount}`);
-	return {generatedCount, skippedCount};
+	return { generatedCount, skippedCount };
 };

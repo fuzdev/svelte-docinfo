@@ -11,12 +11,12 @@
  * @module
  */
 
-import type {SourceFileInfo} from './source.ts';
-import {type ModuleSourceOptions, getSourceRoot} from './source-config.ts';
-import type {Diagnostic} from './diagnostics.ts';
-import type {AnalysisLog} from './log.ts';
-import {globFiles, deriveIncludePatterns} from './files.ts';
-import {discoverFromExports} from './exports.ts';
+import type { SourceFileInfo } from './source.ts';
+import { type ModuleSourceOptions, getSourceRoot } from './source-config.ts';
+import type { Diagnostic } from './diagnostics.ts';
+import type { AnalysisLog } from './log.ts';
+import { globFiles, deriveIncludePatterns } from './files.ts';
+import { discoverFromExports } from './exports.ts';
 
 /**
  * Discovery strategy for source files.
@@ -123,10 +123,10 @@ export interface DiscoverSourceFilesResult {
  * ```
  */
 export const discoverSourceFiles = async (
-	options: DiscoverSourceFilesOptions,
+	options: DiscoverSourceFilesOptions
 ): Promise<DiscoverSourceFilesResult> => {
-	const {sourceOptions, include, discovery = 'auto', distDir, log} = options;
-	const {projectRoot, exclude} = sourceOptions;
+	const { sourceOptions, include, discovery = 'auto', distDir, log } = options;
+	const { projectRoot, exclude } = sourceOptions;
 
 	// Reject contradictory configurations early. `include` parameterizes glob,
 	// so combining it with strict `'exports'` is a user error rather than a
@@ -134,7 +134,7 @@ export const discoverSourceFiles = async (
 	if (discovery === 'exports' && include) {
 		throw new Error(
 			"discovery: 'exports' is incompatible with `include` — `include` is a glob filter. " +
-				"Use discovery: 'glob' (with include) or remove include for strict exports mode.",
+				"Use discovery: 'glob' (with include) or remove include for strict exports mode."
 		);
 	}
 
@@ -165,20 +165,20 @@ export const discoverSourceFiles = async (
 						`(sourcePaths=${JSON.stringify(sourceOptions.sourcePaths)}, sourceRoot=''), ` +
 						'so exports discovery cannot map dist paths to source files. ' +
 						"Use discovery: 'auto' (default) or 'glob' for this layout, or " +
-						'restructure to a single source root.',
+						'restructure to a single source root.'
 				);
 			}
 			log?.info(
-				'Source paths share no common prefix — exports discovery cannot represent this layout; falling back to glob patterns',
+				'Source paths share no common prefix — exports discovery cannot represent this layout; falling back to glob patterns'
 			);
 		} else {
 			const exportsResult = await discoverFromExports({
 				projectRoot,
 				exclude,
 				sourceDir,
-				distDir,
+				distDir
 			});
-			const {files: exportsFiles, diagnostics: exportsDiagnostics} = exportsResult;
+			const { files: exportsFiles, diagnostics: exportsDiagnostics } = exportsResult;
 			diagnostics = exportsDiagnostics;
 
 			if (exportsFiles && exportsFiles.length > 0) {
@@ -193,13 +193,13 @@ export const discoverSourceFiles = async (
 						: '`exports` field present but resolved to no source files';
 				throw new Error(
 					`discovery: 'exports' failed — ${reason}. ` +
-						`Use discovery: 'auto' (default) to fall back to glob, or fix the package.json exports mapping.`,
+						`Use discovery: 'auto' (default) to fall back to glob, or fix the package.json exports mapping.`
 				);
 			} else if (exportsFiles === null) {
 				log?.info('No package.json exports found, falling back to glob patterns');
 			} else {
 				log?.warn(
-					'Package.json exports found but resolved no source files — falling back to glob patterns',
+					'Package.json exports found but resolved no source files — falling back to glob patterns'
 				);
 			}
 		}
@@ -214,10 +214,10 @@ export const discoverSourceFiles = async (
 		files = await globFiles({
 			projectRoot,
 			include: include ?? deriveIncludePatterns(sourceOptions.sourcePaths),
-			exclude,
+			exclude
 		});
 		log?.info(`Discovered ${files.length} source files via glob`);
 	}
 
-	return {files, diagnostics};
+	return { files, diagnostics };
 };

@@ -1,7 +1,7 @@
 <script lang="ts">
 	let {
 		prop1 = 'value',
-		prop2 = 1,
+		prop2 = 1
 	}: {
 		/**
 		 * Description 1

@@ -23,15 +23,15 @@
  * namespace, so spying there intercepts the binding the session reads.
  */
 
-import {test, assert, describe, vi, beforeEach, afterEach} from 'vitest';
-import {join} from 'node:path';
+import { test, assert, describe, vi, beforeEach, afterEach } from 'vitest';
+import { join } from 'node:path';
 
-import {createAnalysisSession} from '$lib/session.ts';
+import { createAnalysisSession } from '$lib/session.ts';
 import * as svelteModule from '$lib/svelte.ts';
-import type {SourceFileInfo} from '$lib/source.ts';
-import {createSourceOptions} from '$lib/source-config.ts';
+import type { SourceFileInfo } from '$lib/source.ts';
+import { createSourceOptions } from '$lib/source-config.ts';
 
-import {withTestProject} from './test-helpers.ts';
+import { withTestProject } from './test-helpers.ts';
 
 const TS_FILE = (root: string) => join(root, 'src/lib/math.ts');
 const SVELTE_FILE = (root: string) => join(root, 'src/lib/Button.svelte');
@@ -66,21 +66,21 @@ const BUTTON_V2 = `
 
 const OTHER = `export const VERSION = '1.0.0';`;
 
-describe('createAnalysisSession', {timeout: 30_000}, () => {
+describe('createAnalysisSession', { timeout: 30_000 }, () => {
 	test('stable output across identical query calls', async () => {
 		await withTestProject(
 			{
 				'src/lib/math.ts': MATH_V1,
-				'src/lib/Button.svelte': BUTTON_V1,
+				'src/lib/Button.svelte': BUTTON_V1
 			},
 			async (projectRoot) => {
 				const sourceFiles: Array<SourceFileInfo> = [
-					{id: TS_FILE(projectRoot), content: MATH_V1},
-					{id: SVELTE_FILE(projectRoot), content: BUTTON_V1},
+					{ id: TS_FILE(projectRoot), content: MATH_V1 },
+					{ id: SVELTE_FILE(projectRoot), content: BUTTON_V1 }
 				];
 
 				const session = createAnalysisSession({
-					sourceOptions: createSourceOptions(projectRoot),
+					sourceOptions: createSourceOptions(projectRoot)
 				});
 				try {
 					await session.setFiles(sourceFiles);
@@ -92,47 +92,47 @@ describe('createAnalysisSession', {timeout: 30_000}, () => {
 				} finally {
 					session.dispose();
 				}
-			},
+			}
 		);
 	});
 
 	test('TS mutation reflects in next query', async () => {
 		await withTestProject(
 			{
-				'src/lib/math.ts': MATH_V1,
+				'src/lib/math.ts': MATH_V1
 			},
 			async (projectRoot) => {
 				const session = createAnalysisSession({
-					sourceOptions: createSourceOptions(projectRoot),
+					sourceOptions: createSourceOptions(projectRoot)
 				});
 				try {
-					await session.setFile({id: TS_FILE(projectRoot), content: MATH_V1});
+					await session.setFile({ id: TS_FILE(projectRoot), content: MATH_V1 });
 					const r1 = session.query();
 					const decls1 = r1.modules[0]!.declarations.map((d) => d.name).sort();
 					assert.deepStrictEqual(decls1, ['add']);
 
-					await session.setFile({id: TS_FILE(projectRoot), content: MATH_V2});
+					await session.setFile({ id: TS_FILE(projectRoot), content: MATH_V2 });
 					const r2 = session.query();
 					const decls2 = r2.modules[0]!.declarations.map((d) => d.name).sort();
 					assert.deepStrictEqual(decls2, ['add', 'subtract']);
 				} finally {
 					session.dispose();
 				}
-			},
+			}
 		);
 	});
 
 	test('Svelte mutation reflects in next query', async () => {
 		await withTestProject(
 			{
-				'src/lib/Button.svelte': BUTTON_V1,
+				'src/lib/Button.svelte': BUTTON_V1
 			},
 			async (projectRoot) => {
 				const session = createAnalysisSession({
-					sourceOptions: createSourceOptions(projectRoot),
+					sourceOptions: createSourceOptions(projectRoot)
 				});
 				try {
-					await session.setFile({id: SVELTE_FILE(projectRoot), content: BUTTON_V1});
+					await session.setFile({ id: SVELTE_FILE(projectRoot), content: BUTTON_V1 });
 					const r1 = session.query();
 					const c1 = r1.modules[0]!.declarations[0]!;
 					assert.strictEqual(c1.kind, 'component');
@@ -140,7 +140,7 @@ describe('createAnalysisSession', {timeout: 30_000}, () => {
 					const props1 = c1.props.map((p) => p.name).sort();
 					assert.deepStrictEqual(props1, ['label']);
 
-					await session.setFile({id: SVELTE_FILE(projectRoot), content: BUTTON_V2});
+					await session.setFile({ id: SVELTE_FILE(projectRoot), content: BUTTON_V2 });
 					const r2 = session.query();
 					const c2 = r2.modules[0]!.declarations[0]!;
 					assert.strictEqual(c2.kind, 'component');
@@ -150,7 +150,7 @@ describe('createAnalysisSession', {timeout: 30_000}, () => {
 				} finally {
 					session.dispose();
 				}
-			},
+			}
 		);
 	});
 
@@ -158,16 +158,16 @@ describe('createAnalysisSession', {timeout: 30_000}, () => {
 		await withTestProject(
 			{
 				'src/lib/math.ts': MATH_V1,
-				'src/lib/other.ts': OTHER,
+				'src/lib/other.ts': OTHER
 			},
 			async (projectRoot) => {
 				const session = createAnalysisSession({
-					sourceOptions: createSourceOptions(projectRoot),
+					sourceOptions: createSourceOptions(projectRoot)
 				});
 				try {
 					await session.setFiles([
-						{id: TS_FILE(projectRoot), content: MATH_V1},
-						{id: OTHER_FILE(projectRoot), content: OTHER},
+						{ id: TS_FILE(projectRoot), content: MATH_V1 },
+						{ id: OTHER_FILE(projectRoot), content: OTHER }
 					]);
 					const r1 = session.query();
 					assert.strictEqual(r1.modules.length, 2);
@@ -179,7 +179,7 @@ describe('createAnalysisSession', {timeout: 30_000}, () => {
 				} finally {
 					session.dispose();
 				}
-			},
+			}
 		);
 	});
 
@@ -187,18 +187,18 @@ describe('createAnalysisSession', {timeout: 30_000}, () => {
 		await withTestProject(
 			{
 				'src/lib/math.ts': MATH_V1,
-				'src/lib/other.ts': OTHER,
+				'src/lib/other.ts': OTHER
 			},
 			async (projectRoot) => {
 				const session = createAnalysisSession({
-					sourceOptions: createSourceOptions(projectRoot),
+					sourceOptions: createSourceOptions(projectRoot)
 				});
 				try {
-					await session.setFile({id: TS_FILE(projectRoot), content: MATH_V1});
+					await session.setFile({ id: TS_FILE(projectRoot), content: MATH_V1 });
 					const r1 = session.query();
 					assert.strictEqual(r1.modules.length, 1);
 
-					await session.setFile({id: OTHER_FILE(projectRoot), content: OTHER});
+					await session.setFile({ id: OTHER_FILE(projectRoot), content: OTHER });
 					const r2 = session.query();
 					const paths2 = r2.modules.map((m) => m.path).sort();
 					assert.strictEqual(paths2.length, 2);
@@ -206,7 +206,7 @@ describe('createAnalysisSession', {timeout: 30_000}, () => {
 				} finally {
 					session.dispose();
 				}
-			},
+			}
 		);
 	});
 
@@ -220,30 +220,30 @@ describe('createAnalysisSession', {timeout: 30_000}, () => {
 		await withTestProject(
 			{
 				'src/lib/a.ts': `export const foo = 1;\n`,
-				'src/lib/barrel.ts': `export {foo} from './a.js';\n`,
+				'src/lib/barrel.ts': `export {foo} from './a.js';\n`
 			},
 			async (projectRoot) => {
 				const session = createAnalysisSession({
-					sourceOptions: createSourceOptions(projectRoot),
+					sourceOptions: createSourceOptions(projectRoot)
 				});
 				try {
 					// own only the barrel — a.ts exists on disk but is never set
 					await session.setFile({
 						id: join(projectRoot, 'src/lib/barrel.ts'),
-						content: `export {foo} from './a.js';\n`,
+						content: `export {foo} from './a.js';\n`
 					});
-					const {modules} = session.query();
+					const { modules } = session.query();
 					assert.deepStrictEqual(
 						modules.map((m) => m.path),
-						['barrel.ts'],
+						['barrel.ts']
 					);
 					assert.deepStrictEqual(modules[0]!.reExports, [
-						{name: 'foo', module: 'a.ts', typeOnly: false, sourceLine: 1},
+						{ name: 'foo', module: 'a.ts', typeOnly: false, sourceLine: 1 }
 					]);
 				} finally {
 					session.dispose();
 				}
-			},
+			}
 		);
 	});
 
@@ -251,21 +251,21 @@ describe('createAnalysisSession', {timeout: 30_000}, () => {
 		await withTestProject(
 			{
 				'src/lib/math.ts': MATH_V1,
-				'src/lib/other.ts': OTHER,
+				'src/lib/other.ts': OTHER
 			},
 			async (projectRoot) => {
 				const session = createAnalysisSession({
-					sourceOptions: createSourceOptions(projectRoot),
+					sourceOptions: createSourceOptions(projectRoot)
 				});
 				try {
 					assert.strictEqual(session.list().length, 0);
 					assert.strictEqual(session.has(TS_FILE(projectRoot)), false);
 
-					await session.setFile({id: TS_FILE(projectRoot), content: MATH_V1});
+					await session.setFile({ id: TS_FILE(projectRoot), content: MATH_V1 });
 					assert.strictEqual(session.has(TS_FILE(projectRoot)), true);
 					assert.strictEqual(session.list().length, 1);
 
-					await session.setFile({id: OTHER_FILE(projectRoot), content: OTHER});
+					await session.setFile({ id: OTHER_FILE(projectRoot), content: OTHER });
 					assert.strictEqual(session.list().length, 2);
 
 					await session.deleteFile(TS_FILE(projectRoot));
@@ -274,30 +274,30 @@ describe('createAnalysisSession', {timeout: 30_000}, () => {
 				} finally {
 					session.dispose();
 				}
-			},
+			}
 		);
 	});
 
 	test('cache hit returns changed: false with same diagnostics', async () => {
 		await withTestProject(
 			{
-				'src/lib/math.ts': MATH_V1,
+				'src/lib/math.ts': MATH_V1
 			},
 			async (projectRoot) => {
 				const session = createAnalysisSession({
-					sourceOptions: createSourceOptions(projectRoot),
+					sourceOptions: createSourceOptions(projectRoot)
 				});
 				try {
-					const r1 = await session.setFile({id: TS_FILE(projectRoot), content: MATH_V1});
+					const r1 = await session.setFile({ id: TS_FILE(projectRoot), content: MATH_V1 });
 					assert.strictEqual(r1.changed, true);
 
-					const r2 = await session.setFile({id: TS_FILE(projectRoot), content: MATH_V1});
+					const r2 = await session.setFile({ id: TS_FILE(projectRoot), content: MATH_V1 });
 					assert.strictEqual(r2.changed, false);
 					assert.deepStrictEqual(r2.diagnostics, r1.diagnostics);
 				} finally {
 					session.dispose();
 				}
-			},
+			}
 		);
 	});
 
@@ -305,16 +305,16 @@ describe('createAnalysisSession', {timeout: 30_000}, () => {
 		await withTestProject(
 			{
 				'src/lib/math.ts': MATH_V1,
-				'src/lib/other.ts': OTHER,
+				'src/lib/other.ts': OTHER
 			},
 			async (projectRoot) => {
 				const session = createAnalysisSession({
-					sourceOptions: createSourceOptions(projectRoot),
+					sourceOptions: createSourceOptions(projectRoot)
 				});
 				try {
 					const r1 = await session.setFiles([
-						{id: TS_FILE(projectRoot), content: MATH_V1},
-						{id: OTHER_FILE(projectRoot), content: OTHER},
+						{ id: TS_FILE(projectRoot), content: MATH_V1 },
+						{ id: OTHER_FILE(projectRoot), content: OTHER }
 					]);
 					assert.strictEqual(r1.changedIds.size, 2);
 					assert.strictEqual(r1.perFile.size, 2);
@@ -323,15 +323,15 @@ describe('createAnalysisSession', {timeout: 30_000}, () => {
 
 					// Re-ingest unchanged content — all files are cache hits.
 					const r2 = await session.setFiles([
-						{id: TS_FILE(projectRoot), content: MATH_V1},
-						{id: OTHER_FILE(projectRoot), content: OTHER},
+						{ id: TS_FILE(projectRoot), content: MATH_V1 },
+						{ id: OTHER_FILE(projectRoot), content: OTHER }
 					]);
 					assert.strictEqual(r2.changedIds.size, 0);
 					assert.strictEqual(r2.perFile.get(TS_FILE(projectRoot))!.changed, false);
 				} finally {
 					session.dispose();
 				}
-			},
+			}
 		);
 	});
 
@@ -348,70 +348,70 @@ describe('createAnalysisSession', {timeout: 30_000}, () => {
 		test('cold ingest transforms each .svelte file once', async () => {
 			await withTestProject(
 				{
-					'src/lib/Button.svelte': BUTTON_V1,
+					'src/lib/Button.svelte': BUTTON_V1
 				},
 				async (projectRoot) => {
 					const spy = vi.spyOn(svelteModule, 'transformSvelteSource');
 					const session = createAnalysisSession({
-						sourceOptions: createSourceOptions(projectRoot),
+						sourceOptions: createSourceOptions(projectRoot)
 					});
 					try {
-						await session.setFile({id: SVELTE_FILE(projectRoot), content: BUTTON_V1});
+						await session.setFile({ id: SVELTE_FILE(projectRoot), content: BUTTON_V1 });
 						assert.strictEqual(spy.mock.calls.length, 1);
 					} finally {
 						session.dispose();
 					}
-				},
+				}
 			);
 		});
 
 		test('unchanged Svelte file is not re-transformed on next setFile', async () => {
 			await withTestProject(
 				{
-					'src/lib/Button.svelte': BUTTON_V1,
+					'src/lib/Button.svelte': BUTTON_V1
 				},
 				async (projectRoot) => {
 					const spy = vi.spyOn(svelteModule, 'transformSvelteSource');
 					const session = createAnalysisSession({
-						sourceOptions: createSourceOptions(projectRoot),
+						sourceOptions: createSourceOptions(projectRoot)
 					});
 					try {
-						await session.setFile({id: SVELTE_FILE(projectRoot), content: BUTTON_V1});
+						await session.setFile({ id: SVELTE_FILE(projectRoot), content: BUTTON_V1 });
 						assert.strictEqual(spy.mock.calls.length, 1, 'expected 1 transform on cold ingest');
 
-						await session.setFile({id: SVELTE_FILE(projectRoot), content: BUTTON_V1});
+						await session.setFile({ id: SVELTE_FILE(projectRoot), content: BUTTON_V1 });
 						assert.strictEqual(
 							spy.mock.calls.length,
 							1,
-							'expected no re-transform on unchanged input',
+							'expected no re-transform on unchanged input'
 						);
 					} finally {
 						session.dispose();
 					}
-				},
+				}
 			);
 		});
 
 		test('mutated Svelte file triggers exactly one re-transform', async () => {
 			await withTestProject(
 				{
-					'src/lib/Button.svelte': BUTTON_V1,
+					'src/lib/Button.svelte': BUTTON_V1
 				},
 				async (projectRoot) => {
 					const spy = vi.spyOn(svelteModule, 'transformSvelteSource');
 					const session = createAnalysisSession({
-						sourceOptions: createSourceOptions(projectRoot),
+						sourceOptions: createSourceOptions(projectRoot)
 					});
 					try {
-						await session.setFile({id: SVELTE_FILE(projectRoot), content: BUTTON_V1});
+						await session.setFile({ id: SVELTE_FILE(projectRoot), content: BUTTON_V1 });
 						assert.strictEqual(spy.mock.calls.length, 1);
 
-						await session.setFile({id: SVELTE_FILE(projectRoot), content: BUTTON_V2});
+						await session.setFile({ id: SVELTE_FILE(projectRoot), content: BUTTON_V2 });
 						assert.strictEqual(spy.mock.calls.length, 2);
 					} finally {
 						session.dispose();
 					}
-				},
+				}
 			);
 		});
 	});
@@ -427,7 +427,7 @@ describe('createAnalysisSession', {timeout: 30_000}, () => {
 		test('failed Svelte transform surfaces as placeholder ModuleJson and transform_failed diagnostic', async () => {
 			await withTestProject(
 				{
-					'src/lib/Broken.svelte': BUTTON_V1, // content irrelevant — we mock transform to throw
+					'src/lib/Broken.svelte': BUTTON_V1 // content irrelevant — we mock transform to throw
 				},
 				async (projectRoot) => {
 					// Mock transformSvelteSource to return failure shape.
@@ -439,19 +439,19 @@ describe('createAnalysisSession', {timeout: 30_000}, () => {
 									kind: 'transform_failed',
 									file: file.id,
 									message: 'svelte2tsx mock failure',
-									severity: 'error',
-								},
-							],
-						}),
+									severity: 'error'
+								}
+							]
+						})
 					);
 
 					const session = createAnalysisSession({
-						sourceOptions: createSourceOptions(projectRoot),
+						sourceOptions: createSourceOptions(projectRoot)
 					});
 					try {
 						const ingest = await session.setFile({
 							id: BROKEN_SVELTE(projectRoot),
-							content: BUTTON_V1,
+							content: BUTTON_V1
 						});
 						// Ingest carries the transform_failed diagnostic.
 						assert.strictEqual(ingest.diagnostics.length, 1);
@@ -468,17 +468,17 @@ describe('createAnalysisSession', {timeout: 30_000}, () => {
 						// Query-time diagnostics should NOT double-emit the failure
 						// (the ingest diagnostic carries it).
 						const queryTransformFailed = result.diagnostics.filter(
-							(d) => d.kind === 'transform_failed',
+							(d) => d.kind === 'transform_failed'
 						);
 						assert.strictEqual(queryTransformFailed.length, 0);
 						const queryRequiresProgram = result.diagnostics.filter(
-							(d) => d.kind === 'module_skipped' && d.reason === 'requires_program',
+							(d) => d.kind === 'module_skipped' && d.reason === 'requires_program'
 						);
 						assert.strictEqual(queryRequiresProgram.length, 0);
 					} finally {
 						session.dispose();
 					}
-				},
+				}
 			);
 		});
 
@@ -491,20 +491,20 @@ describe('createAnalysisSession', {timeout: 30_000}, () => {
 			// block, throws `element_unclosed`. Stable across svelte2tsx versions
 			// because the unclosed-tag check is parser-fundamental.
 			const MALFORMED = '<script lang="ts">const x =';
-			await withTestProject({'src/lib/Malformed.svelte': MALFORMED}, async (projectRoot) => {
+			await withTestProject({ 'src/lib/Malformed.svelte': MALFORMED }, async (projectRoot) => {
 				const session = createAnalysisSession({
-					sourceOptions: createSourceOptions(projectRoot),
+					sourceOptions: createSourceOptions(projectRoot)
 				});
 				try {
 					const ingest = await session.setFile({
 						id: join(projectRoot, 'src/lib/Malformed.svelte'),
-						content: MALFORMED,
+						content: MALFORMED
 					});
 					const transformFailed = ingest.diagnostics.filter((d) => d.kind === 'transform_failed');
 					assert.strictEqual(
 						transformFailed.length,
 						1,
-						'expected one transform_failed for the unterminated <script>',
+						'expected one transform_failed for the unterminated <script>'
 					);
 					assert.strictEqual(transformFailed[0]!.severity, 'error');
 
@@ -543,16 +543,16 @@ describe('createAnalysisSession', {timeout: 30_000}, () => {
 			await withTestProject(
 				{
 					'src/lib/Button.svelte': VALID_BUTTON,
-					'src/lib/uses.ts': USES_BUTTON,
+					'src/lib/uses.ts': USES_BUTTON
 				},
 				async (projectRoot) => {
 					const session = createAnalysisSession({
-						sourceOptions: createSourceOptions(projectRoot),
+						sourceOptions: createSourceOptions(projectRoot)
 					});
 					try {
 						await session.setFiles([
-							{id: SVELTE_FILE(projectRoot), content: VALID_BUTTON},
-							{id: join(projectRoot, 'src/lib/uses.ts'), content: USES_BUTTON},
+							{ id: SVELTE_FILE(projectRoot), content: VALID_BUTTON },
+							{ id: join(projectRoot, 'src/lib/uses.ts'), content: USES_BUTTON }
 						]);
 						const before = session.query();
 						const usesBefore = before.modules.find((m) => m.path.endsWith('uses.ts'))!;
@@ -560,7 +560,7 @@ describe('createAnalysisSession', {timeout: 30_000}, () => {
 						assert.strictEqual(
 							xBefore.typeSignature,
 							'"valid"',
-							'before regression: importer should see Button’s literal export type',
+							'before regression: importer should see Button’s literal export type'
 						);
 
 						// Regress Button.svelte. The eviction in phase 3 must drop
@@ -568,7 +568,7 @@ describe('createAnalysisSession', {timeout: 30_000}, () => {
 						// can't keep resolving FOO against stale content.
 						await session.setFile({
 							id: SVELTE_FILE(projectRoot),
-							content: MALFORMED_BUTTON,
+							content: MALFORMED_BUTTON
 						});
 
 						const after = session.query();
@@ -581,17 +581,17 @@ describe('createAnalysisSession', {timeout: 30_000}, () => {
 						assert.strictEqual(
 							xAfter.typeSignature,
 							'any',
-							'after regression: importer should no longer resolve FOO (stale virtual evicted)',
+							'after regression: importer should no longer resolve FOO (stale virtual evicted)'
 						);
 						assert.notStrictEqual(
 							xAfter.typeSignature,
 							xBefore.typeSignature,
-							'typeSignature must change — a stale virtual would keep "valid"',
+							'typeSignature must change — a stale virtual would keep "valid"'
 						);
 					} finally {
 						session.dispose();
 					}
-				},
+				}
 			);
 		});
 	});
@@ -605,7 +605,7 @@ describe('createAnalysisSession', {timeout: 30_000}, () => {
 			await withTestProject(
 				{
 					'src/lib/a.ts': "export {b} from './b.js';\nexport const a = 1;",
-					'src/lib/b.ts': 'export const b = 2;',
+					'src/lib/b.ts': 'export const b = 2;'
 				},
 				async (projectRoot) => {
 					const session = createAnalysisSession({
@@ -614,13 +614,13 @@ describe('createAnalysisSession', {timeout: 30_000}, () => {
 							resolve: () => {
 								throw new Error('boom');
 							},
-							identity: 'throwing-test-resolver',
-						},
+							identity: 'throwing-test-resolver'
+						}
 					});
 					try {
 						const ingest = await session.setFiles([
-							{id: join(projectRoot, 'src/lib/a.ts'), content: "export {b} from './b.js';"},
-							{id: join(projectRoot, 'src/lib/b.ts'), content: 'export const b = 2;'},
+							{ id: join(projectRoot, 'src/lib/a.ts'), content: "export {b} from './b.js';" },
+							{ id: join(projectRoot, 'src/lib/b.ts'), content: 'export const b = 2;' }
 						]);
 						const failures = ingest.diagnostics.filter((d) => d.kind === 'resolver_failed');
 						assert.strictEqual(failures.length, 1, 'one specifier in a.ts');
@@ -634,7 +634,7 @@ describe('createAnalysisSession', {timeout: 30_000}, () => {
 					} finally {
 						session.dispose();
 					}
-				},
+				}
 			);
 		});
 
@@ -647,7 +647,7 @@ describe('createAnalysisSession', {timeout: 30_000}, () => {
 			await withTestProject(
 				{
 					'src/lib/a.ts': SRC,
-					'src/lib/b.ts': 'export const b = 2; export const c = 3;',
+					'src/lib/b.ts': 'export const b = 2; export const c = 3;'
 				},
 				async (projectRoot) => {
 					let resolverCalls = 0;
@@ -658,13 +658,13 @@ describe('createAnalysisSession', {timeout: 30_000}, () => {
 								resolverCalls++;
 								throw new Error('boom');
 							},
-							identity: 'throwing-test-resolver',
-						},
+							identity: 'throwing-test-resolver'
+						}
 					});
 					try {
 						const ingest = await session.setFiles([
-							{id: join(projectRoot, 'src/lib/a.ts'), content: SRC},
-							{id: join(projectRoot, 'src/lib/b.ts'), content: 'export const b = 2;'},
+							{ id: join(projectRoot, 'src/lib/a.ts'), content: SRC },
+							{ id: join(projectRoot, 'src/lib/b.ts'), content: 'export const b = 2;' }
 						]);
 						// Resolver was invoked twice (once per import site)…
 						assert.strictEqual(resolverCalls, 2);
@@ -675,7 +675,7 @@ describe('createAnalysisSession', {timeout: 30_000}, () => {
 					} finally {
 						session.dispose();
 					}
-				},
+				}
 			);
 		});
 	});
@@ -690,7 +690,7 @@ describe('createAnalysisSession', {timeout: 30_000}, () => {
 			await withTestProject(
 				{
 					'src/lib/a.ts': "import {b} from './b.js';\nexport const a = b;",
-					'src/lib/b.ts': 'export const b = 2;',
+					'src/lib/b.ts': 'export const b = 2;'
 				},
 				async (projectRoot) => {
 					const session = createAnalysisSession({
@@ -700,14 +700,14 @@ describe('createAnalysisSession', {timeout: 30_000}, () => {
 								defaultCalls++;
 								return null;
 							},
-							identity: 'default-test',
-						},
+							identity: 'default-test'
+						}
 					});
 					try {
 						await session.setFile(
 							{
 								id: join(projectRoot, 'src/lib/a.ts'),
-								content: "import {b} from './b.js';\nexport const a = b;",
+								content: "import {b} from './b.js';\nexport const a = b;"
 							},
 							{
 								resolveImport: {
@@ -715,16 +715,16 @@ describe('createAnalysisSession', {timeout: 30_000}, () => {
 										overrideCalls++;
 										return null;
 									},
-									identity: 'override-test',
-								},
-							},
+									identity: 'override-test'
+								}
+							}
 						);
 						assert.strictEqual(defaultCalls, 0, 'session default must not run when overridden');
 						assert.strictEqual(overrideCalls, 1, 'override must run instead');
 					} finally {
 						session.dispose();
 					}
-				},
+				}
 			);
 		});
 
@@ -733,16 +733,16 @@ describe('createAnalysisSession', {timeout: 30_000}, () => {
 			await withTestProject(
 				{
 					'src/lib/a.ts': "import {b} from './b.js';\nexport const a = b;",
-					'src/lib/b.ts': 'export const b = 2;',
+					'src/lib/b.ts': 'export const b = 2;'
 				},
 				async (projectRoot) => {
 					const session = createAnalysisSession({
-						sourceOptions: createSourceOptions(projectRoot),
+						sourceOptions: createSourceOptions(projectRoot)
 					});
 					try {
 						const file = {
 							id: join(projectRoot, 'src/lib/a.ts'),
-							content: "import {b} from './b.js';\nexport const a = b;",
+							content: "import {b} from './b.js';\nexport const a = b;"
 						};
 						const r1 = await session.setFile(file, {
 							resolveImport: {
@@ -750,8 +750,8 @@ describe('createAnalysisSession', {timeout: 30_000}, () => {
 									calls.push('first');
 									return null;
 								},
-								identity: 'first',
-							},
+								identity: 'first'
+							}
 						});
 						assert.strictEqual(r1.changed, true);
 
@@ -762,15 +762,15 @@ describe('createAnalysisSession', {timeout: 30_000}, () => {
 									calls.push('second');
 									return null;
 								},
-								identity: 'second',
-							},
+								identity: 'second'
+							}
 						});
 						assert.strictEqual(r2.changed, true, 'identity change must bust the cache');
 						assert.deepStrictEqual(calls, ['first', 'second']);
 					} finally {
 						session.dispose();
 					}
-				},
+				}
 			);
 		});
 	});
@@ -786,7 +786,7 @@ describe('createAnalysisSession', {timeout: 30_000}, () => {
 			await withTestProject(
 				{
 					'src/lib/a.ts': "import {b} from './b.js';\nexport const a = b;",
-					'src/lib/b.ts': 'export const b = 2;',
+					'src/lib/b.ts': 'export const b = 2;'
 				},
 				async (projectRoot) => {
 					const session = createAnalysisSession({
@@ -796,21 +796,21 @@ describe('createAnalysisSession', {timeout: 30_000}, () => {
 								resolverCalls++;
 								return null;
 							},
-							identity: 'counting',
-						},
+							identity: 'counting'
+						}
 					});
 					try {
 						await session.setFiles([
 							{
 								id: join(projectRoot, 'src/lib/a.ts'),
 								content: "import {b} from './b.js';\nexport const a = b;",
-								dependencies: [join(projectRoot, 'src/lib/b.ts')],
+								dependencies: [join(projectRoot, 'src/lib/b.ts')]
 							},
 							{
 								id: join(projectRoot, 'src/lib/b.ts'),
 								content: 'export const b = 2;',
-								dependencies: [],
-							},
+								dependencies: []
+							}
 						]);
 						assert.strictEqual(resolverCalls, 0, 'resolver must not run for pre-resolved files');
 
@@ -822,7 +822,7 @@ describe('createAnalysisSession', {timeout: 30_000}, () => {
 					} finally {
 						session.dispose();
 					}
-				},
+				}
 			);
 		});
 
@@ -830,11 +830,11 @@ describe('createAnalysisSession', {timeout: 30_000}, () => {
 			await withTestProject(
 				{
 					'src/lib/a.ts': "import {b} from './b.js';\nexport const a = b;",
-					'src/lib/b.ts': 'export const b = 2;',
+					'src/lib/b.ts': 'export const b = 2;'
 				},
 				async (projectRoot) => {
 					const session = createAnalysisSession({
-						sourceOptions: createSourceOptions(projectRoot),
+						sourceOptions: createSourceOptions(projectRoot)
 					});
 					try {
 						await session.setFiles([
@@ -844,14 +844,14 @@ describe('createAnalysisSession', {timeout: 30_000}, () => {
 								dependencies: [
 									join(projectRoot, 'src/lib/b.ts'),
 									join(projectRoot, 'node_modules/external/index.js'),
-									join(projectRoot, 'src/lib/a.test.ts'),
-								],
+									join(projectRoot, 'src/lib/a.test.ts')
+								]
 							},
 							{
 								id: join(projectRoot, 'src/lib/b.ts'),
 								content: 'export const b = 2;',
-								dependencies: [],
-							},
+								dependencies: []
+							}
 						]);
 
 						const result = session.query();
@@ -859,12 +859,12 @@ describe('createAnalysisSession', {timeout: 30_000}, () => {
 						assert.deepStrictEqual(
 							a.dependencies,
 							['b.ts'],
-							'external + test paths filtered out via isSource',
+							'external + test paths filtered out via isSource'
 						);
 					} finally {
 						session.dispose();
 					}
-				},
+				}
 			);
 		});
 
@@ -872,7 +872,7 @@ describe('createAnalysisSession', {timeout: 30_000}, () => {
 			let resolverCalls = 0;
 			await withTestProject(
 				{
-					'src/lib/a.ts': 'export const a = 1;',
+					'src/lib/a.ts': 'export const a = 1;'
 				},
 				async (projectRoot) => {
 					const session = createAnalysisSession({
@@ -882,15 +882,15 @@ describe('createAnalysisSession', {timeout: 30_000}, () => {
 								resolverCalls++;
 								return null;
 							},
-							identity: 'counting',
-						},
+							identity: 'counting'
+						}
 					});
 					try {
 						const deps: ReadonlyArray<string> = [];
 						const file: SourceFileInfo = {
 							id: join(projectRoot, 'src/lib/a.ts'),
 							content: 'export const a = 1;',
-							dependencies: deps,
+							dependencies: deps
 						};
 						const r1 = await session.setFile(file);
 						assert.strictEqual(r1.changed, true, 'first ingest is a cache miss');
@@ -901,7 +901,7 @@ describe('createAnalysisSession', {timeout: 30_000}, () => {
 					} finally {
 						session.dispose();
 					}
-				},
+				}
 			);
 		});
 
@@ -916,27 +916,27 @@ describe('createAnalysisSession', {timeout: 30_000}, () => {
 			await withTestProject(
 				{
 					'src/lib/a.ts': "import {b} from './b.js';\nexport const a = b;",
-					'src/lib/b.ts': 'export const b = 2;',
+					'src/lib/b.ts': 'export const b = 2;'
 				},
 				async (projectRoot) => {
 					const session = createAnalysisSession({
-						sourceOptions: createSourceOptions(projectRoot),
+						sourceOptions: createSourceOptions(projectRoot)
 					});
 					try {
 						const id = join(projectRoot, 'src/lib/a.ts');
 						const content = "import {b} from './b.js';\nexport const a = b;";
 						const bPath = join(projectRoot, 'src/lib/b.ts');
 
-						const r1 = await session.setFile({id, content, dependencies: [bPath]});
+						const r1 = await session.setFile({ id, content, dependencies: [bPath] });
 						assert.strictEqual(r1.changed, true);
 
 						// Fresh array, identical contents → cache hit.
-						const r2 = await session.setFile({id, content, dependencies: [bPath]});
+						const r2 = await session.setFile({ id, content, dependencies: [bPath] });
 						assert.strictEqual(r2.changed, false, 'fresh array with same contents → cache hit');
 					} finally {
 						session.dispose();
 					}
-				},
+				}
 			);
 		});
 
@@ -945,11 +945,11 @@ describe('createAnalysisSession', {timeout: 30_000}, () => {
 				{
 					'src/lib/a.ts': "import {b} from './b.js';\nexport const a = b;",
 					'src/lib/b.ts': 'export const b = 2;',
-					'src/lib/c.ts': 'export const c = 3;',
+					'src/lib/c.ts': 'export const c = 3;'
 				},
 				async (projectRoot) => {
 					const session = createAnalysisSession({
-						sourceOptions: createSourceOptions(projectRoot),
+						sourceOptions: createSourceOptions(projectRoot)
 					});
 					try {
 						const id = join(projectRoot, 'src/lib/a.ts');
@@ -957,20 +957,20 @@ describe('createAnalysisSession', {timeout: 30_000}, () => {
 						const bPath = join(projectRoot, 'src/lib/b.ts');
 						const cPath = join(projectRoot, 'src/lib/c.ts');
 
-						const r1 = await session.setFile({id, content, dependencies: [bPath]});
+						const r1 = await session.setFile({ id, content, dependencies: [bPath] });
 						assert.strictEqual(r1.changed, true);
 
 						// Different length → cache miss.
 						const r2 = await session.setFile({
 							id,
 							content,
-							dependencies: [bPath, cPath],
+							dependencies: [bPath, cPath]
 						});
 						assert.strictEqual(r2.changed, true, 'added dep must invalidate');
 					} finally {
 						session.dispose();
 					}
-				},
+				}
 			);
 		});
 
@@ -980,11 +980,11 @@ describe('createAnalysisSession', {timeout: 30_000}, () => {
 					'src/lib/a.ts':
 						"import {b} from './b.js';\nimport {c} from './c.js';\nexport const a = b + c;",
 					'src/lib/b.ts': 'export const b = 2;',
-					'src/lib/c.ts': 'export const c = 3;',
+					'src/lib/c.ts': 'export const c = 3;'
 				},
 				async (projectRoot) => {
 					const session = createAnalysisSession({
-						sourceOptions: createSourceOptions(projectRoot),
+						sourceOptions: createSourceOptions(projectRoot)
 					});
 					try {
 						const id = join(projectRoot, 'src/lib/a.ts');
@@ -993,16 +993,16 @@ describe('createAnalysisSession', {timeout: 30_000}, () => {
 						const bPath = join(projectRoot, 'src/lib/b.ts');
 						const cPath = join(projectRoot, 'src/lib/c.ts');
 
-						const r1 = await session.setFile({id, content, dependencies: [bPath, cPath]});
+						const r1 = await session.setFile({ id, content, dependencies: [bPath, cPath] });
 						assert.strictEqual(r1.changed, true);
 
 						// Same contents, reordered → cache miss (order is significant).
-						const r2 = await session.setFile({id, content, dependencies: [cPath, bPath]});
+						const r2 = await session.setFile({ id, content, dependencies: [cPath, bPath] });
 						assert.strictEqual(r2.changed, true, 'reordered deps must invalidate');
 					} finally {
 						session.dispose();
 					}
-				},
+				}
 			);
 		});
 
@@ -1015,11 +1015,11 @@ describe('createAnalysisSession', {timeout: 30_000}, () => {
 				{
 					'src/lib/a.ts': "import {b} from './b.js';\nexport const a = b;",
 					'src/lib/b.ts': 'export const b = 2;',
-					'src/lib/c.ts': 'export const c = 3;',
+					'src/lib/c.ts': 'export const c = 3;'
 				},
 				async (projectRoot) => {
 					const session = createAnalysisSession({
-						sourceOptions: createSourceOptions(projectRoot),
+						sourceOptions: createSourceOptions(projectRoot)
 					});
 					try {
 						const id = join(projectRoot, 'src/lib/a.ts');
@@ -1028,22 +1028,22 @@ describe('createAnalysisSession', {timeout: 30_000}, () => {
 						const cPath = join(projectRoot, 'src/lib/c.ts');
 
 						const deps: Array<string> = [bPath];
-						const r1 = await session.setFile({id, content, dependencies: deps});
+						const r1 = await session.setFile({ id, content, dependencies: deps });
 						assert.strictEqual(r1.changed, true);
 
 						// Mutate the same array reference — emulates a buggy caller.
 						deps.push(cPath);
 
-						const r2 = await session.setFile({id, content, dependencies: deps});
+						const r2 = await session.setFile({ id, content, dependencies: deps });
 						assert.strictEqual(
 							r2.changed,
 							true,
-							'mutated array must invalidate (snapshot semantics)',
+							'mutated array must invalidate (snapshot semantics)'
 						);
 					} finally {
 						session.dispose();
 					}
-				},
+				}
 			);
 		});
 
@@ -1052,7 +1052,7 @@ describe('createAnalysisSession', {timeout: 30_000}, () => {
 			await withTestProject(
 				{
 					'src/lib/a.ts': "import {b} from './b.js';\nexport const a = b;",
-					'src/lib/b.ts': 'export const b = 2;',
+					'src/lib/b.ts': 'export const b = 2;'
 				},
 				async (projectRoot) => {
 					const session = createAnalysisSession({
@@ -1062,8 +1062,8 @@ describe('createAnalysisSession', {timeout: 30_000}, () => {
 								resolverCalls++;
 								return join(projectRoot, 'src/lib/b.ts');
 							},
-							identity: 'counting',
-						},
+							identity: 'counting'
+						}
 					});
 					try {
 						const id = join(projectRoot, 'src/lib/a.ts');
@@ -1073,19 +1073,19 @@ describe('createAnalysisSession', {timeout: 30_000}, () => {
 						const r1 = await session.setFile({
 							id,
 							content,
-							dependencies: [join(projectRoot, 'src/lib/b.ts')],
+							dependencies: [join(projectRoot, 'src/lib/b.ts')]
 						});
 						assert.strictEqual(r1.changed, true);
 						assert.strictEqual(resolverCalls, 0);
 
 						// Second call: same content, no dependencies → mode flip, lex+resolve runs.
-						const r2 = await session.setFile({id, content});
+						const r2 = await session.setFile({ id, content });
 						assert.strictEqual(r2.changed, true, 'mode flip must invalidate');
 						assert.strictEqual(resolverCalls, 1, 'lex+resolve path called the resolver');
 					} finally {
 						session.dispose();
 					}
-				},
+				}
 			);
 		});
 
@@ -1094,7 +1094,7 @@ describe('createAnalysisSession', {timeout: 30_000}, () => {
 			await withTestProject(
 				{
 					'src/lib/a.ts': "import {b} from './b.js';\nexport const a = b;",
-					'src/lib/b.ts': 'export const b = 2;',
+					'src/lib/b.ts': 'export const b = 2;'
 				},
 				async (projectRoot) => {
 					const session = createAnalysisSession({
@@ -1104,15 +1104,15 @@ describe('createAnalysisSession', {timeout: 30_000}, () => {
 								resolverCalls++;
 								return join(projectRoot, 'src/lib/b.ts');
 							},
-							identity: 'counting',
-						},
+							identity: 'counting'
+						}
 					});
 					try {
 						const id = join(projectRoot, 'src/lib/a.ts');
 						const content = "import {b} from './b.js';\nexport const a = b;";
 
 						// First call: lex+resolve (no dependencies supplied).
-						const r1 = await session.setFile({id, content});
+						const r1 = await session.setFile({ id, content });
 						assert.strictEqual(r1.changed, true);
 						assert.strictEqual(resolverCalls, 1, 'first call ran lex+resolve');
 
@@ -1121,14 +1121,14 @@ describe('createAnalysisSession', {timeout: 30_000}, () => {
 						const r2 = await session.setFile({
 							id,
 							content,
-							dependencies: [join(projectRoot, 'src/lib/b.ts')],
+							dependencies: [join(projectRoot, 'src/lib/b.ts')]
 						});
 						assert.strictEqual(r2.changed, true, 'mode flip must invalidate');
 						assert.strictEqual(resolverCalls, 1, 'pre-resolved path must not call the resolver');
 					} finally {
 						session.dispose();
 					}
-				},
+				}
 			);
 		});
 
@@ -1145,7 +1145,7 @@ describe('createAnalysisSession', {timeout: 30_000}, () => {
 			await withTestProject(
 				{
 					'src/lib/Button.svelte': BUTTON,
-					'src/lib/labels.ts': LABELS,
+					'src/lib/labels.ts': LABELS
 				},
 				async (projectRoot) => {
 					const session = createAnalysisSession({
@@ -1155,26 +1155,26 @@ describe('createAnalysisSession', {timeout: 30_000}, () => {
 								resolverCalls++;
 								return null;
 							},
-							identity: 'counting',
-						},
+							identity: 'counting'
+						}
 					});
 					try {
 						await session.setFiles([
 							{
 								id: SVELTE_FILE(projectRoot),
 								content: BUTTON,
-								dependencies: [join(projectRoot, 'src/lib/labels.ts')],
+								dependencies: [join(projectRoot, 'src/lib/labels.ts')]
 							},
 							{
 								id: join(projectRoot, 'src/lib/labels.ts'),
 								content: LABELS,
-								dependencies: [],
-							},
+								dependencies: []
+							}
 						]);
 						assert.strictEqual(
 							resolverCalls,
 							0,
-							'resolver must not run when Svelte file supplies pre-resolved deps',
+							'resolver must not run when Svelte file supplies pre-resolved deps'
 						);
 
 						const result = session.query();
@@ -1190,7 +1190,7 @@ describe('createAnalysisSession', {timeout: 30_000}, () => {
 					} finally {
 						session.dispose();
 					}
-				},
+				}
 			);
 		});
 
@@ -1202,12 +1202,12 @@ describe('createAnalysisSession', {timeout: 30_000}, () => {
 		// "any file lacks deps" intent (vs. a future regression that narrows
 		// it to "all files lack deps").
 		test('mixed batch: resolver consulted only for files lacking pre-resolved deps', async () => {
-			const resolveCalls: Array<{specifier: string; from: string}> = [];
+			const resolveCalls: Array<{ specifier: string; from: string }> = [];
 			await withTestProject(
 				{
 					'src/lib/a.ts': "import {b} from './b.js';\nexport const a = b;",
 					'src/lib/b.ts': "import {c} from './c.js';\nexport const b = c;",
-					'src/lib/c.ts': 'export const c = 3;',
+					'src/lib/c.ts': 'export const c = 3;'
 				},
 				async (projectRoot) => {
 					const aPath = join(projectRoot, 'src/lib/a.ts');
@@ -1218,13 +1218,13 @@ describe('createAnalysisSession', {timeout: 30_000}, () => {
 						sourceOptions: createSourceOptions(projectRoot),
 						resolveImport: {
 							resolve: (specifier: string, from: string) => {
-								resolveCalls.push({specifier, from});
+								resolveCalls.push({ specifier, from });
 								if (specifier === './b.js') return bPath;
 								if (specifier === './c.js') return cPath;
 								return null;
 							},
-							identity: 'counting',
-						},
+							identity: 'counting'
+						}
 					});
 					try {
 						// a.ts: pre-resolved (deps supplied). b.ts: lex+resolve (no deps).
@@ -1233,18 +1233,18 @@ describe('createAnalysisSession', {timeout: 30_000}, () => {
 							{
 								id: aPath,
 								content: "import {b} from './b.js';\nexport const a = b;",
-								dependencies: [bPath],
+								dependencies: [bPath]
 							},
 							{
 								id: bPath,
-								content: "import {c} from './c.js';\nexport const b = c;",
+								content: "import {c} from './c.js';\nexport const b = c;"
 								// No dependencies → lex+resolve path.
 							},
 							{
 								id: cPath,
 								content: 'export const c = 3;',
-								dependencies: [],
-							},
+								dependencies: []
+							}
 						]);
 
 						// Resolver consulted exactly once, for b.ts's import of './c.js'.
@@ -1253,7 +1253,7 @@ describe('createAnalysisSession', {timeout: 30_000}, () => {
 						assert.strictEqual(
 							resolveCalls.length,
 							1,
-							'resolver called exactly once (only b.ts went through lex+resolve)',
+							'resolver called exactly once (only b.ts went through lex+resolve)'
 						);
 						assert.strictEqual(resolveCalls[0]!.specifier, './c.js');
 						assert.strictEqual(resolveCalls[0]!.from, bPath);
@@ -1269,7 +1269,7 @@ describe('createAnalysisSession', {timeout: 30_000}, () => {
 					} finally {
 						session.dispose();
 					}
-				},
+				}
 			);
 		});
 	});
@@ -1300,20 +1300,20 @@ describe('createAnalysisSession', {timeout: 30_000}, () => {
 							in_flight--;
 							return null; // unresolvable specifier — no diagnostic, no edge.
 						},
-						identity: 'bounded-test-resolver',
-					},
+						identity: 'bounded-test-resolver'
+					}
 				});
 
 				try {
 					const sourceFiles: Array<SourceFileInfo> = [];
 					for (let f = 0; f < FILES; f++) {
 						const imports = Array.from(
-							{length: IMPORTS_PER_FILE},
-							(_, i) => `import {x} from './fake_${f}_${i}.js';`,
+							{ length: IMPORTS_PER_FILE },
+							(_, i) => `import {x} from './fake_${f}_${i}.js';`
 						).join('\n');
 						sourceFiles.push({
 							id: join(projectRoot, `src/lib/file${f}.ts`),
-							content: `${imports}\nexport const v${f} = ${f};\n`,
+							content: `${imports}\nexport const v${f} = ${f};\n`
 						});
 					}
 
@@ -1338,13 +1338,13 @@ describe('createAnalysisSession', {timeout: 30_000}, () => {
 		afterEach(() => vi.restoreAllMocks());
 
 		test('re-adding a deleted Svelte file re-runs svelte2tsx', async () => {
-			await withTestProject({'src/lib/Button.svelte': BUTTON_V1}, async (projectRoot) => {
+			await withTestProject({ 'src/lib/Button.svelte': BUTTON_V1 }, async (projectRoot) => {
 				const spy = vi.spyOn(svelteModule, 'transformSvelteSource');
 				const session = createAnalysisSession({
-					sourceOptions: createSourceOptions(projectRoot),
+					sourceOptions: createSourceOptions(projectRoot)
 				});
 				try {
-					await session.setFile({id: SVELTE_FILE(projectRoot), content: BUTTON_V1});
+					await session.setFile({ id: SVELTE_FILE(projectRoot), content: BUTTON_V1 });
 					assert.strictEqual(spy.mock.calls.length, 1);
 					assert.strictEqual(session.has(SVELTE_FILE(projectRoot)), true);
 
@@ -1354,7 +1354,7 @@ describe('createAnalysisSession', {timeout: 30_000}, () => {
 					// Re-add identical content — must transform, not cache-hit.
 					const r = await session.setFile({
 						id: SVELTE_FILE(projectRoot),
-						content: BUTTON_V1,
+						content: BUTTON_V1
 					});
 					assert.strictEqual(r.changed, true);
 					assert.strictEqual(spy.mock.calls.length, 2, 're-add must re-transform');

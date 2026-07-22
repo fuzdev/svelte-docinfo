@@ -9,25 +9,25 @@
  * design contract.
  */
 
-import {test, assert, describe} from 'vitest';
-import {join} from 'node:path';
+import { test, assert, describe } from 'vitest';
+import { join } from 'node:path';
 
-import {toPosixPath} from '$lib/paths.ts';
+import { toPosixPath } from '$lib/paths.ts';
 import {
 	createSourceOptions,
 	extractPath,
 	isSource,
 	normalizeSourceOptions,
-	type ModuleSourceOptions,
+	type ModuleSourceOptions
 } from '$lib/source-config.ts';
-import {createAnalysisSession} from '$lib/session.ts';
-import {analyze, analyzeFromFiles} from '$lib/analyze.ts';
-import {SVELTE_VIRTUAL_SUFFIX, type SourceFileInfo} from '$lib/source.ts';
-import {transformSvelteSource} from '$lib/svelte.ts';
-import {loadFile, globFiles} from '$lib/files.ts';
-import {discoverFromExports} from '$lib/exports.ts';
+import { createAnalysisSession } from '$lib/session.ts';
+import { analyze, analyzeFromFiles } from '$lib/analyze.ts';
+import { SVELTE_VIRTUAL_SUFFIX, type SourceFileInfo } from '$lib/source.ts';
+import { transformSvelteSource } from '$lib/svelte.ts';
+import { loadFile, globFiles } from '$lib/files.ts';
+import { discoverFromExports } from '$lib/exports.ts';
 
-import {withTestProject} from './test-helpers.ts';
+import { withTestProject } from './test-helpers.ts';
 
 /**
  * Convert a POSIX absolute path to its native-Windows shape (backslash
@@ -51,7 +51,7 @@ describe('toPosixPath', () => {
 	test('replaces backslashes with forward slashes', () => {
 		assert.strictEqual(
 			toPosixPath('C:\\users\\test\\project\\src\\lib\\foo.ts'),
-			'C:/users/test/project/src/lib/foo.ts',
+			'C:/users/test/project/src/lib/foo.ts'
 		);
 	});
 
@@ -81,7 +81,7 @@ describe('normalizeSourceOptions — Windows-shaped inputs', () => {
 			projectRoot: PROJECT_ROOT_WIN,
 			sourcePaths: ['src/lib'],
 			exclude: [],
-			getAnalyzerType: () => 'typescript',
+			getAnalyzerType: () => 'typescript'
 		};
 		const normalized = normalizeSourceOptions(opts);
 		// `path.resolve` on Linux produces a different absolute path from a
@@ -95,7 +95,7 @@ describe('normalizeSourceOptions — Windows-shaped inputs', () => {
 			sourcePaths: ['src\\lib', 'src\\routes'],
 			sourceRoot: 'src',
 			exclude: [],
-			getAnalyzerType: () => 'typescript',
+			getAnalyzerType: () => 'typescript'
 		});
 		assert.deepStrictEqual(normalized.sourcePaths, ['src/lib', 'src/routes']);
 	});
@@ -106,7 +106,7 @@ describe('normalizeSourceOptions — Windows-shaped inputs', () => {
 			sourcePaths: ['src/lib'],
 			sourceRoot: 'src\\lib',
 			exclude: [],
-			getAnalyzerType: () => 'typescript',
+			getAnalyzerType: () => 'typescript'
 		});
 		assert.strictEqual(normalized.sourceRoot, 'src/lib');
 	});
@@ -116,7 +116,7 @@ describe('normalizeSourceOptions — Windows-shaped inputs', () => {
 			projectRoot: PROJECT_ROOT_POSIX,
 			sourcePaths: ['/src\\lib/'],
 			exclude: [],
-			getAnalyzerType: () => 'typescript',
+			getAnalyzerType: () => 'typescript'
 		});
 		assert.deepStrictEqual(normalized.sourcePaths, ['src/lib']);
 	});
@@ -129,7 +129,7 @@ describe('normalizeSourceOptions — Windows-shaped inputs', () => {
 			projectRoot: PROJECT_ROOT_POSIX,
 			sourcePaths: ['src\\lib', 'src\\routes'],
 			exclude: [],
-			getAnalyzerType: () => 'typescript',
+			getAnalyzerType: () => 'typescript'
 		});
 		assert.strictEqual(normalized.sourceRoot, 'src');
 	});
@@ -150,7 +150,7 @@ describe('isSource — Windows-shaped inputs', () => {
 
 	test('exclude globs match against posixified relative path', () => {
 		const opts = createSourceOptions(PROJECT_ROOT_POSIX, {
-			exclude: ['**/*.test.ts'],
+			exclude: ['**/*.test.ts']
 		});
 		// Native-separator id for the same logical file.
 		const winStyleId = '\\home\\user\\project\\src\\lib\\foo.test.ts';
@@ -176,21 +176,21 @@ describe('extractPath — Windows-shaped inputs', () => {
 		const opts = createSourceOptions(PROJECT_ROOT_POSIX);
 		assert.strictEqual(
 			extractPath('/home/user/project/src\\lib/nested\\bar.ts', opts),
-			'nested/bar.ts',
+			'nested/bar.ts'
 		);
 	});
 });
 
-describe('AnalysisSession — Windows-shaped ingest paths', {timeout: 30_000}, () => {
+describe('AnalysisSession — Windows-shaped ingest paths', { timeout: 30_000 }, () => {
 	test('setFile normalizes backslash id; has/deleteFile see same canonical key', async () => {
-		await withTestProject({'src/lib/math.ts': 'export const x = 1;'}, async (projectRoot) => {
+		await withTestProject({ 'src/lib/math.ts': 'export const x = 1;' }, async (projectRoot) => {
 			const session = createAnalysisSession({
-				sourceOptions: createSourceOptions(projectRoot),
+				sourceOptions: createSourceOptions(projectRoot)
 			});
 			try {
 				const posixId = join(projectRoot, 'src/lib/math.ts');
 				const winId = winify(posixId);
-				await session.setFile({id: winId, content: 'export const x = 1;'});
+				await session.setFile({ id: winId, content: 'export const x = 1;' });
 
 				// Same logical file is reachable via either separator style.
 				assert.strictEqual(session.has(winId), true);
@@ -209,20 +209,20 @@ describe('AnalysisSession — Windows-shaped ingest paths', {timeout: 30_000}, (
 	});
 
 	test('cache-hit path triggers when id varies only in separator style', async () => {
-		await withTestProject({'src/lib/a.ts': 'export const a = 1;'}, async (projectRoot) => {
+		await withTestProject({ 'src/lib/a.ts': 'export const a = 1;' }, async (projectRoot) => {
 			const session = createAnalysisSession({
-				sourceOptions: createSourceOptions(projectRoot),
+				sourceOptions: createSourceOptions(projectRoot)
 			});
 			try {
 				const posixId = join(projectRoot, 'src/lib/a.ts');
 				const winId = winify(posixId);
 				const content = 'export const a = 1;';
 
-				const first = await session.setFile({id: winId, content});
+				const first = await session.setFile({ id: winId, content });
 				assert.strictEqual(first.changed, true);
 
 				// Same content, different separator style — must hit the cache.
-				const second = await session.setFile({id: posixId, content});
+				const second = await session.setFile({ id: posixId, content });
 				assert.strictEqual(second.changed, false);
 			} finally {
 				session.dispose();
@@ -231,27 +231,27 @@ describe('AnalysisSession — Windows-shaped ingest paths', {timeout: 30_000}, (
 	});
 });
 
-describe('analyze — Windows-shaped inputs produce POSIX output', {timeout: 30_000}, () => {
+describe('analyze — Windows-shaped inputs produce POSIX output', { timeout: 30_000 }, () => {
 	test('SourceFileInfo with backslash id yields the same modules as POSIX equivalent', async () => {
 		await withTestProject(
-			{'src/lib/greet.ts': 'export const greeting = "hi";\n'},
+			{ 'src/lib/greet.ts': 'export const greeting = "hi";\n' },
 			async (projectRoot) => {
 				const sourceOptions = createSourceOptions(projectRoot);
 				const content = 'export const greeting = "hi";\n';
 				const posixId = join(projectRoot, 'src/lib/greet.ts');
 
-				const winFile: SourceFileInfo = {id: winify(posixId), content};
-				const posixFile: SourceFileInfo = {id: posixId, content};
+				const winFile: SourceFileInfo = { id: winify(posixId), content };
+				const posixFile: SourceFileInfo = { id: posixId, content };
 
 				const winResult = await analyze({
 					sourceFiles: [winFile],
 					sourceOptions,
-					resolveImport: {resolve: () => null, identity: 'win-test'},
+					resolveImport: { resolve: () => null, identity: 'win-test' }
 				});
 				const posixResult = await analyze({
 					sourceFiles: [posixFile],
 					sourceOptions,
-					resolveImport: {resolve: () => null, identity: 'posix-test'},
+					resolveImport: { resolve: () => null, identity: 'posix-test' }
 				});
 
 				// Module path must match the POSIX-relative form regardless of input shape.
@@ -259,15 +259,15 @@ describe('analyze — Windows-shaped inputs produce POSIX output', {timeout: 30_
 				assert.strictEqual(winResult.modules[0]!.path, 'greet.ts');
 				assert.deepStrictEqual(
 					winResult.modules.map((m) => m.path),
-					posixResult.modules.map((m) => m.path),
+					posixResult.modules.map((m) => m.path)
 				);
-			},
+			}
 		);
 	});
 
 	test('diagnostic file paths are POSIX relative even when emitted from a backslash-id file', async () => {
 		await withTestProject(
-			{'src/lib/importer.ts': 'import "./missing.js";\n'},
+			{ 'src/lib/importer.ts': 'import "./missing.js";\n' },
 			async (projectRoot) => {
 				const sourceOptions = createSourceOptions(projectRoot);
 				const posixId = join(projectRoot, 'src/lib/importer.ts');
@@ -276,21 +276,21 @@ describe('analyze — Windows-shaped inputs produce POSIX output', {timeout: 30_
 				// session kept native separators internally, normalizeDiagnosticPaths
 				// wouldn't strip the prefix and we'd see backslashes in the output.
 				const result = await analyze({
-					sourceFiles: [{id: winify(posixId), content: 'import "./missing.js";\n'}],
+					sourceFiles: [{ id: winify(posixId), content: 'import "./missing.js";\n' }],
 					sourceOptions,
 					resolveImport: {
 						resolve: () => {
 							throw new Error('resolver bug');
 						},
-						identity: 'throwing',
-					},
+						identity: 'throwing'
+					}
 				});
 
 				assert.isAtLeast(result.diagnostics.length, 1);
 				for (const d of result.diagnostics) {
 					assert.notInclude(d.file, '\\', `diagnostic.file should be POSIX, got: ${d.file}`);
 				}
-			},
+			}
 		);
 	});
 });
@@ -304,11 +304,11 @@ describe('transformSvelteSource — defensive posixification at direct-call boun
 		// map and never match `resolveSvelteVirtualSpecifier`'s POSIX lookup.
 		const winId = 'C:\\proj\\src\\lib\\Button.svelte';
 		const content = '<script lang="ts">let { label }: { label: string } = $props();</script>\n';
-		const result = transformSvelteSource({id: winId, content});
+		const result = transformSvelteSource({ id: winId, content });
 		assert.ok(result.virtual, 'transform should succeed for a trivial Svelte component');
 		assert.strictEqual(
 			result.virtual.virtualPath,
-			'C:/proj/src/lib/Button.svelte' + SVELTE_VIRTUAL_SUFFIX,
+			'C:/proj/src/lib/Button.svelte' + SVELTE_VIRTUAL_SUFFIX
 		);
 		assert.notInclude(result.virtual.virtualPath, '\\');
 	});
@@ -320,7 +320,7 @@ describe('transformSvelteSource — defensive posixification at direct-call boun
 		const winId = 'C:\\proj\\src\\lib\\Broken.svelte';
 		// Unclosed `<script>` reliably trips svelte2tsx.
 		const content = '<script lang="ts">const x: number = ;</script>';
-		const result = transformSvelteSource({id: winId, content});
+		const result = transformSvelteSource({ id: winId, content });
 		// Whether svelte2tsx accepts or rejects this varies — the diagnostic
 		// posixification only matters when one is emitted, so we only assert
 		// the property when the array is non-empty.
@@ -340,7 +340,7 @@ describe('loadFile / globFiles — returned ids are POSIX', () => {
 	// posixifies; that path needs Windows CI to verify directly.
 
 	test('loadFile returns a POSIX-form id', async () => {
-		await withTestProject({'src/lib/math.ts': 'export const x = 1;\n'}, async (projectRoot) => {
+		await withTestProject({ 'src/lib/math.ts': 'export const x = 1;\n' }, async (projectRoot) => {
 			const result = await loadFile('src/lib/math.ts', projectRoot);
 			assert.notInclude(result.id, '\\', `loadFile id should be POSIX, got: ${result.id}`);
 			assert.match(result.id, /\/src\/lib\/math\.ts$/);
@@ -352,19 +352,19 @@ describe('loadFile / globFiles — returned ids are POSIX', () => {
 		await withTestProject(
 			{
 				'src/lib/a.ts': 'export const a = 1;\n',
-				'src/lib/nested/b.ts': 'export const b = 2;\n',
+				'src/lib/nested/b.ts': 'export const b = 2;\n'
 			},
 			async (projectRoot) => {
 				const files = await globFiles({
 					projectRoot,
 					include: ['src/lib/**/*.ts'],
-					exclude: [],
+					exclude: []
 				});
 				assert.strictEqual(files.length, 2);
 				for (const f of files) {
 					assert.notInclude(f.id, '\\', `globFiles id should be POSIX, got: ${f.id}`);
 				}
-			},
+			}
 		);
 	});
 });
@@ -378,19 +378,19 @@ describe('discoverFromExports — POSIX ids and POSIX diagnostic paths', () => {
 				'package.json': JSON.stringify({
 					name: 'fixture',
 					exports: {
-						'.': {default: './dist/index.js'},
-						'./util': {default: './dist/util.js'},
-					},
-				}),
+						'.': { default: './dist/index.js' },
+						'./util': { default: './dist/util.js' }
+					}
+				})
 			},
 			async (projectRoot) => {
-				const result = await discoverFromExports({projectRoot, distDir: 'dist'});
+				const result = await discoverFromExports({ projectRoot, distDir: 'dist' });
 				assert.ok(result.files, 'concrete exports should resolve to files');
 				assert.isAtLeast(result.files.length, 2);
 				for (const f of result.files) {
 					assert.notInclude(f.id, '\\', `id should be POSIX, got: ${f.id}`);
 				}
-			},
+			}
 		);
 	});
 
@@ -402,18 +402,18 @@ describe('discoverFromExports — POSIX ids and POSIX diagnostic paths', () => {
 				'package.json': JSON.stringify({
 					name: 'fixture',
 					exports: {
-						'./*': {default: './dist/*.js'},
-					},
-				}),
+						'./*': { default: './dist/*.js' }
+					}
+				})
 			},
 			async (projectRoot) => {
-				const result = await discoverFromExports({projectRoot, distDir: 'dist'});
+				const result = await discoverFromExports({ projectRoot, distDir: 'dist' });
 				assert.ok(result.files);
 				assert.isAtLeast(result.files.length, 2);
 				for (const f of result.files) {
 					assert.notInclude(f.id, '\\');
 				}
-			},
+			}
 		);
 	});
 
@@ -429,115 +429,120 @@ describe('discoverFromExports — POSIX ids and POSIX diagnostic paths', () => {
 				'src/lib/index.ts': 'export const x = 1;\n',
 				'package.json': JSON.stringify({
 					name: 'fixture',
-					exports: {'.': {default: './dist/index.js'}},
-				}),
+					exports: { '.': { default: './dist/index.js' } }
+				})
 			},
 			async (projectRoot) => {
-				const result = await discoverFromExports({projectRoot, distDir: 'dist'});
+				const result = await discoverFromExports({ projectRoot, distDir: 'dist' });
 				for (const d of result.diagnostics) {
 					assert.notInclude(d.file, '\\', `diagnostic.file should be POSIX, got: ${d.file}`);
 				}
-			},
-		);
-	});
-});
-
-describe('analyze (Svelte) — Windows-shaped inputs produce POSIX output', {timeout: 30_000}, () => {
-	test('Svelte SourceFileInfo with backslash id analyzes successfully and outputs POSIX paths', async () => {
-		const content =
-			'<script lang="ts">let { label }: { label: string } = $props();</script><button>{label}</button>';
-		await withTestProject({'src/lib/Button.svelte': content}, async (projectRoot) => {
-			const sourceOptions = createSourceOptions(projectRoot);
-			const posixId = join(projectRoot, 'src/lib/Button.svelte');
-			const result = await analyze({
-				sourceFiles: [{id: winify(posixId), content}],
-				sourceOptions,
-				resolveImport: {resolve: () => null, identity: 'svelte-win-test'},
-			});
-
-			// Component declaration must be discovered — proves the Svelte
-			// virtual path keyed correctly into the LS despite the backslash
-			// input id and that the type checker resolved the props type.
-			assert.strictEqual(result.modules.length, 1);
-			assert.strictEqual(result.modules[0]!.path, 'Button.svelte');
-			const decl = result.modules[0]!.declarations[0];
-			assert.ok(decl, 'expected one declaration on Button.svelte');
-			assert.strictEqual(decl.kind, 'component');
-
-			// All diagnostic file paths POSIX.
-			for (const d of result.diagnostics) {
-				assert.notInclude(d.file, '\\', `diagnostic.file should be POSIX, got: ${d.file}`);
 			}
-		});
-	});
-
-	test('Svelte-to-Svelte import via resolveSvelteVirtualSpecifier resolves under backslash ids', async () => {
-		// Cross-Svelte type re-export: Parent.svelte imports Other.svelte's
-		// component type. svelte-docinfo's `resolveSvelteVirtualSpecifier`
-		// resolves `./Other.svelte` to its `.__svelte2tsx__.ts` virtual.
-		// `containingFile` is Parent's posixified virtualPath; `dirname` and
-		// `join` produce native separators on Windows but the function
-		// posixifies before `hasVirtual` lookup. Without that posixify, the
-		// lookup would miss and Other's component type would fail to resolve.
-		const otherContent = '<script lang="ts">let { msg }: { msg: string } = $props();</script>{msg}';
-		const parentContent =
-			'<script context="module" lang="ts">export {default as Other} from "./Other.svelte";</script>\n<script lang="ts">let { x }: { x: number } = $props();</script>{x}';
-		await withTestProject(
-			{
-				'src/lib/Other.svelte': otherContent,
-				'src/lib/Parent.svelte': parentContent,
-			},
-			async (projectRoot) => {
-				const sourceOptions = createSourceOptions(projectRoot);
-				const otherPosix = join(projectRoot, 'src/lib/Other.svelte');
-				const parentPosix = join(projectRoot, 'src/lib/Parent.svelte');
-				const result = await analyze({
-					sourceFiles: [
-						{id: winify(otherPosix), content: otherContent},
-						{id: winify(parentPosix), content: parentContent},
-					],
-					sourceOptions,
-					// Default resolver — relies on TS's own module resolution.
-				});
-
-				// Both modules present; Parent.svelte's re-export must surface
-				// the `Other` component (kind: 'component', not skipped or partial).
-				assert.strictEqual(result.modules.length, 2);
-				const parent = result.modules.find((m) => m.path === 'Parent.svelte');
-				assert.ok(parent, 'expected Parent.svelte module');
-				const reExport = parent.declarations.find((d) => d.name === 'Other');
-				assert.ok(reExport, 'expected re-exported Other declaration on Parent.svelte');
-				assert.strictEqual(
-					reExport.kind,
-					'component',
-					'cross-Svelte re-export should resolve to a component declaration',
-				);
-
-				// All paths in output remain POSIX.
-				for (const m of result.modules) assert.notInclude(m.path, '\\');
-				for (const d of result.diagnostics) {
-					assert.notInclude(d.file, '\\', `diagnostic.file should be POSIX, got: ${d.file}`);
-				}
-			},
 		);
 	});
 });
 
 describe(
+	'analyze (Svelte) — Windows-shaped inputs produce POSIX output',
+	{ timeout: 30_000 },
+	() => {
+		test('Svelte SourceFileInfo with backslash id analyzes successfully and outputs POSIX paths', async () => {
+			const content =
+				'<script lang="ts">let { label }: { label: string } = $props();</script><button>{label}</button>';
+			await withTestProject({ 'src/lib/Button.svelte': content }, async (projectRoot) => {
+				const sourceOptions = createSourceOptions(projectRoot);
+				const posixId = join(projectRoot, 'src/lib/Button.svelte');
+				const result = await analyze({
+					sourceFiles: [{ id: winify(posixId), content }],
+					sourceOptions,
+					resolveImport: { resolve: () => null, identity: 'svelte-win-test' }
+				});
+
+				// Component declaration must be discovered — proves the Svelte
+				// virtual path keyed correctly into the LS despite the backslash
+				// input id and that the type checker resolved the props type.
+				assert.strictEqual(result.modules.length, 1);
+				assert.strictEqual(result.modules[0]!.path, 'Button.svelte');
+				const decl = result.modules[0]!.declarations[0];
+				assert.ok(decl, 'expected one declaration on Button.svelte');
+				assert.strictEqual(decl.kind, 'component');
+
+				// All diagnostic file paths POSIX.
+				for (const d of result.diagnostics) {
+					assert.notInclude(d.file, '\\', `diagnostic.file should be POSIX, got: ${d.file}`);
+				}
+			});
+		});
+
+		test('Svelte-to-Svelte import via resolveSvelteVirtualSpecifier resolves under backslash ids', async () => {
+			// Cross-Svelte type re-export: Parent.svelte imports Other.svelte's
+			// component type. svelte-docinfo's `resolveSvelteVirtualSpecifier`
+			// resolves `./Other.svelte` to its `.__svelte2tsx__.ts` virtual.
+			// `containingFile` is Parent's posixified virtualPath; `dirname` and
+			// `join` produce native separators on Windows but the function
+			// posixifies before `hasVirtual` lookup. Without that posixify, the
+			// lookup would miss and Other's component type would fail to resolve.
+			const otherContent =
+				'<script lang="ts">let { msg }: { msg: string } = $props();</script>{msg}';
+			const parentContent =
+				'<script context="module" lang="ts">export {default as Other} from "./Other.svelte";</script>\n<script lang="ts">let { x }: { x: number } = $props();</script>{x}';
+			await withTestProject(
+				{
+					'src/lib/Other.svelte': otherContent,
+					'src/lib/Parent.svelte': parentContent
+				},
+				async (projectRoot) => {
+					const sourceOptions = createSourceOptions(projectRoot);
+					const otherPosix = join(projectRoot, 'src/lib/Other.svelte');
+					const parentPosix = join(projectRoot, 'src/lib/Parent.svelte');
+					const result = await analyze({
+						sourceFiles: [
+							{ id: winify(otherPosix), content: otherContent },
+							{ id: winify(parentPosix), content: parentContent }
+						],
+						sourceOptions
+						// Default resolver — relies on TS's own module resolution.
+					});
+
+					// Both modules present; Parent.svelte's re-export must surface
+					// the `Other` component (kind: 'component', not skipped or partial).
+					assert.strictEqual(result.modules.length, 2);
+					const parent = result.modules.find((m) => m.path === 'Parent.svelte');
+					assert.ok(parent, 'expected Parent.svelte module');
+					const reExport = parent.declarations.find((d) => d.name === 'Other');
+					assert.ok(reExport, 'expected re-exported Other declaration on Parent.svelte');
+					assert.strictEqual(
+						reExport.kind,
+						'component',
+						'cross-Svelte re-export should resolve to a component declaration'
+					);
+
+					// All paths in output remain POSIX.
+					for (const m of result.modules) assert.notInclude(m.path, '\\');
+					for (const d of result.diagnostics) {
+						assert.notInclude(d.file, '\\', `diagnostic.file should be POSIX, got: ${d.file}`);
+					}
+				}
+			);
+		});
+	}
+);
+
+describe(
 	'analyzeFromFiles + full integration trip-wire — all output paths POSIX',
-	{timeout: 30_000},
+	{ timeout: 30_000 },
 	() => {
 		test('disk-discovery pipeline produces POSIX module paths and diagnostic paths', async () => {
 			await withTestProject(
 				{
 					'src/lib/a.ts': 'export const a = 1;\n',
-					'src/lib/nested/b.ts': 'import {a} from "../a.js";\nexport const b = a + 1;\n',
+					'src/lib/nested/b.ts': 'import {a} from "../a.js";\nexport const b = a + 1;\n'
 				},
 				async (projectRoot) => {
 					const result = await analyzeFromFiles({
 						projectRoot,
 						discovery: 'glob',
-						resolveDependencies: true,
+						resolveDependencies: true
 					});
 					assert.isAtLeast(result.modules.length, 2);
 					for (const m of result.modules) {
@@ -552,7 +557,7 @@ describe(
 					for (const d of result.diagnostics) {
 						assert.notInclude(d.file, '\\', `diagnostic.file should be POSIX: ${d.file}`);
 					}
-				},
+				}
 			);
 		});
 
@@ -566,13 +571,13 @@ describe(
 					'src/lib/util.ts': 'export const u = 1;\n',
 					'src/lib/index.ts': 'export {u} from "./util.js";\n',
 					'src/lib/Comp.svelte':
-						'<script lang="ts">import {u} from "./util.js"; let { label }: { label: string } = $props();</script>{label}{u}',
+						'<script lang="ts">import {u} from "./util.js"; let { label }: { label: string } = $props();</script>{label}{u}'
 				},
 				async (projectRoot) => {
 					const result = await analyzeFromFiles({
 						projectRoot,
 						discovery: 'glob',
-						resolveDependencies: true,
+						resolveDependencies: true
 					});
 
 					// Find all expected modules.
@@ -606,7 +611,7 @@ describe(
 					for (const dep of util.dependents) {
 						assert.notInclude(dep, '\\');
 					}
-				},
+				}
 			);
 		});
 
@@ -616,5 +621,5 @@ describe(
 		// The string-transform side of the chokepoint is already verified by
 		// `normalizeSourceOptions — Windows-shaped inputs > posixifies
 		// backslash projectRoot`; the disk-traversal side needs Windows CI.
-	},
+	}
 );

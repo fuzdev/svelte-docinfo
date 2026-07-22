@@ -1,6 +1,6 @@
 <script lang="ts">
 	let {
-		prop1,
+		prop1
 	}: {
 		/** Description 1 */
 		prop1: string;

@@ -22,13 +22,13 @@ import type {
 	MemberKind,
 	ParameterJson,
 	OverloadJsonInput,
-	Reactivity,
+	Reactivity
 } from './types.ts';
-import type {DeclarationJsonBuild, MemberJsonBuild} from './declaration-build.ts';
-import {type Diagnostic, type MisplacedTagDiagnostic} from './diagnostics.ts';
-import {to_error_message} from './error.ts';
-import {applyToDeclaration, parseComment, type TsdocParsedComment} from './tsdoc.ts';
-import {type IsExternalFile} from './typescript-program.ts';
+import type { DeclarationJsonBuild, MemberJsonBuild } from './declaration-build.ts';
+import { type Diagnostic, type MisplacedTagDiagnostic } from './diagnostics.ts';
+import { to_error_message } from './error.ts';
+import { applyToDeclaration, parseComment, type TsdocParsedComment } from './tsdoc.ts';
+import { type IsExternalFile } from './typescript-program.ts';
 
 /**
  * Infer declaration kind from symbol and node.
@@ -90,7 +90,7 @@ export const inferDeclarationKind = (symbol: ts.Symbol, node: ts.Node): Declarat
 export const extractSignatureParameters = (
 	sig: ts.Signature,
 	checker: ts.TypeChecker,
-	tsdocParams: Record<string, string> | undefined,
+	tsdocParams: Record<string, string> | undefined
 ): Array<ParameterJson> => {
 	return sig.parameters.map((param) => {
 		const paramDecl = param.valueDeclaration;
@@ -140,7 +140,7 @@ export const extractSignatureParameters = (
 			rest,
 			description,
 			defaultValue,
-			propertyDescriptions,
+			propertyDescriptions
 		};
 	});
 };
@@ -157,10 +157,10 @@ export const extractSignatureParameters = (
  */
 const validateParamKeys = (
 	tsdocParams: Record<string, string> | undefined,
-	parameters: ReadonlyArray<{name: string}>,
+	parameters: ReadonlyArray<{ name: string }>,
 	declNode: ts.Node,
 	functionName: string,
-	diagnostics: Array<Diagnostic>,
+	diagnostics: Array<Diagnostic>
 ): void => {
 	if (!tsdocParams) return;
 	const known = new Set(parameters.map((p) => p.name));
@@ -178,7 +178,7 @@ const validateParamKeys = (
 				message: `@param "${key}" on "${functionName}" doesn't match any parameter (typo or stale doc?)`,
 				severity: 'warning',
 				paramName: key,
-				functionName,
+				functionName
 			});
 		}
 	}
@@ -194,7 +194,7 @@ const validateParamKeys = (
  * @internal
  */
 const collectSymbolScopeTags = (
-	tsdoc: TsdocParsedComment,
+	tsdoc: TsdocParsedComment
 ): Array<MisplacedTagDiagnostic['tagName']> => {
 	const found: Array<MisplacedTagDiagnostic['tagName']> = [];
 	if (tsdoc.examples?.length) found.push('example');
@@ -241,7 +241,7 @@ const extractOverloads = (
 	checker: ts.TypeChecker,
 	parentTsdoc: TsdocParsedComment | undefined,
 	parentName: string,
-	diagnostics: Array<Diagnostic>,
+	diagnostics: Array<Diagnostic>
 ): Array<OverloadJsonInput> => {
 	return signatures.map((sig) => {
 		const decl = sig.getDeclaration();
@@ -254,7 +254,7 @@ const extractOverloads = (
 
 		validateParamKeys(tsdoc?.params, parameters, decl, parentName, diagnostics);
 
-		const overload: OverloadJsonInput = {typeSignature, parameters, returnType};
+		const overload: OverloadJsonInput = { typeSignature, parameters, returnType };
 
 		if (tsdoc?.text) {
 			overload.docComment = tsdoc.text;
@@ -291,7 +291,7 @@ const extractOverloads = (
 						message: `@${tagName} on non-primary overload of "${parentName}" — place it on the primary signature's JSDoc instead (symbol-scope tags describe the function as a whole)`,
 						severity: 'warning',
 						tagName,
-						functionName: parentName,
+						functionName: parentName
 					});
 				}
 			}
@@ -331,7 +331,7 @@ export const populateCallableMember = (
 	paramValidationNode: ts.Node,
 	name: string,
 	diagnostics: Array<Diagnostic>,
-	includeReturn = true,
+	includeReturn = true
 ): void => {
 	if (signatures.length === 0) return;
 	const sig = signatures[0]!;
@@ -370,7 +370,7 @@ const isExternalProperty = (prop: ts.Symbol, isExternalFile: IsExternalFile): bo
 export const isExternalIntersectionBranch = (
 	branchNode: ts.TypeNode,
 	checker: ts.TypeChecker,
-	isExternalFile: IsExternalFile,
+	isExternalFile: IsExternalFile
 ): boolean => {
 	if (!ts.isTypeReferenceNode(branchNode) && !ts.isIndexedAccessTypeNode(branchNode)) {
 		return false;
@@ -389,7 +389,7 @@ export const isExternalIntersectionBranch = (
  */
 export const resolveIntersectionTypeNode = (
 	type: ts.Type,
-	typeNode: ts.Node,
+	typeNode: ts.Node
 ): ts.IntersectionTypeNode | undefined => {
 	if (ts.isIntersectionTypeNode(typeNode)) return typeNode;
 	const aliasDecl = type.aliasSymbol?.declarations?.[0];
@@ -417,7 +417,7 @@ export const resolveIntersectionTypeNode = (
 const isExternalTypeRefNode = (
 	node: ts.TypeNode,
 	checker: ts.TypeChecker,
-	isExternalFile: IsExternalFile,
+	isExternalFile: IsExternalFile
 ): boolean => {
 	const props = checker.getTypeAtLocation(node).getProperties();
 	return props.length > 0 && props.every((p) => isExternalProperty(p, isExternalFile));
@@ -441,7 +441,7 @@ const collectExternalTypeRefs = (
 	node: ts.TypeNode,
 	checker: ts.TypeChecker,
 	isExternalFile: IsExternalFile,
-	out: Array<string>,
+	out: Array<string>
 ): void => {
 	if (ts.isParenthesizedTypeNode(node)) {
 		collectExternalTypeRefs(node.type, checker, isExternalFile, out);
@@ -466,7 +466,7 @@ const collectExternalTypeRefs = (
 const resolveAnnotationTypeNode = (
 	typeNode: ts.Node,
 	checker: ts.TypeChecker,
-	isExternalFile: IsExternalFile,
+	isExternalFile: IsExternalFile
 ): ts.TypeNode | undefined => {
 	if (ts.isTypeReferenceNode(typeNode)) {
 		const aliasDecl = checker
@@ -496,8 +496,8 @@ export const filterExternalProperties = (
 	type: ts.Type,
 	typeNode: ts.Node,
 	checker: ts.TypeChecker,
-	isExternalFile: IsExternalFile,
-): {properties: Array<ts.Symbol>; externalTypes: Array<string>} => {
+	isExternalFile: IsExternalFile
+): { properties: Array<ts.Symbol>; externalTypes: Array<string> } => {
 	const properties = type
 		.getProperties()
 		.filter((prop) => !isExternalProperty(prop, isExternalFile));
@@ -506,7 +506,7 @@ export const filterExternalProperties = (
 	const annotation = resolveAnnotationTypeNode(typeNode, checker, isExternalFile);
 	if (annotation) collectExternalTypeRefs(annotation, checker, isExternalFile, externalTypes);
 
-	return {properties, externalTypes};
+	return { properties, externalTypes };
 };
 
 /**
@@ -518,7 +518,7 @@ export const filterExternalProperties = (
  * extension.
  */
 export const detectReactivity = (
-	initializer: ts.Expression | undefined,
+	initializer: ts.Expression | undefined
 ): Reactivity | undefined => {
 	// Unwrap type-only wrappers so e.g. `$state(0) as Foo` and `($state(0))` are
 	// still detected. Runtime semantics are unchanged by these wrappers.
@@ -556,13 +556,13 @@ export const detectReactivity = (
  * Extract line and column from a TypeScript node.
  * Returns 1-based line and column numbers.
  */
-export const getNodeLocation = (node: ts.Node): {file: string; line: number; column: number} => {
+export const getNodeLocation = (node: ts.Node): { file: string; line: number; column: number } => {
 	const sourceFile = node.getSourceFile();
-	const {line, character} = sourceFile.getLineAndCharacterOfPosition(node.getStart());
+	const { line, character } = sourceFile.getLineAndCharacterOfPosition(node.getStart());
 	return {
 		file: sourceFile.fileName,
 		line: line + 1, // Convert to 1-based
-		column: character + 1, // Convert to 1-based
+		column: character + 1 // Convert to 1-based
 	};
 };
 
@@ -574,7 +574,7 @@ export const getNodeLocation = (node: ts.Node): {file: string; line: number; col
  */
 export const parseGenericParam = (param: ts.TypeParameterDeclaration): GenericParamJson => {
 	const result: GenericParamJson = {
-		name: param.name.text,
+		name: param.name.text
 	};
 
 	if (param.constraint) {
@@ -594,7 +594,7 @@ export const parseGenericParam = (param: ts.TypeParameterDeclaration): GenericPa
  * Returns an array of modifier strings like `['public', 'readonly', 'static']`.
  */
 export const extractModifiers = (
-	modifiers: ReadonlyArray<ts.ModifierLike> | undefined,
+	modifiers: ReadonlyArray<ts.ModifierLike> | undefined
 ): Array<DeclarationModifier> => {
 	const modifierFlags: Array<DeclarationModifier> = [];
 	if (!modifiers) return modifierFlags;
@@ -647,7 +647,7 @@ export const emitCallOrConstructSignature = (
 	declaration: DeclarationJsonBuild,
 	checker: ts.TypeChecker,
 	diagnostics: Array<Diagnostic>,
-	errorContext: {node: ts.Node; kindLabel: string},
+	errorContext: { node: ts.Node; kindLabel: string }
 ): void => {
 	try {
 		const signatures = getSignatures();
@@ -655,7 +655,7 @@ export const emitCallOrConstructSignature = (
 
 		const memberName = signatureKind === 'call' ? '(call)' : '(construct)';
 		const memberKind: MemberKind = signatureKind === 'call' ? 'function' : 'constructor';
-		const member: MemberJsonBuild = {name: memberName, kind: memberKind};
+		const member: MemberJsonBuild = { name: memberName, kind: memberKind };
 
 		const sig = signatures[0]!;
 		member.typeSignature = checker.signatureToString(sig);
@@ -673,7 +673,7 @@ export const emitCallOrConstructSignature = (
 			member.parameters,
 			tsdocNode ?? paramValidationFallbackNode,
 			memberName,
-			diagnostics,
+			diagnostics
 		);
 
 		const sigDecl = sig.getDeclaration();
@@ -696,7 +696,7 @@ export const emitCallOrConstructSignature = (
 			column: loc.column,
 			message: `Failed to analyze ${signatureKind} signatures for ${errorContext.kindLabel} "${declaration.name}": ${to_error_message(err)}`,
 			severity: 'warning',
-			functionName: declaration.name ?? '<default export>',
+			functionName: declaration.name ?? '<default export>'
 		});
 	}
 };

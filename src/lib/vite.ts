@@ -38,24 +38,24 @@
  * @module
  */
 
-import {readFile} from 'node:fs/promises';
-import type {Logger as ViteLogger, Plugin, ViteDevServer} from 'vite';
+import { readFile } from 'node:fs/promises';
+import type { Logger as ViteLogger, Plugin, ViteDevServer } from 'vite';
 
-import {createAnalysisSession, type AnalysisSession} from './session.ts';
-import type {OnDuplicates} from './analyze-core.ts';
-import {discoverSourceFiles, type Discovery} from './discovery.ts';
-import type {SourceFileInfo} from './source.ts';
-import type {Diagnostic} from './diagnostics.ts';
-import type {AnalysisLog} from './log.ts';
-import {compactReplacer} from './declaration-helpers.ts';
+import { createAnalysisSession, type AnalysisSession } from './session.ts';
+import type { OnDuplicates } from './analyze-core.ts';
+import { discoverSourceFiles, type Discovery } from './discovery.ts';
+import type { SourceFileInfo } from './source.ts';
+import type { Diagnostic } from './diagnostics.ts';
+import type { AnalysisLog } from './log.ts';
+import { compactReplacer } from './declaration-helpers.ts';
 import {
 	createSourceOptions,
 	isSource,
 	type ModuleSourceOptions,
-	type SourceOptionsDefaults,
+	type SourceOptionsDefaults
 } from './source-config.ts';
-import {noDepsResolver, type ImportResolver} from './dep-resolver.ts';
-import {toPosixPath} from './paths.ts';
+import { noDepsResolver, type ImportResolver } from './dep-resolver.ts';
+import { toPosixPath } from './paths.ts';
 
 const VIRTUAL_ID = 'virtual:svelte-docinfo';
 const RESOLVED_VIRTUAL_ID = '\0virtual:svelte-docinfo';
@@ -143,7 +143,7 @@ const svelteDocinfo = (options: VitePluginSvelteDocinfoOptions = {}): Plugin => 
 		distDir,
 		sourceOptions,
 		onDuplicates,
-		hmrDebounceMs = 100,
+		hmrDebounceMs = 100
 	} = options;
 
 	let projectRoot: string;
@@ -173,7 +173,7 @@ const svelteDocinfo = (options: VitePluginSvelteDocinfoOptions = {}): Plugin => 
 				return null;
 			}
 		},
-		identity: VITE_DEV_IDENTITY,
+		identity: VITE_DEV_IDENTITY
 	};
 
 	// In-flight analysis tracking
@@ -213,7 +213,7 @@ const svelteDocinfo = (options: VitePluginSvelteDocinfoOptions = {}): Plugin => 
 		const lines = [
 			`export const modules = ${modulesJson};`,
 			`export const diagnostics = ${diagnosticsJson};`,
-			`export default {modules, diagnostics};`,
+			`export default {modules, diagnostics};`
 		];
 		if (isDev) {
 			lines.push(`if (import.meta.hot) { import.meta.hot.accept(); }`);
@@ -224,7 +224,7 @@ const svelteDocinfo = (options: VitePluginSvelteDocinfoOptions = {}): Plugin => 
 
 	const updateOutputFromQuery = (
 		modules: ReadonlyArray<unknown>,
-		queryDiagnostics: ReadonlyArray<Diagnostic>,
+		queryDiagnostics: ReadonlyArray<Diagnostic>
 	): boolean => {
 		// `JSON.stringify([], compactReplacer)` returns the JS `undefined` because
 		// the replacer strips empty arrays — we embed the JSON into a template
@@ -263,14 +263,14 @@ const svelteDocinfo = (options: VitePluginSvelteDocinfoOptions = {}): Plugin => 
 					type: 'js-update',
 					path: hmrPath,
 					acceptedPath: hmrPath,
-					timestamp: Date.now(),
-				},
-			],
+					timestamp: Date.now()
+				}
+			]
 		});
 	};
 
 	const errorLog = (err: unknown): void => {
-		const log: Pick<AnalysisLog, 'error'> = logger ?? {error: (msg) => console.error(msg)};
+		const log: Pick<AnalysisLog, 'error'> = logger ?? { error: (msg) => console.error(msg) };
 		const message = err instanceof Error ? (err.stack ?? err.message) : String(err);
 		log.error(`[svelte-docinfo] ${message}`);
 	};
@@ -280,17 +280,17 @@ const svelteDocinfo = (options: VitePluginSvelteDocinfoOptions = {}): Plugin => 
 	// Initial analysis (cold start in buildStart)
 	const runInitialAnalysis = async (): Promise<void> => {
 		if (!session) return;
-		const {files, diagnostics} = await discoverSourceFiles({
+		const { files, diagnostics } = await discoverSourceFiles({
 			sourceOptions: resolvedSourceOptions,
 			include,
 			discovery,
 			distDir,
-			log: logger ?? undefined,
+			log: logger ?? undefined
 		});
 		discoveryDiagnostics = diagnostics;
 
 		await session.setFiles(files);
-		const result = session.query({onDuplicates, log: logger ?? undefined});
+		const result = session.query({ onDuplicates, log: logger ?? undefined });
 		updateOutputFromQuery(result.modules, result.diagnostics);
 	};
 
@@ -309,7 +309,7 @@ const svelteDocinfo = (options: VitePluginSvelteDocinfoOptions = {}): Plugin => 
 		const toDelete: Array<string> = [];
 		for (const [path, content] of drained) {
 			if (content === null) toDelete.push(path);
-			else toAdd.push({id: path, content});
+			else toAdd.push({ id: path, content });
 		}
 
 		// Apply deletions first so re-adds (rare but possible: unlink+add same
@@ -327,7 +327,7 @@ const svelteDocinfo = (options: VitePluginSvelteDocinfoOptions = {}): Plugin => 
 		// `updateOutputFromQuery` pulls the cumulative ingest diagnostics from
 		// `session.allIngestDiagnostics()` itself — no per-batch survival
 		// tracking needed at the plugin layer.
-		const result = session.query({onDuplicates, log: logger ?? undefined});
+		const result = session.query({ onDuplicates, log: logger ?? undefined });
 		const updated = updateOutputFromQuery(result.modules, result.diagnostics);
 		if (updated) sendHmrInvalidation();
 	};
@@ -367,14 +367,14 @@ const svelteDocinfo = (options: VitePluginSvelteDocinfoOptions = {}): Plugin => 
 			// `exclude` shortcut overrides `sourceOptions.exclude` (same precedence
 			// as `analyzeFromFiles`).
 			const mergedSourceOptions =
-				exclude !== undefined ? {...sourceOptions, exclude} : sourceOptions;
+				exclude !== undefined ? { ...sourceOptions, exclude } : sourceOptions;
 			resolvedSourceOptions = createSourceOptions(projectRoot, mergedSourceOptions);
 			// Reject contradictory discovery config upfront so failures are at
 			// config-load time rather than first analysis.
 			if (discovery === 'exports' && include) {
 				throw new Error(
 					"svelte-docinfo: discovery: 'exports' is incompatible with `include`. " +
-						"Use discovery: 'glob' (with include) or remove include for strict exports mode.",
+						"Use discovery: 'glob' (with include) or remove include for strict exports mode."
 				);
 			}
 			logger = config.logger;
@@ -413,7 +413,7 @@ const svelteDocinfo = (options: VitePluginSvelteDocinfoOptions = {}): Plugin => 
 			session = createAnalysisSession({
 				sourceOptions: resolvedSourceOptions,
 				resolveImport: sessionResolver,
-				log: logger ?? undefined,
+				log: logger ?? undefined
 			});
 
 			initialPromise = runInitialAnalysis().finally(() => {
@@ -499,7 +499,7 @@ const svelteDocinfo = (options: VitePluginSvelteDocinfoOptions = {}): Plugin => 
 				session?.dispose();
 				session = null;
 			});
-		},
+		}
 	};
 };
 

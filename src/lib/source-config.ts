@@ -11,12 +11,12 @@
  * @module
  */
 
-import {resolve, relative} from 'node:path';
+import { resolve, relative } from 'node:path';
 import picomatch from 'picomatch';
 
-import {type AnalyzerType, type SourceFileInfo, getDefaultAnalyzer} from './source.ts';
-import {toPosixPath} from './paths.ts';
-import {compareStrings} from './postprocess.ts';
+import { type AnalyzerType, type SourceFileInfo, getDefaultAnalyzer } from './source.ts';
+import { toPosixPath } from './paths.ts';
+import { compareStrings } from './postprocess.ts';
 
 /**
  * Configuration for module source detection and path extraction.
@@ -174,7 +174,7 @@ export type SourceOptionsDefaults = Omit<ModuleSourceOptions, 'projectRoot'>;
 export const DEFAULT_SOURCE_OPTIONS: SourceOptionsDefaults = {
 	sourcePaths: ['src/lib'],
 	exclude: ['**/*.test.ts', '**/*.spec.ts'],
-	getAnalyzerType: getDefaultAnalyzer,
+	getAnalyzerType: getDefaultAnalyzer
 };
 
 /**
@@ -214,12 +214,12 @@ export const DEFAULT_SOURCE_OPTIONS: SourceOptionsDefaults = {
  */
 export const createSourceOptions = (
 	projectRoot: string,
-	overrides?: Partial<SourceOptionsDefaults>,
+	overrides?: Partial<SourceOptionsDefaults>
 ): ModuleSourceOptions =>
 	normalizeSourceOptions({
 		projectRoot,
 		...DEFAULT_SOURCE_OPTIONS,
-		...overrides,
+		...overrides
 	});
 
 /**
@@ -273,7 +273,7 @@ export const normalizeSourceOptions = (options: ModuleSourceOptions): ModuleSour
 	if (sourcePaths.length === 0) {
 		throw new Error(
 			'ModuleSourceOptions.sourcePaths must have at least one entry. ' +
-				"For SvelteKit projects, the default is ['src/lib']; for plain TS, try ['src'].",
+				"For SvelteKit projects, the default is ['src/lib']; for plain TS, try ['src']."
 		);
 	}
 
@@ -300,13 +300,13 @@ export const normalizeSourceOptions = (options: ModuleSourceOptions): ModuleSour
 			if (sourcePath !== sourceRoot && !sourcePath.startsWith(sourceRoot + '/')) {
 				throw new Error(
 					`sourcePaths entry "${sourcePath}" must start with sourceRoot "${sourceRoot}". ` +
-						`extractPath uses sourceRoot to compute module paths.`,
+						`extractPath uses sourceRoot to compute module paths.`
 				);
 			}
 		}
 	}
 
-	return {...options, projectRoot, sourcePaths, sourceRoot};
+	return { ...options, projectRoot, sourcePaths, sourceRoot };
 };
 
 /** Strip all leading and trailing forward slashes from a path segment. */
@@ -499,9 +499,9 @@ export const isSource = (path: string, options: ModuleSourceOptions): boolean =>
  * @returns sorted arrays of module paths (relative to `sourceRoot`) for dependencies and dependents
  */
 export const extractDependencies = (
-	sourceFile: SourceFileInfo & {dependents?: ReadonlyArray<string>},
-	options: ModuleSourceOptions,
-): {dependencies: Array<string>; dependents: Array<string>} => {
+	sourceFile: SourceFileInfo & { dependents?: ReadonlyArray<string> },
+	options: ModuleSourceOptions
+): { dependencies: Array<string>; dependents: Array<string> } => {
 	const dependencies: Array<string> = [];
 	const dependents: Array<string> = [];
 
@@ -527,5 +527,5 @@ export const extractDependencies = (
 	dependencies.sort(compareStrings);
 	dependents.sort(compareStrings);
 
-	return {dependencies, dependents};
+	return { dependencies, dependents };
 };

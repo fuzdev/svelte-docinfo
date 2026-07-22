@@ -33,12 +33,12 @@ import {
 	createAnalysisLanguageService,
 	loadTsconfig,
 	type AnalysisLanguageService,
-	type AnalysisLanguageServiceOptions,
+	type AnalysisLanguageServiceOptions
 } from './typescript-program.ts';
-import type {Diagnostic} from './diagnostics.ts';
-import {to_error_message} from './error.ts';
-import type {AnalysisLog} from './log.ts';
-import {transformSvelteSource, type SvelteVirtualFile} from './svelte.ts';
+import type { Diagnostic } from './diagnostics.ts';
+import { to_error_message } from './error.ts';
+import type { AnalysisLog } from './log.ts';
+import { transformSvelteSource, type SvelteVirtualFile } from './svelte.ts';
 import {
 	type ImportResolver,
 	type ResolveImport,
@@ -46,19 +46,19 @@ import {
 	ensureLexerReady,
 	isNodeBuiltin,
 	lexImports,
-	normalizeResolveImport,
+	normalizeResolveImport
 } from './dep-resolver.ts';
-import type {SourceFileInfo} from './source.ts';
-import {type ModuleSourceOptions, isSource, normalizeSourceOptions} from './source-config.ts';
-import {toPosixPath} from './paths.ts';
-import {MAX_RESOLVE_CONCURRENCY, map_concurrent} from './concurrency.ts';
+import type { SourceFileInfo } from './source.ts';
+import { type ModuleSourceOptions, isSource, normalizeSourceOptions } from './source-config.ts';
+import { toPosixPath } from './paths.ts';
+import { MAX_RESOLVE_CONCURRENCY, map_concurrent } from './concurrency.ts';
 import {
 	analyzeCore,
 	normalizeDiagnosticPaths,
 	AnalyzeResultJson,
-	type OnDuplicates,
+	type OnDuplicates
 } from './analyze-core.ts';
-import {computeDependents} from './postprocess.ts';
+import { computeDependents } from './postprocess.ts';
 
 /**
  * Options for a per-file or per-batch resolver override.
@@ -379,9 +379,9 @@ export const createAnalysisSession = (options: AnalysisSessionOptions): Analysis
 			projectRoot: sourceOptions.projectRoot,
 			tsconfig: options.tsconfig,
 			compilerOptions: options.compilerOptions,
-			documentRegistry: options.documentRegistry,
+			documentRegistry: options.documentRegistry
 		},
-		options.log,
+		options.log
 	);
 
 	const owned = new Map<string, OwnedEntry>();
@@ -407,13 +407,13 @@ export const createAnalysisSession = (options: AnalysisSessionOptions): Analysis
 	let lazyDefault: ImportResolver | undefined;
 	const getDefaultResolver = (): ImportResolver => {
 		if (lazyDefault) return lazyDefault;
-		const {compilerOptions} = loadTsconfig(
+		const { compilerOptions } = loadTsconfig(
 			{
 				projectRoot: sourceOptions.projectRoot,
 				tsconfig: options.tsconfig,
-				compilerOptions: options.compilerOptions,
+				compilerOptions: options.compilerOptions
 			},
-			options.log,
+			options.log
 		);
 		lazyDefault = createDefaultResolver(compilerOptions, sourceOptions.projectRoot);
 		return lazyDefault;
@@ -475,7 +475,7 @@ export const createAnalysisSession = (options: AnalysisSessionOptions): Analysis
 				resolverIdentity: undefined,
 				cacheHit: true,
 				previousVirtualPath: undefined,
-				preResolvedDeps: usePreResolved ? preResolvedDeps : undefined,
+				preResolvedDeps: usePreResolved ? preResolvedDeps : undefined
 			};
 		}
 
@@ -519,7 +519,7 @@ export const createAnalysisSession = (options: AnalysisSessionOptions): Analysis
 					kind: 'import_parse_failed',
 					file: file.id,
 					message: `Failed to parse imports: ${to_error_message(err)}`,
-					severity: 'warning',
+					severity: 'warning'
 				});
 			}
 		}
@@ -533,20 +533,20 @@ export const createAnalysisSession = (options: AnalysisSessionOptions): Analysis
 			resolverIdentity: resolver?.identity,
 			cacheHit: false,
 			previousVirtualPath,
-			preResolvedDeps: usePreResolved ? preResolvedDeps : undefined,
+			preResolvedDeps: usePreResolved ? preResolvedDeps : undefined
 		};
 	};
 
 	// Phase 3: serial per-file LS push + entry write
 	const phase3 = (
 		pending: PendingIngest,
-		resolved: ReadonlyArray<string | null>,
+		resolved: ReadonlyArray<string | null>
 	): SetFileResult => {
 		if (pending.cacheHit) {
 			// Cached SetFileResult: same diagnostics array reference, changed: false.
 			// `[...]` clone keeps the caller from mutating the entry's stored array.
 			// Cached entry's diagnostics were normalized at the time the entry was stored.
-			return {changed: false, diagnostics: [...pending.ingestDiagnostics]};
+			return { changed: false, diagnostics: [...pending.ingestDiagnostics] };
 		}
 
 		// Normalize ingest diagnostics to project-root-relative paths before
@@ -590,7 +590,7 @@ export const createAnalysisSession = (options: AnalysisSessionOptions): Analysis
 						virtual: pending.virtual,
 						unfilteredDeps,
 						preResolvedDepsSnapshot: pending.preResolvedDeps.slice(),
-						ingestDiagnostics: pending.ingestDiagnostics,
+						ingestDiagnostics: pending.ingestDiagnostics
 					}
 				: {
 						mode: 'lex+resolve',
@@ -600,7 +600,7 @@ export const createAnalysisSession = (options: AnalysisSessionOptions): Analysis
 						// Non-null assert: lex+resolve branch implies the batch picked a
 						// resolver, so phase 1 stored its identity on the pending entry.
 						resolverIdentity: pending.resolverIdentity!,
-						ingestDiagnostics: pending.ingestDiagnostics,
+						ingestDiagnostics: pending.ingestDiagnostics
 					};
 		if (pending.transformFailed) entry.transformFailed = true;
 		owned.set(pending.file.id, entry);
@@ -620,13 +620,13 @@ export const createAnalysisSession = (options: AnalysisSessionOptions): Analysis
 			ls.deleteFile(pending.previousVirtualPath);
 		}
 
-		return {changed: true, diagnostics: [...pending.ingestDiagnostics]};
+		return { changed: true, diagnostics: [...pending.ingestDiagnostics] };
 	};
 
 	// setFiles: orchestrate three phases
 	const setFiles = async (
 		files: ReadonlyArray<SourceFileInfo>,
-		opts?: SetFileOptions,
+		opts?: SetFileOptions
 	): Promise<SetFilesResult> => {
 		await ensureLexerReady();
 
@@ -647,7 +647,7 @@ export const createAnalysisSession = (options: AnalysisSessionOptions): Analysis
 		// path on Linux/macOS).
 		const normalizedFiles = files.map((f) => {
 			const posixId = toPosixPath(f.id);
-			return posixId === f.id ? f : {...f, id: posixId};
+			return posixId === f.id ? f : { ...f, id: posixId };
 		});
 
 		// Phase 1: sync per-file transform + lex.
@@ -680,7 +680,7 @@ export const createAnalysisSession = (options: AnalysisSessionOptions): Analysis
 				// "externalized for browser compatibility" warnings. The
 				// resolved slot stays `null` (its pre-filled default).
 				if (isNodeBuiltin(p.specifiers[si]!)) continue;
-				tasks.push({pendingIdx: pi, specIdx: si, specifier: p.specifiers[si]!});
+				tasks.push({ pendingIdx: pi, specIdx: si, specifier: p.specifiers[si]! });
 			}
 		}
 		// Resolver invariant: `tasks` non-empty implies `resolver !== null`.
@@ -693,7 +693,7 @@ export const createAnalysisSession = (options: AnalysisSessionOptions): Analysis
 		// an explicit runtime defense rather than relying on the chain.
 		if (tasks.length > 0 && resolver === null) {
 			throw new Error(
-				'svelte-docinfo: phase-2 invariant violated — tasks pending without a resolver',
+				'svelte-docinfo: phase-2 invariant violated — tasks pending without a resolver'
 			);
 		}
 		const taskResults = await map_concurrent(tasks, MAX_RESOLVE_CONCURRENCY, async (t) => {
@@ -708,13 +708,13 @@ export const createAnalysisSession = (options: AnalysisSessionOptions): Analysis
 				return {
 					...t,
 					resolved: resolved === null ? null : toPosixPath(resolved),
-					error: undefined,
+					error: undefined
 				};
 			} catch (err) {
 				return {
 					...t,
 					resolved: null,
-					error: to_error_message(err),
+					error: to_error_message(err)
 				};
 			}
 		});
@@ -726,7 +726,7 @@ export const createAnalysisSession = (options: AnalysisSessionOptions): Analysis
 		// throw N times, but the diagnostic carries no per-import-site info, so
 		// emitting once per specifier keeps the output non-redundant.
 		const resolvedByPending: Array<Array<string | null>> = pendings.map((p) =>
-			p.cacheHit ? [] : new Array<string | null>(p.specifiers.length).fill(null),
+			p.cacheHit ? [] : new Array<string | null>(p.specifiers.length).fill(null)
 		);
 		const seenFailures = new Map<number, Set<string>>();
 		for (const r of taskResults) {
@@ -745,7 +745,7 @@ export const createAnalysisSession = (options: AnalysisSessionOptions): Analysis
 				file: pending.file.id,
 				message: `Import resolver threw for "${r.specifier}": ${r.error}`,
 				severity: 'warning',
-				specifier: r.specifier,
+				specifier: r.specifier
 			});
 		}
 
@@ -763,7 +763,7 @@ export const createAnalysisSession = (options: AnalysisSessionOptions): Analysis
 			for (const d of result.diagnostics) aggregateDiagnostics.push(d);
 		}
 
-		return {changedIds, diagnostics: aggregateDiagnostics, perFile};
+		return { changedIds, diagnostics: aggregateDiagnostics, perFile };
 	};
 
 	const setFile = async (file: SourceFileInfo, opts?: SetFileOptions): Promise<SetFileResult> => {
@@ -809,7 +809,7 @@ export const createAnalysisSession = (options: AnalysisSessionOptions): Analysis
 
 		for (const [id, entry] of owned) {
 			const filteredDeps = entry.unfilteredDeps.filter((d) => ownedIds.has(d));
-			sourceFiles.push({id, content: entry.content, dependencies: filteredDeps});
+			sourceFiles.push({ id, content: entry.content, dependencies: filteredDeps });
 			if (entry.virtual) svelteVirtualFiles.set(id, entry.virtual);
 			if (entry.transformFailed) transformFailedIds.add(id);
 		}
@@ -829,7 +829,7 @@ export const createAnalysisSession = (options: AnalysisSessionOptions): Analysis
 			svelteVirtualFiles,
 			transformFailedIds,
 			onDuplicates: opts?.onDuplicates,
-			log: opts?.log ?? options.log,
+			log: opts?.log ?? options.log
 		});
 
 		return result;
@@ -840,5 +840,5 @@ export const createAnalysisSession = (options: AnalysisSessionOptions): Analysis
 		owned.clear();
 	};
 
-	return {setFile, setFiles, deleteFile, has, list, query, allIngestDiagnostics, dispose};
+	return { setFile, setFiles, deleteFile, has, list, query, allIngestDiagnostics, dispose };
 };

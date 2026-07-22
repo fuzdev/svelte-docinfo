@@ -1,5 +1,5 @@
 <script module lang="ts">
-	export {greet};
+	export { greet };
 </script>
 
 {#snippet greet()}

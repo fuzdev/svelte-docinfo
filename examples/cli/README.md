@@ -68,11 +68,11 @@ The default `--discovery auto` reads your `package.json` `exports` field and
 falls back to glob patterns when `exports` is missing or empty. Two other
 strategies are explicit:
 
-| Mode      | Behavior                                                                            |
-| --------- | ----------------------------------------------------------------------------------- |
-| `auto`    | exports first, glob fallback (default)                                              |
-| `exports` | exports only — **fails** if `package.json` has no usable `exports` field            |
-| `glob`    | glob only — `exports` field ignored, use `--include` / `--exclude` to parameterize  |
+| Mode      | Behavior                                                                           |
+| --------- | ---------------------------------------------------------------------------------- |
+| `auto`    | exports first, glob fallback (default)                                             |
+| `exports` | exports only — **fails** if `package.json` has no usable `exports` field           |
+| `glob`    | glob only — `exports` field ignored, use `--include` / `--exclude` to parameterize |
 
 Use `exports` for libraries that should always declare their public surface
 via `package.json`. CI fails loudly if someone removes the `exports` field by

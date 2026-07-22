@@ -8,5 +8,5 @@ export enum A {
 	/** Description 2 */
 	b = 'b',
 	/** Description 3 */
-	c = 'c',
+	c = 'c'
 }

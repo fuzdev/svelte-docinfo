@@ -1,10 +1,10 @@
 /** Persistent session - reuse parsed ASTs across multiple ingest+query cycles (e.g. HMR loops). */
 
-import {readFile, writeFile} from 'node:fs/promises';
-import {dirname, join} from 'node:path';
-import {fileURLToPath} from 'node:url';
+import { readFile, writeFile } from 'node:fs/promises';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-import {createAnalysisSession, createSourceOptions, compactReplacer} from 'svelte-docinfo';
+import { createAnalysisSession, createSourceOptions, compactReplacer } from 'svelte-docinfo';
 
 const dir = dirname(fileURLToPath(import.meta.url));
 
@@ -28,25 +28,25 @@ const indexPath = join(dir, 'src/lib/index.ts');
 // with identical contents still cache-hits, which means producing the deps
 // array via `[...filer.dependencies.keys()]` per call works cleanly.
 const session = createAnalysisSession({
-	sourceOptions: createSourceOptions(dir),
+	sourceOptions: createSourceOptions(dir)
 });
 
 const buildFiles = async () => [
-	{id: mathPath, content: await readFile(mathPath, 'utf-8'), dependencies: []},
-	{id: shapesPath, content: await readFile(shapesPath, 'utf-8'), dependencies: []},
-	{id: counterPath, content: await readFile(counterPath, 'utf-8'), dependencies: []},
-	{id: issuesPath, content: await readFile(issuesPath, 'utf-8'), dependencies: []},
+	{ id: mathPath, content: await readFile(mathPath, 'utf-8'), dependencies: [] },
+	{ id: shapesPath, content: await readFile(shapesPath, 'utf-8'), dependencies: [] },
+	{ id: counterPath, content: await readFile(counterPath, 'utf-8'), dependencies: [] },
+	{ id: issuesPath, content: await readFile(issuesPath, 'utf-8'), dependencies: [] },
 	{
 		id: componentPath,
 		content: await readFile(componentPath, 'utf-8'),
-		dependencies: [mathPath],
+		dependencies: [mathPath]
 	},
-	{id: cardPath, content: await readFile(cardPath, 'utf-8'), dependencies: []},
+	{ id: cardPath, content: await readFile(cardPath, 'utf-8'), dependencies: [] },
 	{
 		id: indexPath,
 		content: await readFile(indexPath, 'utf-8'),
-		dependencies: [componentPath, cardPath, counterPath, mathPath, shapesPath],
-	},
+		dependencies: [componentPath, cardPath, counterPath, mathPath, shapesPath]
+	}
 ];
 
 try {
@@ -62,7 +62,7 @@ try {
 	// and matches the other examples' output files for the equivalence test.
 	await writeFile(
 		join(dir, 'output-session.json'),
-		JSON.stringify({modules: cold.modules}, compactReplacer, '\t'),
+		JSON.stringify({ modules: cold.modules }, compactReplacer, '\t')
 	);
 
 	// === Cycle 2: single-file edit (the δ shape an LSP/HMR consumer drives) ==
@@ -70,19 +70,18 @@ try {
 	// entry is dirty — `setFile` returns `{changed: true}` for it, and parsed
 	// ASTs for the other two files survive untouched.
 	const mathSource = await readFile(mathPath, 'utf-8');
-	const editedMath = mathSource.replace(
-		'Add two numbers.',
-		'Add two numbers together.',
-	);
+	const editedMath = mathSource.replace('Add two numbers.', 'Add two numbers together.');
 	const ingest2 = await session.setFile({
 		id: mathPath,
 		content: editedMath,
-		dependencies: [],
+		dependencies: []
 	});
 	console.log(`Cycle 2 (edit):   math.ts changed=${ingest2.changed}`);
 	const afterEdit = session.query();
 	const mathModule = afterEdit.modules.find((m) => m.path === 'math.ts');
-	console.log(`                  add(): "${mathModule?.declarations.find((d) => d.name === 'add')?.docComment}"`);
+	console.log(
+		`                  add(): "${mathModule?.declarations.find((d) => d.name === 'add')?.docComment}"`
+	);
 
 	// === Cycle 3: no-op re-ingest (cache hit) ==========================
 	// Re-ingesting the same content + a freshly-constructed deps array hits the
@@ -92,7 +91,7 @@ try {
 	const ingest3 = await session.setFile({
 		id: mathPath,
 		content: editedMath,
-		dependencies: [],
+		dependencies: []
 	});
 	console.log(`Cycle 3 (no-op):  math.ts changed=${ingest3.changed} (cached)`);
 

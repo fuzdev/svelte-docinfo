@@ -13,9 +13,9 @@
  * @module
  */
 
-import type {ComponentDeclarationJson, DeclarationJson, ModuleJson} from './types.ts';
-import type {SourceFileInfo} from './source.ts';
-import {toPosixPath} from './paths.ts';
+import type { ComponentDeclarationJson, DeclarationJson, ModuleJson } from './types.ts';
+import type { SourceFileInfo } from './source.ts';
+import { toPosixPath } from './paths.ts';
 
 /**
  * Posixify every entry in `arr`. Returns the same array reference when no
@@ -23,7 +23,7 @@ import {toPosixPath} from './paths.ts';
  * `computeDependents`'s no-rewrite branch.
  */
 const posixifyArray = (
-	arr: ReadonlyArray<string> | undefined,
+	arr: ReadonlyArray<string> | undefined
 ): ReadonlyArray<string> | undefined => {
 	if (!arr) return arr;
 	let changed: Array<string> | null = null;
@@ -75,7 +75,7 @@ const buildDeclarationIndex = (modules: Array<ModuleJson>): Map<string, Declarat
 const resolveCanonicalIdentity = (
 	byIdentity: Map<string, DeclarationJson>,
 	modulePath: string,
-	declaration: DeclarationJson,
+	declaration: DeclarationJson
 ): DeclarationJson | string => {
 	let current = declaration;
 	const visited = new Set([`${modulePath}\n${declaration.name}`]);
@@ -120,7 +120,7 @@ const resolveCanonicalIdentity = (
  * ```
  */
 export const findDuplicates = (
-	modules: Array<ModuleJson>,
+	modules: Array<ModuleJson>
 ): Map<string, Array<DuplicateDeclaration>> => {
 	const byIdentity = buildDeclarationIndex(modules);
 	const resolveCanonical = (modulePath: string, declaration: DeclarationJson) =>
@@ -132,7 +132,7 @@ export const findDuplicates = (
 	// entries from this flat-namespace check.
 	const allOccurrences: Map<
 		string,
-		Array<DuplicateDeclaration & {canonical: DeclarationJson | string}>
+		Array<DuplicateDeclaration & { canonical: DeclarationJson | string }>
 	> = new Map();
 	for (const mod of modules) {
 		for (const declaration of mod.declarations) {
@@ -143,7 +143,7 @@ export const findDuplicates = (
 			allOccurrences.get(declaration.name)!.push({
 				declaration,
 				module: mod.path,
-				canonical: resolveCanonical(mod.path, declaration),
+				canonical: resolveCanonical(mod.path, declaration)
 			});
 		}
 	}
@@ -155,7 +155,7 @@ export const findDuplicates = (
 		if (identities.size > 1) {
 			duplicates.set(
 				name,
-				occurrences.map(({declaration, module}) => ({declaration, module})),
+				occurrences.map(({ declaration, module }) => ({ declaration, module }))
 			);
 		}
 	}
@@ -236,7 +236,7 @@ export const mergeReExports = (modules: Array<ModuleJson>): void => {
 	const reExportMap: Map<string, Map<string, Array<string>>> = new Map();
 
 	for (const mod of modules) {
-		for (const {name, module: originalModule} of mod.reExports) {
+		for (const { name, module: originalModule } of mod.reExports) {
 			if (!reExportMap.has(originalModule)) {
 				reExportMap.set(originalModule, new Map());
 			}
@@ -360,8 +360,8 @@ export const resolveComponentAliases = (modules: Array<ModuleJson>): void => {
  * ```
  */
 export const computeDependents = (
-	files: ReadonlyArray<SourceFileInfo>,
-): Array<SourceFileInfo & {dependents?: ReadonlyArray<string>}> => {
+	files: ReadonlyArray<SourceFileInfo>
+): Array<SourceFileInfo & { dependents?: ReadonlyArray<string> }> => {
 	// Posixify ids and dependency lists at the boundary so a power user
 	// supplying a hand-built `SourceFileInfo[]` with mixed-shape paths still
 	// gets correct lookup behavior. Identity-preserving when no normalization
@@ -376,7 +376,7 @@ export const computeDependents = (
 		return {
 			...file,
 			id: posixId,
-			dependencies: posixDeps,
+			dependencies: posixDeps
 		};
 	});
 
@@ -414,7 +414,7 @@ export const computeDependents = (
 
 		return {
 			...file,
-			dependents,
+			dependents
 		};
 	});
 };
@@ -517,7 +517,7 @@ interface InternalSurface {
  */
 export const resolveExportSurface = (
 	modules: Array<ModuleJson>,
-	path: string,
+	path: string
 ): ExportSurface | null => {
 	const byPath = new Map(modules.map((m) => [m.path, m]));
 	if (!byPath.has(path)) return null;
@@ -528,7 +528,7 @@ export const resolveExportSurface = (
 	const emptySurface = (): InternalSurface => ({
 		entries: new Map(),
 		unresolvedStars: new Set(),
-		externalStars: new Set(),
+		externalStars: new Set()
 	});
 
 	// Only surfaces resolved without hitting a cycle back-edge are memoized.
@@ -539,17 +539,17 @@ export const resolveExportSurface = (
 	// star paths; tainted surfaces are instead recomputed per consumer.
 	// Recomputation is bounded by `visiting` and only occurs inside cyclic
 	// clusters, which are pathological to begin with.
-	const resolveModule = (modulePath: string): {surface: InternalSurface; tainted: boolean} => {
+	const resolveModule = (modulePath: string): { surface: InternalSurface; tainted: boolean } => {
 		const cached = cache.get(modulePath);
-		if (cached) return {surface: cached, tainted: false};
+		if (cached) return { surface: cached, tainted: false };
 		// Cycle break: a star back-edge contributes nothing
-		if (visiting.has(modulePath)) return {surface: emptySurface(), tainted: true};
+		if (visiting.has(modulePath)) return { surface: emptySurface(), tainted: true };
 		visiting.add(modulePath);
 
 		const mod = byPath.get(modulePath)!;
 		const surface = emptySurface();
 		let tainted = false;
-		const {entries} = surface;
+		const { entries } = surface;
 
 		// 1. Own declarations — including synthesized aliases and `default`
 		const edgesByName = new Map(mod.reExports.map((e) => [e.name, e]));
@@ -566,9 +566,9 @@ export const resolveExportSurface = (
 					via: 'declaration',
 					module: modulePath,
 					declaration,
-					...(matchingEdge?.typeOnly ? {typeOnly: true} : {}),
+					...(matchingEdge?.typeOnly ? { typeOnly: true } : {})
 				},
-				identity: resolveCanonicalIdentity(byIdentity, modulePath, declaration),
+				identity: resolveCanonicalIdentity(byIdentity, modulePath, declaration)
 			});
 		}
 
@@ -584,12 +584,12 @@ export const resolveExportSurface = (
 					name: edge.name,
 					via: 'reExport',
 					module: edge.module,
-					...(canonical ? {declaration: canonical} : {}),
-					...(edge.typeOnly ? {typeOnly: true} : {}),
+					...(canonical ? { declaration: canonical } : {}),
+					...(edge.typeOnly ? { typeOnly: true } : {})
 				},
 				identity: canonical
 					? resolveCanonicalIdentity(byIdentity, edge.module, canonical)
-					: `${edge.module}\n${edge.name}`,
+					: `${edge.module}\n${edge.name}`
 			});
 		}
 
@@ -601,10 +601,10 @@ export const resolveExportSurface = (
 					name: external.name,
 					via: 'external',
 					specifier: external.specifier,
-					...(external.originalName !== undefined ? {originalName: external.originalName} : {}),
-					...(external.typeOnly ? {typeOnly: true} : {}),
+					...(external.originalName !== undefined ? { originalName: external.originalName } : {}),
+					...(external.typeOnly ? { typeOnly: true } : {})
 				},
-				identity: `ext\n${external.specifier}\n${external.originalName ?? external.name}`,
+				identity: `ext\n${external.specifier}\n${external.originalName ?? external.name}`
 			});
 		}
 
@@ -625,7 +625,7 @@ export const resolveExportSurface = (
 			const sub = resolved.surface;
 			for (const star of sub.unresolvedStars) surface.unresolvedStars.add(star);
 			for (const star of sub.externalStars) surface.externalStars.add(star);
-			for (const {entry, identity} of sub.entries.values()) {
+			for (const { entry, identity } of sub.entries.values()) {
 				// `default` never projects — nor do canonical Svelte components,
 				// which represent their file's default export (whether reached
 				// as a declaration or through a re-export edge)
@@ -642,23 +642,23 @@ export const resolveExportSurface = (
 					continue;
 				}
 				entries.set(entry.name, {
-					entry: {...entry, via: 'star', starFrom: target},
-					identity,
+					entry: { ...entry, via: 'star', starFrom: target },
+					identity
 				});
 			}
 		}
 
 		visiting.delete(modulePath);
 		if (!tainted) cache.set(modulePath, surface);
-		return {surface, tainted};
+		return { surface, tainted };
 	};
 
 	const resolved = resolveModule(path).surface;
 	return {
 		entries: Array.from(resolved.entries.values())
-			.map(({entry}) => entry)
+			.map(({ entry }) => entry)
 			.sort((a, b) => compareStrings(a.name, b.name)),
 		unresolvedStarExports: Array.from(resolved.unresolvedStars).sort(compareStrings),
-		externalStarExports: Array.from(resolved.externalStars).sort(compareStrings),
+		externalStarExports: Array.from(resolved.externalStars).sort(compareStrings)
 	};
 };

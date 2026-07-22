@@ -1,21 +1,21 @@
 /** Integration tests for the examples. */
 
-import {test, assert, describe, beforeAll} from 'vitest';
-import {readdir, readFile, rm} from 'node:fs/promises';
-import {existsSync} from 'node:fs';
-import {join} from 'node:path';
+import { test, assert, describe, beforeAll } from 'vitest';
+import { readdir, readFile, rm } from 'node:fs/promises';
+import { existsSync } from 'node:fs';
+import { join } from 'node:path';
 
-import {AnalyzeResultJson} from '$lib/analyze-core.ts';
+import { AnalyzeResultJson } from '$lib/analyze-core.ts';
 
 import {
 	EXAMPLES_API_DIR,
 	EXAMPLES_VITE_DIR,
 	PROJECT_ROOT,
 	runCliCapture,
-	runSubprocess,
+	runSubprocess
 } from './test-cli-helpers.ts';
 
-const runScript = (script: string, cwd: string) => runSubprocess('node', [script], {cwd});
+const runScript = (script: string, cwd: string) => runSubprocess('node', [script], { cwd });
 
 /** Shared precondition: the library is built. Examples link to `file:../..` so dist/ must exist. */
 const ensureBuilt = (): void => {
@@ -52,7 +52,7 @@ describe('examples/api', () => {
 		['analyze-build-tool.js', 'output-build-tool.json'],
 		['analyze-diagnostics.js', 'output-diagnostics.json'],
 		['analyze-non-sveltekit.js', 'output-non-sveltekit.json'],
-		['analyze-session.js', 'output-session.json'],
+		['analyze-session.js', 'output-session.json']
 	];
 
 	beforeAll(async () => {
@@ -61,21 +61,21 @@ describe('examples/api', () => {
 		// Wipe any committed/leftover output-*.json so the equivalence test
 		// can't pass against stale data when an example script fails mid-run.
 		await Promise.all(
-			EXAMPLE_SCRIPTS.map(([, output]) => rm(join(EXAMPLES_API_DIR, output), {force: true})),
+			EXAMPLE_SCRIPTS.map(([, output]) => rm(join(EXAMPLES_API_DIR, output), { force: true }))
 		);
 	});
 
-	test.each(EXAMPLE_SCRIPTS)('%s', {timeout: 30000}, async (script, output) => {
+	test.each(EXAMPLE_SCRIPTS)('%s', { timeout: 30000 }, async (script, output) => {
 		const result = await runScript(script, EXAMPLES_API_DIR);
 		assert.strictEqual(
 			result.code,
 			0,
-			`${script} should exit with code 0\nstderr: ${result.stderr}`,
+			`${script} should exit with code 0\nstderr: ${result.stderr}`
 		);
 		await validateOutput(join(EXAMPLES_API_DIR, output));
 	});
 
-	test('all outputs are equivalent', {timeout: 30000}, async () => {
+	test('all outputs are equivalent', { timeout: 30000 }, async () => {
 		const simple = await validateOutput(join(EXAMPLES_API_DIR, 'output-simple.json'));
 		const custom = await validateOutput(join(EXAMPLES_API_DIR, 'output-custom-discovery.json'));
 		const buildTool = await validateOutput(join(EXAMPLES_API_DIR, 'output-build-tool.json'));
@@ -97,7 +97,7 @@ describe('examples/api', () => {
 		const utils = result.modules.find((m) => m.path === 'utils.ts');
 		assert.ok(
 			utils,
-			`expected a module with path "utils.ts", got: ${result.modules.map((m) => m.path).join(', ')}`,
+			`expected a module with path "utils.ts", got: ${result.modules.map((m) => m.path).join(', ')}`
 		);
 	});
 });
@@ -121,12 +121,12 @@ describe('examples/vite', () => {
 		ensureExampleInstalled(EXAMPLES_VITE_DIR, 'examples/vite');
 	});
 
-	test('vite build emits virtual-module content', {timeout: 60000}, async () => {
-		const result = await runSubprocess('npx', ['vite', 'build'], {cwd: EXAMPLES_VITE_DIR});
+	test('vite build emits virtual-module content', { timeout: 60000 }, async () => {
+		const result = await runSubprocess('npx', ['vite', 'build'], { cwd: EXAMPLES_VITE_DIR });
 		assert.strictEqual(
 			result.code,
 			0,
-			`vite build should exit with code 0\nstderr: ${result.stderr}`,
+			`vite build should exit with code 0\nstderr: ${result.stderr}`
 		);
 
 		// Read every emitted JS chunk and confirm the virtual module actually
@@ -144,7 +144,7 @@ describe('examples/vite', () => {
 		for (const expected of ['math.ts', 'MathConfig']) {
 			assert.ok(
 				bundled.includes(expected),
-				`bundled output should contain "${expected}" from the virtual module`,
+				`bundled output should contain "${expected}" from the virtual module`
 			);
 		}
 	});

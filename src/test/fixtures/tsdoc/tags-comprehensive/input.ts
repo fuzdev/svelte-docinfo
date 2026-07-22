@@ -14,7 +14,7 @@
  * @see {@link https://fuz.dev}
  * @since 1.0.0
  */
-export function fn(a: string, b: {c?: boolean}) {
+export function fn(a: string, b: { c?: boolean }) {
 	if (typeof a !== 'string') {
 		throw new TypeError('Description 4');
 	}

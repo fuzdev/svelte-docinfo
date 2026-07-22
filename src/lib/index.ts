@@ -11,21 +11,21 @@
 
 // Core entry points
 
-export {analyze, analyzeFromFiles} from './analyze.ts';
-export type {AnalyzeOptions, AnalyzeFromFilesOptions} from './analyze.ts';
-export {throwOnDuplicates, AnalyzeResultJson} from './analyze-core.ts';
-export type {AnalyzeResultJsonWire, OnDuplicates, OnDuplicatesCallback} from './analyze-core.ts';
-export {createAnalysisSession} from './session.ts';
+export { analyze, analyzeFromFiles } from './analyze.ts';
+export type { AnalyzeOptions, AnalyzeFromFilesOptions } from './analyze.ts';
+export { throwOnDuplicates, AnalyzeResultJson } from './analyze-core.ts';
+export type { AnalyzeResultJsonWire, OnDuplicates, OnDuplicatesCallback } from './analyze-core.ts';
+export { createAnalysisSession } from './session.ts';
 export type {
 	AnalysisSession,
 	AnalysisSessionOptions,
 	SetFileOptions,
 	SetFileResult,
 	SetFilesResult,
-	QueryOptions,
+	QueryOptions
 } from './session.ts';
-export {normalizeResolveImport} from './dep-resolver.ts';
-export type {ImportResolver, ResolveImport, ResolveImportFn} from './dep-resolver.ts';
+export { normalizeResolveImport } from './dep-resolver.ts';
+export type { ImportResolver, ResolveImport, ResolveImportFn } from './dep-resolver.ts';
 
 // Types (Zod schemas + TypeScript interfaces)
 
@@ -54,7 +54,7 @@ export {
 	DeclarationJson,
 	ReExportJson,
 	ExternalReExportJson,
-	ModuleJson,
+	ModuleJson
 } from './types.ts';
 
 // Declaration helpers
@@ -65,17 +65,17 @@ export {
 	compactReplacer,
 	isKind,
 	findTypeReferences,
-	buildTypeReferencePatterns,
+	buildTypeReferencePatterns
 } from './declaration-helpers.ts';
 
 // Source types
 
-export type {SourceFileInfo, AnalyzerType} from './source.ts';
+export type { SourceFileInfo, AnalyzerType } from './source.ts';
 
 // Source options
 
-export {createSourceOptions, DEFAULT_SOURCE_OPTIONS} from './source-config.ts';
-export type {ModuleSourceOptions, SourceOptionsDefaults} from './source-config.ts';
+export { createSourceOptions, DEFAULT_SOURCE_OPTIONS } from './source-config.ts';
+export type { ModuleSourceOptions, SourceOptionsDefaults } from './source-config.ts';
 
 // Post-processing
 
@@ -83,21 +83,21 @@ export {
 	findDuplicates,
 	mergeReExports,
 	resolveComponentAliases,
-	resolveExportSurface,
+	resolveExportSurface
 } from './postprocess.ts';
-export type {DuplicateDeclaration, ExportSurface, ExportSurfaceEntry} from './postprocess.ts';
+export type { DuplicateDeclaration, ExportSurface, ExportSurfaceEntry } from './postprocess.ts';
 
 // File system constants
 
-export {deriveIncludePatterns} from './files.ts';
+export { deriveIncludePatterns } from './files.ts';
 
 // File discovery
 
-export {discoverSourceFiles} from './discovery.ts';
+export { discoverSourceFiles } from './discovery.ts';
 export type {
 	Discovery,
 	DiscoverSourceFilesOptions,
-	DiscoverSourceFilesResult,
+	DiscoverSourceFilesResult
 } from './discovery.ts';
 
 // Diagnostics
@@ -111,6 +111,6 @@ export {
 	formatDiagnostic,
 	DiagnosticSeverity,
 	DiagnosticKind,
-	Diagnostic,
+	Diagnostic
 } from './diagnostics.ts';
-export type {AnalysisLog} from './log.ts';
+export type { AnalysisLog } from './log.ts';

@@ -6,27 +6,27 @@
  * and re-exports from Svelte files.
  */
 
-import {test, assert, describe} from 'vitest';
-import {join} from 'node:path';
+import { test, assert, describe } from 'vitest';
+import { join } from 'node:path';
 
-import {analyze} from '$lib/analyze.ts';
-import {transformSvelteSource, type SvelteVirtualFile} from '$lib/svelte.ts';
-import {createAnalysisProgram} from '$lib/typescript-program.ts';
-import type {SourceFileInfo} from '$lib/source.ts';
-import {createSourceOptions} from '$lib/source-config.ts';
+import { analyze } from '$lib/analyze.ts';
+import { transformSvelteSource, type SvelteVirtualFile } from '$lib/svelte.ts';
+import { createAnalysisProgram } from '$lib/typescript-program.ts';
+import type { SourceFileInfo } from '$lib/source.ts';
+import { createSourceOptions } from '$lib/source-config.ts';
 
 import {
 	withTestProject,
 	findModule,
 	assertHasDeclaration,
 	assertHasComponentDeclaration,
-	assertHasProps,
+	assertHasProps
 } from './test-helpers.ts';
 
 /** Create source file infos from a files map, filtering to analyzable types. */
 const createSourceFiles = (
 	projectRoot: string,
-	files: Record<string, string>,
+	files: Record<string, string>
 ): Array<SourceFileInfo> => {
 	return Object.entries(files)
 		.filter(
@@ -34,15 +34,15 @@ const createSourceFiles = (
 				path.endsWith('.ts') ||
 				path.endsWith('.svelte') ||
 				path.endsWith('.css') ||
-				path.endsWith('.json'),
+				path.endsWith('.json')
 		)
 		.map(([path, content]) => ({
 			id: join(projectRoot, path),
-			content,
+			content
 		}));
 };
 
-describe('Svelte virtual source → program integration', {timeout: 15_000}, () => {
+describe('Svelte virtual source → program integration', { timeout: 15_000 }, () => {
 	test('resolves imported prop types via checker', async () => {
 		const files = {
 			'src/lib/types.ts': `export interface Props {
@@ -55,15 +55,15 @@ describe('Svelte virtual source → program integration', {timeout: 15_000}, () 
 import type {Props} from './types.js';
 let {a, b}: Props = $props();
 </script>
-<p>{a} {b}</p>`,
+<p>{a} {b}</p>`
 		};
 
 		await withTestProject(files, async (projectRoot) => {
 			const sourceFiles = createSourceFiles(projectRoot, files);
 
-			const {modules} = await analyze({
+			const { modules } = await analyze({
 				sourceFiles,
-				sourceOptions: createSourceOptions(projectRoot),
+				sourceOptions: createSourceOptions(projectRoot)
 			});
 
 			assert.strictEqual(modules.length, 2);
@@ -96,15 +96,15 @@ export type Config = { a: string };
 <script lang="ts">
 let {prop1}: {prop1: string} = $props();
 </script>
-<p>{prop1}</p>`,
+<p>{prop1}</p>`
 		};
 
 		await withTestProject(files, async (projectRoot) => {
 			const sourceFiles = createSourceFiles(projectRoot, files);
 
-			const {modules} = await analyze({
+			const { modules } = await analyze({
 				sourceFiles,
-				sourceOptions: createSourceOptions(projectRoot),
+				sourceOptions: createSourceOptions(projectRoot)
 			});
 
 			assert.strictEqual(modules.length, 1);
@@ -130,7 +130,7 @@ let {prop1}: {prop1: string} = $props();
 			content: `<script lang="ts">
 let {value}: {value: number} = $props();
 </script>
-<p>{value}</p>`,
+<p>{value}</p>`
 		};
 
 		const result = transformSvelteSource(sourceFile);
@@ -150,7 +150,7 @@ let {value}: {value: number} = $props();
 import type {Color} from './types.js';
 let {color}: {color: Color} = $props();
 </script>
-<span>{color}</span>`,
+<span>{color}</span>`
 		};
 
 		await withTestProject(files, async (projectRoot) => {
@@ -161,7 +161,7 @@ let {color}: {color: Color} = $props();
 			const svelteVirtuals = new Map<string, SvelteVirtualFile>();
 			for (const sf of sourceFiles) {
 				if (sf.id.endsWith('.svelte')) {
-					const {virtual} = transformSvelteSource(sf);
+					const { virtual } = transformSvelteSource(sf);
 					if (!virtual) throw new Error(`transform failed for ${sf.id}`);
 					virtualFiles.set(virtual.virtualPath, virtual.content);
 					svelteVirtuals.set(sf.id, virtual);
@@ -170,7 +170,7 @@ let {color}: {color: Color} = $props();
 
 			const program = createAnalysisProgram({
 				projectRoot,
-				virtualFiles,
+				virtualFiles
 			});
 
 			// Verify virtual file is in the program
@@ -196,15 +196,15 @@ export const DEFAULT_LABEL = 'untitled';
 import type {ItemProps} from './types.js';
 let {id, label}: ItemProps = $props();
 </script>
-<div data-id={id}>{label}</div>`,
+<div data-id={id}>{label}</div>`
 		};
 
 		await withTestProject(files, async (projectRoot) => {
 			const sourceFiles = createSourceFiles(projectRoot, files);
 
-			const {modules} = await analyze({
+			const { modules } = await analyze({
 				sourceFiles,
-				sourceOptions: createSourceOptions(projectRoot),
+				sourceOptions: createSourceOptions(projectRoot)
 			});
 
 			const itemModule = findModule(modules, 'Item.svelte');
@@ -239,15 +239,15 @@ let {prop1, prop2}: {
 	prop2?: number;
 } = $props();
 </script>
-<div>{prop1} {prop2}</div>`,
+<div>{prop1} {prop2}</div>`
 		};
 
 		await withTestProject(files, async (projectRoot) => {
 			const sourceFiles = createSourceFiles(projectRoot, files);
 
-			const {modules} = await analyze({
+			const { modules } = await analyze({
 				sourceFiles,
-				sourceOptions: createSourceOptions(projectRoot),
+				sourceOptions: createSourceOptions(projectRoot)
 			});
 
 			assert.strictEqual(modules.length, 1);
@@ -271,15 +271,15 @@ let {prop1, prop2}: {
 
 	test('component without props works with checker-backed path', async () => {
 		const files = {
-			'src/lib/Static.svelte': `<p>Static content</p>`,
+			'src/lib/Static.svelte': `<p>Static content</p>`
 		};
 
 		await withTestProject(files, async (projectRoot) => {
 			const sourceFiles = createSourceFiles(projectRoot, files);
 
-			const {modules} = await analyze({
+			const { modules } = await analyze({
 				sourceFiles,
-				sourceOptions: createSourceOptions(projectRoot),
+				sourceOptions: createSourceOptions(projectRoot)
 			});
 
 			assert.strictEqual(modules.length, 1);
@@ -300,15 +300,15 @@ let {prop1, prop2}: {
 import type {ListProps} from './types.js';
 let {items, selected}: ListProps<T> = $props();
 </script>
-<ul>{#each items as item}<li>{item}</li>{/each}</ul>`,
+<ul>{#each items as item}<li>{item}</li>{/each}</ul>`
 		};
 
 		await withTestProject(files, async (projectRoot) => {
 			const sourceFiles = createSourceFiles(projectRoot, files);
 
-			const {modules} = await analyze({
+			const { modules } = await analyze({
 				sourceFiles,
-				sourceOptions: createSourceOptions(projectRoot),
+				sourceOptions: createSourceOptions(projectRoot)
 			});
 
 			const listModule = findModule(modules, 'List.svelte');
@@ -346,15 +346,15 @@ let {
 	label: string;
 } = $props();
 </script>
-<button onclick={() => active = !active}>{label}: {active}</button>`,
+<button onclick={() => active = !active}>{label}: {active}</button>`
 		};
 
 		await withTestProject(files, async (projectRoot) => {
 			const sourceFiles = createSourceFiles(projectRoot, files);
 
-			const {modules} = await analyze({
+			const { modules } = await analyze({
 				sourceFiles,
-				sourceOptions: createSourceOptions(projectRoot),
+				sourceOptions: createSourceOptions(projectRoot)
 			});
 
 			const mod = findModule(modules, 'Toggle.svelte');
@@ -382,15 +382,15 @@ let {label}: {label: string} = $props();
 </script>
 <button>{label}</button>`,
 			'src/lib/utils.ts': `export const VERSION = '1.0.0';`,
-			'src/lib/index.ts': `export {VERSION} from './utils.js';`,
+			'src/lib/index.ts': `export {VERSION} from './utils.js';`
 		};
 
 		await withTestProject(files, async (projectRoot) => {
 			const sourceFiles = createSourceFiles(projectRoot, files);
 
-			const {modules} = await analyze({
+			const { modules } = await analyze({
 				sourceFiles,
-				sourceOptions: createSourceOptions(projectRoot),
+				sourceOptions: createSourceOptions(projectRoot)
 			});
 
 			assert.strictEqual(modules.length, 3);
@@ -408,7 +408,7 @@ let {label}: {label: string} = $props();
 			// index.ts re-exports VERSION → alsoExportedFrom should be populated
 			assert.ok(
 				version.alsoExportedFrom.length > 0,
-				'VERSION should have alsoExportedFrom via re-export',
+				'VERSION should have alsoExportedFrom via re-export'
 			);
 		});
 	});
@@ -422,15 +422,15 @@ export {type Status} from './types.js';
 <script lang="ts">
 let {name}: {name: string} = $props();
 </script>
-<div>{name}</div>`,
+<div>{name}</div>`
 		};
 
 		await withTestProject(files, async (projectRoot) => {
 			const sourceFiles = createSourceFiles(projectRoot, files);
 
-			const {modules} = await analyze({
+			const { modules } = await analyze({
 				sourceFiles,
-				sourceOptions: createSourceOptions(projectRoot),
+				sourceOptions: createSourceOptions(projectRoot)
 			});
 
 			assert.strictEqual(modules.length, 2);
@@ -445,7 +445,7 @@ let {name}: {name: string} = $props();
 			const status = assertHasDeclaration(typesModule, 'Status');
 			assert.ok(
 				status.alsoExportedFrom.length > 0,
-				'Status should have alsoExportedFrom via Svelte re-export',
+				'Status should have alsoExportedFrom via Svelte re-export'
 			);
 		});
 	});
@@ -460,15 +460,15 @@ export const PUBLIC = 'visible';
 <script lang="ts">
 let {name}: {name: string} = $props();
 </script>
-<div>{name}</div>`,
+<div>{name}</div>`
 		};
 
 		await withTestProject(files, async (projectRoot) => {
 			const sourceFiles = createSourceFiles(projectRoot, files);
 
-			const {modules} = await analyze({
+			const { modules } = await analyze({
 				sourceFiles,
-				sourceOptions: createSourceOptions(projectRoot),
+				sourceOptions: createSourceOptions(projectRoot)
 			});
 
 			const mod = findModule(modules, 'Widget.svelte');
@@ -496,15 +496,15 @@ export {VERSION} from './Exported.svelte';
 <script lang="ts">
 let {name}: {name: string} = $props();
 </script>
-<div>{name}</div>`,
+<div>{name}</div>`
 		};
 
 		await withTestProject(files, async (projectRoot) => {
 			const sourceFiles = createSourceFiles(projectRoot, files);
 
-			const {modules} = await analyze({
+			const { modules } = await analyze({
 				sourceFiles,
-				sourceOptions: createSourceOptions(projectRoot),
+				sourceOptions: createSourceOptions(projectRoot)
 			});
 
 			assert.strictEqual(modules.length, 2);
@@ -521,11 +521,11 @@ let {name}: {name: string} = $props();
 			// VERSION should have alsoExportedFrom populated via the Svelte re-export
 			assert.ok(
 				versionDecl.alsoExportedFrom.length > 0,
-				'VERSION should have alsoExportedFrom via Svelte-to-Svelte re-export',
+				'VERSION should have alsoExportedFrom via Svelte-to-Svelte re-export'
 			);
 			assert.ok(
 				versionDecl.alsoExportedFrom.some((m) => m.endsWith('Reexporter.svelte')),
-				`VERSION alsoExportedFrom should include Reexporter.svelte, got: ${JSON.stringify(versionDecl.alsoExportedFrom)}`,
+				`VERSION alsoExportedFrom should include Reexporter.svelte, got: ${JSON.stringify(versionDecl.alsoExportedFrom)}`
 			);
 		});
 	});
@@ -543,15 +543,15 @@ export * from './Base.svelte';
 <script lang="ts">
 let {active}: {active: boolean} = $props();
 </script>
-<div>{active}</div>`,
+<div>{active}</div>`
 		};
 
 		await withTestProject(files, async (projectRoot) => {
 			const sourceFiles = createSourceFiles(projectRoot, files);
 
-			const {modules} = await analyze({
+			const { modules } = await analyze({
 				sourceFiles,
-				sourceOptions: createSourceOptions(projectRoot),
+				sourceOptions: createSourceOptions(projectRoot)
 			});
 
 			assert.strictEqual(modules.length, 2);
@@ -560,7 +560,7 @@ let {active}: {active: boolean} = $props();
 			// Star exports should reference the Base.svelte module
 			assert.ok(
 				barrelModule.starExports.some((s) => s.endsWith('Base.svelte')),
-				`Barrel starExports should include Base.svelte, got: ${JSON.stringify(barrelModule.starExports)}`,
+				`Barrel starExports should include Base.svelte, got: ${JSON.stringify(barrelModule.starExports)}`
 			);
 		});
 	});
@@ -575,15 +575,15 @@ export type Theme = 'light' | 'dark';
 import type {Theme} from './Provider.svelte';
 let {theme}: {theme: Theme} = $props();
 </script>
-<div class={theme}>Content</div>`,
+<div class={theme}>Content</div>`
 		};
 
 		await withTestProject(files, async (projectRoot) => {
 			const sourceFiles = createSourceFiles(projectRoot, files);
 
-			const {modules} = await analyze({
+			const { modules } = await analyze({
 				sourceFiles,
-				sourceOptions: createSourceOptions(projectRoot),
+				sourceOptions: createSourceOptions(projectRoot)
 			});
 
 			assert.strictEqual(modules.length, 2);
@@ -604,15 +604,15 @@ let {theme}: {theme: Theme} = $props();
 			'src/lib/Leaky.svelte': `<script lang="ts">
 let {value}: {value: string} = $props();
 </script>
-<p>{value}</p>`,
+<p>{value}</p>`
 		};
 
 		await withTestProject(files, async (projectRoot) => {
 			const sourceFiles = createSourceFiles(projectRoot, files);
 
-			const {modules} = await analyze({
+			const { modules } = await analyze({
 				sourceFiles,
-				sourceOptions: createSourceOptions(projectRoot),
+				sourceOptions: createSourceOptions(projectRoot)
 			});
 
 			const mod = findModule(modules, 'Leaky.svelte');
@@ -626,7 +626,7 @@ let {value}: {value: string} = $props();
 				assert.ok(!decl.name.startsWith('$$'), `"${decl.name}" is an internal svelte2tsx symbol`);
 				assert.ok(
 					!decl.name.startsWith('__sveltets_'),
-					`"${decl.name}" is an internal svelte2tsx symbol`,
+					`"${decl.name}" is an internal svelte2tsx symbol`
 				);
 			}
 		});

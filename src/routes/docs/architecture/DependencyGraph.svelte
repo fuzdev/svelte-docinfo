@@ -1,8 +1,8 @@
 <script lang="ts">
-	import {library_context} from '@fuzdev/fuz_ui/library.svelte.ts';
+	import { library_context } from '@fuzdev/fuz_ui/library.svelte.ts';
 
-	import {dependency_graph as layout} from './dependency_graph.ts';
-	import {ZoomPanState} from './zoom_pan_state.svelte.ts';
+	import { dependency_graph as layout } from './dependency_graph.ts';
+	import { ZoomPanState } from './zoom_pan_state.svelte.ts';
 
 	const get_library = library_context.get();
 	const library = $derived(get_library());
@@ -14,7 +14,7 @@
 		min_scale: 0.1,
 		max_scale: 8,
 		content_width: layout.viewbox.width,
-		content_height: layout.viewbox.height,
+		content_height: layout.viewbox.height
 	});
 
 	const on_window_keydown = (e: KeyboardEvent) => {
@@ -53,7 +53,7 @@
 	 * Vertical handles produce smooth S-curves when consecutive waypoints differ in x
 	 * and collapse to a straight vertical line when they align.
 	 */
-	const build_path = (waypoints: Array<{x: number; y: number}>): string => {
+	const build_path = (waypoints: Array<{ x: number; y: number }>): string => {
 		if (waypoints.length < 2) return '';
 		const first = waypoints[0]!;
 		let d = `M ${first.x} ${first.y}`;
@@ -68,7 +68,7 @@
 		return d;
 	};
 
-	const edge_key = (e: {src: string; tgt: string}): string => `${e.src}|${e.tgt}`;
+	const edge_key = (e: { src: string; tgt: string }): string => `${e.src}|${e.tgt}`;
 
 	const node_state = (id: string): '' | 'self' | 'in' | 'out' | 'dim' => {
 		if (!node_relations) return '';
@@ -78,7 +78,7 @@
 	// `out` = hovered module imports the target (depends-on); `in` = the source
 	// imports the hovered module (depended-by). Coloring the two differently makes
 	// the direction of each relationship legible on hover.
-	const edge_state = (e: {src: string; tgt: string}): '' | 'in' | 'out' | 'dim' => {
+	const edge_state = (e: { src: string; tgt: string }): '' | 'in' | 'out' | 'dim' => {
 		if (!hovered) return '';
 		if (e.src === hovered) return 'out';
 		if (e.tgt === hovered) return 'in';

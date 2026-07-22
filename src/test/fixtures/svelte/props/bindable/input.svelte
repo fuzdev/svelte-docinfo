@@ -6,7 +6,7 @@
 	let {
 		prop1,
 		prop2 = $bindable(),
-		prop3 = $bindable(),
+		prop3 = $bindable()
 	}: {
 		/** Description 1 */
 		prop1: string;

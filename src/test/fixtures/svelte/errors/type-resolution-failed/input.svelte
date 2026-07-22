@@ -1,10 +1,10 @@
 <script lang="ts">
 	// @ts-nocheck
 	// Reference non-existent type
-	import type {NonExistent} from './missing';
+	import type { NonExistent } from './missing';
 
 	let {
-		prop1,
+		prop1
 	}: {
 		prop1: NonExistent;
 	} = $props();

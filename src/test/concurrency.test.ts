@@ -8,9 +8,9 @@
  * `analyze.session.test.ts`); this file targets the helper itself.
  */
 
-import {test, assert, describe} from 'vitest';
+import { test, assert, describe } from 'vitest';
 
-import {map_concurrent} from '$lib/concurrency.ts';
+import { map_concurrent } from '$lib/concurrency.ts';
 
 // Tiny resolved-after-N-microtasks delay; avoids real timers so suite stays fast.
 const microtask_delay = (n: number): Promise<void> => {
@@ -51,7 +51,7 @@ describe('map_concurrent', () => {
 
 	describe('concurrency bound', () => {
 		test('peak in-flight never exceeds bound', async () => {
-			const items = Array.from({length: 50}, (_, i) => i);
+			const items = Array.from({ length: 50 }, (_, i) => i);
 			let in_flight = 0;
 			let peak = 0;
 			await map_concurrent(items, 5, async () => {
@@ -117,7 +117,7 @@ describe('map_concurrent', () => {
 			// is in-flight when the failure propagates. With early-stop on the
 			// shared `failed` flag, neither worker pulls beyond the second item
 			// before exiting, so the count of started fn calls stays small.
-			const items = Array.from({length: 100}, (_, i) => i);
+			const items = Array.from({ length: 100 }, (_, i) => i);
 			let started = 0;
 			try {
 				await map_concurrent(items, 2, async (n) => {

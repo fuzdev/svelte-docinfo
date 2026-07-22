@@ -40,7 +40,7 @@ export const MAX_RESOLVE_CONCURRENCY = 100;
 export const map_concurrent = async <T, R>(
 	items: ReadonlyArray<T>,
 	concurrency: number,
-	fn: (item: T, index: number) => Promise<R>,
+	fn: (item: T, index: number) => Promise<R>
 ): Promise<Array<R>> => {
 	const results: Array<R> = new Array(items.length);
 	let next = 0;
@@ -57,6 +57,6 @@ export const map_concurrent = async <T, R>(
 			}
 		}
 	};
-	await Promise.all(Array.from({length: Math.min(concurrency, items.length)}, () => worker()));
+	await Promise.all(Array.from({ length: Math.min(concurrency, items.length) }, () => worker()));
 	return results;
 };

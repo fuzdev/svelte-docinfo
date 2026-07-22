@@ -1,8 +1,8 @@
-import type {Gen} from '@fuzdev/gro/gen.ts';
-import {readFile} from 'node:fs/promises';
-import {dirname, join} from 'node:path';
-import {analyzeFromFiles} from '$lib/analyze.ts';
-import {compactReplacer} from '$lib/declaration-helpers.ts';
+import type { Gen } from '@fuzdev/gro/gen.ts';
+import { readFile } from 'node:fs/promises';
+import { dirname, join } from 'node:path';
+import { analyzeFromFiles } from '$lib/analyze.ts';
+import { compactReplacer } from '$lib/declaration-helpers.ts';
 
 /**
  * Analyzes the ../../../../examples/api corpus for the extraction demo, pairing
@@ -11,11 +11,11 @@ import {compactReplacer} from '$lib/declaration-helpers.ts';
  * self-reference, so `npm run build` must precede `gro gen` after `src/lib`
  * changes — same constraint as ../../docs/architecture/dependency_graph.gen.json.ts.
  */
-export const gen: Gen = async ({origin_id, log}) => {
+export const gen: Gen = async ({ origin_id, log }) => {
 	const here = dirname(origin_id);
 	const project_root = join(here, '..', '..', '..', '..', 'examples', 'api');
 
-	const {modules, diagnostics} = await analyzeFromFiles({projectRoot: project_root, log});
+	const { modules, diagnostics } = await analyzeFromFiles({ projectRoot: project_root, log });
 
 	if (modules.length === 0) {
 		log.warn(`no modules found at ${project_root}; emitting empty extraction data`);
@@ -26,12 +26,12 @@ export const gen: Gen = async ({origin_id, log}) => {
 		await Promise.all(
 			modules.map(
 				async (m) =>
-					[m.path, await readFile(join(project_root, 'src/lib', m.path), 'utf-8')] as const,
-			),
-		),
+					[m.path, await readFile(join(project_root, 'src/lib', m.path), 'utf-8')] as const
+			)
+		)
 	);
 
 	// `compactReplacer` keeps `modules` in the same compact wire form the Vite
 	// plugin publishes, so the demo shows exactly what consumers get
-	return JSON.stringify({modules, diagnostics, sources}, compactReplacer);
+	return JSON.stringify({ modules, diagnostics, sources }, compactReplacer);
 };

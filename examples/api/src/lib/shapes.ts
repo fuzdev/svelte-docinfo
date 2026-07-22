@@ -7,7 +7,7 @@
 /** Supported shape categories. */
 export enum ShapeKind {
 	Circle = 'circle',
-	Rectangle = 'rectangle',
+	Rectangle = 'rectangle'
 }
 
 /** Cardinal directions as a const enum (inlined at use sites). */
@@ -15,7 +15,7 @@ export const enum Direction {
 	North,
 	East,
 	South,
-	West,
+	West
 }
 
 /** Anything with a computable area. */
@@ -126,13 +126,13 @@ export function shape_area(shape_or_radius: HasArea | number): number {
  */
 export const describe_shape = (
 	shape: HasArea,
-	options: {precision?: number; label?: string} = {},
+	options: { precision?: number; label?: string } = {}
 ): string => `${options.label ?? 'shape'}: area ${shape.area.toFixed(options.precision ?? 2)}`;
 
 /** Unit square corners as a readonly tuple (const assertion). */
 export const UNIT_SQUARE = [
-	{x: 0, y: 0},
-	{x: 1, y: 0},
-	{x: 1, y: 1},
-	{x: 0, y: 1},
+	{ x: 0, y: 0 },
+	{ x: 1, y: 0 },
+	{ x: 1, y: 1 },
+	{ x: 0, y: 1 }
 ] as const;

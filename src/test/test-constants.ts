@@ -19,7 +19,7 @@ export const TEST_PATHS = {
 	/** Nested absolute TypeScript path */
 	NESTED_TS: '/home/user/project/src/lib/nested/bar.ts',
 	/** Nested absolute Svelte path */
-	NESTED_SVELTE: '/home/user/project/src/lib/nested/Button.svelte',
+	NESTED_SVELTE: '/home/user/project/src/lib/nested/Button.svelte'
 } as const;
 
 /**
@@ -39,7 +39,7 @@ export const TEST_FILES = {
 	/** CSS file */
 	CSS: 'styles.css',
 	/** JSON file */
-	JSON: 'data.json',
+	JSON: 'data.json'
 } as const;
 
 /**
@@ -51,5 +51,5 @@ export const TEST_MODULES = {
 	HELPERS: 'helpers.ts',
 	INDEX: 'index.ts',
 	BUTTON: 'Button.svelte',
-	CARD: 'Card.svelte',
+	CARD: 'Card.svelte'
 } as const;

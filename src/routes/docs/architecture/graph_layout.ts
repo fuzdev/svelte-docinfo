@@ -9,7 +9,7 @@
  * @module
  */
 
-import {compareStrings} from '$lib/postprocess.ts';
+import { compareStrings } from '$lib/postprocess.ts';
 
 export interface LayoutInputNode {
 	id: string;
@@ -42,7 +42,7 @@ export const default_layout_options: LayoutOptions = {
 	layer_gap_y: 64,
 	node_gap_x: 24,
 	canvas_padding: 32,
-	crossing_passes: 12,
+	crossing_passes: 12
 };
 
 export interface LayoutNode {
@@ -58,13 +58,13 @@ export interface LayoutEdge {
 	src: string;
 	tgt: string;
 	/** Polyline anchors in canvas coordinates: source bottom → dummy centers → target top. */
-	waypoints: Array<{x: number; y: number}>;
+	waypoints: Array<{ x: number; y: number }>;
 	/** True when the underlying import was reversed to break a cycle. */
 	reversed: boolean;
 }
 
 export interface Layout {
-	viewbox: {width: number; height: number};
+	viewbox: { width: number; height: number };
 	layer_count: number;
 	nodes: Array<LayoutNode>;
 	edges: Array<LayoutEdge>;
@@ -101,10 +101,10 @@ const break_cycles = (ids: Array<string>, out_edges: Map<string, Array<string>>)
 	const reversed = new Set<string>();
 	const visiting = new Set<string>();
 	const done = new Set<string>();
-	const stack: Array<{n: string; i: number}> = [];
+	const stack: Array<{ n: string; i: number }> = [];
 	for (const start of ids) {
 		if (done.has(start)) continue;
-		stack.push({n: start, i: 0});
+		stack.push({ n: start, i: 0 });
 		visiting.add(start);
 		while (stack.length > 0) {
 			const frame = stack[stack.length - 1]!;
@@ -127,7 +127,7 @@ const break_cycles = (ids: Array<string>, out_edges: Map<string, Array<string>>)
 				if (!tgt_outs.includes(frame.n)) tgt_outs.push(frame.n);
 			} else if (!done.has(t)) {
 				visiting.add(t);
-				stack.push({n: t, i: 0});
+				stack.push({ n: t, i: 0 });
 			}
 		}
 	}
@@ -137,7 +137,7 @@ const break_cycles = (ids: Array<string>, out_edges: Map<string, Array<string>>)
 /** Layer 0 = sinks (foundation, bottom of canvas); layer N = sources (entry, top). */
 const assign_layers = (
 	ids: Array<string>,
-	out_edges: Map<string, Array<string>>,
+	out_edges: Map<string, Array<string>>
 ): Map<string, number> => {
 	const layer = new Map<string, number>();
 	const compute = (n: string, stack: Set<string>): number => {
@@ -160,7 +160,7 @@ const reduce_crossings = (
 	layers: Array<Array<string>>,
 	neighbors_higher: Map<string, Array<string>>,
 	neighbors_lower: Map<string, Array<string>>,
-	passes: number,
+	passes: number
 ): void => {
 	for (let pass = 0; pass < passes; pass++) {
 		const sweep_up = pass % 2 === 0;
@@ -194,9 +194,9 @@ const reduce_crossings = (
 
 export const compute_layout = (
 	input: LayoutInput,
-	options: Partial<LayoutOptions> = {},
+	options: Partial<LayoutOptions> = {}
 ): Layout => {
-	const opts = {...default_layout_options, ...options};
+	const opts = { ...default_layout_options, ...options };
 
 	const ids = input.nodes.map((n) => n.id);
 	const id_set = new Set(ids);
@@ -224,7 +224,7 @@ export const compute_layout = (
 			height: opts.node_height,
 			is_dummy: false,
 			cx: 0,
-			cy: 0,
+			cy: 0
 		});
 	}
 
@@ -254,7 +254,7 @@ export const compute_layout = (
 					height: 0,
 					is_dummy: true,
 					cx: 0,
-					cy: 0,
+					cy: 0
 				});
 				chain.push(did);
 			}
@@ -264,13 +264,13 @@ export const compute_layout = (
 				src: was_reversed ? tgt : src,
 				tgt: was_reversed ? src : tgt,
 				chain: was_reversed ? [...chain].reverse() : chain,
-				reversed: was_reversed,
+				reversed: was_reversed
 			});
 		}
 	}
 
 	// Bucket nodes by layer with deterministic initial ordering (alphabetical, dummies last)
-	const layers: Array<Array<string>> = Array.from({length: layer_count}, () => []);
+	const layers: Array<Array<string>> = Array.from({ length: layer_count }, () => []);
 	for (const node of nodes_map.values()) layers[node.layer]!.push(node.id);
 	for (const lay of layers) {
 		lay.sort((a, b) => {
@@ -368,7 +368,7 @@ export const compute_layout = (
 			x: n.cx - n.width / 2,
 			y: n.cy - n.height / 2,
 			width: n.width,
-			height: n.height,
+			height: n.height
 		});
 	}
 
@@ -378,7 +378,7 @@ export const compute_layout = (
 		const tgt_n = nodes_map.get(e.tgt)!;
 		// Source anchor: source has higher layer (toward top of canvas, smaller y).
 		// Edge exits the BOTTOM of the source rect.
-		const waypoints: Array<{x: number; y: number}> = [];
+		const waypoints: Array<{ x: number; y: number }> = [];
 		const src_top = src_n.cy - src_n.height / 2;
 		const src_bottom = src_n.cy + src_n.height / 2;
 		const tgt_top = tgt_n.cy - tgt_n.height / 2;
@@ -388,17 +388,17 @@ export const compute_layout = (
 		// If reversed (back-edge), the rendered arrow still goes src→tgt but logical direction differs.
 		const src_y = src_n.layer > tgt_n.layer ? src_bottom : src_top;
 		const tgt_y = src_n.layer > tgt_n.layer ? tgt_top : tgt_bottom;
-		waypoints.push({x: src_n.cx, y: src_y});
+		waypoints.push({ x: src_n.cx, y: src_y });
 		for (const d of e.chain) {
 			const dn = nodes_map.get(d)!;
-			waypoints.push({x: dn.cx, y: dn.cy});
+			waypoints.push({ x: dn.cx, y: dn.cy });
 		}
-		waypoints.push({x: tgt_n.cx, y: tgt_y});
+		waypoints.push({ x: tgt_n.cx, y: tgt_y });
 		out_edges_list.push({
 			src: e.src,
 			tgt: e.tgt,
 			waypoints,
-			reversed: e.reversed,
+			reversed: e.reversed
 		});
 	}
 
@@ -416,9 +416,9 @@ export const compute_layout = (
 	}
 
 	return {
-		viewbox: {width: round(viewbox_width), height: round(viewbox_height)},
+		viewbox: { width: round(viewbox_width), height: round(viewbox_height) },
 		layer_count,
 		nodes: out_nodes,
-		edges: out_edges_list,
+		edges: out_edges_list
 	};
 };

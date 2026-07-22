@@ -17,34 +17,34 @@
  * dropped before this work).
  */
 
-import {join} from 'node:path';
-import {describe, test, assert} from 'vitest';
+import { join } from 'node:path';
+import { describe, test, assert } from 'vitest';
 
-import {analyze} from '$lib/analyze.ts';
-import {byKind, type Diagnostic} from '$lib/diagnostics.ts';
-import type {SourceFileInfo} from '$lib/source.ts';
-import {createSourceOptions} from '$lib/source-config.ts';
+import { analyze } from '$lib/analyze.ts';
+import { byKind, type Diagnostic } from '$lib/diagnostics.ts';
+import type { SourceFileInfo } from '$lib/source.ts';
+import { createSourceOptions } from '$lib/source-config.ts';
 
-import {withTestProject} from './test-helpers.ts';
+import { withTestProject } from './test-helpers.ts';
 
 const createSourceFiles = (
 	projectRoot: string,
-	files: Record<string, string>,
+	files: Record<string, string>
 ): Array<SourceFileInfo> =>
 	Object.entries(files).map(([path, content]) => ({
 		id: join(projectRoot, path),
-		content,
+		content
 	}));
 
 const setup = (projectRoot: string, files: Record<string, string>) => ({
 	sourceFiles: createSourceFiles(projectRoot, files),
-	sourceOptions: createSourceOptions(projectRoot),
+	sourceOptions: createSourceOptions(projectRoot)
 });
 
 const misplaced = (d: Array<Diagnostic>) => byKind(d, 'misplaced_tag');
 const unknownParam = (d: Array<Diagnostic>) => byKind(d, 'unknown_param');
 
-describe('overload diagnostics', {timeout: 15_000}, () => {
+describe('overload diagnostics', { timeout: 15_000 }, () => {
 	describe('misplaced_tag — symbol-scope tag on non-primary overload', () => {
 		test('symbol-scope tag on the primary (first) overload flows to parent and emits no diagnostic', async () => {
 			const files = {
@@ -56,11 +56,11 @@ describe('overload diagnostics', {timeout: 15_000}, () => {
 export function fn(a: string): string;
 export function fn(a: number): number;
 export function fn(a: string | number): string | number { return a; }
-`,
+`
 			};
 
 			await withTestProject(files, async (projectRoot) => {
-				const {modules, diagnostics} = await analyze(setup(projectRoot, files));
+				const { modules, diagnostics } = await analyze(setup(projectRoot, files));
 				assert.deepStrictEqual(misplaced(diagnostics), []);
 
 				const fn = modules.find((m) => m.path === 'fn.ts')?.declarations[0];
@@ -81,11 +81,11 @@ export function fn(a: string): string;
  */
 export function fn(a: number): number;
 export function fn(a: string | number): string | number { return a; }
-`,
+`
 			};
 
 			await withTestProject(files, async (projectRoot) => {
-				const {modules, diagnostics} = await analyze(setup(projectRoot, files));
+				const { modules, diagnostics } = await analyze(setup(projectRoot, files));
 
 				const warnings = misplaced(diagnostics);
 				assert.strictEqual(warnings.length, 2, 'two misplaced tags → two warnings');
@@ -119,11 +119,11 @@ export function fn(a: string): string;
  */
 export function fn(a: number): number;
 export function fn(a: string | number): string | number { return a; }
-`,
+`
 			};
 
 			await withTestProject(files, async (projectRoot) => {
-				const {modules, diagnostics} = await analyze(setup(projectRoot, files));
+				const { modules, diagnostics } = await analyze(setup(projectRoot, files));
 				assert.deepStrictEqual(misplaced(diagnostics), []);
 				assert.deepStrictEqual(unknownParam(diagnostics), []);
 
@@ -148,11 +148,11 @@ export class A {
 	fn(a: number): number;
 	fn(a: string | number): string | number { return a; }
 }
-`,
+`
 			};
 
 			await withTestProject(files, async (projectRoot) => {
-				const {diagnostics} = await analyze(setup(projectRoot, files));
+				const { diagnostics } = await analyze(setup(projectRoot, files));
 				const warnings = misplaced(diagnostics);
 				assert.strictEqual(warnings.length, 1);
 				assert.strictEqual(warnings[0]?.tagName, 'example');
@@ -172,11 +172,11 @@ export function fn(a: string): string;
  */
 export function fn(a: number): number;
 export function fn(a: string | number): string | number { return a; }
-`,
+`
 			};
 
 			await withTestProject(files, async (projectRoot) => {
-				const {diagnostics} = await analyze(setup(projectRoot, files));
+				const { diagnostics } = await analyze(setup(projectRoot, files));
 				const warnings = misplaced(diagnostics);
 				const tagNames = warnings.map((w) => w.tagName).sort();
 				assert.deepStrictEqual(tagNames, ['default', 'nodocs']);
@@ -200,11 +200,11 @@ export function fn(a: string): string;
 /** @param a - number form */
 export function fn(a: number): number;
 export function fn(a: string | number): string | number { return a; }
-`,
+`
 			};
 
 			await withTestProject(files, async (projectRoot) => {
-				const {modules, diagnostics} = await analyze(setup(projectRoot, files));
+				const { modules, diagnostics } = await analyze(setup(projectRoot, files));
 				assert.deepStrictEqual(misplaced(diagnostics), []);
 				assert.deepStrictEqual(unknownParam(diagnostics), []);
 
@@ -232,11 +232,11 @@ export function fn(o: {b: number}): number;
 export function fn(o: {a: string} | {b: number}): string | number {
 	return 'a' in o ? o.a : o.b;
 }
-`,
+`
 			};
 
 			await withTestProject(files, async (projectRoot) => {
-				const {modules, diagnostics} = await analyze(setup(projectRoot, files));
+				const { modules, diagnostics } = await analyze(setup(projectRoot, files));
 				assert.deepStrictEqual(misplaced(diagnostics), []);
 				assert.deepStrictEqual(unknownParam(diagnostics), []);
 
@@ -245,10 +245,10 @@ export function fn(o: {a: string} | {b: number}): string | number {
 				// each overload sources propertyDescriptions from its own JSDoc only,
 				// never bleeding from the parent or the sibling overload
 				assert.deepStrictEqual(fn.overloads[0]?.parameters[0]?.propertyDescriptions, {
-					a: 'primary a',
+					a: 'primary a'
 				});
 				assert.deepStrictEqual(fn.overloads[1]?.parameters[0]?.propertyDescriptions, {
-					b: 'secondary b',
+					b: 'secondary b'
 				});
 			});
 		});
@@ -263,11 +263,11 @@ export function fn(o: {a: string} | {b: number}): string | number {
  * @param argz - typo for "a"
  */
 export function fn(a: string): string { return a; }
-`,
+`
 			};
 
 			await withTestProject(files, async (projectRoot) => {
-				const {modules, diagnostics} = await analyze(setup(projectRoot, files));
+				const { modules, diagnostics } = await analyze(setup(projectRoot, files));
 
 				const warnings = unknownParam(diagnostics);
 				assert.strictEqual(warnings.length, 1);
@@ -290,11 +290,11 @@ export function fn(a: string): string;
 /** @param wrong - typo */
 export function fn(a: number): number;
 export function fn(a: string | number): string | number { return a; }
-`,
+`
 			};
 
 			await withTestProject(files, async (projectRoot) => {
-				const {diagnostics} = await analyze(setup(projectRoot, files));
+				const { diagnostics } = await analyze(setup(projectRoot, files));
 				const warnings = unknownParam(diagnostics);
 				assert.strictEqual(warnings.length, 1);
 				assert.strictEqual(warnings[0]?.paramName, 'wrong');
@@ -311,11 +311,11 @@ export function fn(a: string | number): string | number { return a; }
  * @param b - second
  */
 export function fn(a: string, b: number): string { return a + b; }
-`,
+`
 			};
 
 			await withTestProject(files, async (projectRoot) => {
-				const {diagnostics} = await analyze(setup(projectRoot, files));
+				const { diagnostics } = await analyze(setup(projectRoot, files));
 				assert.deepStrictEqual(unknownParam(diagnostics), []);
 			});
 		});
@@ -330,11 +330,11 @@ export function fn(a: string, b: number): string { return a + b; }
  * @param ctx.kindLabel - label
  */
 export function fn(ctx: {node: string; kindLabel: string}): string { return ctx.kindLabel; }
-`,
+`
 			};
 
 			await withTestProject(files, async (projectRoot) => {
-				const {diagnostics} = await analyze(setup(projectRoot, files));
+				const { diagnostics } = await analyze(setup(projectRoot, files));
 				assert.deepStrictEqual(unknownParam(diagnostics), []);
 			});
 		});
@@ -349,11 +349,11 @@ export function fn(ctx: {node: string; kindLabel: string}): string { return ctx.
  * @param ctx.nested.deep - a deeply nested property
  */
 export function fn(ctx: {node: string; nested: {deep: boolean}}): string { return ctx.node; }
-`,
+`
 			};
 
 			await withTestProject(files, async (projectRoot) => {
-				const {modules, diagnostics} = await analyze(setup(projectRoot, files));
+				const { modules, diagnostics } = await analyze(setup(projectRoot, files));
 				assert.deepStrictEqual(unknownParam(diagnostics), []);
 				const decl = modules[0]?.declarations[0];
 				assert(decl?.kind === 'function');
@@ -363,7 +363,7 @@ export function fn(ctx: {node: string; nested: {deep: boolean}}): string { retur
 				assert.strictEqual(param.description, 'the context object');
 				assert.deepStrictEqual(param.propertyDescriptions, {
 					node: 'parent node',
-					'nested.deep': 'a deeply nested property',
+					'nested.deep': 'a deeply nested property'
 				});
 			});
 		});
@@ -380,11 +380,11 @@ export function fn(ctx: {node: string; nested: {deep: boolean}}): string { retur
  * @param options.a - the a value
  */
 export function fn({a, b}: {a: string; b: number}): string { return a + String(b); }
-`,
+`
 			};
 
 			await withTestProject(files, async (projectRoot) => {
-				const {modules, diagnostics} = await analyze(setup(projectRoot, files));
+				const { modules, diagnostics } = await analyze(setup(projectRoot, files));
 				const decl = modules[0]?.declarations[0];
 				assert(decl?.kind === 'function');
 				const param = decl.parameters[0];
@@ -395,7 +395,7 @@ export function fn({a, b}: {a: string; b: number}): string { return a + String(b
 					unknownParam(diagnostics)
 						.map((d) => d.paramName)
 						.sort(),
-					['options', 'options.a'],
+					['options', 'options.a']
 				);
 			});
 		});
@@ -407,11 +407,11 @@ export function fn({a, b}: {a: string; b: number}): string { return a + String(b
  * @param wrong.node - root "wrong" is not a parameter
  */
 export function fn(ctx: {node: string}): string { return ctx.node; }
-`,
+`
 			};
 
 			await withTestProject(files, async (projectRoot) => {
-				const {diagnostics} = await analyze(setup(projectRoot, files));
+				const { diagnostics } = await analyze(setup(projectRoot, files));
 				const warnings = unknownParam(diagnostics);
 				assert.strictEqual(warnings.length, 1);
 				assert.strictEqual(warnings[0]?.paramName, 'wrong.node');
@@ -428,11 +428,11 @@ export class A {
 	 */
 	fn(a: string): string { return a; }
 }
-`,
+`
 			};
 
 			await withTestProject(files, async (projectRoot) => {
-				const {diagnostics} = await analyze(setup(projectRoot, files));
+				const { diagnostics } = await analyze(setup(projectRoot, files));
 				const warnings = unknownParam(diagnostics);
 				assert.strictEqual(warnings.length, 1);
 				assert.strictEqual(warnings[0]?.paramName, 'argz');

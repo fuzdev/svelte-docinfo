@@ -3,7 +3,7 @@
  */
 export interface A {
 	/** Description 1 */
-	new (a: string): {b: number};
+	new (a: string): { b: number };
 	/** Description 2 */
-	new (a: number): {b: string};
+	new (a: number): { b: string };
 }

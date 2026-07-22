@@ -16,19 +16,19 @@
  * the sibling `analyze.reexport-*.test.ts` files.
  */
 
-import {test, assert, describe} from 'vitest';
-import {join} from 'node:path';
+import { test, assert, describe } from 'vitest';
+import { join } from 'node:path';
 
-import {analyze} from '$lib/analyze.ts';
-import {findDuplicates} from '$lib/postprocess.ts';
-import type {SourceFileInfo} from '$lib/source.ts';
-import {createSourceOptions} from '$lib/source-config.ts';
+import { analyze } from '$lib/analyze.ts';
+import { findDuplicates } from '$lib/postprocess.ts';
+import type { SourceFileInfo } from '$lib/source.ts';
+import { createSourceOptions } from '$lib/source-config.ts';
 
-import {withTestProject} from './test-helpers.ts';
+import { withTestProject } from './test-helpers.ts';
 
 const createSourceFiles = (
 	projectRoot: string,
-	files: Record<string, string>,
+	files: Record<string, string>
 ): Array<SourceFileInfo> => {
 	return Object.entries(files)
 		.filter(
@@ -36,21 +36,21 @@ const createSourceFiles = (
 				path.endsWith('.ts') ||
 				path.endsWith('.svelte') ||
 				path.endsWith('.css') ||
-				path.endsWith('.json'),
+				path.endsWith('.json')
 		)
 		.map(([path, content]) => ({
 			id: join(projectRoot, path),
-			content,
+			content
 		}));
 };
 
 const setupAnalysis = (projectRoot: string, files: Record<string, string>) => {
 	const sourceFiles = createSourceFiles(projectRoot, files);
 	const sourceOptions = createSourceOptions(projectRoot);
-	return {sourceFiles, sourceOptions};
+	return { sourceFiles, sourceOptions };
 };
 
-describe('renamed Svelte component re-exports', {timeout: 15_000}, () => {
+describe('renamed Svelte component re-exports', { timeout: 15_000 }, () => {
 	test('export {default as Renamed} synthesizes a component-shaped alias with canonical fields propagated', async () => {
 		const files = {
 			'src/lib/Foo.svelte': `<script lang="ts">
@@ -59,12 +59,12 @@ let {label, count = 0}: {label: string; count?: number} = $props();
 </script>
 <button>{label} {count}</button>
 {@render children?.()}`,
-			'src/lib/index.ts': `export {default as Renamed} from './Foo.svelte';`,
+			'src/lib/index.ts': `export {default as Renamed} from './Foo.svelte';`
 		};
 
 		await withTestProject(files, async (projectRoot) => {
-			const {sourceFiles, sourceOptions} = setupAnalysis(projectRoot, files);
-			const {modules} = await analyze({sourceFiles, sourceOptions});
+			const { sourceFiles, sourceOptions } = setupAnalysis(projectRoot, files);
+			const { modules } = await analyze({ sourceFiles, sourceOptions });
 
 			const indexModule = modules.find((m) => m.path === 'index.ts');
 			assert.ok(indexModule);
@@ -103,12 +103,12 @@ let {label, count = 0}: {label: string; count?: number} = $props();
 let {label}: {label: string} = $props();
 </script>
 <button>{label}</button>`,
-			'src/lib/index.ts': `export {default} from './Foo.svelte';`,
+			'src/lib/index.ts': `export {default} from './Foo.svelte';`
 		};
 
 		await withTestProject(files, async (projectRoot) => {
-			const {sourceFiles, sourceOptions} = setupAnalysis(projectRoot, files);
-			const {modules} = await analyze({sourceFiles, sourceOptions});
+			const { sourceFiles, sourceOptions } = setupAnalysis(projectRoot, files);
+			const { modules } = await analyze({ sourceFiles, sourceOptions });
 
 			const fooModule = modules.find((m) => m.path === 'Foo.svelte');
 			assert.ok(fooModule);
@@ -120,7 +120,7 @@ let {label}: {label: string} = $props();
 			const indexModule = modules.find((m) => m.path === 'index.ts');
 			assert.strictEqual(
 				indexModule?.declarations.find((d) => d.name === 'default'),
-				undefined,
+				undefined
 			);
 		});
 	});
@@ -131,12 +131,12 @@ let {label}: {label: string} = $props();
 let {label} = $props();
 </script>
 <button>{label}</button>`,
-			'src/lib/index.ts': `export {default as Renamed} from './Foo.svelte';`,
+			'src/lib/index.ts': `export {default as Renamed} from './Foo.svelte';`
 		};
 
 		await withTestProject(files, async (projectRoot) => {
-			const {sourceFiles, sourceOptions} = setupAnalysis(projectRoot, files);
-			const {modules} = await analyze({sourceFiles, sourceOptions});
+			const { sourceFiles, sourceOptions } = setupAnalysis(projectRoot, files);
+			const { modules } = await analyze({ sourceFiles, sourceOptions });
 
 			const renamed = modules
 				.find((m) => m.path === 'index.ts')
@@ -167,12 +167,12 @@ import type {A} from '../../types.js';
 let {label, ...rest}: {label: string} & A = $props();
 </script>
 <button>{label}</button>`,
-			'src/lib/index.ts': `export {default as Renamed} from './Foo.svelte';`,
+			'src/lib/index.ts': `export {default as Renamed} from './Foo.svelte';`
 		};
 
 		await withTestProject(files, async (projectRoot) => {
-			const {sourceFiles, sourceOptions} = setupAnalysis(projectRoot, files);
-			const {modules} = await analyze({sourceFiles, sourceOptions});
+			const { sourceFiles, sourceOptions } = setupAnalysis(projectRoot, files);
+			const { modules } = await analyze({ sourceFiles, sourceOptions });
 
 			const canonical = modules
 				.find((m) => m.path === 'Foo.svelte')
@@ -204,12 +204,12 @@ let {label}: {label: string} = $props();
 </script>
 <button>{label}</button>`,
 			'src/lib/mid.ts': `export {default as A} from './Foo.svelte';`,
-			'src/lib/index.ts': `export {A as B} from './mid.js';`,
+			'src/lib/index.ts': `export {A as B} from './mid.js';`
 		};
 
 		await withTestProject(files, async (projectRoot) => {
-			const {sourceFiles, sourceOptions} = setupAnalysis(projectRoot, files);
-			const {modules} = await analyze({sourceFiles, sourceOptions});
+			const { sourceFiles, sourceOptions } = setupAnalysis(projectRoot, files);
+			const { modules } = await analyze({ sourceFiles, sourceOptions });
 
 			// First hop: mid.ts has a component alias A → Foo.svelte/Foo
 			const midA = modules
@@ -219,7 +219,7 @@ let {label}: {label: string} = $props();
 			assert.strictEqual(midA.kind, 'component');
 			assert.deepStrictEqual(midA.aliasOf, {
 				module: 'Foo.svelte',
-				name: 'Foo',
+				name: 'Foo'
 			});
 			if (midA.kind === 'component') {
 				assert.deepStrictEqual(midA.props.map((p) => p.name).sort(), ['label']);
@@ -234,7 +234,7 @@ let {label}: {label: string} = $props();
 			assert.strictEqual(indexB.kind, 'component');
 			assert.deepStrictEqual(indexB.aliasOf, {
 				module: 'Foo.svelte',
-				name: 'Foo',
+				name: 'Foo'
 			});
 			if (indexB.kind === 'component') {
 				assert.deepStrictEqual(indexB.props.map((p) => p.name).sort(), ['label']);
@@ -248,12 +248,12 @@ let {label}: {label: string} = $props();
 let {label}: {label: string} = $props();
 </script>
 <button>{label}</button>`,
-			'src/lib/index.ts': `export {default as A, default as B} from './Foo.svelte';`,
+			'src/lib/index.ts': `export {default as A, default as B} from './Foo.svelte';`
 		};
 
 		await withTestProject(files, async (projectRoot) => {
-			const {sourceFiles, sourceOptions} = setupAnalysis(projectRoot, files);
-			const {modules} = await analyze({sourceFiles, sourceOptions});
+			const { sourceFiles, sourceOptions } = setupAnalysis(projectRoot, files);
+			const { modules } = await analyze({ sourceFiles, sourceOptions });
 
 			const indexModule = modules.find((m) => m.path === 'index.ts');
 			assert.ok(indexModule);
@@ -264,7 +264,7 @@ let {label}: {label: string} = $props();
 				assert.strictEqual(decl.kind, 'component');
 				assert.deepStrictEqual(decl.aliasOf, {
 					module: 'Foo.svelte',
-					name: 'Foo',
+					name: 'Foo'
 				});
 				if (decl.kind === 'component') {
 					assert.deepStrictEqual(decl.props.map((p) => p.name).sort(), ['label']);
@@ -274,19 +274,19 @@ let {label}: {label: string} = $props();
 	});
 });
 
-describe('multi-hop re-export chains', {timeout: 15_000}, () => {
+describe('multi-hop re-export chains', { timeout: 15_000 }, () => {
 	test('same-name 3-hop chain accumulates all intermediates on the canonical', async () => {
 		const files = {
 			'src/lib/a.ts': `
 /** Original foo. */
 export function foo(): number { return 1; }`,
 			'src/lib/b.ts': `export {foo} from './a.js';`,
-			'src/lib/c.ts': `export {foo} from './b.js';`,
+			'src/lib/c.ts': `export {foo} from './b.js';`
 		};
 
 		await withTestProject(files, async (projectRoot) => {
-			const {sourceFiles, sourceOptions} = setupAnalysis(projectRoot, files);
-			const {modules} = await analyze({sourceFiles, sourceOptions});
+			const { sourceFiles, sourceOptions } = setupAnalysis(projectRoot, files);
+			const { modules } = await analyze({ sourceFiles, sourceOptions });
 
 			const a = modules.find((m) => m.path === 'a.ts');
 			const aFoo = a?.declarations.find((d) => d.name === 'foo');
@@ -305,12 +305,12 @@ export function foo(): number { return 1; }`,
 /** Original. */
 export function originalFn(x: number): number { return x; }`,
 			'src/lib/b.ts': `export {originalFn as middleFn} from './a.js';`,
-			'src/lib/c.ts': `export {middleFn as finalFn} from './b.js';`,
+			'src/lib/c.ts': `export {middleFn as finalFn} from './b.js';`
 		};
 
 		await withTestProject(files, async (projectRoot) => {
-			const {sourceFiles, sourceOptions} = setupAnalysis(projectRoot, files);
-			const {modules} = await analyze({sourceFiles, sourceOptions});
+			const { sourceFiles, sourceOptions } = setupAnalysis(projectRoot, files);
+			const { modules } = await analyze({ sourceFiles, sourceOptions });
 
 			const c = modules.find((m) => m.path === 'c.ts');
 			const finalFn = c?.declarations.find((d) => d.name === 'finalFn');
@@ -330,12 +330,12 @@ export function originalFn(x: number): number { return x; }`,
 /** Original. */
 export function originalFn(x: number): number { return x; }`,
 			'src/lib/b.ts': `export {originalFn as renamedFn} from './a.js';`,
-			'src/lib/c.ts': `export {renamedFn} from './b.js';`,
+			'src/lib/c.ts': `export {renamedFn} from './b.js';`
 		};
 
 		await withTestProject(files, async (projectRoot) => {
-			const {sourceFiles, sourceOptions} = setupAnalysis(projectRoot, files);
-			const {modules} = await analyze({sourceFiles, sourceOptions});
+			const { sourceFiles, sourceOptions } = setupAnalysis(projectRoot, files);
+			const { modules } = await analyze({ sourceFiles, sourceOptions });
 
 			const b = modules.find((m) => m.path === 'b.ts');
 			const c = modules.find((m) => m.path === 'c.ts');
@@ -348,7 +348,7 @@ export function originalFn(x: number): number { return x; }`,
 			assert.strictEqual(bRenamed.aliasOf?.name, 'originalFn');
 			assert.strictEqual(
 				c?.declarations.find((d) => d.name === 'renamedFn'),
-				undefined,
+				undefined
 			);
 		});
 	});
@@ -359,12 +359,12 @@ export function originalFn(x: number): number { return x; }`,
 /** Original. */
 export function foo(x: number): number { return x; }`,
 			'src/lib/b.ts': `export {foo} from './a.js';`,
-			'src/lib/c.ts': `export {foo as renamedFromB} from './b.js';`,
+			'src/lib/c.ts': `export {foo as renamedFromB} from './b.js';`
 		};
 
 		await withTestProject(files, async (projectRoot) => {
-			const {sourceFiles, sourceOptions} = setupAnalysis(projectRoot, files);
-			const {modules} = await analyze({sourceFiles, sourceOptions});
+			const { sourceFiles, sourceOptions } = setupAnalysis(projectRoot, files);
+			const { modules } = await analyze({ sourceFiles, sourceOptions });
 
 			const a = modules.find((m) => m.path === 'a.ts');
 			const aFoo = a?.declarations.find((d) => d.name === 'foo');
@@ -386,12 +386,12 @@ export function foo(x: number): number { return x; }`,
 export function deep(): void {}`,
 			'src/lib/b.ts': `export {deep} from './a.js';`,
 			'src/lib/c.ts': `export {deep} from './b.js';`,
-			'src/lib/d.ts': `export {deep} from './c.js';`,
+			'src/lib/d.ts': `export {deep} from './c.js';`
 		};
 
 		await withTestProject(files, async (projectRoot) => {
-			const {sourceFiles, sourceOptions} = setupAnalysis(projectRoot, files);
-			const {modules} = await analyze({sourceFiles, sourceOptions});
+			const { sourceFiles, sourceOptions } = setupAnalysis(projectRoot, files);
+			const { modules } = await analyze({ sourceFiles, sourceOptions });
 
 			const a = modules.find((m) => m.path === 'a.ts');
 			const aDeep = a?.declarations.find((d) => d.name === 'deep');
@@ -401,7 +401,7 @@ export function deep(): void {}`,
 	});
 });
 
-describe('JSDoc on cross-file re-export statements', {timeout: 15_000}, () => {
+describe('JSDoc on cross-file re-export statements', { timeout: 15_000 }, () => {
 	test('renamed: /** Doc */ export {foo as bar} from "./x.js" attaches local JSDoc to the alias', async () => {
 		const files = {
 			'src/lib/x.ts': `
@@ -409,19 +409,19 @@ describe('JSDoc on cross-file re-export statements', {timeout: 15_000}, () => {
 export function foo(x: number): number { return x; }`,
 			'src/lib/index.ts': `
 /** Local renamed view. */
-export {foo as bar} from './x.js';`,
+export {foo as bar} from './x.js';`
 		};
 
 		await withTestProject(files, async (projectRoot) => {
-			const {sourceFiles, sourceOptions} = setupAnalysis(projectRoot, files);
-			const {modules} = await analyze({sourceFiles, sourceOptions});
+			const { sourceFiles, sourceOptions } = setupAnalysis(projectRoot, files);
+			const { modules } = await analyze({ sourceFiles, sourceOptions });
 
 			const bar = modules
 				.find((m) => m.path === 'index.ts')
 				?.declarations.find((d) => d.name === 'bar');
 			assert.ok(bar);
 			assert.strictEqual(bar.docComment, 'Local renamed view.');
-			assert.deepStrictEqual(bar.aliasOf, {module: 'x.ts', name: 'foo'});
+			assert.deepStrictEqual(bar.aliasOf, { module: 'x.ts', name: 'foo' });
 
 			// Canonical's own JSDoc untouched
 			const xFoo = modules
@@ -438,19 +438,19 @@ export {foo as bar} from './x.js';`,
 export function foo(x: number): number { return x; }`,
 			'src/lib/index.ts': `
 /** @nodocs */
-export {foo as bar} from './x.js';`,
+export {foo as bar} from './x.js';`
 		};
 
 		await withTestProject(files, async (projectRoot) => {
-			const {sourceFiles, sourceOptions} = setupAnalysis(projectRoot, files);
-			const {modules} = await analyze({sourceFiles, sourceOptions});
+			const { sourceFiles, sourceOptions } = setupAnalysis(projectRoot, files);
+			const { modules } = await analyze({ sourceFiles, sourceOptions });
 
 			// bar must not appear in index.ts declarations
 			const indexModule = modules.find((m) => m.path === 'index.ts');
 			assert.ok(indexModule);
 			assert.strictEqual(
 				indexModule.declarations.find((d) => d.name === 'bar'),
-				undefined,
+				undefined
 			);
 
 			// Canonical foo unaffected
@@ -469,12 +469,12 @@ export {foo as bar} from './x.js';`,
 export function foo(x: number): number { return x; }`,
 			'src/lib/index.ts': `
 /** Local view of foo. */
-export {foo} from './x.js';`,
+export {foo} from './x.js';`
 		};
 
 		await withTestProject(files, async (projectRoot) => {
-			const {sourceFiles, sourceOptions} = setupAnalysis(projectRoot, files);
-			const {modules} = await analyze({sourceFiles, sourceOptions});
+			const { sourceFiles, sourceOptions } = setupAnalysis(projectRoot, files);
+			const { modules } = await analyze({ sourceFiles, sourceOptions });
 
 			// Re-exporting module synthesizes an alias declaration with local JSDoc
 			const indexFoo = modules
@@ -484,7 +484,7 @@ export {foo} from './x.js';`,
 			assert.strictEqual(indexFoo.docComment, 'Local view of foo.');
 			assert.deepStrictEqual(indexFoo.aliasOf, {
 				module: 'x.ts',
-				name: 'foo',
+				name: 'foo'
 			});
 
 			// Canonical retains its own JSDoc and gets alsoExportedFrom link
@@ -504,19 +504,19 @@ export {foo} from './x.js';`,
 export function foo(x: number): number { return x; }`,
 			'src/lib/index.ts': `
 /** @nodocs */
-export {foo} from './x.js';`,
+export {foo} from './x.js';`
 		};
 
 		await withTestProject(files, async (projectRoot) => {
-			const {sourceFiles, sourceOptions} = setupAnalysis(projectRoot, files);
-			const {modules} = await analyze({sourceFiles, sourceOptions});
+			const { sourceFiles, sourceOptions } = setupAnalysis(projectRoot, files);
+			const { modules } = await analyze({ sourceFiles, sourceOptions });
 
 			// No alias declaration in index.ts
 			const indexModule = modules.find((m) => m.path === 'index.ts');
 			assert.ok(indexModule);
 			assert.strictEqual(
 				indexModule.declarations.find((d) => d.name === 'foo'),
-				undefined,
+				undefined
 			);
 
 			// Canonical's alsoExportedFrom does not include index.ts
@@ -533,19 +533,19 @@ export {foo} from './x.js';`,
 			'src/lib/x.ts': `
 /** Original foo doc. */
 export function foo(x: number): number { return x; }`,
-			'src/lib/index.ts': `export {foo} from './x.js';`,
+			'src/lib/index.ts': `export {foo} from './x.js';`
 		};
 
 		await withTestProject(files, async (projectRoot) => {
-			const {sourceFiles, sourceOptions} = setupAnalysis(projectRoot, files);
-			const {modules} = await analyze({sourceFiles, sourceOptions});
+			const { sourceFiles, sourceOptions } = setupAnalysis(projectRoot, files);
+			const { modules } = await analyze({ sourceFiles, sourceOptions });
 
 			// No synthesized alias for content-free same-name re-exports
 			const indexModule = modules.find((m) => m.path === 'index.ts');
 			assert.ok(indexModule);
 			assert.strictEqual(
 				indexModule.declarations.find((d) => d.name === 'foo'),
-				undefined,
+				undefined
 			);
 
 			// Canonical gets the alsoExportedFrom link
@@ -567,12 +567,12 @@ let {label}: {label: string} = $props();
 <button>{label}</button>`,
 			'src/lib/index.ts': `
 /** Local Foo alias doc. */
-export {default as Foo} from './Bar.svelte';`,
+export {default as Foo} from './Bar.svelte';`
 		};
 
 		await withTestProject(files, async (projectRoot) => {
-			const {sourceFiles, sourceOptions} = setupAnalysis(projectRoot, files);
-			const {modules} = await analyze({sourceFiles, sourceOptions});
+			const { sourceFiles, sourceOptions } = setupAnalysis(projectRoot, files);
+			const { modules } = await analyze({ sourceFiles, sourceOptions });
 
 			const foo = modules
 				.find((m) => m.path === 'index.ts')
@@ -582,7 +582,7 @@ export {default as Foo} from './Bar.svelte';`,
 			assert.strictEqual(foo.docComment, 'Local Foo alias doc.');
 			assert.deepStrictEqual(foo.aliasOf, {
 				module: 'Bar.svelte',
-				name: 'Bar',
+				name: 'Bar'
 			});
 			if (foo.kind === 'component') {
 				// Phase-2 fixup still propagates props from the canonical
@@ -599,12 +599,12 @@ let {label}: {label: string} = $props();
 <button>{label}</button>`,
 			'src/lib/index.ts': `
 /** Local view of Foo. */
-export {default} from './Foo.svelte';`,
+export {default} from './Foo.svelte';`
 		};
 
 		await withTestProject(files, async (projectRoot) => {
-			const {sourceFiles, sourceOptions} = setupAnalysis(projectRoot, files);
-			const {modules} = await analyze({sourceFiles, sourceOptions});
+			const { sourceFiles, sourceOptions } = setupAnalysis(projectRoot, files);
+			const { modules } = await analyze({ sourceFiles, sourceOptions });
 
 			// Re-exporting module synthesizes a Foo alias with local JSDoc
 			const indexFoo = modules
@@ -615,7 +615,7 @@ export {default} from './Foo.svelte';`,
 			assert.strictEqual(indexFoo.docComment, 'Local view of Foo.');
 			assert.deepStrictEqual(indexFoo.aliasOf, {
 				module: 'Foo.svelte',
-				name: 'Foo',
+				name: 'Foo'
 			});
 			if (indexFoo.kind === 'component') {
 				assert.deepStrictEqual(indexFoo.props.map((p) => p.name).sort(), ['label']);
@@ -635,12 +635,12 @@ export {default} from './Foo.svelte';`,
 		// `mergeReExports` keys by `(module, name)` like any other re-export.
 		const files = {
 			'src/lib/a.ts': `export default function foo(): void {}\n`,
-			'src/lib/b.ts': `export {default} from './a.js';\n`,
+			'src/lib/b.ts': `export {default} from './a.js';\n`
 		};
 
 		await withTestProject(files, async (projectRoot) => {
-			const {sourceFiles, sourceOptions} = setupAnalysis(projectRoot, files);
-			const {modules} = await analyze({sourceFiles, sourceOptions});
+			const { sourceFiles, sourceOptions } = setupAnalysis(projectRoot, files);
+			const { modules } = await analyze({ sourceFiles, sourceOptions });
 
 			const aMod = modules.find((m) => m.path === 'a.ts')!;
 			const canonical = aMod.declarations.find((d) => d.name === 'default');
@@ -649,7 +649,7 @@ export {default} from './Foo.svelte';`,
 			assert.deepStrictEqual(
 				canonical.alsoExportedFrom,
 				['b.ts'],
-				'b.ts should be linked back via alsoExportedFrom',
+				'b.ts should be linked back via alsoExportedFrom'
 			);
 		});
 	});
@@ -663,12 +663,12 @@ export {default} from './Foo.svelte';`,
 			'src/lib/a.ts': `export default function deep(): void {}\n`,
 			'src/lib/b.ts': `export {default} from './a.js';\n`,
 			'src/lib/c.ts': `export {default} from './b.js';\n`,
-			'src/lib/d.ts': `export {default} from './c.js';\n`,
+			'src/lib/d.ts': `export {default} from './c.js';\n`
 		};
 
 		await withTestProject(files, async (projectRoot) => {
-			const {sourceFiles, sourceOptions} = setupAnalysis(projectRoot, files);
-			const {modules} = await analyze({sourceFiles, sourceOptions});
+			const { sourceFiles, sourceOptions } = setupAnalysis(projectRoot, files);
+			const { modules } = await analyze({ sourceFiles, sourceOptions });
 
 			const aDefault = modules
 				.find((m) => m.path === 'a.ts')!
@@ -677,7 +677,7 @@ export {default} from './Foo.svelte';`,
 			assert.deepStrictEqual(
 				aDefault.alsoExportedFrom,
 				['b.ts', 'c.ts', 'd.ts'],
-				'Each hop should appear on the canonical, sorted',
+				'Each hop should appear on the canonical, sorted'
 			);
 		});
 	});
@@ -689,12 +689,12 @@ export {default} from './Foo.svelte';`,
 		// (`'foo'`).
 		const files = {
 			'src/lib/x.ts': `export function foo(): void {}\n`,
-			'src/lib/index.ts': `export {foo as default} from './x.js';\n`,
+			'src/lib/index.ts': `export {foo as default} from './x.js';\n`
 		};
 
 		await withTestProject(files, async (projectRoot) => {
-			const {sourceFiles, sourceOptions} = setupAnalysis(projectRoot, files);
-			const {modules} = await analyze({sourceFiles, sourceOptions});
+			const { sourceFiles, sourceOptions } = setupAnalysis(projectRoot, files);
+			const { modules } = await analyze({ sourceFiles, sourceOptions });
 
 			const indexMod = modules.find((m) => m.path === 'index.ts')!;
 			assert.strictEqual(indexMod.declarations.length, 1);
@@ -702,7 +702,7 @@ export {default} from './Foo.svelte';`,
 			assert.strictEqual(def.name, 'default');
 			assert.deepStrictEqual(def.aliasOf, {
 				module: 'x.ts',
-				name: 'foo',
+				name: 'foo'
 			});
 			// Canonical is unchanged — renames don't add to alsoExportedFrom
 			const xFoo = modules
@@ -724,12 +724,12 @@ export {default} from './Foo.svelte';`,
 			'src/lib/index.ts': `
 /** Local view of a's default. */
 export {default} from './a.js';
-`,
+`
 		};
 
 		await withTestProject(files, async (projectRoot) => {
-			const {sourceFiles, sourceOptions} = setupAnalysis(projectRoot, files);
-			const {modules} = await analyze({sourceFiles, sourceOptions});
+			const { sourceFiles, sourceOptions } = setupAnalysis(projectRoot, files);
+			const { modules } = await analyze({ sourceFiles, sourceOptions });
 
 			const indexMod = modules.find((m) => m.path === 'index.ts')!;
 			const synthesized = indexMod.declarations.find((d) => d.name === 'default');
@@ -753,12 +753,12 @@ export {default} from './a.js';
 		// `name === 'default'` (no collision).
 		const files = {
 			'src/lib/a.ts': `export default function foo(): void {}\n`,
-			'src/lib/b.ts': `export default function bar(): void {}\n`,
+			'src/lib/b.ts': `export default function bar(): void {}\n`
 		};
 
 		await withTestProject(files, async (projectRoot) => {
-			const {sourceFiles, sourceOptions} = setupAnalysis(projectRoot, files);
-			const {modules} = await analyze({sourceFiles, sourceOptions});
+			const { sourceFiles, sourceOptions } = setupAnalysis(projectRoot, files);
+			const { modules } = await analyze({ sourceFiles, sourceOptions });
 
 			const aDefault = modules
 				.find((m) => m.path === 'a.ts')!
@@ -773,7 +773,7 @@ export {default} from './a.js';
 			assert.strictEqual(
 				duplicates.size,
 				0,
-				'Anonymous defaults across files should not be flagged as duplicates',
+				'Anonymous defaults across files should not be flagged as duplicates'
 			);
 		});
 	});

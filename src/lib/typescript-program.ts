@@ -19,13 +19,13 @@
  * @module
  */
 
-import {join, dirname} from 'node:path';
+import { join, dirname } from 'node:path';
 import ts from 'typescript';
 
-import type {AnalysisLog} from './log.ts';
-import {SVELTE_VIRTUAL_SUFFIX} from './source.ts';
-import {type ModuleSourceOptions, getSourceRoot} from './source-config.ts';
-import {toPosixPath} from './paths.ts';
+import type { AnalysisLog } from './log.ts';
+import { SVELTE_VIRTUAL_SUFFIX } from './source.ts';
+import { type ModuleSourceOptions, getSourceRoot } from './source-config.ts';
+import { toPosixPath } from './paths.ts';
 
 /**
  * Base configuration shared by every entry point in this module.
@@ -152,8 +152,8 @@ export interface AnalysisLanguageService {
  */
 export const loadTsconfig = (
 	options?: LoadTsconfigOptions,
-	log?: AnalysisLog,
-): {compilerOptions: ts.CompilerOptions; rootFileNames: Array<string>} => {
+	log?: AnalysisLog
+): { compilerOptions: ts.CompilerOptions; rootFileNames: Array<string> } => {
 	const projectRoot = options?.projectRoot ?? process.cwd();
 	const tsconfigName = options?.tsconfig ?? 'tsconfig.json';
 
@@ -168,10 +168,10 @@ export const loadTsconfig = (
 	const parsedConfig = ts.parseJsonConfigFileContent(configFile.config, ts.sys, projectRoot);
 
 	const compilerOptions = options?.compilerOptions
-		? {...parsedConfig.options, ...options.compilerOptions}
+		? { ...parsedConfig.options, ...options.compilerOptions }
 		: parsedConfig.options;
 
-	return {compilerOptions, rootFileNames: parsedConfig.fileNames};
+	return { compilerOptions, rootFileNames: parsedConfig.fileNames };
 };
 
 /**
@@ -184,7 +184,7 @@ export const loadTsconfig = (
 const resolveSvelteVirtualSpecifier = (
 	specifier: string,
 	containingFile: string,
-	hasVirtual: (path: string) => boolean,
+	hasVirtual: (path: string) => boolean
 ): ts.ResolvedModuleFull | undefined => {
 	if (!specifier.startsWith('.') || !specifier.endsWith('.svelte')) return undefined;
 	// `join`/`dirname` return native separators on Windows. Posixify so the
@@ -195,7 +195,7 @@ const resolveSvelteVirtualSpecifier = (
 	return {
 		resolvedFileName: resolved,
 		isExternalLibraryImport: false,
-		extension: ts.Extension.Ts,
+		extension: ts.Extension.Ts
 	};
 };
 
@@ -218,9 +218,9 @@ const resolveSvelteVirtualSpecifier = (
  */
 export const createAnalysisProgram = (
 	options?: AnalysisProgramOptions,
-	log?: AnalysisLog,
+	log?: AnalysisLog
 ): ts.Program => {
-	const {compilerOptions, rootFileNames} = loadTsconfig(options, log);
+	const { compilerOptions, rootFileNames } = loadTsconfig(options, log);
 	const virtualFiles = options?.virtualFiles;
 
 	if (!virtualFiles || virtualFiles.size === 0) {
@@ -257,9 +257,9 @@ export const createAnalysisProgram = (
 	host.resolveModuleNameLiterals = (literals, containingFile, _redirected, optionsInner) => {
 		return literals.map((literal) => {
 			const resolved = resolveSvelteVirtualSpecifier(literal.text, containingFile, (p) =>
-				virtualFiles.has(p),
+				virtualFiles.has(p)
 			);
-			if (resolved) return {resolvedModule: resolved};
+			if (resolved) return { resolvedModule: resolved };
 			return ts.resolveModuleName(literal.text, containingFile, optionsInner, host);
 		});
 	};
@@ -294,10 +294,10 @@ export const createAnalysisProgram = (
  */
 export const createAnalysisLanguageService = (
 	options?: AnalysisLanguageServiceOptions,
-	log?: AnalysisLog,
+	log?: AnalysisLog
 ): AnalysisLanguageService => {
 	const projectRoot = options?.projectRoot ?? process.cwd();
-	const {compilerOptions, rootFileNames} = loadTsconfig(options, log);
+	const { compilerOptions, rootFileNames } = loadTsconfig(options, log);
 	const documentRegistry = options?.documentRegistry ?? ts.createDocumentRegistry();
 
 	interface OwnedFile {
@@ -320,7 +320,7 @@ export const createAnalysisLanguageService = (
 		owned.set(path, {
 			content,
 			version: existing ? existing.version + 1 : 1,
-			snapshot: ts.ScriptSnapshot.fromString(content),
+			snapshot: ts.ScriptSnapshot.fromString(content)
 		});
 		if (!tsconfigRoots.has(path)) ownedRoots.add(path);
 		return true;
@@ -347,7 +347,7 @@ export const createAnalysisLanguageService = (
 		getCurrentDirectory: () => projectRoot,
 		getDirectories: ts.sys.getDirectories,
 		realpath: ts.sys.realpath,
-		useCaseSensitiveFileNames: ts.sys.useCaseSensitiveFileNames,
+		useCaseSensitiveFileNames: ts.sys.useCaseSensitiveFileNames
 	};
 
 	const host: ts.LanguageServiceHost = {
@@ -386,17 +386,17 @@ export const createAnalysisLanguageService = (
 		resolveModuleNameLiterals: (literals, containingFile, _redirected, optionsInner) => {
 			return literals.map((literal) => {
 				const resolved = resolveSvelteVirtualSpecifier(literal.text, containingFile, (p) =>
-					owned.has(p),
+					owned.has(p)
 				);
-				if (resolved) return {resolvedModule: resolved};
+				if (resolved) return { resolvedModule: resolved };
 				return ts.resolveModuleName(
 					literal.text,
 					containingFile,
 					optionsInner,
-					moduleResolutionHost,
+					moduleResolutionHost
 				);
 			});
-		},
+		}
 	};
 
 	const ls = ts.createLanguageService(host, documentRegistry);
@@ -425,7 +425,7 @@ export const createAnalysisLanguageService = (
 		ownedRoots.clear();
 	};
 
-	return {getProgram, setFile, deleteFile, hasFile, dispose};
+	return { getProgram, setFile, deleteFile, hasFile, dispose };
 };
 
 /**

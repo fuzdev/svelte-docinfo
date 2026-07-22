@@ -11,25 +11,25 @@
  * - Deterministic output
  */
 
-import {test, assert, describe} from 'vitest';
-import {join} from 'node:path';
+import { test, assert, describe } from 'vitest';
+import { join } from 'node:path';
 
-import {analyze, type AnalyzeOptions} from '$lib/analyze.ts';
-import {throwOnDuplicates} from '$lib/analyze-core.ts';
-import {byKind, errorsOf, hasErrors, hasWarnings, warningsOf} from '$lib/diagnostics.ts';
-import type {SourceFileInfo} from '$lib/source.ts';
-import {createSourceOptions} from '$lib/source-config.ts';
-import {type DuplicateDeclaration} from '$lib/postprocess.ts';
-import {ModuleJson} from '$lib/types.ts';
+import { analyze, type AnalyzeOptions } from '$lib/analyze.ts';
+import { throwOnDuplicates } from '$lib/analyze-core.ts';
+import { byKind, errorsOf, hasErrors, hasWarnings, warningsOf } from '$lib/diagnostics.ts';
+import type { SourceFileInfo } from '$lib/source.ts';
+import { createSourceOptions } from '$lib/source-config.ts';
+import { type DuplicateDeclaration } from '$lib/postprocess.ts';
+import { ModuleJson } from '$lib/types.ts';
 
-import {withTestProject} from './test-helpers.ts';
+import { withTestProject } from './test-helpers.ts';
 
 /**
  * Create source files from a project for analysis.
  */
 const createSourceFiles = (
 	projectRoot: string,
-	files: Record<string, string>,
+	files: Record<string, string>
 ): Array<SourceFileInfo> => {
 	return Object.entries(files)
 		.filter(
@@ -37,11 +37,11 @@ const createSourceFiles = (
 				path.endsWith('.ts') ||
 				path.endsWith('.svelte') ||
 				path.endsWith('.css') ||
-				path.endsWith('.json'),
+				path.endsWith('.json')
 		)
 		.map(([path, content]) => ({
 			id: join(projectRoot, path),
-			content,
+			content
 		}));
 };
 
@@ -51,10 +51,10 @@ const createSourceFiles = (
 const setupAnalysis = (projectRoot: string, files: Record<string, string>) => {
 	const sourceFiles = createSourceFiles(projectRoot, files);
 	const sourceOptions = createSourceOptions(projectRoot);
-	return {sourceFiles, sourceOptions};
+	return { sourceFiles, sourceOptions };
 };
 
-describe('analyze', {timeout: 15_000}, () => {
+describe('analyze', { timeout: 15_000 }, () => {
 	describe('basic analysis', () => {
 		test('analyzes TypeScript files and returns modules', async () => {
 			const files = {
@@ -68,15 +68,15 @@ describe('analyze', {timeout: 15_000}, () => {
 export function add(a: number, b: number): number {
 	return a + b;
 }`,
-				'src/lib/utils.ts': `export const VERSION = '1.0.0';`,
+				'src/lib/utils.ts': `export const VERSION = '1.0.0';`
 			};
 
 			await withTestProject(files, async (projectRoot) => {
-				const {sourceFiles, sourceOptions} = setupAnalysis(projectRoot, files);
+				const { sourceFiles, sourceOptions } = setupAnalysis(projectRoot, files);
 
-				const {modules, diagnostics} = await analyze({
+				const { modules, diagnostics } = await analyze({
 					sourceFiles,
-					sourceOptions,
+					sourceOptions
 				});
 
 				assert.strictEqual(modules.length, 2, 'Should have 2 modules');
@@ -108,15 +108,15 @@ export function add(a: number, b: number): number {
 /** The button label */
 let {label}: {label: string} = $props();
 </script>
-<button>{label}</button>`,
+<button>{label}</button>`
 			};
 
 			await withTestProject(files, async (projectRoot) => {
-				const {sourceFiles, sourceOptions} = setupAnalysis(projectRoot, files);
+				const { sourceFiles, sourceOptions } = setupAnalysis(projectRoot, files);
 
-				const {modules} = await analyze({
+				const { modules } = await analyze({
 					sourceFiles,
-					sourceOptions,
+					sourceOptions
 				});
 
 				assert.strictEqual(modules.length, 1, 'Should have 1 module');
@@ -138,15 +138,15 @@ let {label}: {label: string} = $props();
 			const files = {
 				'src/lib/zebra.ts': 'export const zebra = 1;',
 				'src/lib/alpha.ts': 'export const alpha = 2;',
-				'src/lib/beta.ts': 'export const beta = 3;',
+				'src/lib/beta.ts': 'export const beta = 3;'
 			};
 
 			await withTestProject(files, async (projectRoot) => {
-				const {sourceFiles, sourceOptions} = setupAnalysis(projectRoot, files);
+				const { sourceFiles, sourceOptions } = setupAnalysis(projectRoot, files);
 
-				const {modules} = await analyze({
+				const { modules } = await analyze({
 					sourceFiles,
-					sourceOptions,
+					sourceOptions
 				});
 
 				assert.strictEqual(modules[0]?.path, 'alpha.ts', 'First module should be alpha.ts');
@@ -173,15 +173,15 @@ export type InternalType = { secret: string };
 
 export function public_function(): string {
 	return 'public';
-}`,
+}`
 			};
 
 			await withTestProject(files, async (projectRoot) => {
-				const {sourceFiles, sourceOptions} = setupAnalysis(projectRoot, files);
+				const { sourceFiles, sourceOptions } = setupAnalysis(projectRoot, files);
 
-				const {modules} = await analyze({
+				const { modules } = await analyze({
 					sourceFiles,
-					sourceOptions,
+					sourceOptions
 				});
 
 				const helpersModule = modules.find((m) => m.path === 'helpers.ts');
@@ -191,7 +191,7 @@ export function public_function(): string {
 				assert.strictEqual(
 					helpersModule.declarations.length,
 					2,
-					'Should have 2 public declarations',
+					'Should have 2 public declarations'
 				);
 
 				const names = helpersModule.declarations.map((d) => d.name).sort();
@@ -204,11 +204,11 @@ export function public_function(): string {
 		test("onDuplicates: 'throw' throws on duplicate names", async () => {
 			const files = {
 				'src/lib/foo.ts': 'export type Duplicate = { value: string };',
-				'src/lib/bar.ts': 'export class Duplicate {}',
+				'src/lib/bar.ts': 'export class Duplicate {}'
 			};
 
 			await withTestProject(files, async (projectRoot) => {
-				const {sourceFiles, sourceOptions} = setupAnalysis(projectRoot, files);
+				const { sourceFiles, sourceOptions } = setupAnalysis(projectRoot, files);
 
 				let errorThrown = false;
 				let errorMessage = '';
@@ -217,7 +217,7 @@ export function public_function(): string {
 					await analyze({
 						sourceFiles,
 						sourceOptions,
-						onDuplicates: 'throw',
+						onDuplicates: 'throw'
 					});
 				} catch (err: any) {
 					errorThrown = true;
@@ -227,7 +227,7 @@ export function public_function(): string {
 				assert.ok(errorThrown, 'Should throw an error for duplicates');
 				assert.ok(
 					errorMessage.toLowerCase().includes('duplicate'),
-					`Error message should mention duplicates, got: ${errorMessage}`,
+					`Error message should mention duplicates, got: ${errorMessage}`
 				);
 			});
 		});
@@ -235,31 +235,31 @@ export function public_function(): string {
 		test("onDuplicates: 'warn' logs to log.error and continues", async () => {
 			const files = {
 				'src/lib/foo.ts': 'export type Duplicate = { value: string };',
-				'src/lib/bar.ts': 'export class Duplicate {}',
+				'src/lib/bar.ts': 'export class Duplicate {}'
 			};
 
 			await withTestProject(files, async (projectRoot) => {
-				const {sourceFiles, sourceOptions} = setupAnalysis(projectRoot, files);
+				const { sourceFiles, sourceOptions } = setupAnalysis(projectRoot, files);
 
 				const errors: Array<string> = [];
 				const log = {
 					info: () => {},
 					warn: () => {},
-					error: (msg: string) => errors.push(msg),
+					error: (msg: string) => errors.push(msg)
 				};
 
-				const {modules} = await analyze({
+				const { modules } = await analyze({
 					sourceFiles,
 					sourceOptions,
 					onDuplicates: 'warn',
-					log,
+					log
 				});
 
 				assert.strictEqual(modules.length, 2, 'Should still produce both modules');
 				assert.strictEqual(errors.length, 1, 'Should log exactly one duplicate error');
 				assert.ok(
 					errors[0]!.toLowerCase().includes('duplicate'),
-					`Error message should mention duplicates, got: ${errors[0]}`,
+					`Error message should mention duplicates, got: ${errors[0]}`
 				);
 			});
 		});
@@ -267,16 +267,16 @@ export function public_function(): string {
 		test('does not throw without onDuplicates callback', async () => {
 			const files = {
 				'src/lib/foo.ts': 'export type Duplicate = { value: string };',
-				'src/lib/bar.ts': 'export class Duplicate {}',
+				'src/lib/bar.ts': 'export class Duplicate {}'
 			};
 
 			await withTestProject(files, async (projectRoot) => {
-				const {sourceFiles, sourceOptions} = setupAnalysis(projectRoot, files);
+				const { sourceFiles, sourceOptions } = setupAnalysis(projectRoot, files);
 
 				// Should not throw
-				const {modules, diagnostics} = await analyze({
+				const { modules, diagnostics } = await analyze({
 					sourceFiles,
-					sourceOptions,
+					sourceOptions
 				});
 
 				assert.strictEqual(modules.length, 2, 'Should analyze both modules');
@@ -296,12 +296,12 @@ export function public_function(): string {
 				assert.strictEqual(
 					fooModule.declarations.length,
 					1,
-					'foo.ts should retain its declaration',
+					'foo.ts should retain its declaration'
 				);
 				assert.strictEqual(
 					barModule.declarations.length,
 					1,
-					'bar.ts should retain its declaration',
+					'bar.ts should retain its declaration'
 				);
 			});
 		});
@@ -309,18 +309,18 @@ export function public_function(): string {
 		test('throwOnDuplicates callback throws like the "throw" shortcut', async () => {
 			const files = {
 				'src/lib/foo.ts': 'export type Duplicate = { value: string };',
-				'src/lib/bar.ts': 'export class Duplicate {}',
+				'src/lib/bar.ts': 'export class Duplicate {}'
 			};
 
 			await withTestProject(files, async (projectRoot) => {
-				const {sourceFiles, sourceOptions} = setupAnalysis(projectRoot, files);
+				const { sourceFiles, sourceOptions } = setupAnalysis(projectRoot, files);
 
 				let thrown: unknown;
 				try {
 					await analyze({
 						sourceFiles,
 						sourceOptions,
-						onDuplicates: throwOnDuplicates,
+						onDuplicates: throwOnDuplicates
 					});
 				} catch (err) {
 					thrown = err;
@@ -333,18 +333,18 @@ export function public_function(): string {
 
 		test('throwOnDuplicates is a no-op when there are no duplicates', () => {
 			// Direct call — bypasses analyze entirely so this stays focused on the helper.
-			assert.doesNotThrow(() => throwOnDuplicates(new Map(), {error: () => {}}));
+			assert.doesNotThrow(() => throwOnDuplicates(new Map(), { error: () => {} }));
 		});
 
 		test('custom onDuplicates callback receives duplicate info', async () => {
 			const files = {
 				'src/lib/a.ts': 'export const Shared = 1;',
 				'src/lib/b.ts': 'export const Shared = 2;',
-				'src/lib/c.ts': 'export const Shared = 3;',
+				'src/lib/c.ts': 'export const Shared = 3;'
 			};
 
 			await withTestProject(files, async (projectRoot) => {
-				const {sourceFiles, sourceOptions} = setupAnalysis(projectRoot, files);
+				const { sourceFiles, sourceOptions } = setupAnalysis(projectRoot, files);
 
 				let receivedDuplicates: Map<string, Array<DuplicateDeclaration>> | null = null;
 
@@ -353,7 +353,7 @@ export function public_function(): string {
 					sourceOptions,
 					onDuplicates: (duplicates) => {
 						receivedDuplicates = duplicates;
-					},
+					}
 				});
 
 				assert.ok(receivedDuplicates, 'Callback should receive duplicates');
@@ -372,7 +372,7 @@ export function public_function(): string {
 		test('computes bidirectional dependencies from provided dependencies', async () => {
 			const files = {
 				'src/lib/math.ts': 'export const add = (a: number, b: number) => a + b;',
-				'src/lib/utils.ts': `import {add} from './math.js';\nexport const sum = add(1, 2);`,
+				'src/lib/utils.ts': `import {add} from './math.js';\nexport const sum = add(1, 2);`
 			};
 
 			await withTestProject(files, async (projectRoot) => {
@@ -380,21 +380,21 @@ export function public_function(): string {
 				const sourceFiles: Array<SourceFileInfo> = [
 					{
 						id: join(projectRoot, 'src/lib/math.ts'),
-						content: files['src/lib/math.ts'],
+						content: files['src/lib/math.ts']
 						// No dependencies initially
 					},
 					{
 						id: join(projectRoot, 'src/lib/utils.ts'),
 						content: files['src/lib/utils.ts'],
-						dependencies: [join(projectRoot, 'src/lib/math.ts')],
-					},
+						dependencies: [join(projectRoot, 'src/lib/math.ts')]
+					}
 				];
 
 				const sourceOptions = createSourceOptions(projectRoot);
 
-				const {modules} = await analyze({
+				const { modules } = await analyze({
 					sourceFiles,
-					sourceOptions,
+					sourceOptions
 				});
 
 				const mathModule = modules.find((m) => m.path === 'math.ts');
@@ -422,15 +422,15 @@ export const CONSTANT = 42;`,
 export {helper, CONSTANT} from './helpers.js';
 
 // Direct export
-export const localValue = 'local';`,
+export const localValue = 'local';`
 			};
 
 			await withTestProject(files, async (projectRoot) => {
-				const {sourceFiles, sourceOptions} = setupAnalysis(projectRoot, files);
+				const { sourceFiles, sourceOptions } = setupAnalysis(projectRoot, files);
 
-				const {modules} = await analyze({
+				const { modules } = await analyze({
 					sourceFiles,
-					sourceOptions,
+					sourceOptions
 				});
 
 				const helpersModule = modules.find((m) => m.path === 'helpers.ts');
@@ -443,7 +443,7 @@ export const localValue = 'local';`,
 				assert.ok(helperDecl.alsoExportedFrom, 'helper should have alsoExportedFrom');
 				assert.ok(
 					helperDecl.alsoExportedFrom.includes('index.ts'),
-					'helper should be also exported from index.ts',
+					'helper should be also exported from index.ts'
 				);
 			});
 		});
@@ -455,15 +455,15 @@ export const localValue = 'local';`,
 				'src/lib/helpers.ts': `
 export function originalName(): void {}`,
 				'src/lib/index.ts': `
-export {originalName as aliasedName} from './helpers.js';`,
+export {originalName as aliasedName} from './helpers.js';`
 			};
 
 			await withTestProject(files, async (projectRoot) => {
-				const {sourceFiles, sourceOptions} = setupAnalysis(projectRoot, files);
+				const { sourceFiles, sourceOptions } = setupAnalysis(projectRoot, files);
 
-				const {modules} = await analyze({
+				const { modules } = await analyze({
 					sourceFiles,
-					sourceOptions,
+					sourceOptions
 				});
 
 				const indexModule = modules.find((m) => m.path === 'index.ts');
@@ -483,7 +483,7 @@ export {originalName as aliasedName} from './helpers.js';`,
 				assert.deepStrictEqual(
 					originalDecl.alsoExportedFrom,
 					[],
-					'Canonical declaration should not have alsoExportedFrom for a rename',
+					'Canonical declaration should not have alsoExportedFrom for a rename'
 				);
 			});
 		});
@@ -497,12 +497,12 @@ export function originalFn(a: number, b: number): number { return a + b; }
 /** A counter. */
 export let originalCount = $state(0);`,
 				'src/lib/index.ts': `
-export {originalFn as renamedFn, originalCount as renamedCount} from './helpers.js';`,
+export {originalFn as renamedFn, originalCount as renamedCount} from './helpers.js';`
 			};
 
 			await withTestProject(files, async (projectRoot) => {
-				const {sourceFiles, sourceOptions} = setupAnalysis(projectRoot, files);
-				const {modules} = await analyze({sourceFiles, sourceOptions});
+				const { sourceFiles, sourceOptions } = setupAnalysis(projectRoot, files);
+				const { modules } = await analyze({ sourceFiles, sourceOptions });
 
 				const indexModule = modules.find((m) => m.path === 'index.ts');
 				assert.ok(indexModule, 'Should find index.ts');
@@ -520,13 +520,13 @@ export {originalFn as renamedFn, originalCount as renamedCount} from './helpers.
 				assert.strictEqual(
 					renamedFn.sourceLine,
 					2,
-					'synthesized alias points at the local export specifier, not the canonical',
+					'synthesized alias points at the local export specifier, not the canonical'
 				);
 
 				const renamedCount = indexModule.declarations.find((d) => d.name === 'renamedCount');
 				assert.ok(
 					renamedCount && renamedCount.kind === 'variable',
-					'renamedCount should be a variable',
+					'renamedCount should be a variable'
 				);
 				assert.strictEqual(renamedCount.reactivity, '$state');
 				assert.strictEqual(renamedCount.docComment, 'A counter.');
@@ -544,12 +544,12 @@ export {originalFn as renamedFn, originalCount as renamedCount} from './helpers.
 declare function $state<T>(v: T): T;
 export let count = $state(0);`,
 					'src/lib/index.ts': `
-export {count} from './counter.js';`,
+export {count} from './counter.js';`
 				};
 
 				await withTestProject(files, async (projectRoot) => {
-					const {sourceFiles, sourceOptions} = setupAnalysis(projectRoot, files);
-					const {modules} = await analyze({sourceFiles, sourceOptions});
+					const { sourceFiles, sourceOptions } = setupAnalysis(projectRoot, files);
+					const { modules } = await analyze({ sourceFiles, sourceOptions });
 
 					const counter = modules.find((m) => m.path === 'counter.ts');
 					const canonical = counter?.declarations.find((d) => d.name === 'count');
@@ -563,7 +563,7 @@ export {count} from './counter.js';`,
 					const indexModule = modules.find((m) => m.path === 'index.ts');
 					assert.strictEqual(
 						indexModule?.declarations.find((d) => d.name === 'count'),
-						undefined,
+						undefined
 					);
 				});
 			});
@@ -576,15 +576,15 @@ export {count} from './counter.js';`,
 				'src/lib/internal.ts': `
 const privateConst = 42;
 function privateHelper(): void {}
-class PrivateClass {}`,
+class PrivateClass {}`
 			};
 
 			await withTestProject(files, async (projectRoot) => {
-				const {sourceFiles, sourceOptions} = setupAnalysis(projectRoot, files);
+				const { sourceFiles, sourceOptions } = setupAnalysis(projectRoot, files);
 
-				const {modules} = await analyze({
+				const { modules } = await analyze({
 					sourceFiles,
-					sourceOptions,
+					sourceOptions
 				});
 
 				const internalModule = modules.find((m) => m.path === 'internal.ts');
@@ -598,7 +598,7 @@ class PrivateClass {}`,
 			// created, so trailing slashes / un-normalized `projectRoot` produce the
 			// same output as the canonical absolute form.
 			const files = {
-				'src/lib/foo.ts': `export const VALUE = 42;`,
+				'src/lib/foo.ts': `export const VALUE = 42;`
 			};
 
 			await withTestProject(files, async (projectRoot) => {
@@ -606,20 +606,20 @@ class PrivateClass {}`,
 
 				const canonical = await analyze({
 					sourceFiles,
-					sourceOptions: createSourceOptions(projectRoot),
+					sourceOptions: createSourceOptions(projectRoot)
 				});
 
 				const denormalized = await analyze({
 					sourceFiles,
 					sourceOptions: createSourceOptions(projectRoot + '/', {
-						sourcePaths: ['/src/lib/'],
-					}),
+						sourcePaths: ['/src/lib/']
+					})
 				});
 
 				assert.deepStrictEqual(
 					denormalized.modules,
 					canonical.modules,
-					'un-normalized sourceOptions should produce identical output',
+					'un-normalized sourceOptions should produce identical output'
 				);
 			});
 		});
@@ -635,15 +635,15 @@ export function undocumented(): void {}
 /** Documented variable. */
 export const docVar = 1;
 
-export const undocVar = 2;`,
+export const undocVar = 2;`
 			};
 
 			await withTestProject(files, async (projectRoot) => {
-				const {sourceFiles, sourceOptions} = setupAnalysis(projectRoot, files);
+				const { sourceFiles, sourceOptions } = setupAnalysis(projectRoot, files);
 
-				const {modules} = await analyze({
+				const { modules } = await analyze({
 					sourceFiles,
-					sourceOptions,
+					sourceOptions
 				});
 
 				const mixedModule = modules.find((m) => m.path === 'mixed.ts');
@@ -666,23 +666,23 @@ export const undocVar = 2;`,
 	describe('logger integration', () => {
 		test('reports diagnostics via provided logger', async () => {
 			const files = {
-				'src/lib/valid.ts': 'export const value = 42;',
+				'src/lib/valid.ts': 'export const value = 42;'
 			};
 
 			await withTestProject(files, async (projectRoot) => {
-				const {sourceFiles, sourceOptions} = setupAnalysis(projectRoot, files);
+				const { sourceFiles, sourceOptions } = setupAnalysis(projectRoot, files);
 
-				const logCalls: Array<{level: string; args: Array<unknown>}> = [];
+				const logCalls: Array<{ level: string; args: Array<unknown> }> = [];
 				const mockLog = {
-					info: (...args: Array<unknown>) => logCalls.push({level: 'info', args}),
-					warn: (...args: Array<unknown>) => logCalls.push({level: 'warn', args}),
-					error: (...args: Array<unknown>) => logCalls.push({level: 'error', args}),
+					info: (...args: Array<unknown>) => logCalls.push({ level: 'info', args }),
+					warn: (...args: Array<unknown>) => logCalls.push({ level: 'warn', args }),
+					error: (...args: Array<unknown>) => logCalls.push({ level: 'error', args })
 				};
 
 				await analyze({
 					sourceFiles,
 					sourceOptions,
-					log: mockLog as any,
+					log: mockLog as any
 				});
 
 				// Valid code should produce no error/warn log calls
@@ -699,15 +699,15 @@ export const undocVar = 2;`,
 			const files = {
 				'src/lib/c.ts': 'export const c = 1;',
 				'src/lib/a.ts': 'export const a = 2;',
-				'src/lib/b.ts': 'export const b = 3;',
+				'src/lib/b.ts': 'export const b = 3;'
 			};
 
 			await withTestProject(files, async (projectRoot) => {
-				const {sourceFiles, sourceOptions} = setupAnalysis(projectRoot, files);
+				const { sourceFiles, sourceOptions } = setupAnalysis(projectRoot, files);
 
 				const options: AnalyzeOptions = {
 					sourceFiles,
-					sourceOptions,
+					sourceOptions
 				};
 
 				const result1 = await analyze(options);
@@ -726,31 +726,31 @@ export const undocVar = 2;`,
 				{
 					'src/lib/z.ts': 'export const z = 1;',
 					'src/lib/a.ts': 'export const a = 2;',
-					'src/lib/m.ts': 'export const m = 3;',
+					'src/lib/m.ts': 'export const m = 3;'
 				},
 				async (projectRoot) => {
 					const sourceOptions = createSourceOptions(projectRoot);
 
 					// Different input orders
 					const sourceFilesOrder1: Array<SourceFileInfo> = [
-						{id: join(projectRoot, 'src/lib/z.ts'), content: 'export const z = 1;'},
-						{id: join(projectRoot, 'src/lib/a.ts'), content: 'export const a = 2;'},
-						{id: join(projectRoot, 'src/lib/m.ts'), content: 'export const m = 3;'},
+						{ id: join(projectRoot, 'src/lib/z.ts'), content: 'export const z = 1;' },
+						{ id: join(projectRoot, 'src/lib/a.ts'), content: 'export const a = 2;' },
+						{ id: join(projectRoot, 'src/lib/m.ts'), content: 'export const m = 3;' }
 					];
 
 					const sourceFilesOrder2: Array<SourceFileInfo> = [
-						{id: join(projectRoot, 'src/lib/a.ts'), content: 'export const a = 2;'},
-						{id: join(projectRoot, 'src/lib/m.ts'), content: 'export const m = 3;'},
-						{id: join(projectRoot, 'src/lib/z.ts'), content: 'export const z = 1;'},
+						{ id: join(projectRoot, 'src/lib/a.ts'), content: 'export const a = 2;' },
+						{ id: join(projectRoot, 'src/lib/m.ts'), content: 'export const m = 3;' },
+						{ id: join(projectRoot, 'src/lib/z.ts'), content: 'export const z = 1;' }
 					];
 
 					const result1 = await analyze({
 						sourceFiles: sourceFilesOrder1,
-						sourceOptions,
+						sourceOptions
 					});
 					const result2 = await analyze({
 						sourceFiles: sourceFilesOrder2,
-						sourceOptions,
+						sourceOptions
 					});
 
 					const paths1 = result1.modules.map((m) => m.path);
@@ -760,9 +760,9 @@ export const undocVar = 2;`,
 					assert.deepStrictEqual(
 						paths1,
 						['a.ts', 'm.ts', 'z.ts'],
-						'Should be alphabetically sorted',
+						'Should be alphabetically sorted'
 					);
-				},
+				}
 			);
 		});
 	});
@@ -777,15 +777,15 @@ export const undocVar = 2;`,
  * @module
  */
 
-export const add = (a: number, b: number) => a + b;`,
+export const add = (a: number, b: number) => a + b;`
 			};
 
 			await withTestProject(files, async (projectRoot) => {
-				const {sourceFiles, sourceOptions} = setupAnalysis(projectRoot, files);
+				const { sourceFiles, sourceOptions } = setupAnalysis(projectRoot, files);
 
-				const {modules} = await analyze({
+				const { modules } = await analyze({
 					sourceFiles,
-					sourceOptions,
+					sourceOptions
 				});
 
 				const documentedModule = modules.find((m) => m.path === 'documented.ts');
@@ -800,15 +800,15 @@ export const add = (a: number, b: number) => a + b;`,
 		test('includes JSON files in analysis output', async () => {
 			const files = {
 				'src/lib/config.json': '{"debug": true}',
-				'src/lib/utils.ts': `export const VERSION = '1.0.0';`,
+				'src/lib/utils.ts': `export const VERSION = '1.0.0';`
 			};
 
 			await withTestProject(files, async (projectRoot) => {
-				const {sourceFiles, sourceOptions} = setupAnalysis(projectRoot, files);
+				const { sourceFiles, sourceOptions } = setupAnalysis(projectRoot, files);
 
-				const {modules} = await analyze({
+				const { modules } = await analyze({
 					sourceFiles,
-					sourceOptions,
+					sourceOptions
 				});
 
 				assert.strictEqual(modules.length, 2, 'Should have 2 modules');
@@ -822,7 +822,7 @@ export const add = (a: number, b: number) => a + b;`,
 		test('JSON files appear in dependency graphs', async () => {
 			const files = {
 				'src/lib/data.json': '{"items": [1, 2, 3]}',
-				'src/lib/loader.ts': `import data from './data.json';\nexport const items = data.items;`,
+				'src/lib/loader.ts': `import data from './data.json';\nexport const items = data.items;`
 			};
 
 			await withTestProject(files, async (projectRoot) => {
@@ -830,20 +830,20 @@ export const add = (a: number, b: number) => a + b;`,
 				const sourceFiles: Array<SourceFileInfo> = [
 					{
 						id: join(projectRoot, 'src/lib/data.json'),
-						content: files['src/lib/data.json'],
+						content: files['src/lib/data.json']
 					},
 					{
 						id: join(projectRoot, 'src/lib/loader.ts'),
 						content: files['src/lib/loader.ts'],
-						dependencies: [join(projectRoot, 'src/lib/data.json')],
-					},
+						dependencies: [join(projectRoot, 'src/lib/data.json')]
+					}
 				];
 
 				const sourceOptions = createSourceOptions(projectRoot);
 
-				const {modules} = await analyze({
+				const { modules } = await analyze({
 					sourceFiles,
-					sourceOptions,
+					sourceOptions
 				});
 
 				const loaderModule = modules.find((m) => m.path === 'loader.ts');
@@ -853,14 +853,14 @@ export const add = (a: number, b: number) => a + b;`,
 				assert.ok(loaderModule?.dependencies, 'loader.ts should have dependencies');
 				assert.ok(
 					loaderModule.dependencies.includes('data.json'),
-					'loader.ts should depend on data.json',
+					'loader.ts should depend on data.json'
 				);
 
 				// data.json should have loader as dependent (computed)
 				assert.ok(dataModule?.dependents, 'data.json should have dependents');
 				assert.ok(
 					dataModule.dependents.includes('loader.ts'),
-					'data.json should have loader.ts as dependent',
+					'data.json should have loader.ts as dependent'
 				);
 			});
 		});
@@ -874,15 +874,15 @@ export const foo = 1;
 export const bar = 2;`,
 				'src/lib/index.ts': `
 export * from './utils.js';
-export const local = 'value';`,
+export const local = 'value';`
 			};
 
 			await withTestProject(files, async (projectRoot) => {
-				const {sourceFiles, sourceOptions} = setupAnalysis(projectRoot, files);
+				const { sourceFiles, sourceOptions } = setupAnalysis(projectRoot, files);
 
-				const {modules} = await analyze({
+				const { modules } = await analyze({
 					sourceFiles,
-					sourceOptions,
+					sourceOptions
 				});
 
 				const indexModule = modules.find((m) => m.path === 'index.ts');
@@ -890,7 +890,7 @@ export const local = 'value';`,
 				assert.ok(indexModule.starExports, 'index.ts should have starExports');
 				assert.ok(
 					indexModule.starExports.includes('utils.ts'),
-					'starExports should include utils.ts',
+					'starExports should include utils.ts'
 				);
 
 				// Star exports are module-level metadata only — they do NOT populate
@@ -903,7 +903,7 @@ export const local = 'value';`,
 				assert.deepStrictEqual(
 					fooDecl.alsoExportedFrom,
 					[],
-					'Star exports do not populate alsoExportedFrom',
+					'Star exports do not populate alsoExportedFrom'
 				);
 			});
 		});
@@ -912,15 +912,15 @@ export const local = 'value';`,
 	describe('edge cases', () => {
 		test('handles empty sourceFiles array without error', async () => {
 			const files = {
-				'src/lib/foo.ts': 'export const foo = 1;',
+				'src/lib/foo.ts': 'export const foo = 1;'
 			};
 
 			await withTestProject(files, async (projectRoot) => {
 				const sourceOptions = createSourceOptions(projectRoot);
 
-				const {modules, diagnostics} = await analyze({
+				const { modules, diagnostics } = await analyze({
 					sourceFiles: [],
-					sourceOptions,
+					sourceOptions
 				});
 
 				assert.strictEqual(modules.length, 0, 'Empty sourceFiles should produce no modules');
@@ -930,15 +930,15 @@ export const local = 'value';`,
 
 		test('creates program internally from sourceOptions.projectRoot', async () => {
 			const files = {
-				'src/lib/bar.ts': 'export const bar = 42;',
+				'src/lib/bar.ts': 'export const bar = 42;'
 			};
 
 			await withTestProject(files, async (projectRoot) => {
 				const sourceFiles = createSourceFiles(projectRoot, files);
 
-				const {modules} = await analyze({
+				const { modules } = await analyze({
 					sourceFiles,
-					sourceOptions: createSourceOptions(projectRoot),
+					sourceOptions: createSourceOptions(projectRoot)
 				});
 
 				assert.strictEqual(modules.length, 1);
@@ -951,15 +951,15 @@ export const local = 'value';`,
 		test('includes CSS files in analysis output', async () => {
 			const files = {
 				'src/lib/theme.css': ':root { --color: red; }',
-				'src/lib/utils.ts': `export const VERSION = '1.0.0';`,
+				'src/lib/utils.ts': `export const VERSION = '1.0.0';`
 			};
 
 			await withTestProject(files, async (projectRoot) => {
-				const {sourceFiles, sourceOptions} = setupAnalysis(projectRoot, files);
+				const { sourceFiles, sourceOptions } = setupAnalysis(projectRoot, files);
 
-				const {modules} = await analyze({
+				const { modules } = await analyze({
 					sourceFiles,
-					sourceOptions,
+					sourceOptions
 				});
 
 				assert.strictEqual(modules.length, 2, 'Should have 2 modules');
@@ -986,12 +986,12 @@ export function add(a: number, b: number): number { return a + b; }
 /** A sentinel value. */
 export const ANSWER = 42;
 /** A point in 2D space. */
-export interface Point { x: number; y: number; }`,
+export interface Point { x: number; y: number; }`
 			};
 
 			await withTestProject(files, async (projectRoot) => {
-				const {sourceFiles, sourceOptions} = setupAnalysis(projectRoot, files);
-				const result = await analyze({sourceFiles, sourceOptions});
+				const { sourceFiles, sourceOptions } = setupAnalysis(projectRoot, files);
+				const result = await analyze({ sourceFiles, sourceOptions });
 
 				const parsed = JSON.parse(JSON.stringify(result)) as typeof result;
 

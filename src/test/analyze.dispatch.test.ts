@@ -1,14 +1,14 @@
-import {test, assert, describe} from 'vitest';
+import { test, assert, describe } from 'vitest';
 
-import {analyzeModule} from '$lib/analyze-core.ts';
-import {type ModuleSourceOptions} from '$lib/source-config.ts';
-import {byKind, hasErrors, hasWarnings, warningsOf, type Diagnostic} from '$lib/diagnostics.ts';
+import { analyzeModule } from '$lib/analyze-core.ts';
+import { type ModuleSourceOptions } from '$lib/source-config.ts';
+import { byKind, hasErrors, hasWarnings, warningsOf, type Diagnostic } from '$lib/diagnostics.ts';
 
-import {createTestSourceOptions, createTestProgram} from './test-module-helpers.ts';
+import { createTestSourceOptions, createTestProgram } from './test-module-helpers.ts';
 
-describe('analyzeModule', {timeout: 10_000}, () => {
+describe('analyzeModule', { timeout: 10_000 }, () => {
 	const options: ModuleSourceOptions = createTestSourceOptions('/project', {
-		sourcePaths: ['src/lib'],
+		sourcePaths: ['src/lib']
 	});
 
 	test('dispatches to TypeScript analyzer for .ts files', () => {
@@ -24,16 +24,16 @@ describe('analyzeModule', {timeout: 10_000}, () => {
 
 export const VALUE = 42;
 export function helper(): string { return 'hello'; }
-`,
-			},
+`
+			}
 		]);
 
 		const diagnostics: Array<Diagnostic> = [];
 		const result = analyzeModule(
-			{id: '/project/src/lib/helpers.ts', content: 'unused - program has it'},
+			{ id: '/project/src/lib/helpers.ts', content: 'unused - program has it' },
 			program,
 			options,
-			diagnostics,
+			diagnostics
 		);
 
 		assert.ok(result);
@@ -54,13 +54,13 @@ let {name}: {name: string} = $props();
 		const diagnostics: Array<Diagnostic> = [];
 
 		// Create a minimal program for the analysis
-		const program = createTestProgram([{path: '/project/src/lib/Test.svelte', content: ''}]);
+		const program = createTestProgram([{ path: '/project/src/lib/Test.svelte', content: '' }]);
 
 		const result = analyzeModule(
-			{id: '/project/src/lib/Test.svelte', content: svelteContent},
+			{ id: '/project/src/lib/Test.svelte', content: svelteContent },
 			program,
 			options,
-			diagnostics,
+			diagnostics
 		);
 
 		// Svelte files should be skipped in analyzeModule
@@ -77,16 +77,16 @@ let {name}: {name: string} = $props();
 		const program = createTestProgram([
 			{
 				path: '/project/src/lib/utils/stringHelpers.ts',
-				content: `export const trim = (s: string) => s.trim();`,
-			},
+				content: `export const trim = (s: string) => s.trim();`
+			}
 		]);
 
 		const diagnostics: Array<Diagnostic> = [];
 		const result = analyzeModule(
-			{id: '/project/src/lib/utils/stringHelpers.ts', content: ''},
+			{ id: '/project/src/lib/utils/stringHelpers.ts', content: '' },
 			program,
 			options,
-			diagnostics,
+			diagnostics
 		);
 
 		assert.ok(result);
@@ -96,22 +96,22 @@ let {name}: {name: string} = $props();
 
 	test('derives modulePath with custom sourceRoot', () => {
 		const customOptions: ModuleSourceOptions = createTestSourceOptions('/custom', {
-			sourcePaths: ['root'],
+			sourcePaths: ['root']
 		});
 
 		const program = createTestProgram([
 			{
 				path: '/custom/root/my_module.ts',
-				content: `export const x = 1;`,
-			},
+				content: `export const x = 1;`
+			}
 		]);
 
 		const diagnostics: Array<Diagnostic> = [];
 		const result = analyzeModule(
-			{id: '/custom/root/my_module.ts', content: ''},
+			{ id: '/custom/root/my_module.ts', content: '' },
 			program,
 			customOptions,
-			diagnostics,
+			diagnostics
 		);
 
 		assert.ok(result);
@@ -121,15 +121,15 @@ let {name}: {name: string} = $props();
 	test('returns undefined when TypeScript file not in program', () => {
 		// Create program without the file we'll try to analyze
 		const program = createTestProgram([
-			{path: '/project/src/lib/other.ts', content: 'export const x = 1;'},
+			{ path: '/project/src/lib/other.ts', content: 'export const x = 1;' }
 		]);
 
 		const diagnostics: Array<Diagnostic> = [];
 		const result = analyzeModule(
-			{id: '/project/src/lib/missing.ts', content: 'export const y = 2;'},
+			{ id: '/project/src/lib/missing.ts', content: 'export const y = 2;' },
 			program,
 			options,
-			diagnostics,
+			diagnostics
 		);
 
 		// Should return undefined because file isn't in program
@@ -140,8 +140,8 @@ let {name}: {name: string} = $props();
 		const program = createTestProgram([
 			{
 				path: '/project/src/lib/consumer.ts',
-				content: `export const value = 'test';`,
-			},
+				content: `export const value = 'test';`
+			}
 		]);
 
 		const diagnostics: Array<Diagnostic> = [];
@@ -150,11 +150,11 @@ let {name}: {name: string} = $props();
 				id: '/project/src/lib/consumer.ts',
 				content: '',
 				dependencies: ['/project/src/lib/depA.ts', '/project/src/lib/depB.ts'],
-				dependents: ['/project/src/lib/user.ts'],
+				dependents: ['/project/src/lib/user.ts']
 			},
 			program,
 			options,
-			diagnostics,
+			diagnostics
 		);
 
 		assert.ok(result);
@@ -165,15 +165,15 @@ let {name}: {name: string} = $props();
 
 	test('returns minimal module for CSS files', () => {
 		const program = createTestProgram([
-			{path: '/project/src/lib/placeholder.ts', content: 'export const x = 1;'},
+			{ path: '/project/src/lib/placeholder.ts', content: 'export const x = 1;' }
 		]);
 
 		const diagnostics: Array<Diagnostic> = [];
 		const result = analyzeModule(
-			{id: '/project/src/lib/theme.css', content: '.root { color: red; }'},
+			{ id: '/project/src/lib/theme.css', content: '.root { color: red; }' },
 			program,
 			options,
-			diagnostics,
+			diagnostics
 		);
 
 		assert.ok(result);
@@ -184,15 +184,15 @@ let {name}: {name: string} = $props();
 
 	test('returns minimal module for JSON files', () => {
 		const program = createTestProgram([
-			{path: '/project/src/lib/placeholder.ts', content: 'export const x = 1;'},
+			{ path: '/project/src/lib/placeholder.ts', content: 'export const x = 1;' }
 		]);
 
 		const diagnostics: Array<Diagnostic> = [];
 		const result = analyzeModule(
-			{id: '/project/src/lib/data.json', content: '{"key": "value"}'},
+			{ id: '/project/src/lib/data.json', content: '{"key": "value"}' },
 			program,
 			options,
-			diagnostics,
+			diagnostics
 		);
 
 		assert.ok(result);
@@ -205,16 +205,16 @@ let {name}: {name: string} = $props();
 		const program = createTestProgram([
 			{
 				path: '/project/src/lib/script.js',
-				content: `export const config = {debug: true};`,
-			},
+				content: `export const config = {debug: true};`
+			}
 		]);
 
 		const diagnostics: Array<Diagnostic> = [];
 		const result = analyzeModule(
-			{id: '/project/src/lib/script.js', content: ''},
+			{ id: '/project/src/lib/script.js', content: '' },
 			program,
 			options,
-			diagnostics,
+			diagnostics
 		);
 
 		assert.ok(result);
@@ -226,23 +226,23 @@ let {name}: {name: string} = $props();
 
 describe('analyzeModule return structure', () => {
 	const options: ModuleSourceOptions = createTestSourceOptions('/project', {
-		sourcePaths: ['src/lib'],
+		sourcePaths: ['src/lib']
 	});
 
 	test('TypeScript module returns ModuleJson with reExports array', () => {
 		const program = createTestProgram([
 			{
 				path: '/project/src/lib/simple.ts',
-				content: `export const x = 1;`,
-			},
+				content: `export const x = 1;`
+			}
 		]);
 
 		const diagnostics: Array<Diagnostic> = [];
 		const result = analyzeModule(
-			{id: '/project/src/lib/simple.ts', content: ''},
+			{ id: '/project/src/lib/simple.ts', content: '' },
 			program,
 			options,
-			diagnostics,
+			diagnostics
 		);
 
 		assert.ok(result);
@@ -251,7 +251,7 @@ describe('analyzeModule return structure', () => {
 	});
 
 	test('Svelte module is skipped in analyzeModule', () => {
-		const program = createTestProgram([{path: '/project/src/lib/Component.svelte', content: ''}]);
+		const program = createTestProgram([{ path: '/project/src/lib/Component.svelte', content: '' }]);
 
 		const svelteContent = `<script lang="ts">
 let {value}: {value: string} = $props();
@@ -260,10 +260,10 @@ let {value}: {value: string} = $props();
 
 		const diagnostics: Array<Diagnostic> = [];
 		const result = analyzeModule(
-			{id: '/project/src/lib/Component.svelte', content: svelteContent},
+			{ id: '/project/src/lib/Component.svelte', content: svelteContent },
 			program,
 			options,
-			diagnostics,
+			diagnostics
 		);
 
 		// Svelte files should be skipped
@@ -272,15 +272,15 @@ let {value}: {value: string} = $props();
 
 	test('CSS module returns ModuleJson with empty reExports', () => {
 		const program = createTestProgram([
-			{path: '/project/src/lib/placeholder.ts', content: 'export const x = 1;'},
+			{ path: '/project/src/lib/placeholder.ts', content: 'export const x = 1;' }
 		]);
 
 		const diagnostics: Array<Diagnostic> = [];
 		const result = analyzeModule(
-			{id: '/project/src/lib/styles.css', content: 'body { margin: 0; }'},
+			{ id: '/project/src/lib/styles.css', content: 'body { margin: 0; }' },
 			program,
 			options,
-			diagnostics,
+			diagnostics
 		);
 
 		assert.ok(result);
@@ -292,15 +292,15 @@ let {value}: {value: string} = $props();
 
 	test('JSON module returns ModuleJson with empty reExports', () => {
 		const program = createTestProgram([
-			{path: '/project/src/lib/placeholder.ts', content: 'export const x = 1;'},
+			{ path: '/project/src/lib/placeholder.ts', content: 'export const x = 1;' }
 		]);
 
 		const diagnostics: Array<Diagnostic> = [];
 		const result = analyzeModule(
-			{id: '/project/src/lib/config.json', content: '{"debug": true}'},
+			{ id: '/project/src/lib/config.json', content: '{"debug": true}' },
 			program,
 			options,
-			diagnostics,
+			diagnostics
 		);
 
 		assert.ok(result);
@@ -314,16 +314,16 @@ let {value}: {value: string} = $props();
 		const program = createTestProgram([
 			{
 				path: '/project/src/lib/internal.ts',
-				content: `const internal = 'not exported';`,
-			},
+				content: `const internal = 'not exported';`
+			}
 		]);
 
 		const diagnostics: Array<Diagnostic> = [];
 		const result = analyzeModule(
-			{id: '/project/src/lib/internal.ts', content: ''},
+			{ id: '/project/src/lib/internal.ts', content: '' },
 			program,
 			options,
-			diagnostics,
+			diagnostics
 		);
 
 		assert.ok(result);
@@ -333,16 +333,16 @@ let {value}: {value: string} = $props();
 	});
 
 	test('Svelte component with no props is skipped in analyzeModule', () => {
-		const program = createTestProgram([{path: '/project/src/lib/Static.svelte', content: ''}]);
+		const program = createTestProgram([{ path: '/project/src/lib/Static.svelte', content: '' }]);
 
 		const svelteContent = `<p>Static content</p>`;
 
 		const diagnostics: Array<Diagnostic> = [];
 		const result = analyzeModule(
-			{id: '/project/src/lib/Static.svelte', content: svelteContent},
+			{ id: '/project/src/lib/Static.svelte', content: svelteContent },
 			program,
 			options,
-			diagnostics,
+			diagnostics
 		);
 
 		// Svelte files should be skipped
@@ -352,26 +352,26 @@ let {value}: {value: string} = $props();
 
 describe('analyzeModule error handling', () => {
 	const options: ModuleSourceOptions = createTestSourceOptions('/project', {
-		sourcePaths: ['src/lib'],
+		sourcePaths: ['src/lib']
 	});
 
 	test('returns undefined for TypeScript file not in program (logs warning)', () => {
 		const program = createTestProgram([
-			{path: '/project/src/lib/exists.ts', content: 'export const x = 1;'},
+			{ path: '/project/src/lib/exists.ts', content: 'export const x = 1;' }
 		]);
 
 		const diagnostics: Array<Diagnostic> = [];
 		const warnings: Array<string> = [];
 		const mockLog = {
-			warn: (msg: string) => warnings.push(msg),
+			warn: (msg: string) => warnings.push(msg)
 		};
 
 		const result = analyzeModule(
-			{id: '/project/src/lib/not_exists.ts', content: 'export const y = 2;'},
+			{ id: '/project/src/lib/not_exists.ts', content: 'export const y = 2;' },
 			program,
 			options,
 			diagnostics,
-			mockLog as any,
+			mockLog as any
 		);
 
 		assert.isUndefined(result);
@@ -380,7 +380,7 @@ describe('analyzeModule error handling', () => {
 	});
 
 	test('Svelte files are skipped even with malformed content', () => {
-		const program = createTestProgram([{path: '/project/src/lib/Bad.svelte', content: ''}]);
+		const program = createTestProgram([{ path: '/project/src/lib/Bad.svelte', content: '' }]);
 
 		const badContent = `<script lang="ts">
 let {name}: {name: string} = $props();
@@ -391,10 +391,10 @@ let {name}: {name: string} = $props();
 
 		// analyzeModule skips Svelte files — no throw, just returns undefined
 		const result = analyzeModule(
-			{id: '/project/src/lib/Bad.svelte', content: badContent},
+			{ id: '/project/src/lib/Bad.svelte', content: badContent },
 			program,
 			options,
-			diagnostics,
+			diagnostics
 		);
 		assert.isUndefined(result);
 	});
@@ -406,16 +406,16 @@ let {name}: {name: string} = $props();
 				content: `
 export const value = 42;
 export function fn(): string { return 'test'; }
-`,
-			},
+`
+			}
 		]);
 
 		const diagnostics: Array<Diagnostic> = [];
 		const result = analyzeModule(
-			{id: '/project/src/lib/valid.ts', content: ''},
+			{ id: '/project/src/lib/valid.ts', content: '' },
 			program,
 			options,
-			diagnostics,
+			diagnostics
 		);
 
 		assert.ok(result);

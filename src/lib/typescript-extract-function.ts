@@ -14,15 +14,15 @@
 
 import ts from 'typescript';
 
-import type {DeclarationJsonBuild} from './declaration-build.ts';
-import {type Diagnostic} from './diagnostics.ts';
-import {to_error_message} from './error.ts';
-import type {TsdocParsedComment} from './tsdoc.ts';
+import type { DeclarationJsonBuild } from './declaration-build.ts';
+import { type Diagnostic } from './diagnostics.ts';
+import { to_error_message } from './error.ts';
+import type { TsdocParsedComment } from './tsdoc.ts';
 import {
 	detectReactivity,
 	getNodeLocation,
 	parseGenericParam,
-	populateCallableMember,
+	populateCallableMember
 } from './typescript-extract-shared.ts';
 
 /**
@@ -46,7 +46,7 @@ export const extractFunctionInfo = (
 	checker: ts.TypeChecker,
 	declaration: DeclarationJsonBuild,
 	tsdoc: TsdocParsedComment | undefined,
-	diagnostics: Array<Diagnostic>,
+	diagnostics: Array<Diagnostic>
 ): void => {
 	try {
 		const type = checker.getTypeOfSymbolAtLocation(symbol, node);
@@ -62,7 +62,7 @@ export const extractFunctionInfo = (
 			column: loc.column,
 			message: `Failed to analyze signature for "${symbol.name}": ${to_error_message(err)}`,
 			severity: 'warning',
-			functionName: symbol.name,
+			functionName: symbol.name
 		});
 	}
 
@@ -105,7 +105,7 @@ export const extractVariableInfo = (
 	symbol: ts.Symbol,
 	checker: ts.TypeChecker,
 	declaration: DeclarationJsonBuild,
-	diagnostics: Array<Diagnostic>,
+	diagnostics: Array<Diagnostic>
 ): void => {
 	try {
 		const type = checker.getTypeOfSymbolAtLocation(symbol, node);
@@ -120,7 +120,7 @@ export const extractVariableInfo = (
 			column: loc.column,
 			message: `Failed to extract type for variable "${symbol.name}": ${to_error_message(err)}`,
 			severity: 'warning',
-			symbolName: symbol.name,
+			symbolName: symbol.name
 		});
 	}
 

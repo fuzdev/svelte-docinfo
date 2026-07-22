@@ -1,19 +1,19 @@
-import type {Task} from '@fuzdev/gro';
-import {readFile, writeFile} from 'node:fs/promises';
-import {join} from 'node:path';
+import type { Task } from '@fuzdev/gro';
+import { readFile, writeFile } from 'node:fs/promises';
+import { join } from 'node:path';
 
-import {analyzeSvelteModule, transformSvelteSource} from '$lib/svelte.ts';
-import {createAnalysisProgram} from '$lib/typescript-program.ts';
-import type {Diagnostic} from '$lib/diagnostics.ts';
-import {compactReplacer} from '$lib/declaration-helpers.ts';
-import {createSourceOptions} from '$lib/source-config.ts';
+import { analyzeSvelteModule, transformSvelteSource } from '$lib/svelte.ts';
+import { createAnalysisProgram } from '$lib/typescript-program.ts';
+import type { Diagnostic } from '$lib/diagnostics.ts';
+import { compactReplacer } from '$lib/declaration-helpers.ts';
+import { createSourceOptions } from '$lib/source-config.ts';
 
-import {discoverFixtureDirs} from '../../test-helpers.ts';
-import {fixtureNameToComponentName} from './svelte-test-helpers.ts';
+import { discoverFixtureDirs } from '../../test-helpers.ts';
+import { fixtureNameToComponentName } from './svelte-test-helpers.ts';
 
 export const task: Task = {
 	summary: 'generate expected.json files for svelte fixtures',
-	run: async ({log}) => {
+	run: async ({ log }) => {
 		const fixturesDir = import.meta.dirname;
 		const sourceOptions = createSourceOptions(process.cwd());
 
@@ -22,32 +22,32 @@ export const task: Task = {
 		log.info(`found ${fixtureDirs.length} fixtures`);
 
 		const fixtureData = await Promise.all(
-			fixtureDirs.map(async ({path: fixtureDir, name}) => {
+			fixtureDirs.map(async ({ path: fixtureDir, name }) => {
 				const inputPath = join(fixtureDir, 'input.svelte');
 				const expectedPath = join(fixtureDir, 'expected.json');
 				const content = await readFile(inputPath, 'utf-8');
-				const sourceFile = {id: inputPath, content};
+				const sourceFile = { id: inputPath, content };
 				const result = transformSvelteSource(sourceFile);
 				if (!result.virtual) {
 					throw new Error(
-						`transform failed for ${inputPath}: ${result.diagnostics[0]?.message ?? 'unknown error'}`,
+						`transform failed for ${inputPath}: ${result.diagnostics[0]?.message ?? 'unknown error'}`
 					);
 				}
-				return {name, sourceFile, virtualFile: result.virtual, expectedPath};
-			}),
+				return { name, sourceFile, virtualFile: result.virtual, expectedPath };
+			})
 		);
 
 		// Create a single shared program with all virtual files
 		const allVirtualFiles = new Map(
-			fixtureData.map((d) => [d.virtualFile.virtualPath, d.virtualFile.content]),
+			fixtureData.map((d) => [d.virtualFile.virtualPath, d.virtualFile.content])
 		);
-		const program = createAnalysisProgram({virtualFiles: allVirtualFiles});
+		const program = createAnalysisProgram({ virtualFiles: allVirtualFiles });
 		const checker = program.getTypeChecker();
 
 		let generatedCount = 0;
 		let skippedCount = 0;
 
-		for (const {name, sourceFile, virtualFile, expectedPath} of fixtureData) {
+		for (const { name, sourceFile, virtualFile, expectedPath } of fixtureData) {
 			const componentName = fixtureNameToComponentName(name);
 			const modulePath = `${componentName}.svelte`;
 			const diagnostics: Array<Diagnostic> = [];
@@ -58,7 +58,7 @@ export const task: Task = {
 				sourceOptions,
 				diagnostics,
 				program,
-				virtualFile,
+				virtualFile
 			);
 			if (!result) throw new Error(`Analysis returned undefined for ${modulePath}`);
 
@@ -88,5 +88,5 @@ export const task: Task = {
 		}
 
 		log.info(`done! generated: ${generatedCount}, skipped: ${skippedCount}`);
-	},
+	}
 };

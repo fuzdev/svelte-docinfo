@@ -1,22 +1,22 @@
 <script lang="ts">
-	import {resolve} from '$app/paths';
-	import type {Snippet} from 'svelte';
+	import { resolve } from '$app/paths';
+	import type { Snippet } from 'svelte';
 	import Breadcrumb from '@fuzdev/fuz_ui/Breadcrumb.svelte';
 
-	import {extraction_data} from './extraction_data.ts';
-	import {ExtractionState, extraction_context} from './extraction_state.svelte.ts';
+	import { extraction_data } from './extraction_data.ts';
+	import { ExtractionState, extraction_context } from './extraction_state.svelte.ts';
 
 	const {
-		children,
+		children
 	}: {
 		children: Snippet;
 	} = $props();
 
 	// Analysis and raw sources of the examples/api corpus, committed by
 	// `extraction_data.gen.json.ts` — re-run `gro gen` after corpus changes.
-	const {modules, sources} = extraction_data;
+	const { modules, sources } = extraction_data;
 
-	const extraction = extraction_context.set(new ExtractionState({modules, sources}));
+	const extraction = extraction_context.set(new ExtractionState({ modules, sources }));
 </script>
 
 <div class="extraction" data-view={extraction.active_view}>
@@ -55,7 +55,7 @@
 					class="menuitem"
 					class:selected={module.path === extraction.selected_path}
 					aria-current={module.path === extraction.selected_path ? 'page' : undefined}
-					href={resolve('/demo/extraction/[...module_path]', {module_path: module.path})}
+					href={resolve('/demo/extraction/[...module_path]', { module_path: module.path })}
 					onclick={() => (extraction.active_view = 'source')}
 				>
 					{module.path}

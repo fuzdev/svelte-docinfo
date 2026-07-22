@@ -10,15 +10,15 @@
  * @module
  */
 
-import {readFile, access} from 'node:fs/promises';
-import {join, relative, resolve} from 'node:path';
-import {glob} from 'tinyglobby';
+import { readFile, access } from 'node:fs/promises';
+import { join, relative, resolve } from 'node:path';
+import { glob } from 'tinyglobby';
 
-import type {SourceFileInfo} from './source.ts';
-import type {Diagnostic} from './diagnostics.ts';
-import {to_error_message} from './error.ts';
-import {toPosixPath} from './paths.ts';
-import {MAX_FILE_CONCURRENCY, map_concurrent} from './concurrency.ts';
+import type { SourceFileInfo } from './source.ts';
+import type { Diagnostic } from './diagnostics.ts';
+import { to_error_message } from './error.ts';
+import { toPosixPath } from './paths.ts';
+import { MAX_FILE_CONCURRENCY, map_concurrent } from './concurrency.ts';
 
 // Types
 
@@ -97,12 +97,12 @@ export const parsePackageExports = async (projectRoot: string): Promise<ParsedEx
 		const content = await readFile(join(projectRoot, 'package.json'), 'utf-8');
 		pkg = JSON.parse(content) as Record<string, unknown>;
 	} catch {
-		return {entries: [], hasExports: false};
+		return { entries: [], hasExports: false };
 	}
 
 	const exportsField = pkg.exports;
 	if (!exportsField || typeof exportsField !== 'object') {
-		return {entries: [], hasExports: false};
+		return { entries: [], hasExports: false };
 	}
 
 	const entries: Array<ExportEntry> = [];
@@ -117,11 +117,11 @@ export const parsePackageExports = async (projectRoot: string): Promise<ParsedEx
 		entries.push({
 			specifier,
 			isPattern: specifier.includes('*'),
-			conditions,
+			conditions
 		});
 	}
 
-	return {entries, hasExports: true};
+	return { entries, hasExports: true };
 };
 
 /**
@@ -135,7 +135,7 @@ const flattenConditions = (value: unknown, prefix?: string): Record<string, stri
 
 	// String = direct path (condition is the parent key, or 'default')
 	if (typeof value === 'string') {
-		return {[prefix ?? 'default']: value};
+		return { [prefix ?? 'default']: value };
 	}
 
 	// Object = conditions map (possibly nested)
@@ -172,9 +172,9 @@ const flattenConditions = (value: unknown, prefix?: string): Record<string, stri
 export const mapDistToSource = (
 	distPath: string,
 	condition: string,
-	options: {distDir: string; sourceDir: string},
+	options: { distDir: string; sourceDir: string }
 ): string | null => {
-	const {distDir, sourceDir} = options;
+	const { distDir, sourceDir } = options;
 
 	// Skip types-only conditions (not source files)
 	if (condition === 'types') return null;
@@ -248,14 +248,14 @@ const selectCondition = (conditions: Record<string, string>): [string, string] |
  * @returns `ExportsDiscoveryResult` with discovered files and any error diagnostics
  */
 export const discoverFromExports = async (
-	options: ExportsDiscoveryOptions,
+	options: ExportsDiscoveryOptions
 ): Promise<ExportsDiscoveryResult> => {
-	const {projectRoot, distDir = 'dist', sourceDir = 'src/lib', exclude} = options;
+	const { projectRoot, distDir = 'dist', sourceDir = 'src/lib', exclude } = options;
 
 	const parsed = await parsePackageExports(projectRoot);
-	if (!parsed.hasExports) return {files: null, diagnostics: []};
+	if (!parsed.hasExports) return { files: null, diagnostics: [] };
 
-	const mappingOptions = {distDir, sourceDir};
+	const mappingOptions = { distDir, sourceDir };
 	const discovered: Map<string, string> = new Map(); // absolute path → relative source path
 
 	for (const entry of parsed.entries) {
@@ -272,7 +272,7 @@ export const discoverFromExports = async (
 				mappingOptions,
 				projectRoot,
 				exclude,
-				discovered,
+				discovered
 			);
 		} else {
 			// Concrete: map directly
@@ -280,7 +280,7 @@ export const discoverFromExports = async (
 		}
 	}
 
-	if (discovered.size === 0) return {files: [], diagnostics: []};
+	if (discovered.size === 0) return { files: [], diagnostics: [] };
 
 	// Load file contents with bounded concurrency to keep FD pressure under
 	// the typical ulimit on large projects. See `concurrency.ts`.
@@ -292,21 +292,21 @@ export const discoverFromExports = async (
 		async (absPath): Promise<SourceFileInfo | null> => {
 			try {
 				const content = await readFile(absPath, 'utf-8');
-				return {id: absPath, content} satisfies SourceFileInfo;
+				return { id: absPath, content } satisfies SourceFileInfo;
 			} catch (err) {
 				diagnostics.push({
 					kind: 'module_unreadable',
 					severity: 'error',
 					file: toPosixPath(relative(projectRoot, absPath)),
-					message: `Could not read file discovered via package.json exports: ${to_error_message(err)}`,
+					message: `Could not read file discovered via package.json exports: ${to_error_message(err)}`
 				});
 				return null;
 			}
-		},
+		}
 	);
 	const files = results.filter((r): r is SourceFileInfo => r !== null);
 
-	return {files, diagnostics};
+	return { files, diagnostics };
 };
 
 /**
@@ -315,9 +315,9 @@ export const discoverFromExports = async (
 const resolveConcreteExport = async (
 	distPath: string,
 	condition: string,
-	mappingOptions: {distDir: string; sourceDir: string},
+	mappingOptions: { distDir: string; sourceDir: string },
 	projectRoot: string,
-	discovered: Map<string, string>,
+	discovered: Map<string, string>
 ): Promise<void> => {
 	const sourcePath = mapDistToSource(distPath, condition, mappingOptions);
 	if (!sourcePath) return;
@@ -375,10 +375,10 @@ const toRecursiveExportGlob = (pattern: string): string => {
 const expandWildcardExport = async (
 	distPath: string,
 	condition: string,
-	mappingOptions: {distDir: string; sourceDir: string},
+	mappingOptions: { distDir: string; sourceDir: string },
 	projectRoot: string,
 	exclude: Array<string> | undefined,
-	discovered: Map<string, string>,
+	discovered: Map<string, string>
 ): Promise<void> => {
 	const mappedPattern = mapDistToSource(distPath, condition, mappingOptions);
 	if (!mappedPattern) return;
@@ -399,7 +399,7 @@ const expandWildcardExport = async (
 	const filePaths = await glob(patterns, {
 		cwd: projectRoot,
 		ignore: exclude,
-		absolute: true,
+		absolute: true
 	});
 
 	for (const rawAbsPath of filePaths) {

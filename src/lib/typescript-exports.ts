@@ -18,28 +18,28 @@ import type {
 	DeclarationAnalysis,
 	ModuleAnalysis,
 	ModuleExportsAnalysis,
-	DeclarationJsonBuild,
+	DeclarationJsonBuild
 } from './declaration-build.ts';
-import type {ReExportJsonInput, ExternalReExportJsonInput} from './types.ts';
-import type {Diagnostic} from './diagnostics.ts';
-import {parseComment, applyToDeclaration, cleanComment} from './tsdoc.ts';
+import type { ReExportJsonInput, ExternalReExportJsonInput } from './types.ts';
+import type { Diagnostic } from './diagnostics.ts';
+import { parseComment, applyToDeclaration, cleanComment } from './tsdoc.ts';
 import {
 	type SourceFileInfo,
 	stripVirtualSuffix,
 	SVELTE_VIRTUAL_SUFFIX,
-	getComponentName,
+	getComponentName
 } from './source.ts';
 import {
 	type ModuleSourceOptions,
 	extractDependencies,
 	extractPath,
-	isSource,
+	isSource
 } from './source-config.ts';
-import {type IsExternalFile, createIsExternalFile} from './typescript-program.ts';
-import {inferDeclarationKind} from './typescript-extract-shared.ts';
-import {extractFunctionInfo, extractVariableInfo} from './typescript-extract-function.ts';
-import {extractTypeInfo, extractEnumInfo} from './typescript-extract-type.ts';
-import {extractClassInfo} from './typescript-extract-class.ts';
+import { type IsExternalFile, createIsExternalFile } from './typescript-program.ts';
+import { inferDeclarationKind } from './typescript-extract-shared.ts';
+import { extractFunctionInfo, extractVariableInfo } from './typescript-extract-function.ts';
+import { extractTypeInfo, extractEnumInfo } from './typescript-extract-type.ts';
+import { extractClassInfo } from './typescript-extract-class.ts';
 
 /**
  * Analyze a TypeScript file and extract module metadata.
@@ -59,12 +59,12 @@ import {extractClassInfo} from './typescript-extract-class.ts';
  * @returns module metadata and re-export information
  */
 export const analyzeTypescriptModule = (
-	sourceFileInfo: SourceFileInfo & {dependents?: ReadonlyArray<string>},
+	sourceFileInfo: SourceFileInfo & { dependents?: ReadonlyArray<string> },
 	tsSourceFile: ts.SourceFile,
 	modulePath: string,
 	checker: ts.TypeChecker,
 	options: ModuleSourceOptions,
-	diagnostics: Array<Diagnostic>,
+	diagnostics: Array<Diagnostic>
 ): ModuleAnalysis => {
 	// Use the mid-level helper for core analysis
 	const {
@@ -73,11 +73,11 @@ export const analyzeTypescriptModule = (
 		reExports,
 		starExports,
 		externalReExports,
-		externalStarExports,
+		externalStarExports
 	} = analyzeExports(tsSourceFile, checker, options, diagnostics);
 
 	// Extract dependencies and dependents if provided
-	const {dependencies, dependents} = extractDependencies(sourceFileInfo, options);
+	const { dependencies, dependents } = extractDependencies(sourceFileInfo, options);
 
 	return {
 		path: modulePath,
@@ -88,7 +88,7 @@ export const analyzeTypescriptModule = (
 		starExports,
 		reExports,
 		externalReExports,
-		externalStarExports,
+		externalStarExports
 	};
 };
 
@@ -106,7 +106,7 @@ export const analyzeTypescriptModule = (
 const walkSameNameCanonical = (
 	exportSymbol: ts.Symbol,
 	immediateAlias: ts.Symbol | undefined,
-	checker: ts.TypeChecker,
+	checker: ts.TypeChecker
 ): ts.Symbol => {
 	let canonical: ts.Symbol = exportSymbol;
 	let next: ts.Symbol | undefined = immediateAlias;
@@ -139,8 +139,8 @@ const walkSameNameCanonical = (
  * other star-projected binding.
  */
 type NamespaceClassification =
-	| {kind: 'origination'; sourceModule: string}
-	| {kind: 'same-name'; canonicalModule: string; sourceModule: string}
+	| { kind: 'origination'; sourceModule: string }
+	| { kind: 'same-name'; canonicalModule: string; sourceModule: string }
 	| {
 			kind: 'renamed';
 			namespaceDefiningFile: string;
@@ -165,7 +165,7 @@ const classifyNamespaceReExport = (
 	exportSymbol: ts.Symbol,
 	checker: ts.TypeChecker,
 	currentFileName: string,
-	options: ModuleSourceOptions,
+	options: ModuleSourceOptions
 ): NamespaceClassification | null => {
 	const deeplyAliased = checker.getAliasedSymbol(exportSymbol);
 	if ((deeplyAliased.flags & ts.SymbolFlags.ValueModule) === 0) return null;
@@ -182,7 +182,7 @@ const classifyNamespaceReExport = (
 	if (exportDecl && ts.isNamespaceExport(exportDecl)) {
 		const definingFile = stripVirtualSuffix(exportDecl.getSourceFile().fileName);
 		if (definingFile !== currentFileName) return null;
-		return {kind: 'origination', sourceModule: extractPath(sourceModuleFile, options)};
+		return { kind: 'origination', sourceModule: extractPath(sourceModuleFile, options) };
 	}
 
 	// Re-export specifier (`export {ns ...} from`). Use immediate-alias name
@@ -215,7 +215,7 @@ const classifyNamespaceReExport = (
 			kind: 'renamed',
 			namespaceDefiningFile: extractPath(namespaceDefiningFile, options),
 			sourceModule: extractPath(sourceModuleFile, options),
-			canonicalName,
+			canonicalName
 		};
 	}
 
@@ -230,7 +230,7 @@ const classifyNamespaceReExport = (
 	return {
 		kind: 'same-name',
 		canonicalModule: extractPath(canonicalFile, options),
-		sourceModule: extractPath(sourceModuleFile, options),
+		sourceModule: extractPath(sourceModuleFile, options)
 	};
 };
 
@@ -284,19 +284,21 @@ const getPrimaryDeclarationFile = (symbol: ts.Symbol): string | undefined => {
  */
 const getLocalExportStatement = (
 	exportSymbol: ts.Symbol,
-	sourceFile: ts.SourceFile,
-): {node: ts.ExportSpecifier | ts.NamespaceExport; statement: ts.ExportDeclaration} | undefined => {
+	sourceFile: ts.SourceFile
+):
+	| { node: ts.ExportSpecifier | ts.NamespaceExport; statement: ts.ExportDeclaration }
+	| undefined => {
 	const node = exportSymbol.declarations?.[0];
 	if (!node) return undefined;
 	if (ts.isExportSpecifier(node)) {
 		const statement = node.parent.parent;
 		if (statement.getSourceFile() !== sourceFile) return undefined;
-		return {node, statement};
+		return { node, statement };
 	}
 	if (ts.isNamespaceExport(node)) {
 		const statement = node.parent;
 		if (statement.getSourceFile() !== sourceFile) return undefined;
-		return {node, statement};
+		return { node, statement };
 	}
 	return undefined;
 };
@@ -337,26 +339,26 @@ const synthesizeCrossFileAlias = (
 	specifierLine: number | undefined,
 	checker: ts.TypeChecker,
 	diagnostics: Array<Diagnostic>,
-	isExternalFile: IsExternalFile,
+	isExternalFile: IsExternalFile
 ): DeclarationJsonBuild => {
 	if (originalSource.fileName.endsWith(SVELTE_VIRTUAL_SUFFIX)) {
 		return {
 			name: publicName,
 			kind: 'component',
-			aliasOf: {module: originalModule, name: getComponentName(originalModule)},
-			sourceLine: specifierLine,
+			aliasOf: { module: originalModule, name: getComponentName(originalModule) },
+			sourceLine: specifierLine
 		};
 	}
-	const {declaration: analyzed} = analyzeDeclaration(
+	const { declaration: analyzed } = analyzeDeclaration(
 		aliasedSymbol,
 		originalSource,
 		checker,
 		diagnostics,
-		isExternalFile,
+		isExternalFile
 	);
 	const canonicalName = analyzed.name!;
 	analyzed.name = publicName;
-	analyzed.aliasOf = {module: originalModule, name: canonicalName};
+	analyzed.aliasOf = { module: originalModule, name: canonicalName };
 	analyzed.sourceLine = specifierLine;
 	return analyzed;
 };
@@ -388,7 +390,7 @@ export const analyzeExports = (
 	sourceFile: ts.SourceFile,
 	checker: ts.TypeChecker,
 	options: ModuleSourceOptions,
-	diagnostics: Array<Diagnostic>,
+	diagnostics: Array<Diagnostic>
 ): ModuleExportsAnalysis => {
 	const declarations: Array<DeclarationAnalysis> = [];
 	const reExports: Array<ReExportJsonInput> = [];
@@ -397,7 +399,7 @@ export const analyzeExports = (
 	const isExternalFile = createIsExternalFile(options);
 
 	// Extract star exports (export * from './module' / 'pkg')
-	const {starExports, externalStarExports} = extractStarExports(sourceFile, checker, options);
+	const { starExports, externalStarExports } = extractStarExports(sourceFile, checker, options);
 
 	// Normalize virtual paths once (e.g., Foo.svelte.__svelte2tsx__.ts → Foo.svelte)
 	// so re-export tracking matches real module paths
@@ -464,12 +466,12 @@ export const analyzeExports = (
 							name: exportSymbol.name,
 							kind: 'namespace',
 							module: nsClass.sourceModule,
-							sourceLine: nsSpecifierLine,
+							sourceLine: nsSpecifierLine
 						};
 						if (localTsdoc) {
 							applyToDeclaration(decl, localTsdoc);
 						}
-						declarations.push({declaration: decl, nodocs: !!localTsdoc?.nodocs});
+						declarations.push({ declaration: decl, nodocs: !!localTsdoc?.nodocs });
 					} else if (nsClass.kind === 'renamed') {
 						const decl: DeclarationJsonBuild = {
 							name: exportSymbol.name,
@@ -477,16 +479,16 @@ export const analyzeExports = (
 							module: nsClass.sourceModule,
 							aliasOf: {
 								module: nsClass.namespaceDefiningFile,
-								name: nsClass.canonicalName,
+								name: nsClass.canonicalName
 							},
 							// Synthesized alias — the local export specifier's line,
 							// not the canonical's location
-							sourceLine: nsSpecifierLine,
+							sourceLine: nsSpecifierLine
 						};
 						if (localTsdoc) {
 							applyToDeclaration(decl, localTsdoc);
 						}
-						declarations.push({declaration: decl, nodocs: !!localTsdoc?.nodocs});
+						declarations.push({ declaration: decl, nodocs: !!localTsdoc?.nodocs });
 					} else {
 						// Same-name re-export — link via alsoExportedFrom on the canonical.
 						// Position 3 (content-conditional synthesis): when the local
@@ -502,19 +504,19 @@ export const analyzeExports = (
 								module: nsClass.sourceModule,
 								aliasOf: {
 									module: nsClass.canonicalModule,
-									name: exportSymbol.name,
+									name: exportSymbol.name
 								},
-								sourceLine: nsSpecifierLine,
+								sourceLine: nsSpecifierLine
 							};
 							applyToDeclaration(decl, localTsdoc);
-							declarations.push({declaration: decl, nodocs: !!localTsdoc.nodocs});
+							declarations.push({ declaration: decl, nodocs: !!localTsdoc.nodocs });
 						}
 						if (!localTsdoc?.nodocs) {
 							reExports.push({
 								name: exportSymbol.name,
 								module: nsClass.canonicalModule,
-								...(local && isTypeOnlyLocalExport(local) ? {typeOnly: true} : {}),
-								...(nsSpecifierLine !== undefined ? {sourceLine: nsSpecifierLine} : {}),
+								...(local && isTypeOnlyLocalExport(local) ? { typeOnly: true } : {}),
+								...(nsSpecifierLine !== undefined ? { sourceLine: nsSpecifierLine } : {})
 							});
 						}
 					}
@@ -562,7 +564,7 @@ export const analyzeExports = (
 									specifierLine,
 									checker,
 									diagnostics,
-									isExternalFile,
+									isExternalFile
 								);
 								// Local JSDoc on the export statement overrides the canonical's
 								// (mirrors within-file branch semantics). `applyToDeclaration` only
@@ -571,7 +573,7 @@ export const analyzeExports = (
 								if (localTsdoc) {
 									applyToDeclaration(decl, localTsdoc);
 								}
-								declarations.push({declaration: decl, nodocs: !!localTsdoc?.nodocs});
+								declarations.push({ declaration: decl, nodocs: !!localTsdoc?.nodocs });
 							} else {
 								// Same-name re-export — track for alsoExportedFrom on the
 								// canonical-for-this-name. The walk lands on the deepest
@@ -611,10 +613,10 @@ export const analyzeExports = (
 										specifierLine,
 										checker,
 										diagnostics,
-										isExternalFile,
+										isExternalFile
 									);
 									applyToDeclaration(decl, localTsdoc);
-									declarations.push({declaration: decl, nodocs: !!localTsdoc.nodocs});
+									declarations.push({ declaration: decl, nodocs: !!localTsdoc.nodocs });
 								}
 
 								// `@nodocs` on a same-name re-export suppresses both the synthesized
@@ -629,8 +631,8 @@ export const analyzeExports = (
 									reExports.push({
 										name: reExportName,
 										module: extractPath(canonicalFile, options),
-										...(specifierTypeOnly ? {typeOnly: true} : {}),
-										...(specifierLine !== undefined ? {sourceLine: specifierLine} : {}),
+										...(specifierTypeOnly ? { typeOnly: true } : {}),
+										...(specifierLine !== undefined ? { sourceLine: specifierLine } : {})
 									});
 								}
 							}
@@ -658,9 +660,9 @@ export const analyzeExports = (
 						externalReExports.push({
 							name: exportSymbol.name,
 							specifier: local.statement.moduleSpecifier.text,
-							...(originalName !== undefined ? {originalName} : {}),
-							...(specifierTypeOnly ? {typeOnly: true} : {}),
-							sourceLine: specifierLine,
+							...(originalName !== undefined ? { originalName } : {}),
+							...(specifierTypeOnly ? { typeOnly: true } : {}),
+							sourceLine: specifierLine
 						});
 						continue;
 					}
@@ -687,10 +689,10 @@ export const analyzeExports = (
 				sourceFile,
 				checker,
 				diagnostics,
-				isExternalFile,
+				isExternalFile
 			);
-			const {declaration} = analysisResult;
-			let {nodocs} = analysisResult;
+			const { declaration } = analysisResult;
+			let { nodocs } = analysisResult;
 			// Preserve the export name for within-file renames (export { x as y }).
 			// Renaming TO `default` (`export {x as default}`) lands in the default
 			// slot — `exportSymbol.name === 'default'` and the assignment carries
@@ -713,7 +715,7 @@ export const analyzeExports = (
 				}
 			}
 			// Include all declarations with nodocs flag - consumer decides filtering policy
-			declarations.push({declaration, nodocs});
+			declarations.push({ declaration, nodocs });
 		}
 	}
 
@@ -723,7 +725,7 @@ export const analyzeExports = (
 		reExports,
 		starExports,
 		externalReExports,
-		externalStarExports,
+		externalStarExports
 	};
 };
 
@@ -746,7 +748,7 @@ export const analyzeDeclaration = (
 	sourceFile: ts.SourceFile,
 	checker: ts.TypeChecker,
 	diagnostics: Array<Diagnostic>,
-	isExternalFile: IsExternalFile,
+	isExternalFile: IsExternalFile
 ): DeclarationAnalysis => {
 	const declNode = symbol.valueDeclaration || symbol.declarations?.[0];
 	// Pass the symbol's name through verbatim. Default-slot symbols
@@ -761,11 +763,11 @@ export const analyzeDeclaration = (
 
 	const result: DeclarationJsonBuild = {
 		name,
-		kind,
+		kind
 	};
 
 	if (!declNode) {
-		return {declaration: result, nodocs: false};
+		return { declaration: result, nodocs: false };
 	}
 
 	// Extract TSDoc — `parseComment` filters `@module` blocks (handled by
@@ -793,7 +795,7 @@ export const analyzeDeclaration = (
 		extractVariableInfo(declNode, symbol, checker, result, diagnostics);
 	}
 
-	return {declaration: result, nodocs};
+	return { declaration: result, nodocs };
 };
 
 /**
@@ -814,7 +816,7 @@ export const extractModuleComment = (sourceFile: ts.SourceFile): string | undefi
 	const fullText = sourceFile.getFullText();
 
 	// Collect all JSDoc comments in the file
-	const allComments: Array<{pos: number; end: number}> = [];
+	const allComments: Array<{ pos: number; end: number }> = [];
 
 	// Check for comments at the start of the file (before any statements)
 	const leadingComments = ts.getLeadingCommentRanges(fullText, 0);
@@ -865,7 +867,7 @@ export const extractModuleComment = (sourceFile: ts.SourceFile): string | undefi
 export const warnModuleCommentNodocs = (
 	moduleComment: string | undefined,
 	file: string,
-	diagnostics: Array<Diagnostic>,
+	diagnostics: Array<Diagnostic>
 ): void => {
 	if (!moduleComment || !/(?:^|\n)@nodocs\b/.test(moduleComment)) return;
 	diagnostics.push({
@@ -874,7 +876,7 @@ export const warnModuleCommentNodocs = (
 		message:
 			'@nodocs in a module comment has no effect — it applies to declarations and export statements; to omit a module from analysis, use exclude patterns',
 		severity: 'warning',
-		tagName: 'nodocs',
+		tagName: 'nodocs'
 	});
 };
 
@@ -906,8 +908,8 @@ const stripModuleTag = (text: string): string => {
 const extractStarExports = (
 	sourceFile: ts.SourceFile,
 	checker: ts.TypeChecker,
-	options: ModuleSourceOptions,
-): {starExports: Array<string>; externalStarExports: Array<string>} => {
+	options: ModuleSourceOptions
+): { starExports: Array<string>; externalStarExports: Array<string> } => {
 	const starExports: Array<string> = [];
 	const externalStarExports: Array<string> = [];
 
@@ -936,5 +938,5 @@ const extractStarExports = (
 		}
 	}
 
-	return {starExports, externalStarExports};
+	return { starExports, externalStarExports };
 };

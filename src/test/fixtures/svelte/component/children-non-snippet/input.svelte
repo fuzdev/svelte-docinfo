@@ -1,6 +1,6 @@
 <script lang="ts">
 	let {
-		children,
+		children
 	}: {
 		/** Description 1 */
 		children: string;

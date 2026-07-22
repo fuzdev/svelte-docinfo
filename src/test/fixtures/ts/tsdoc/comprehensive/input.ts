@@ -16,7 +16,7 @@
  * @since 1.0.0
  * @mutates b - Description 7
  */
-export function fn(a: string, b: {c?: boolean}): string {
+export function fn(a: string, b: { c?: boolean }): string {
 	b.c = !!b.c;
 	return a.toUpperCase();
 }

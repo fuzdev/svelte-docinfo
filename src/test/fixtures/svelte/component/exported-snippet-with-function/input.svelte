@@ -1,5 +1,5 @@
 <script module lang="ts">
-	export {greet};
+	export { greet };
 	export const fn1 = (a: string): number => a.length;
 </script>
 

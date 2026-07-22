@@ -1,7 +1,7 @@
 <script lang="ts">
 	let {
 		coordinates,
-		rgb,
+		rgb
 	}: {
 		/** Description 1 */
 		coordinates: [number, number];

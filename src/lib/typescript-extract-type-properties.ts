@@ -17,19 +17,19 @@
 
 import ts from 'typescript';
 
-import type {MemberKind, DeclarationModifier} from './types.ts';
-import type {DeclarationJsonBuild, MemberJsonBuild} from './declaration-build.ts';
-import {type Diagnostic} from './diagnostics.ts';
-import {to_error_message} from './error.ts';
-import {parseComment, applyToDeclaration, type TsdocParsedComment} from './tsdoc.ts';
-import {type IsExternalFile} from './typescript-program.ts';
+import type { MemberKind, DeclarationModifier } from './types.ts';
+import type { DeclarationJsonBuild, MemberJsonBuild } from './declaration-build.ts';
+import { type Diagnostic } from './diagnostics.ts';
+import { to_error_message } from './error.ts';
+import { parseComment, applyToDeclaration, type TsdocParsedComment } from './tsdoc.ts';
+import { type IsExternalFile } from './typescript-program.ts';
 import {
 	emitCallOrConstructSignature,
 	filterExternalProperties,
 	getNodeLocation,
 	isExternalIntersectionBranch,
 	populateCallableMember,
-	resolveIntersectionTypeNode,
+	resolveIntersectionTypeNode
 } from './typescript-extract-shared.ts';
 
 /**
@@ -84,7 +84,7 @@ const extractLocalIndexType = (
 	typeNode: ts.Node,
 	checker: ts.TypeChecker,
 	isExternalFile: IsExternalFile,
-	indexKind: ts.IndexKind,
+	indexKind: ts.IndexKind
 ): ts.Type | undefined => {
 	if (!nodeType.isIntersection()) {
 		return checker.getIndexTypeOfType(nodeType, indexKind);
@@ -125,7 +125,7 @@ const emitLocalIndexSignature = (
 	checker: ts.TypeChecker,
 	diagnostics: Array<Diagnostic>,
 	isExternalFile: IsExternalFile,
-	kind: 'string' | 'number',
+	kind: 'string' | 'number'
 ): void => {
 	const indexKind = kind === 'string' ? ts.IndexKind.String : ts.IndexKind.Number;
 	try {
@@ -134,13 +134,13 @@ const emitLocalIndexSignature = (
 			node.type,
 			checker,
 			isExternalFile,
-			indexKind,
+			indexKind
 		);
 		if (indexType) {
 			(declaration.members ??= []).push({
 				name: `[key: ${kind}]`,
 				kind: 'variable',
-				typeSignature: checker.typeToString(indexType),
+				typeSignature: checker.typeToString(indexType)
 			});
 		}
 	} catch (err) {
@@ -153,7 +153,7 @@ const emitLocalIndexSignature = (
 			column: loc.column,
 			message: `Failed to extract ${kind} index signature for type "${declaration.name ?? '<default export>'}": ${to_error_message(err)}`,
 			severity: 'warning',
-			symbolName: declaration.name ?? '<default export>',
+			symbolName: declaration.name ?? '<default export>'
 		});
 	}
 };
@@ -199,7 +199,7 @@ export const extractTypeAliasProperties = (
 	checker: ts.TypeChecker,
 	declaration: DeclarationJsonBuild,
 	diagnostics: Array<Diagnostic>,
-	isExternalFile: IsExternalFile,
+	isExternalFile: IsExternalFile
 ): void => {
 	if (!hasExtractableProperties(nodeType)) return;
 
@@ -209,11 +209,11 @@ export const extractTypeAliasProperties = (
 	// intersections, bare references, indexed-access. Unions are gated out here
 	// (the Svelte prop path calls `filterExternalProperties` directly, so unions
 	// still surface `intersects` there, just not for plain type aliases).
-	const {properties: filteredProperties, externalTypes} = filterExternalProperties(
+	const { properties: filteredProperties, externalTypes } = filterExternalProperties(
 		nodeType,
 		node.type,
 		checker,
-		isExternalFile,
+		isExternalFile
 	);
 	if (externalTypes.length) {
 		declaration.intersects = externalTypes;
@@ -227,7 +227,8 @@ export const extractTypeAliasProperties = (
 	) {
 		// ts.MappedType is not in the public API, but the `declaration` property
 		// exists at runtime on mapped types and holds the MappedTypeNode AST node
-		const mappedDecl = (nodeType as ts.ObjectType & {declaration?: ts.MappedTypeNode}).declaration;
+		const mappedDecl = (nodeType as ts.ObjectType & { declaration?: ts.MappedTypeNode })
+			.declaration;
 		if (mappedDecl?.readonlyToken) {
 			mappedReadonly = true;
 		}
@@ -254,7 +255,7 @@ export const extractTypeAliasProperties = (
 
 		const member: MemberJsonBuild = {
 			name: prop.getName(),
-			kind,
+			kind
 		};
 
 		if (optional) member.optional = true;
@@ -281,7 +282,7 @@ export const extractTypeAliasProperties = (
 				propTsdoc,
 				decls?.[0] ?? node,
 				prop.getName(),
-				diagnostics,
+				diagnostics
 			);
 		} else {
 			member.typeSignature = checker.typeToString(propType);
@@ -304,7 +305,7 @@ export const extractTypeAliasProperties = (
 		checker,
 		diagnostics,
 		isExternalFile,
-		'string',
+		'string'
 	);
 	emitLocalIndexSignature(
 		declaration,
@@ -313,13 +314,13 @@ export const extractTypeAliasProperties = (
 		checker,
 		diagnostics,
 		isExternalFile,
-		'number',
+		'number'
 	);
 
 	// Extract call and construct signatures. TSDoc resolves through the
 	// signature's own declaration — for type aliases, that's typically the
 	// inline call/construct signature node the user wrote.
-	const errorContext = {node, kindLabel: 'type'};
+	const errorContext = { node, kindLabel: 'type' };
 
 	emitCallOrConstructSignature(
 		() => nodeType.getCallSignatures(),
@@ -329,7 +330,7 @@ export const extractTypeAliasProperties = (
 		declaration,
 		checker,
 		diagnostics,
-		errorContext,
+		errorContext
 	);
 
 	emitCallOrConstructSignature(
@@ -340,6 +341,6 @@ export const extractTypeAliasProperties = (
 		declaration,
 		checker,
 		diagnostics,
-		errorContext,
+		errorContext
 	);
 };

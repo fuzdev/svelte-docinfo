@@ -9,18 +9,18 @@
  * - Multi-line descriptions and tag content
  */
 
-import {test, assert, describe, beforeAll} from 'vitest';
+import { test, assert, describe, beforeAll } from 'vitest';
 import ts from 'typescript';
 
-import {cleanComment, parseComment} from '$lib/tsdoc.ts';
+import { cleanComment, parseComment } from '$lib/tsdoc.ts';
 
 import {
 	loadFixtures,
 	validateTsdocStructure,
 	findAndParseTsdoc,
-	type TsdocFixture,
+	type TsdocFixture
 } from './fixtures/tsdoc/tsdoc-test-helpers.ts';
-import {normalizeJson} from './test-helpers.ts';
+import { normalizeJson } from './test-helpers.ts';
 
 let fixtures: Array<TsdocFixture> = [];
 
@@ -37,7 +37,7 @@ describe('tsdoc parser (fixture-based)', () => {
 				fixture.input,
 				ts.ScriptTarget.Latest,
 				true,
-				ts.ScriptKind.TS,
+				ts.ScriptKind.TS
 			);
 
 			// Find and parse the exported declaration
@@ -47,7 +47,7 @@ describe('tsdoc parser (fixture-based)', () => {
 			assert.deepEqual(
 				normalizeJson(result),
 				normalizeJson(fixture.expected),
-				`Fixture "${fixture.name}" failed`,
+				`Fixture "${fixture.name}" failed`
 			);
 		}
 	});
@@ -66,14 +66,14 @@ describe('cleanComment', () => {
 		['basic JSDoc', '/** Hello world */', 'Hello world'],
 		['single-line JSDoc', '/** Single line comment */', 'Single line comment'],
 		['multiline JSDoc', '/**\n * First line.\n * Second line.\n */', 'First line.\nSecond line.'],
-		['no space after asterisk', '/**\n *No space here\n */', 'No space here'],
+		['no space after asterisk', '/**\n *No space here\n */', 'No space here']
 	])('%s', (_label, input, expected) => {
 		assert.strictEqual(cleanComment(input), expected);
 	});
 
 	test.each([
 		['empty comment', '/***/'],
-		['only asterisks', '/**\n *\n */'],
+		['only asterisks', '/**\n *\n */']
 	])('returns undefined for %s', (_label, input) => {
 		assert.isUndefined(cleanComment(input));
 	});
@@ -85,7 +85,7 @@ describe('cleanComment', () => {
 
 	test('handles JSDoc with tags', () => {
 		const result = cleanComment(
-			'/**\n * Description here.\n * @param x - the value\n * @returns something\n */',
+			'/**\n * Description here.\n * @param x - the value\n * @returns something\n */'
 		);
 		assert.strictEqual(result, 'Description here.\n@param x - the value\n@returns something');
 	});
@@ -95,7 +95,7 @@ describe('cleanComment', () => {
 		assert.strictEqual(
 			result,
 			'Line one.\nLine two.',
-			'Should normalize CRLF to LF without leaking \\r',
+			'Should normalize CRLF to LF without leaking \\r'
 		);
 	});
 
@@ -119,7 +119,7 @@ describe('parseComment module-comment filtering', () => {
 			code,
 			ts.ScriptTarget.Latest,
 			true,
-			ts.ScriptKind.TS,
+			ts.ScriptKind.TS
 		);
 		return parseComment(sourceFile.statements[0]!, sourceFile);
 	};
@@ -128,14 +128,14 @@ describe('parseComment module-comment filtering', () => {
 		// The AST attaches a file's module comment to the first statement —
 		// parseComment must not read it (including its @nodocs) as statement docs
 		const result = parseFirstStatement(
-			'/**\n * Module docs.\n *\n * @module\n * @nodocs\n */\n\nexport {foo} from "./a.js";\n',
+			'/**\n * Module docs.\n *\n * @module\n * @nodocs\n */\n\nexport {foo} from "./a.js";\n'
 		);
 		assert.isUndefined(result);
 	});
 
 	test('own JSDoc below a module comment still applies', () => {
 		const result = parseFirstStatement(
-			'/**\n * Module docs.\n *\n * @module\n * @nodocs\n */\n\n/** Own docs. */\nexport const foo = 1;\n',
+			'/**\n * Module docs.\n *\n * @module\n * @nodocs\n */\n\n/** Own docs. */\nexport const foo = 1;\n'
 		);
 		assert.ok(result);
 		assert.strictEqual(result.text, 'Own docs.');

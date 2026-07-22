@@ -1,4 +1,4 @@
-import type {CreateGroConfig} from '@fuzdev/gro';
+import type { CreateGroConfig } from '@fuzdev/gro';
 
 /**
  * Register the ambient `virtual-svelte-docinfo.d.ts` in `package.json` `exports`.
@@ -22,11 +22,11 @@ const config: CreateGroConfig = (base_config) => {
 			next[key] = value;
 			if (key === '.') {
 				next['./virtual-svelte-docinfo.js'] = {
-					types: './virtual-svelte-docinfo.d.ts',
+					types: './virtual-svelte-docinfo.d.ts'
 				};
 			}
 		}
-		return {...package_json, exports: next};
+		return { ...package_json, exports: next };
 	};
 	return base_config;
 };

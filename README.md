@@ -75,7 +75,7 @@ export const add = (a: number, b: number): number => a + b;
 	let {
 		result = $bindable(0),
 		mode = 'add',
-		disabled = false,
+		disabled = false
 	}: {
 		/** Current result (bindable). */
 		result?: number;
@@ -95,7 +95,7 @@ Three ways to integrate `svelte-docinfo`:
 // vite.config.ts
 import svelteDocinfo from 'svelte-docinfo/vite.js';
 
-export default defineConfig({plugins: [sveltekit(), svelteDocinfo()]});
+export default defineConfig({ plugins: [sveltekit(), svelteDocinfo()] });
 // then anywhere in your app:
 // import {modules} from 'virtual:svelte-docinfo';
 ```
@@ -109,9 +109,9 @@ npx svelte-docinfo --pretty
 3. [API](#api) - programmatic access for build tools, custom pipelines, and standalone scripts:
 
 ```ts
-import {analyzeFromFiles} from 'svelte-docinfo';
+import { analyzeFromFiles } from 'svelte-docinfo';
 
-const {modules} = await analyzeFromFiles({projectRoot: process.cwd()});
+const { modules } = await analyzeFromFiles({ projectRoot: process.cwd() });
 ```
 
 All three produce the same JSON shape:
@@ -164,8 +164,8 @@ All three produce the same JSON shape:
 					"typeSignature": "(a: number, b: number): number",
 					"sourceLine": 7,
 					"parameters": [
-						{"name": "a", "type": "number", "description": "first number"},
-						{"name": "b", "type": "number", "description": "second number"}
+						{ "name": "a", "type": "number", "description": "first number" },
+						{ "name": "b", "type": "number", "description": "second number" }
 					],
 					"returnType": "number",
 					"returnDescription": "the sum"
@@ -187,12 +187,12 @@ For examples of source input paired with the exact JSON `svelte-docinfo` emits:
 1. Add the plugin to `vite.config.ts`:
 
 ```ts
-import {defineConfig} from 'vite';
-import {sveltekit} from '@sveltejs/kit/vite';
+import { defineConfig } from 'vite';
+import { sveltekit } from '@sveltejs/kit/vite';
 import svelteDocinfo from 'svelte-docinfo/vite.js';
 
 export default defineConfig({
-	plugins: [sveltekit(), svelteDocinfo()],
+	plugins: [sveltekit(), svelteDocinfo()]
 });
 ```
 
@@ -205,7 +205,7 @@ export default defineConfig({
 3. Import the virtual module anywhere in your app:
 
 ```ts
-import {modules, diagnostics} from 'virtual:svelte-docinfo';
+import { modules, diagnostics } from 'virtual:svelte-docinfo';
 // or: import data from 'virtual:svelte-docinfo';
 ```
 
@@ -286,9 +286,9 @@ For most projects, `analyzeFromFiles` is all you need. It reads your `package.js
 to discover source files, falling back to glob patterns:
 
 ```ts
-import {analyzeFromFiles} from 'svelte-docinfo';
+import { analyzeFromFiles } from 'svelte-docinfo';
 
-const {modules} = await analyzeFromFiles({projectRoot: process.cwd()});
+const { modules } = await analyzeFromFiles({ projectRoot: process.cwd() });
 ```
 
 Pass `include` for custom patterns or `discovery: 'glob'` to always use glob.

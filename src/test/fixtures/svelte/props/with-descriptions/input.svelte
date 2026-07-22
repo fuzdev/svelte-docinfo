@@ -2,7 +2,7 @@
 	let {
 		prop1,
 		prop2,
-		prop3 = true,
+		prop3 = true
 	}: {
 		/**
 		 * Description 1 line 1.

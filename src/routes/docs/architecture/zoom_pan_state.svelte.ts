@@ -29,7 +29,7 @@
  * ```
  */
 
-import {on} from 'svelte/events';
+import { on } from 'svelte/events';
 
 export interface ZoomPanStateOptions {
 	min_scale?: number;
@@ -75,8 +75,8 @@ export class ZoomPanState {
 		return Math.min(this.host_width / this.content_width, this.host_height / this.content_height);
 	});
 
-	private pointers: Map<number, {x: number; y: number}> = new Map();
-	private drag_anchor: {x: number; y: number} | null = null;
+	private pointers: Map<number, { x: number; y: number }> = new Map();
+	private drag_anchor: { x: number; y: number } | null = null;
 	private is_dragging = false;
 
 	constructor(options: ZoomPanStateOptions = {}) {
@@ -95,19 +95,19 @@ export class ZoomPanState {
 	 * transform's coordinate space, accounting for `xMidYMid meet` letterboxing.
 	 * Identity when no content dimensions are configured.
 	 */
-	private anchor_to_units(px_x: number, px_y: number): {x: number; y: number} {
+	private anchor_to_units(px_x: number, px_y: number): { x: number; y: number } {
 		if (
 			this.content_width <= 0 ||
 			this.content_height <= 0 ||
 			this.host_width <= 0 ||
 			this.host_height <= 0
 		) {
-			return {x: px_x, y: px_y};
+			return { x: px_x, y: px_y };
 		}
 		const ppu = this.px_per_unit;
 		const offset_x = (this.host_width - this.content_width * ppu) / 2;
 		const offset_y = (this.host_height - this.content_height * ppu) / 2;
-		return {x: (px_x - offset_x) / ppu, y: (px_y - offset_y) / ppu};
+		return { x: (px_x - offset_x) / ppu, y: (px_y - offset_y) / ppu };
 	}
 
 	reset(): void {
@@ -123,7 +123,7 @@ export class ZoomPanState {
 	zoom_at(anchor_px_x: number, anchor_px_y: number, factor: number): void {
 		const next = clamp(this.scale * factor, this.min_scale, this.max_scale);
 		if (next === this.scale) return;
-		const {x: anchor_x, y: anchor_y} = this.anchor_to_units(anchor_px_x, anchor_px_y);
+		const { x: anchor_x, y: anchor_y } = this.anchor_to_units(anchor_px_x, anchor_px_y);
 		const ratio = next / this.scale;
 		this.tx = anchor_x - (anchor_x - this.tx) * ratio;
 		this.ty = anchor_y - (anchor_y - this.ty) * ratio;
@@ -144,9 +144,9 @@ export class ZoomPanState {
 	input = (el: HTMLElement): (() => void) => {
 		const on_pointer_down = (e: PointerEvent) => {
 			if (e.pointerType === 'mouse' && e.button !== 0) return;
-			this.pointers.set(e.pointerId, {x: e.clientX, y: e.clientY});
+			this.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
 			if (this.pointers.size === 1) {
-				this.drag_anchor = {x: e.clientX, y: e.clientY};
+				this.drag_anchor = { x: e.clientX, y: e.clientY };
 				this.is_dragging = false;
 			} else if (this.pointers.size === 2) {
 				// Pinch started; capture both pointers so we keep getting move events
@@ -158,7 +158,7 @@ export class ZoomPanState {
 		const on_pointer_move = (e: PointerEvent) => {
 			const prev = this.pointers.get(e.pointerId);
 			if (!prev) return;
-			const next = {x: e.clientX, y: e.clientY};
+			const next = { x: e.clientX, y: e.clientY };
 
 			if (this.pointers.size === 1 && this.drag_anchor) {
 				if (!this.is_dragging) {
@@ -173,7 +173,7 @@ export class ZoomPanState {
 					this.pan(next.x - prev.x, next.y - prev.y);
 				}
 			} else if (this.pointers.size === 2) {
-				let other: {x: number; y: number} | undefined;
+				let other: { x: number; y: number } | undefined;
 				for (const [id, p] of this.pointers) {
 					if (id !== e.pointerId) {
 						other = p;
@@ -228,8 +228,8 @@ export class ZoomPanState {
 			on(el, 'pointermove', on_pointer_move),
 			on(el, 'pointerup', on_pointer_up),
 			on(el, 'pointercancel', on_pointer_up),
-			on(el, 'click', on_click, {capture: true}),
-			on(el, 'wheel', on_wheel, {passive: false}),
+			on(el, 'click', on_click, { capture: true }),
+			on(el, 'wheel', on_wheel, { passive: false })
 		];
 
 		return () => {

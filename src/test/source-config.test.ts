@@ -9,9 +9,9 @@
  * - Dependency extraction from SourceFileInfo (extractDependencies)
  */
 
-import {test, assert, describe} from 'vitest';
+import { test, assert, describe } from 'vitest';
 
-import {type SourceFileInfo, getDefaultAnalyzer} from '$lib/source.ts';
+import { type SourceFileInfo, getDefaultAnalyzer } from '$lib/source.ts';
 import {
 	extractPath,
 	extractDependencies,
@@ -20,11 +20,11 @@ import {
 	getSourceRoot,
 	createSourceOptions,
 	DEFAULT_SOURCE_OPTIONS,
-	type ModuleSourceOptions,
+	type ModuleSourceOptions
 } from '$lib/source-config.ts';
 
-import {testMockOptions} from './test-module-helpers.ts';
-import {TEST_PATHS, TEST_FILES} from './test-constants.ts';
+import { testMockOptions } from './test-module-helpers.ts';
+import { TEST_PATHS, TEST_FILES } from './test-constants.ts';
 
 describe('extractPath', () => {
 	test('extracts path from absolute source ID', () => {
@@ -34,21 +34,21 @@ describe('extractPath', () => {
 	test('extracts nested path', () => {
 		assert.strictEqual(
 			extractPath(TEST_PATHS.NESTED_SVELTE, testMockOptions()),
-			'nested/Button.svelte',
+			'nested/Button.svelte'
 		);
 	});
 
 	test('returns original path if projectRoot does not match', () => {
 		assert.strictEqual(
 			extractPath('/some/other/path.ts', testMockOptions()),
-			'/some/other/path.ts',
+			'/some/other/path.ts'
 		);
 	});
 
 	test('extracts path with custom sourceRoot', () => {
 		const options = testMockOptions({
 			sourcePaths: ['src/routes'],
-			sourceRoot: 'src/routes',
+			sourceRoot: 'src/routes'
 		});
 		assert.strictEqual(extractPath('/home/user/project/src/routes/page.ts', options), 'page.ts');
 	});
@@ -56,46 +56,46 @@ describe('extractPath', () => {
 	test('extracts nested path with custom sourceRoot', () => {
 		const options = createSourceOptions('/home/user/project', {
 			sourcePaths: ['packages/core/src'],
-			sourceRoot: 'packages/core/src',
+			sourceRoot: 'packages/core/src'
 		});
 		assert.strictEqual(
 			extractPath('/home/user/project/packages/core/src/index.ts', options),
-			'index.ts',
+			'index.ts'
 		);
 	});
 
 	test('returns original path if sourceRoot does not match', () => {
 		const options = testMockOptions({
 			sourcePaths: ['src/routes'],
-			sourceRoot: 'src/routes',
+			sourceRoot: 'src/routes'
 		});
 		assert.strictEqual(
 			extractPath('/home/user/project/src/lib/foo.ts', options),
-			'/home/user/project/src/lib/foo.ts',
+			'/home/user/project/src/lib/foo.ts'
 		);
 	});
 
 	test('extracts path with multiple sourcePaths', () => {
 		const options = testMockOptions({
 			sourcePaths: ['src/lib', 'src/routes'],
-			sourceRoot: 'src',
+			sourceRoot: 'src'
 		});
 		assert.strictEqual(extractPath('/home/user/project/src/lib/foo.ts', options), 'lib/foo.ts');
 		assert.strictEqual(
 			extractPath('/home/user/project/src/routes/page.svelte', options),
-			'routes/page.svelte',
+			'routes/page.svelte'
 		);
 	});
 
 	test('extracts path with empty sourceRoot', () => {
 		const options = testMockOptions({
 			sourcePaths: ['lib', 'routes'],
-			sourceRoot: '',
+			sourceRoot: ''
 		});
 		assert.strictEqual(extractPath('/home/user/project/lib/foo.ts', options), 'lib/foo.ts');
 		assert.strictEqual(
 			extractPath('/home/user/project/routes/page.svelte', options),
-			'routes/page.svelte',
+			'routes/page.svelte'
 		);
 	});
 });
@@ -129,7 +129,7 @@ describe('createSourceOptions', () => {
 
 	test('merges overrides', () => {
 		const options = createSourceOptions('/my/project', {
-			sourcePaths: ['packages/core'],
+			sourcePaths: ['packages/core']
 		});
 		assert.strictEqual(options.projectRoot, '/my/project');
 		assert.deepStrictEqual(options.sourcePaths, ['packages/core']);
@@ -138,17 +138,17 @@ describe('createSourceOptions', () => {
 
 describe('getSourceRoot', () => {
 	test('returns explicit sourceRoot when provided', () => {
-		const options = testMockOptions({sourceRoot: 'src'});
+		const options = testMockOptions({ sourceRoot: 'src' });
 		assert.strictEqual(getSourceRoot(options), 'src');
 	});
 
 	test('returns empty string sourceRoot when explicitly set', () => {
-		const options = testMockOptions({sourceRoot: ''});
+		const options = testMockOptions({ sourceRoot: '' });
 		assert.strictEqual(getSourceRoot(options), '');
 	});
 
 	test('returns first sourcePath for single-entry arrays', () => {
-		const options = testMockOptions({sourcePaths: ['src/lib']});
+		const options = testMockOptions({ sourcePaths: ['src/lib'] });
 		assert.strictEqual(getSourceRoot(options), 'src/lib');
 	});
 
@@ -157,7 +157,7 @@ describe('getSourceRoot', () => {
 			projectRoot: '/home/user/project',
 			sourcePaths: ['src/lib', 'src/routes'],
 			exclude: [],
-			getAnalyzerType: getDefaultAnalyzer,
+			getAnalyzerType: getDefaultAnalyzer
 		};
 		assert.strictEqual(getSourceRoot(options), 'src');
 	});
@@ -167,7 +167,7 @@ describe('getSourceRoot', () => {
 			projectRoot: '/home/user/project',
 			sourcePaths: ['lib', 'routes'],
 			exclude: [],
-			getAnalyzerType: getDefaultAnalyzer,
+			getAnalyzerType: getDefaultAnalyzer
 		};
 		assert.strictEqual(getSourceRoot(options), '');
 	});
@@ -207,7 +207,7 @@ describe('isSource', () => {
 	describe('with custom sourcePaths', () => {
 		test('respects custom source paths', () => {
 			const options = testMockOptions({
-				sourcePaths: ['src/routes'],
+				sourcePaths: ['src/routes']
 			});
 
 			assert.isTrue(isSource('/home/user/project/src/routes/page.svelte', options));
@@ -217,7 +217,7 @@ describe('isSource', () => {
 		test('supports multiple source paths', () => {
 			const options = testMockOptions({
 				sourcePaths: ['src/lib', 'src/routes'],
-				sourceRoot: 'src',
+				sourceRoot: 'src'
 			});
 
 			assert.isTrue(isSource('/home/user/project/src/lib/foo.ts', options));
@@ -228,7 +228,7 @@ describe('isSource', () => {
 	describe('with custom exclude globs', () => {
 		test('respects custom exclude globs', () => {
 			const options = testMockOptions({
-				exclude: ['**/*.test.ts', '**/*.spec.ts'],
+				exclude: ['**/*.test.ts', '**/*.spec.ts']
 			});
 
 			assert.isTrue(isSource('/home/user/project/src/lib/foo.ts', options));
@@ -238,7 +238,7 @@ describe('isSource', () => {
 
 		test('can exclude by directory glob', () => {
 			const options = testMockOptions({
-				exclude: ['**/internal/**'],
+				exclude: ['**/internal/**']
 			});
 
 			assert.isTrue(isSource('/home/user/project/src/lib/foo.ts', options));
@@ -247,7 +247,7 @@ describe('isSource', () => {
 
 		test('empty exclude includes everything', () => {
 			const options = testMockOptions({
-				exclude: [],
+				exclude: []
 			});
 
 			assert.isTrue(isSource('/home/user/project/src/lib/foo.ts', options));
@@ -258,13 +258,13 @@ describe('isSource', () => {
 	describe('nested directories', () => {
 		test('rejects nested repo paths - proper prefix matching', () => {
 			assert.isFalse(
-				isSource('/home/user/project/src/fixtures/repos/repoA/src/lib/index.ts', testMockOptions()),
+				isSource('/home/user/project/src/fixtures/repos/repoA/src/lib/index.ts', testMockOptions())
 			);
 			assert.isFalse(
 				isSource(
 					'/home/user/project/src/test/fixtures/repos/repoB/src/lib/foo.ts',
-					testMockOptions(),
-				),
+					testMockOptions()
+				)
 			);
 		});
 
@@ -274,7 +274,7 @@ describe('isSource', () => {
 
 		test('accepts deeply nested paths within src/lib/', () => {
 			assert.isTrue(
-				isSource('/home/user/project/src/lib/utils/helpers/deep/file.ts', testMockOptions()),
+				isSource('/home/user/project/src/lib/utils/helpers/deep/file.ts', testMockOptions())
 			);
 		});
 	});
@@ -282,7 +282,7 @@ describe('isSource', () => {
 	describe('non-src structures', () => {
 		test('works with packages/ structure', () => {
 			const options = createSourceOptions('/home/user/project', {
-				sourcePaths: ['packages/core/lib'],
+				sourcePaths: ['packages/core/lib']
 			});
 
 			assert.isTrue(isSource('/home/user/project/packages/core/lib/foo.ts', options));
@@ -297,7 +297,7 @@ describe('extractDependencies', () => {
 			const sourceFile: SourceFileInfo = {
 				id: '/home/user/project/src/lib/foo.ts',
 				content: '',
-				dependencies: ['/home/user/project/src/lib/bar.ts', '/home/user/project/src/lib/baz.ts'],
+				dependencies: ['/home/user/project/src/lib/bar.ts', '/home/user/project/src/lib/baz.ts']
 			};
 
 			const result = extractDependencies(sourceFile, testMockOptions());
@@ -307,13 +307,13 @@ describe('extractDependencies', () => {
 		});
 
 		test('extracts dependents from source modules', () => {
-			const sourceFile: SourceFileInfo & {dependents?: ReadonlyArray<string>} = {
+			const sourceFile: SourceFileInfo & { dependents?: ReadonlyArray<string> } = {
 				id: '/home/user/project/src/lib/foo.ts',
 				content: '',
 				dependents: [
 					'/home/user/project/src/lib/consumer1.ts',
-					'/home/user/project/src/lib/consumer2.ts',
-				],
+					'/home/user/project/src/lib/consumer2.ts'
+				]
 			};
 
 			const result = extractDependencies(sourceFile, testMockOptions());
@@ -323,11 +323,11 @@ describe('extractDependencies', () => {
 		});
 
 		test('extracts both dependencies and dependents', () => {
-			const sourceFile: SourceFileInfo & {dependents?: ReadonlyArray<string>} = {
+			const sourceFile: SourceFileInfo & { dependents?: ReadonlyArray<string> } = {
 				id: '/home/user/project/src/lib/foo.ts',
 				content: '',
 				dependencies: ['/home/user/project/src/lib/dep.ts'],
-				dependents: ['/home/user/project/src/lib/consumer.ts'],
+				dependents: ['/home/user/project/src/lib/consumer.ts']
 			};
 
 			const result = extractDependencies(sourceFile, testMockOptions());
@@ -345,8 +345,8 @@ describe('extractDependencies', () => {
 				dependencies: [
 					'/home/user/project/src/lib/bar.ts',
 					'/home/user/project/node_modules/svelte/index.js',
-					'/home/user/project/node_modules/@fuzdev/fuz_util/index.js',
-				],
+					'/home/user/project/node_modules/@fuzdev/fuz_util/index.js'
+				]
 			};
 
 			const result = extractDependencies(sourceFile, testMockOptions());
@@ -360,8 +360,8 @@ describe('extractDependencies', () => {
 				content: '',
 				dependencies: [
 					'/home/user/project/src/lib/bar.ts',
-					'/home/user/project/src/lib/bar.test.ts',
-				],
+					'/home/user/project/src/lib/bar.test.ts'
+				]
 			};
 
 			const result = extractDependencies(sourceFile, testMockOptions());
@@ -376,8 +376,8 @@ describe('extractDependencies', () => {
 				dependencies: [
 					'/home/user/project/src/lib/bar.ts',
 					'/home/user/project/src/routes/page.svelte',
-					'/home/user/project/src/test/helper.ts',
-				],
+					'/home/user/project/src/test/helper.ts'
+				]
 			};
 
 			const result = extractDependencies(sourceFile, testMockOptions());
@@ -394,8 +394,8 @@ describe('extractDependencies', () => {
 				dependencies: [
 					'/home/user/project/src/lib/zebra.ts',
 					'/home/user/project/src/lib/alpha.ts',
-					'/home/user/project/src/lib/beta.ts',
-				],
+					'/home/user/project/src/lib/beta.ts'
+				]
 			};
 
 			const result = extractDependencies(sourceFile, testMockOptions());
@@ -404,14 +404,14 @@ describe('extractDependencies', () => {
 		});
 
 		test('returns dependents sorted alphabetically', () => {
-			const sourceFile: SourceFileInfo & {dependents?: ReadonlyArray<string>} = {
+			const sourceFile: SourceFileInfo & { dependents?: ReadonlyArray<string> } = {
 				id: '/home/user/project/src/lib/foo.ts',
 				content: '',
 				dependents: [
 					'/home/user/project/src/lib/z.ts',
 					'/home/user/project/src/lib/a.ts',
-					'/home/user/project/src/lib/m.ts',
-				],
+					'/home/user/project/src/lib/m.ts'
+				]
 			};
 
 			const result = extractDependencies(sourceFile, testMockOptions());
@@ -424,7 +424,7 @@ describe('extractDependencies', () => {
 		test('handles undefined dependencies', () => {
 			const sourceFile: SourceFileInfo = {
 				id: '/home/user/project/src/lib/foo.ts',
-				content: '',
+				content: ''
 			};
 
 			const result = extractDependencies(sourceFile, testMockOptions());
@@ -434,11 +434,11 @@ describe('extractDependencies', () => {
 		});
 
 		test('handles empty arrays', () => {
-			const sourceFile: SourceFileInfo & {dependents?: ReadonlyArray<string>} = {
+			const sourceFile: SourceFileInfo & { dependents?: ReadonlyArray<string> } = {
 				id: '/home/user/project/src/lib/foo.ts',
 				content: '',
 				dependencies: [],
-				dependents: [],
+				dependents: []
 			};
 
 			const result = extractDependencies(sourceFile, testMockOptions());
@@ -451,7 +451,7 @@ describe('extractDependencies', () => {
 			const options = testMockOptions({
 				sourcePaths: ['src/routes'],
 				sourceRoot: 'src/routes',
-				exclude: [],
+				exclude: []
 			});
 
 			const sourceFile: SourceFileInfo = {
@@ -460,8 +460,8 @@ describe('extractDependencies', () => {
 				dependencies: [
 					'/home/user/project/src/routes/Header.svelte',
 					'/home/user/project/src/lib/util.ts', // excluded - wrong path
-					'/home/user/project/src/routes/Footer.svelte',
-				],
+					'/home/user/project/src/routes/Footer.svelte'
+				]
 			};
 
 			const result = extractDependencies(sourceFile, options);
@@ -482,9 +482,9 @@ describe('normalizeSourceOptions', () => {
 				normalizeSourceOptions(
 					testMockOptions({
 						sourcePaths: ['src/lib', 'src/routes'],
-						sourceRoot: 'src',
-					}),
-				),
+						sourceRoot: 'src'
+					})
+				)
 			);
 		});
 
@@ -493,9 +493,9 @@ describe('normalizeSourceOptions', () => {
 				normalizeSourceOptions(
 					testMockOptions({
 						sourcePaths: ['src/lib'],
-						sourceRoot: 'src/lib',
-					}),
-				),
+						sourceRoot: 'src/lib'
+					})
+				)
 			);
 		});
 	});
@@ -506,17 +506,17 @@ describe('normalizeSourceOptions', () => {
 		sourcePaths: ['src/lib'],
 		exclude: [],
 		getAnalyzerType: getDefaultAnalyzer,
-		...overrides,
+		...overrides
 	});
 
 	// [label, overrides, errorPattern]
 	const VALIDATION_ERROR_CASES: Array<[string, Partial<ModuleSourceOptions>, RegExp]> = [
-		['empty sourcePaths', {sourcePaths: []}, /sourcePaths must have at least one entry/],
+		['empty sourcePaths', { sourcePaths: [] }, /sourcePaths must have at least one entry/],
 		[
 			'sourcePath not under sourceRoot',
-			{sourcePaths: ['packages/core'], sourceRoot: 'src'},
-			/sourcePaths entry "packages\/core" must start with sourceRoot "src"/,
-		],
+			{ sourcePaths: ['packages/core'], sourceRoot: 'src' },
+			/sourcePaths entry "packages\/core" must start with sourceRoot "src"/
+		]
 	];
 
 	describe('validation errors', () => {
@@ -526,14 +526,14 @@ describe('normalizeSourceOptions', () => {
 
 		test('multi-path layout with no common prefix auto-derives empty sourceRoot', () => {
 			const result = normalizeSourceOptions(
-				invalidOptions({sourcePaths: ['src/lib', 'packages/core']}),
+				invalidOptions({ sourcePaths: ['src/lib', 'packages/core'] })
 			);
 			assert.strictEqual(result.sourceRoot, '');
 		});
 
 		test('explicit sourceRoot of "." normalizes to ""', () => {
 			const result = normalizeSourceOptions(
-				invalidOptions({sourcePaths: ['src/lib', 'lib/utils'], sourceRoot: '.'}),
+				invalidOptions({ sourcePaths: ['src/lib', 'lib/utils'], sourceRoot: '.' })
 			);
 			assert.strictEqual(result.sourceRoot, '');
 		});
@@ -541,38 +541,38 @@ describe('normalizeSourceOptions', () => {
 
 	describe('normalization', () => {
 		test('resolves relative projectRoot to absolute', () => {
-			const result = normalizeSourceOptions(invalidOptions({projectRoot: 'relative/path'}));
+			const result = normalizeSourceOptions(invalidOptions({ projectRoot: 'relative/path' }));
 			assert.isTrue(result.projectRoot.startsWith('/'));
 		});
 
 		test('strips trailing slash from projectRoot', () => {
-			const result = normalizeSourceOptions(invalidOptions({projectRoot: '/home/user/project/'}));
+			const result = normalizeSourceOptions(invalidOptions({ projectRoot: '/home/user/project/' }));
 			assert.strictEqual(result.projectRoot, '/home/user/project');
 		});
 
 		test('strips leading slash from sourcePaths', () => {
-			const result = normalizeSourceOptions(invalidOptions({sourcePaths: ['/src/lib']}));
+			const result = normalizeSourceOptions(invalidOptions({ sourcePaths: ['/src/lib'] }));
 			assert.deepStrictEqual(result.sourcePaths, ['src/lib']);
 		});
 
 		test('strips trailing slash from sourcePaths', () => {
-			const result = normalizeSourceOptions(invalidOptions({sourcePaths: ['src/lib/']}));
+			const result = normalizeSourceOptions(invalidOptions({ sourcePaths: ['src/lib/'] }));
 			assert.deepStrictEqual(result.sourcePaths, ['src/lib']);
 		});
 
 		test('strips leading slash from sourceRoot', () => {
-			const result = normalizeSourceOptions(invalidOptions({sourceRoot: '/src'}));
+			const result = normalizeSourceOptions(invalidOptions({ sourceRoot: '/src' }));
 			assert.strictEqual(result.sourceRoot, 'src');
 		});
 
 		test('strips trailing slash from sourceRoot', () => {
-			const result = normalizeSourceOptions(invalidOptions({sourceRoot: 'src/'}));
+			const result = normalizeSourceOptions(invalidOptions({ sourceRoot: 'src/' }));
 			assert.strictEqual(result.sourceRoot, 'src');
 		});
 
 		test('auto-derives sourceRoot for multiple sourcePaths', () => {
 			const result = normalizeSourceOptions(
-				invalidOptions({sourcePaths: ['src/lib', 'src/routes']}),
+				invalidOptions({ sourcePaths: ['src/lib', 'src/routes'] })
 			);
 			assert.strictEqual(result.sourceRoot, 'src');
 		});
@@ -581,12 +581,12 @@ describe('normalizeSourceOptions', () => {
 			const options = invalidOptions({
 				projectRoot: 'relative/path/',
 				sourcePaths: ['/src/lib/'],
-				sourceRoot: '/src/',
+				sourceRoot: '/src/'
 			});
 			const before = {
 				projectRoot: options.projectRoot,
 				sourcePaths: [...options.sourcePaths],
-				sourceRoot: options.sourceRoot,
+				sourceRoot: options.sourceRoot
 			};
 			normalizeSourceOptions(options);
 			assert.strictEqual(options.projectRoot, before.projectRoot);
@@ -595,7 +595,7 @@ describe('normalizeSourceOptions', () => {
 		});
 
 		test('returns a new object with a fresh identity', () => {
-			const options = invalidOptions({sourcePaths: ['src/lib']});
+			const options = invalidOptions({ sourcePaths: ['src/lib'] });
 			const result = normalizeSourceOptions(options);
 			assert.notStrictEqual(result, options);
 			assert.notStrictEqual(result.sourcePaths, options.sourcePaths);
@@ -606,8 +606,8 @@ describe('normalizeSourceOptions', () => {
 				invalidOptions({
 					projectRoot: 'relative/path/',
 					sourcePaths: ['/src/lib/'],
-					sourceRoot: '/src/',
-				}),
+					sourceRoot: '/src/'
+				})
 			);
 			const second = normalizeSourceOptions(first);
 			assert.strictEqual(second.projectRoot, first.projectRoot);

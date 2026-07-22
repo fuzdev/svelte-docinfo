@@ -41,7 +41,7 @@
  * Do not "fix" this by moving the file into `src/lib/`.
  */
 declare module 'virtual:svelte-docinfo' {
-	import type {AnalyzeResultJsonWire} from 'svelte-docinfo';
+	import type { AnalyzeResultJsonWire } from 'svelte-docinfo';
 	export const modules: AnalyzeResultJsonWire['modules'];
 	export const diagnostics: AnalyzeResultJsonWire['diagnostics'];
 	const data: AnalyzeResultJsonWire;

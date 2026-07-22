@@ -1,7 +1,7 @@
 <script lang="ts">
-	import type {SvelteHTMLElements} from 'svelte/elements';
+	import type { SvelteHTMLElements } from 'svelte/elements';
 
-	const {...rest}: SvelteHTMLElements['li'] = $props();
+	const { ...rest }: SvelteHTMLElements['li'] = $props();
 </script>
 
 <li {...rest}></li>

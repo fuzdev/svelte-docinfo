@@ -23,30 +23,30 @@
  * @module
  */
 
-import {TraceMap, originalPositionFor} from '@jridgewell/trace-mapping';
-import {VERSION} from 'svelte/compiler';
-import {svelte2tsx} from 'svelte2tsx';
+import { TraceMap, originalPositionFor } from '@jridgewell/trace-mapping';
+import { VERSION } from 'svelte/compiler';
+import { svelte2tsx } from 'svelte2tsx';
 import ts from 'typescript';
 
-import type {ComponentPropJsonInput, GenericParamJson, ParameterJsonInput} from './types.ts';
+import type { ComponentPropJsonInput, GenericParamJson, ParameterJsonInput } from './types.ts';
 import type {
 	DeclarationJsonBuild,
 	DeclarationAnalysis,
-	ModuleAnalysis,
+	ModuleAnalysis
 } from './declaration-build.ts';
-import {parseComment, applyToDeclaration, type TsdocParsedComment} from './tsdoc.ts';
-import {type IsExternalFile, createIsExternalFile} from './typescript-program.ts';
-import {parseGenericParam, filterExternalProperties} from './typescript-extract-shared.ts';
+import { parseComment, applyToDeclaration, type TsdocParsedComment } from './tsdoc.ts';
+import { type IsExternalFile, createIsExternalFile } from './typescript-program.ts';
+import { parseGenericParam, filterExternalProperties } from './typescript-extract-shared.ts';
 import {
 	extractModuleComment,
 	analyzeExports,
-	warnModuleCommentNodocs,
+	warnModuleCommentNodocs
 } from './typescript-exports.ts';
-import {type SourceFileInfo, getComponentName, SVELTE_VIRTUAL_SUFFIX} from './source.ts';
-import {type ModuleSourceOptions, extractDependencies} from './source-config.ts';
-import {type Diagnostic} from './diagnostics.ts';
-import {to_error_message} from './error.ts';
-import {toPosixPath} from './paths.ts';
+import { type SourceFileInfo, getComponentName, SVELTE_VIRTUAL_SUFFIX } from './source.ts';
+import { type ModuleSourceOptions, extractDependencies } from './source-config.ts';
+import { type Diagnostic } from './diagnostics.ts';
+import { to_error_message } from './error.ts';
+import { toPosixPath } from './paths.ts';
 
 /** Resolved source map type (avoids repeating the verbose `InstanceType<...>` inline). */
 type SourceMap = InstanceType<typeof TraceMap>;
@@ -119,16 +119,16 @@ export const transformSvelteSource = (sourceFile: SourceFileInfo): TransformResu
 		tsResult = svelte2tsx(sourceFile.content, {
 			filename: posixId,
 			isTsFile,
-			emitOnTemplateError: true,
+			emitOnTemplateError: true
 		});
 	} catch (err) {
 		diagnostics.push({
 			kind: 'transform_failed',
 			file: posixId,
 			message: `svelte2tsx failed to transform Svelte source: ${to_error_message(err)}`,
-			severity: 'error',
+			severity: 'error'
 		});
-		return {virtual: undefined, diagnostics};
+		return { virtual: undefined, diagnostics };
 	}
 
 	const virtualPath = posixId + SVELTE_VIRTUAL_SUFFIX;
@@ -141,7 +141,7 @@ export const transformSvelteSource = (sourceFile: SourceFileInfo): TransformResu
 			kind: 'source_map_failed',
 			file: posixId,
 			message: `Failed to parse svelte2tsx source map: ${to_error_message(err)}. Line/column positions for this file will reference virtual TypeScript output instead of the original Svelte source.`,
-			severity: 'warning',
+			severity: 'warning'
 		});
 	}
 
@@ -150,9 +150,9 @@ export const transformSvelteSource = (sourceFile: SourceFileInfo): TransformResu
 			virtualPath,
 			content: tsResult.code,
 			sourceMap,
-			lang: isTsFile ? undefined : 'js',
+			lang: isTsFile ? undefined : 'js'
 		},
-		diagnostics,
+		diagnostics
 	};
 };
 
@@ -172,7 +172,7 @@ const SVELTE2TSX_IDENTIFIERS = {
 	/** Identifier for `$props()` rune. */
 	PROPS_RUNE: '$props',
 	/** Identifier for `$bindable()` rune. */
-	BINDABLE_RUNE: '$bindable',
+	BINDABLE_RUNE: '$bindable'
 } as const;
 
 /**
@@ -192,7 +192,7 @@ const assertSvelteVersion = (): void => {
 	if (svelteMajorVersion < 5) {
 		throw new Error(
 			`Svelte ${VERSION} detected but Svelte 5+ is required for source analysis. ` +
-				`The svelte2tsx output format changed significantly between versions.`,
+				`The svelte2tsx output format changed significantly between versions.`
 		);
 	}
 };
@@ -208,7 +208,7 @@ const assertSvelteVersion = (): void => {
  * @returns array of `GenericParamJson`, or undefined if no generics found
  */
 const extractGenericParams = (
-	virtualSource: ts.SourceFile,
+	virtualSource: ts.SourceFile
 ): Array<GenericParamJson> | undefined => {
 	let genericParams: Array<GenericParamJson> | undefined;
 
@@ -246,7 +246,7 @@ const extractGenericParams = (
  */
 const extractComponentSourceLine = (
 	virtualSource: ts.SourceFile,
-	sourceMap: SourceMap | null,
+	sourceMap: SourceMap | null
 ): number => {
 	if (sourceMap) {
 		for (const statement of virtualSource.statements) {
@@ -257,7 +257,7 @@ const extractComponentSourceLine = (
 				const pos = virtualSource.getLineAndCharacterOfPosition(statement.getStart());
 				const original = originalPositionFor(sourceMap, {
 					line: pos.line + 1,
-					column: pos.character,
+					column: pos.character
 				});
 				if (original.line !== null) {
 					return original.line;
@@ -364,7 +364,7 @@ export const extractSvelteModuleComment = (scriptContent: string): string | unde
 		scriptContent,
 		ts.ScriptTarget.Latest,
 		true,
-		ts.ScriptKind.TS,
+		ts.ScriptKind.TS
 	);
 	return extractModuleComment(sourceFile);
 };
@@ -402,7 +402,7 @@ const hasScriptDocComment = (scriptContent: string | undefined): boolean => {
 		scriptContent,
 		ts.ScriptTarget.Latest,
 		true,
-		ts.ScriptKind.TS,
+		ts.ScriptKind.TS
 	);
 
 	// Walk statements looking for a JSDoc comment (`parseComment` filters
@@ -462,16 +462,16 @@ const extractComponentTsdoc = (sourceFile: ts.SourceFile): TsdocParsedComment | 
 const mapVirtualPosition = (
 	node: ts.Node,
 	sourceFile: ts.SourceFile,
-	sourceMap: SourceMap | null,
-): {line: number | undefined; column: number | undefined} => {
-	const {line, character} = sourceFile.getLineAndCharacterOfPosition(node.getStart());
+	sourceMap: SourceMap | null
+): { line: number | undefined; column: number | undefined } => {
+	const { line, character } = sourceFile.getLineAndCharacterOfPosition(node.getStart());
 	if (sourceMap) {
-		const original = originalPositionFor(sourceMap, {line: line + 1, column: character});
+		const original = originalPositionFor(sourceMap, { line: line + 1, column: character });
 		if (original.line !== null) {
-			return {line: original.line, column: original.column + 1};
+			return { line: original.line, column: original.column + 1 };
 		}
 	}
-	return {line: line + 1, column: character + 1};
+	return { line: line + 1, column: character + 1 };
 };
 
 /**
@@ -485,7 +485,7 @@ const assemblePropInfo = (
 	propSourceFile: ts.SourceFile | undefined,
 	propsDefaults: Map<string, string>,
 	bindableProps: Set<string>,
-	parameters?: Array<ParameterJsonInput>,
+	parameters?: Array<ParameterJsonInput>
 ): ComponentPropJsonInput => {
 	const tsdoc = propDecl && propSourceFile ? parseComment(propDecl, propSourceFile) : undefined;
 
@@ -501,7 +501,7 @@ const assemblePropInfo = (
 		deprecatedMessage: tsdoc?.deprecatedMessage,
 		seeAlso: tsdoc?.seeAlso,
 		throws: tsdoc?.throws,
-		since: tsdoc?.since,
+		since: tsdoc?.since
 	};
 	// Only set parameters when there are actual params to expose.
 	// Bare Snippet/Snippet<[]> doesn't set this — consumers use the type string for detection.
@@ -611,7 +611,7 @@ const extractPropsMetadata = (virtualSource: ts.SourceFile): PropsMetadata => {
 	}
 
 	visit(virtualSource);
-	return {bindableProps, propsDefaults, propsTypeName};
+	return { bindableProps, propsDefaults, propsTypeName };
 };
 
 // Snippet Detection
@@ -642,7 +642,7 @@ export const isSnippetTypeString = (typeString: string): boolean => {
  */
 export const extractSnippetParameters = (
 	snippetType: ts.Type,
-	checker: ts.TypeChecker,
+	checker: ts.TypeChecker
 ): Array<ParameterJsonInput> => {
 	// Snippet<T> is an interface — type args accessed via TypeReference, not aliasTypeArguments
 	const typeArgs = checker.getTypeArguments(snippetType as ts.TypeReference);
@@ -653,7 +653,7 @@ export const extractSnippetParameters = (
 	const elementTypes = checker.getTypeArguments(tupleRef);
 	if (elementTypes.length === 0) return [];
 
-	const target = (tupleRef as unknown as {target: ts.TupleType}).target;
+	const target = (tupleRef as unknown as { target: ts.TupleType }).target;
 
 	const params: Array<ParameterJsonInput> = [];
 	for (let i = 0; i < elementTypes.length; i++) {
@@ -661,7 +661,7 @@ export const extractSnippetParameters = (
 		const label = target.labeledElementDeclarations?.[i];
 		const name = label && ts.isNamedTupleMember(label) ? label.name.text : `arg${i}`;
 		const optional = !!(target.elementFlags[i]! & ts.ElementFlags.Optional);
-		params.push({name, type: checker.typeToString(elementType), optional, rest: false});
+		params.push({ name, type: checker.typeToString(elementType), optional, rest: false });
 	}
 	return params;
 };
@@ -726,7 +726,7 @@ const detectChildrenSnippet = (
 	checker: ts.TypeChecker,
 	diagnostics: Array<Diagnostic>,
 	componentName: string,
-	filePath: string,
+	filePath: string
 ): boolean => {
 	const childrenSym = propsType.getProperty('children');
 	if (!childrenSym) return false;
@@ -747,7 +747,7 @@ const detectChildrenSnippet = (
 			message: `Failed to resolve type for "children" in ${componentName} while detecting acceptsChildren: ${to_error_message(err)}`,
 			severity: 'warning',
 			componentName,
-			propName: 'children',
+			propName: 'children'
 		});
 		return false;
 	}
@@ -768,7 +768,7 @@ const extractPropsViaChecker = (
 	diagnostics: Array<Diagnostic>,
 	propsDefaults: Map<string, string>,
 	bindableProps: Set<string>,
-	isExternalFile: IsExternalFile,
+	isExternalFile: IsExternalFile
 ): {
 	props: Array<ComponentPropJsonInput>;
 	externalTypes?: Array<string>;
@@ -815,10 +815,10 @@ const extractPropsViaChecker = (
 				message: `Component "${componentName}" uses $props() with type "${propsTypeName}" but the checker could not resolve it. This may indicate an incompatible svelte2tsx version.`,
 				severity: 'warning',
 				componentName,
-				propName: propsTypeName,
+				propName: propsTypeName
 			});
 		}
-		return {props: [], acceptsChildren: false};
+		return { props: [], acceptsChildren: false };
 	}
 
 	// Detect `acceptsChildren` via type inference: `children` must resolve to a
@@ -833,17 +833,17 @@ const extractPropsViaChecker = (
 		checker,
 		diagnostics,
 		componentName,
-		filePath,
+		filePath
 	);
 
 	// Drop properties contributed by external types (node_modules / svelte's
 	// element-attribute bags like `SvelteHTMLElements['li']`); those external
 	// types are summarized in `intersects` rather than enumerated as props.
-	const {properties, externalTypes} = filterExternalProperties(
+	const { properties, externalTypes } = filterExternalProperties(
 		propsType,
 		propsTypeNode,
 		checker,
-		isExternalFile,
+		isExternalFile
 	);
 
 	const props: Array<ComponentPropJsonInput> = [];
@@ -879,10 +879,10 @@ const extractPropsViaChecker = (
 			if (propDecl && sourceMap) {
 				const propSource = propDecl.getSourceFile();
 				if (propSource.fileName === virtualSource.fileName) {
-					({line: finalLine, column: finalColumn} = mapVirtualPosition(
+					({ line: finalLine, column: finalColumn } = mapVirtualPosition(
 						propDecl,
 						propSource,
-						sourceMap,
+						sourceMap
 					));
 				}
 			}
@@ -894,7 +894,7 @@ const extractPropsViaChecker = (
 				message: `Failed to resolve type for prop "${prop.name}" in ${componentName}, falling back to 'any': ${to_error_message(err)}`,
 				severity: 'warning',
 				componentName,
-				propName: prop.name,
+				propName: prop.name
 			});
 		}
 
@@ -908,12 +908,12 @@ const extractPropsViaChecker = (
 				propSourceFile,
 				propsDefaults,
 				bindableProps,
-				snippetParams,
-			),
+				snippetParams
+			)
 		);
 	}
 
-	return {props, externalTypes, acceptsChildren};
+	return { props, externalTypes, acceptsChildren };
 };
 
 /**
@@ -936,13 +936,13 @@ const extractPropsViaChecker = (
  *   `undefined` if the virtual file is not found in the program
  */
 export const analyzeSvelteModule = (
-	sourceFile: SourceFileInfo & {dependents?: ReadonlyArray<string>},
+	sourceFile: SourceFileInfo & { dependents?: ReadonlyArray<string> },
 	modulePath: string,
 	checker: ts.TypeChecker,
 	options: ModuleSourceOptions,
 	diagnostics: Array<Diagnostic>,
 	program: ts.Program,
-	virtualFile: SvelteVirtualFile,
+	virtualFile: SvelteVirtualFile
 ): ModuleAnalysis | undefined => {
 	// Look up the virtual source file in the program
 	const virtualTsSource = program.getSourceFile(virtualFile.virtualPath);
@@ -952,7 +952,7 @@ export const analyzeSvelteModule = (
 			file: modulePath,
 			message: `Virtual file not found in program: ${virtualFile.virtualPath}`,
 			severity: 'warning',
-			reason: 'not_in_program',
+			reason: 'not_in_program'
 		});
 		return undefined;
 	}
@@ -968,7 +968,7 @@ export const analyzeSvelteModule = (
 		reExports,
 		starExports,
 		externalReExports,
-		externalStarExports,
+		externalStarExports
 	} = analyzeExports(virtualTsSource, checker, options, diagnostics);
 
 	// 2. Filter internal svelte2tsx symbols and the default export (generated component class),
@@ -1083,7 +1083,7 @@ export const analyzeSvelteModule = (
 	const componentName = getComponentName(modulePath);
 	const componentDecl: DeclarationJsonBuild = {
 		name: componentName,
-		kind: 'component',
+		kind: 'component'
 	};
 
 	// Propagate script language to component declaration
@@ -1094,11 +1094,11 @@ export const analyzeSvelteModule = (
 	const isExternalFile = createIsExternalFile(options);
 
 	// Extract props via checker (resolves imported types)
-	const {bindableProps, propsDefaults} = extractPropsMetadata(virtualTsSource);
+	const { bindableProps, propsDefaults } = extractPropsMetadata(virtualTsSource);
 	const {
 		props,
 		externalTypes,
-		acceptsChildren: propsAcceptsChildren,
+		acceptsChildren: propsAcceptsChildren
 	} = extractPropsViaChecker(
 		virtualTsSource,
 		checker,
@@ -1108,7 +1108,7 @@ export const analyzeSvelteModule = (
 		diagnostics,
 		propsDefaults,
 		bindableProps,
-		isExternalFile,
+		isExternalFile
 	);
 	if (props.length > 0) {
 		componentDecl.props = props;
@@ -1159,7 +1159,7 @@ export const analyzeSvelteModule = (
 			file: modulePath,
 			message:
 				'Both HTML @component comment and JSDoc in <script> provide component documentation. Using JSDoc.',
-			severity: 'warning',
+			severity: 'warning'
 		});
 	}
 
@@ -1184,7 +1184,7 @@ export const analyzeSvelteModule = (
 	const moduleCommentSources = [
 		instanceModuleComment,
 		scriptModuleComment,
-		htmlModuleComment,
+		htmlModuleComment
 	].filter(Boolean);
 	if (moduleCommentSources.length > 1) {
 		diagnostics.push({
@@ -1192,18 +1192,18 @@ export const analyzeSvelteModule = (
 			commentType: 'module_comment',
 			file: modulePath,
 			message: `Multiple @module comments found (${[instanceModuleComment && 'JSDoc in <script>', scriptModuleComment && 'JSDoc in <script module>', htmlModuleComment && 'HTML comment'].filter(Boolean).join(', ')}). Using first found.`,
-			severity: 'warning',
+			severity: 'warning'
 		});
 	}
 
 	// 5. Combine: component declaration first (primary export), then <script module> exports
 	const allDeclarations: Array<DeclarationAnalysis> = [
-		{declaration: componentDecl, nodocs: false},
-		...moduleDeclarations,
+		{ declaration: componentDecl, nodocs: false },
+		...moduleDeclarations
 	];
 
 	// 6. Extract dependencies
-	const {dependencies, dependents} = extractDependencies(sourceFile, options);
+	const { dependencies, dependents } = extractDependencies(sourceFile, options);
 
 	return {
 		path: modulePath,
@@ -1214,6 +1214,6 @@ export const analyzeSvelteModule = (
 		starExports,
 		reExports,
 		externalReExports,
-		externalStarExports,
+		externalStarExports
 	};
 };

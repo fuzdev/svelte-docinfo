@@ -2,7 +2,7 @@
 	let {
 		fn1,
 		fn2,
-		fn3,
+		fn3
 	}: {
 		/** Description 1 */
 		fn1: <T>(value: T) => T;

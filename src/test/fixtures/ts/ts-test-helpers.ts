@@ -1,26 +1,19 @@
 import ts from 'typescript';
 
-import {DeclarationJson, type DeclarationJsonInput} from '$lib/types.ts';
-import type {DeclarationJsonBuild} from '$lib/declaration-build.ts';
-import {inferDeclarationKind} from '$lib/typescript-extract-shared.ts';
-import {extractFunctionInfo, extractVariableInfo} from '$lib/typescript-extract-function.ts';
-import {extractTypeInfo, extractEnumInfo} from '$lib/typescript-extract-type.ts';
-import {extractClassInfo} from '$lib/typescript-extract-class.ts';
-import {extractModuleComment} from '$lib/typescript-exports.ts';
-import {parseComment, applyToDeclaration} from '$lib/tsdoc.ts';
-import type {Diagnostic} from '$lib/diagnostics.ts';
+import { DeclarationJson, type DeclarationJsonInput } from '$lib/types.ts';
+import type { DeclarationJsonBuild } from '$lib/declaration-build.ts';
+import { inferDeclarationKind } from '$lib/typescript-extract-shared.ts';
+import { extractFunctionInfo, extractVariableInfo } from '$lib/typescript-extract-function.ts';
+import { extractTypeInfo, extractEnumInfo } from '$lib/typescript-extract-type.ts';
+import { extractClassInfo } from '$lib/typescript-extract-class.ts';
+import { extractModuleComment } from '$lib/typescript-exports.ts';
+import { parseComment, applyToDeclaration } from '$lib/tsdoc.ts';
+import type { Diagnostic } from '$lib/diagnostics.ts';
 
-import {loadFixturesGeneric} from '../../test-helpers.ts';
+import { loadFixturesGeneric } from '../../test-helpers.ts';
 
 export type TsFixtureCategory =
-	| 'function'
-	| 'class'
-	| 'type'
-	| 'variable'
-	| 'enum'
-	| 'moduleComment'
-	| 'error'
-	| 'inferKind';
+	'function' | 'class' | 'type' | 'variable' | 'enum' | 'moduleComment' | 'error' | 'inferKind';
 
 export interface TsFixture {
 	name: string;
@@ -49,7 +42,7 @@ export const createTestProgram = (sourceFile: ts.SourceFile, filePath: string): 
 		{
 			target: ts.ScriptTarget.Latest,
 			module: ts.ModuleKind.ESNext,
-			noResolve: true,
+			noResolve: true
 		},
 		{
 			getSourceFile: (fileName) => {
@@ -64,8 +57,8 @@ export const createTestProgram = (sourceFile: ts.SourceFile, filePath: string): 
 			getCanonicalFileName: (fileName) => fileName,
 			useCaseSensitiveFileNames: () => true,
 			getNewLine: () => '\n',
-			getDefaultLibFileName: () => 'lib.d.ts',
-		},
+			getDefaultLibFileName: () => 'lib.d.ts'
+		}
 	);
 
 /**
@@ -76,17 +69,17 @@ export const createTestProgram = (sourceFile: ts.SourceFile, filePath: string): 
  * @returns An object with the program, checker, and source file
  */
 export const createFixtureProgram = (
-	fixture: TsFixture,
-): {program: ts.Program; checker: ts.TypeChecker; sourceFile: ts.SourceFile} => {
+	fixture: TsFixture
+): { program: ts.Program; checker: ts.TypeChecker; sourceFile: ts.SourceFile } => {
 	const sourceFile = ts.createSourceFile(
 		`${fixture.name}.ts`,
 		fixture.input,
 		ts.ScriptTarget.Latest,
 		true,
-		ts.ScriptKind.TS,
+		ts.ScriptKind.TS
 	);
 	const program = createTestProgram(sourceFile, `${fixture.name}.ts`);
-	return {program, checker: program.getTypeChecker(), sourceFile};
+	return { program, checker: program.getTypeChecker(), sourceFile };
 };
 
 /**
@@ -109,8 +102,8 @@ export interface TestSourceFile {
  * @returns Object with program and a map of source files by path
  */
 export const createMultiFileProgram = (
-	files: Array<TestSourceFile>,
-): {program: ts.Program; sourceFiles: Map<string, ts.SourceFile>} => {
+	files: Array<TestSourceFile>
+): { program: ts.Program; sourceFiles: Map<string, ts.SourceFile> } => {
 	// Create source files
 	const sourceFiles = new Map<string, ts.SourceFile>();
 	for (const file of files) {
@@ -125,7 +118,7 @@ export const createMultiFileProgram = (
 		{
 			target: ts.ScriptTarget.Latest,
 			module: ts.ModuleKind.ESNext,
-			moduleResolution: ts.ModuleResolutionKind.NodeNext,
+			moduleResolution: ts.ModuleResolutionKind.NodeNext
 		},
 		{
 			getSourceFile: (fileName) => sourceFiles.get(fileName),
@@ -147,16 +140,16 @@ export const createMultiFileProgram = (
 					if (name.startsWith('./')) {
 						const resolved = name.replace(/^\.\//, '/src/lib/').replace(/\.js$/, '.ts');
 						if (sourceFiles.has(resolved)) {
-							return {resolvedFileName: resolved, isExternalLibraryImport: false};
+							return { resolvedFileName: resolved, isExternalLibraryImport: false };
 						}
 					}
 					return undefined;
 				});
-			},
-		},
+			}
+		}
 	);
 
-	return {program, sourceFiles};
+	return { program, sourceFiles };
 };
 
 /**
@@ -167,7 +160,7 @@ export const createMultiFileProgram = (
  */
 export const findDeclarationNode = (
 	sourceFile: ts.SourceFile,
-	name: string,
+	name: string
 ): ts.Node | undefined => {
 	for (const stmt of sourceFile.statements) {
 		if (
@@ -196,11 +189,11 @@ export const findDeclarationNode = (
 export const findTypeAlias = (
 	sourceFile: ts.SourceFile,
 	checker: ts.TypeChecker,
-	name: string,
-): {node: ts.TypeAliasDeclaration; type: ts.Type} | undefined => {
+	name: string
+): { node: ts.TypeAliasDeclaration; type: ts.Type } | undefined => {
 	const node = findDeclarationNode(sourceFile, name);
 	if (!node || !ts.isTypeAliasDeclaration(node)) return undefined;
-	return {node, type: checker.getTypeAtLocation(node)};
+	return { node, type: checker.getTypeAtLocation(node) };
 };
 
 /**
@@ -215,7 +208,7 @@ export const findTypeAlias = (
 export const extractDeclarationFromSource = (
 	sourceFile: ts.SourceFile,
 	checker: ts.TypeChecker,
-	category: TsFixtureCategory,
+	category: TsFixtureCategory
 ): DeclarationJson | string | null => {
 	// Handle moduleComment category differently (returns string, not IdentifierJson)
 	if (category === 'moduleComment') {
@@ -276,13 +269,13 @@ export const extractDeclarationFromSource = (
 		// For inferKind category, just test kind inference
 		if (category === 'inferKind') {
 			const kind = inferDeclarationKind(symbol, node);
-			return DeclarationJson.parse({name, kind});
+			return DeclarationJson.parse({ name, kind });
 		}
 
 		// Create base declaration (plain object, not .parse(), to match production code's key insertion order)
 		const declaration: DeclarationJsonBuild = {
 			name,
-			kind: inferDeclarationKind(symbol, node),
+			kind: inferDeclarationKind(symbol, node)
 		};
 
 		// Extract TSDoc — parseComment filters @module blocks (handled by extractModuleComment)
@@ -388,13 +381,13 @@ export const inferCategoryFromName = (name: string): TsFixtureCategory => {
 export const loadFixtures = async (): Promise<Array<TsFixture>> => {
 	const genericFixtures = await loadFixturesGeneric<DeclarationJsonInput | string | null>({
 		fixturesDir: import.meta.dirname,
-		inputExtension: '.ts',
+		inputExtension: '.ts'
 	});
 
 	// Add category inference
 	return genericFixtures.map((f) => ({
 		...f,
-		category: inferCategoryFromName(f.name),
+		category: inferCategoryFromName(f.name)
 	}));
 };
 
@@ -482,7 +475,7 @@ export const validateDeclarationStructure = (declaration: DeclarationJsonInput):
 						for (const overload of member.overloads) {
 							if (typeof overload.typeSignature !== 'string') {
 								throw new Error(
-									`Expected overload typeSignature on member "${member.name}" to be a string`,
+									`Expected overload typeSignature on member "${member.name}" to be a string`
 								);
 							}
 						}

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import {resolve} from '$app/paths';
+	import { resolve } from '$app/paths';
 	import Breadcrumb from '@fuzdev/fuz_ui/Breadcrumb.svelte';
 </script>
 

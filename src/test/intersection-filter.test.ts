@@ -1,20 +1,20 @@
-import {test, assert, describe} from 'vitest';
+import { test, assert, describe } from 'vitest';
 
-import {filterExternalProperties} from '$lib/typescript-extract-shared.ts';
-import {extractTypeInfo} from '$lib/typescript-extract-type.ts';
-import type {IsExternalFile} from '$lib/typescript-program.ts';
-import {type Diagnostic} from '$lib/diagnostics.ts';
-import type {DeclarationJsonBuild, MemberJsonBuild} from '$lib/declaration-build.ts';
+import { filterExternalProperties } from '$lib/typescript-extract-shared.ts';
+import { extractTypeInfo } from '$lib/typescript-extract-type.ts';
+import type { IsExternalFile } from '$lib/typescript-program.ts';
+import { type Diagnostic } from '$lib/diagnostics.ts';
+import type { DeclarationJsonBuild, MemberJsonBuild } from '$lib/declaration-build.ts';
 
-import {createMultiFileProgram, findTypeAlias} from './fixtures/ts/ts-test-helpers.ts';
+import { createMultiFileProgram, findTypeAlias } from './fixtures/ts/ts-test-helpers.ts';
 
 /**
  * Local convenience wrapper that returns the checker directly — the tests in
  * this file don't need the program object.
  */
-const createProgram = (files: Array<{path: string; content: string}>) => {
-	const {program, sourceFiles} = createMultiFileProgram(files);
-	return {checker: program.getTypeChecker(), sourceFiles};
+const createProgram = (files: Array<{ path: string; content: string }>) => {
+	const { program, sourceFiles } = createMultiFileProgram(files);
+	return { checker: program.getTypeChecker(), sourceFiles };
 };
 
 /**
@@ -23,18 +23,18 @@ const createProgram = (files: Array<{path: string; content: string}>) => {
  * need to assert on members + diagnostics.
  */
 const runExtractTypeInfo = (
-	files: Array<{path: string; content: string}>,
+	files: Array<{ path: string; content: string }>,
 	typeName: string,
 	isExternal: IsExternalFile,
-	containingFile = '/src/lib/test.ts',
-): {declaration: DeclarationJsonBuild; diagnostics: Array<Diagnostic>} => {
-	const {checker, sourceFiles} = createProgram(files);
+	containingFile = '/src/lib/test.ts'
+): { declaration: DeclarationJsonBuild; diagnostics: Array<Diagnostic> } => {
+	const { checker, sourceFiles } = createProgram(files);
 	const sf = sourceFiles.get(containingFile)!;
 	const alias = findTypeAlias(sf, checker, typeName)!;
-	const declaration: DeclarationJsonBuild = {kind: 'type', name: typeName};
+	const declaration: DeclarationJsonBuild = { kind: 'type', name: typeName };
 	const diagnostics: Array<Diagnostic> = [];
 	extractTypeInfo(alias.node, checker, declaration, diagnostics, isExternal);
-	return {declaration, diagnostics};
+	return { declaration, diagnostics };
 };
 
 const memberNames = (declaration: DeclarationJsonBuild): Array<string> =>
@@ -45,8 +45,8 @@ const memberNames = (declaration: DeclarationJsonBuild): Array<string> =>
 
 describe('filterExternalProperties', () => {
 	test('keeps all properties for a local non-intersection type, no external types', () => {
-		const {checker, sourceFiles} = createProgram([
-			{path: '/src/lib/test.ts', content: 'export type Foo = { a: string; b: number };'},
+		const { checker, sourceFiles } = createProgram([
+			{ path: '/src/lib/test.ts', content: 'export type Foo = { a: string; b: number };' }
 		]);
 		const sf = sourceFiles.get('/src/lib/test.ts')!;
 		const alias = findTypeAlias(sf, checker, 'Foo')!;
@@ -58,15 +58,15 @@ describe('filterExternalProperties', () => {
 	});
 
 	test('keeps all properties when nothing is external', () => {
-		const {checker, sourceFiles} = createProgram([
+		const { checker, sourceFiles } = createProgram([
 			{
 				path: '/src/lib/test.ts',
 				content: `
 					type A = { x: string };
 					type B = { y: number };
 					export type C = A & B;
-				`,
-			},
+				`
+			}
 		]);
 		const sf = sourceFiles.get('/src/lib/test.ts')!;
 		const alias = findTypeAlias(sf, checker, 'C')!;
@@ -78,10 +78,10 @@ describe('filterExternalProperties', () => {
 	});
 
 	test('filters properties from external sources', () => {
-		const {checker, sourceFiles} = createProgram([
+		const { checker, sourceFiles } = createProgram([
 			{
 				path: '/src/lib/external-types.ts',
-				content: 'export type External = { ext1: string; ext2: number };',
+				content: 'export type External = { ext1: string; ext2: number };'
 			},
 			{
 				path: '/src/lib/test.ts',
@@ -89,8 +89,8 @@ describe('filterExternalProperties', () => {
 					import type {External} from './external-types.js';
 					type Own = { own1: string; own2: boolean };
 					export type Combined = Own & External;
-				`,
-			},
+				`
+			}
 		]);
 		const sf = sourceFiles.get('/src/lib/test.ts')!;
 		const alias = findTypeAlias(sf, checker, 'Combined')!;
@@ -105,14 +105,14 @@ describe('filterExternalProperties', () => {
 	});
 
 	test('filters all properties when all branches are external', () => {
-		const {checker, sourceFiles} = createProgram([
+		const { checker, sourceFiles } = createProgram([
 			{
 				path: '/src/lib/ext-a.ts',
-				content: 'export type A = { x: string };',
+				content: 'export type A = { x: string };'
 			},
 			{
 				path: '/src/lib/ext-b.ts',
-				content: 'export type B = { y: number };',
+				content: 'export type B = { y: number };'
 			},
 			{
 				path: '/src/lib/test.ts',
@@ -120,8 +120,8 @@ describe('filterExternalProperties', () => {
 					import type {A} from './ext-a.js';
 					import type {B} from './ext-b.js';
 					export type Both = A & B;
-				`,
-			},
+				`
+			}
 		]);
 		const sf = sourceFiles.get('/src/lib/test.ts')!;
 		const alias = findTypeAlias(sf, checker, 'Both')!;
@@ -134,15 +134,15 @@ describe('filterExternalProperties', () => {
 	});
 
 	test('predicate controls what counts as external', () => {
-		const {checker, sourceFiles} = createProgram([
+		const { checker, sourceFiles } = createProgram([
 			{
 				path: '/src/lib/test.ts',
 				content: `
 					type A = { x: string };
 					type B = { y: number };
 					export type C = A & B;
-				`,
-			},
+				`
+			}
 		]);
 		const sf = sourceFiles.get('/src/lib/test.ts')!;
 		const alias = findTypeAlias(sf, checker, 'C')!;
@@ -157,7 +157,7 @@ describe('filterExternalProperties', () => {
 			alias.type,
 			alias.node.type,
 			checker,
-			() => false,
+			() => false
 		);
 		const propNames = noneExternal.properties.map((p) => p.name).sort();
 		assert.deepEqual(propNames, ['x', 'y']);
@@ -165,10 +165,10 @@ describe('filterExternalProperties', () => {
 	});
 
 	test('source root predicate pattern works', () => {
-		const {checker, sourceFiles} = createProgram([
+		const { checker, sourceFiles } = createProgram([
 			{
 				path: '/src/lib/lib-types.ts',
-				content: 'export type LibType = { lib1: string; lib2: number };',
+				content: 'export type LibType = { lib1: string; lib2: number };'
 			},
 			{
 				path: '/src/lib/test.ts',
@@ -176,8 +176,8 @@ describe('filterExternalProperties', () => {
 					import type {LibType} from './lib-types.js';
 					type Own = { own: boolean };
 					export type Props = Own & LibType;
-				`,
-			},
+				`
+			}
 		]);
 		const sf = sourceFiles.get('/src/lib/test.ts')!;
 		const alias = findTypeAlias(sf, checker, 'Props')!;
@@ -192,18 +192,18 @@ describe('filterExternalProperties', () => {
 	});
 
 	test('inline object literal branches produce no intersects entry', () => {
-		const {checker, sourceFiles} = createProgram([
+		const { checker, sourceFiles } = createProgram([
 			{
 				path: '/src/lib/ext.ts',
-				content: 'export type External = { ext: string };',
+				content: 'export type External = { ext: string };'
 			},
 			{
 				path: '/src/lib/test.ts',
 				content: `
 					import type {External} from './ext.js';
 					export type Combined = { own: boolean } & External;
-				`,
-			},
+				`
+			}
 		]);
 		const sf = sourceFiles.get('/src/lib/test.ts')!;
 		const alias = findTypeAlias(sf, checker, 'Combined')!;
@@ -218,14 +218,14 @@ describe('filterExternalProperties', () => {
 	});
 
 	test('mixed intersection with some external branches', () => {
-		const {checker, sourceFiles} = createProgram([
+		const { checker, sourceFiles } = createProgram([
 			{
 				path: '/src/lib/ext-a.ts',
-				content: 'export type ExternalA = { ext: string };',
+				content: 'export type ExternalA = { ext: string };'
 			},
 			{
 				path: '/src/lib/local-b.ts',
-				content: 'export type LocalB = { local: number };',
+				content: 'export type LocalB = { local: number };'
 			},
 			{
 				path: '/src/lib/test.ts',
@@ -233,8 +233,8 @@ describe('filterExternalProperties', () => {
 					import type {ExternalA} from './ext-a.js';
 					import type {LocalB} from './local-b.js';
 					export type Mixed = ExternalA & LocalB & { own: boolean };
-				`,
-			},
+				`
+			}
 		]);
 		const sf = sourceFiles.get('/src/lib/test.ts')!;
 		const alias = findTypeAlias(sf, checker, 'Mixed')!;
@@ -250,14 +250,14 @@ describe('filterExternalProperties', () => {
 	});
 
 	test('three-way intersection with two external branches', () => {
-		const {checker, sourceFiles} = createProgram([
+		const { checker, sourceFiles } = createProgram([
 			{
 				path: '/src/lib/ext-a.ts',
-				content: 'export type ExtA = { ea: string };',
+				content: 'export type ExtA = { ea: string };'
 			},
 			{
 				path: '/src/lib/ext-b.ts',
-				content: 'export type ExtB = { eb: number };',
+				content: 'export type ExtB = { eb: number };'
 			},
 			{
 				path: '/src/lib/test.ts',
@@ -266,8 +266,8 @@ describe('filterExternalProperties', () => {
 					import type {ExtB} from './ext-b.js';
 					type Own = { own: boolean };
 					export type Triple = Own & ExtA & ExtB;
-				`,
-			},
+				`
+			}
 		]);
 		const sf = sourceFiles.get('/src/lib/test.ts')!;
 		const alias = findTypeAlias(sf, checker, 'Triple')!;
@@ -281,15 +281,15 @@ describe('filterExternalProperties', () => {
 	});
 
 	test('synthesized properties (no declarations) are kept', () => {
-		const {checker, sourceFiles} = createProgram([
+		const { checker, sourceFiles } = createProgram([
 			{
 				path: '/src/lib/test.ts',
 				content: `
 					type A = { x: string };
 					type B = { y: number };
 					export type C = A & B;
-				`,
-			},
+				`
+			}
 		]);
 		const sf = sourceFiles.get('/src/lib/test.ts')!;
 		const alias = findTypeAlias(sf, checker, 'C')!;
@@ -306,18 +306,18 @@ describe('filterExternalProperties', () => {
 	// Shapes that the previous intersection-only gate let slip through unfiltered.
 
 	test('bare external reference: all members filtered, type surfaced', () => {
-		const {checker, sourceFiles} = createProgram([
+		const { checker, sourceFiles } = createProgram([
 			{
 				path: '/src/lib/ext.ts',
-				content: 'export type External = { ext1: string; ext2: number };',
+				content: 'export type External = { ext1: string; ext2: number };'
 			},
 			{
 				path: '/src/lib/test.ts',
 				content: `
 					import type {External} from './ext.js';
 					export type Bare = External;
-				`,
-			},
+				`
+			}
 		]);
 		const sf = sourceFiles.get('/src/lib/test.ts')!;
 		const alias = findTypeAlias(sf, checker, 'Bare')!;
@@ -330,21 +330,21 @@ describe('filterExternalProperties', () => {
 	});
 
 	test('union of external references: each member surfaced', () => {
-		const {checker, sourceFiles} = createProgram([
+		const { checker, sourceFiles } = createProgram([
 			{
 				path: '/src/lib/ext.ts',
 				content: `
 					export type ExtA = { shared: string; a: number };
 					export type ExtB = { shared: string; b: boolean };
-				`,
+				`
 			},
 			{
 				path: '/src/lib/test.ts',
 				content: `
 					import type {ExtA, ExtB} from './ext.js';
 					export type U = ExtA | ExtB;
-				`,
-			},
+				`
+			}
 		]);
 		const sf = sourceFiles.get('/src/lib/test.ts')!;
 		const alias = findTypeAlias(sf, checker, 'U')!;
@@ -358,18 +358,18 @@ describe('filterExternalProperties', () => {
 	});
 
 	test('indexed-access into an external type is surfaced verbatim', () => {
-		const {checker, sourceFiles} = createProgram([
+		const { checker, sourceFiles } = createProgram([
 			{
 				path: '/src/lib/ext.ts',
-				content: 'export type Bag = { li: { a: string; b: number } };',
+				content: 'export type Bag = { li: { a: string; b: number } };'
 			},
 			{
 				path: '/src/lib/test.ts',
 				content: `
 					import type {Bag} from './ext.js';
 					export type Indexed = Bag['li'];
-				`,
-			},
+				`
+			}
 		]);
 		const sf = sourceFiles.get('/src/lib/test.ts')!;
 		const alias = findTypeAlias(sf, checker, 'Indexed')!;
@@ -382,21 +382,21 @@ describe('filterExternalProperties', () => {
 	});
 
 	test('intersection whose external branch is a union of references', () => {
-		const {checker, sourceFiles} = createProgram([
+		const { checker, sourceFiles } = createProgram([
 			{
 				path: '/src/lib/ext.ts',
 				content: `
 					export type ExtA = { shared: string };
 					export type ExtB = { shared: string };
-				`,
+				`
 			},
 			{
 				path: '/src/lib/test.ts',
 				content: `
 					import type {ExtA, ExtB} from './ext.js';
 					export type Mixed = (ExtA | ExtB) & { own: boolean };
-				`,
-			},
+				`
+			}
 		]);
 		const sf = sourceFiles.get('/src/lib/test.ts')!;
 		const alias = findTypeAlias(sf, checker, 'Mixed')!;
@@ -422,12 +422,12 @@ describe('filterExternalProperties', () => {
 		// (e.g. external `string` & local `boolean`) is dropped, not kept — the degenerate
 		// type leaves the merged symbol with only the external declaration.
 		const probe = (content: string) => {
-			const {checker, sourceFiles} = createProgram([
+			const { checker, sourceFiles } = createProgram([
 				{
 					path: '/src/lib/ext.ts',
-					content: 'export type Ext = { shared: string; extOnly: number };',
+					content: 'export type Ext = { shared: string; extOnly: number };'
 				},
-				{path: '/src/lib/test.ts', content},
+				{ path: '/src/lib/test.ts', content }
 			]);
 			const sf = sourceFiles.get('/src/lib/test.ts')!;
 			const alias = findTypeAlias(sf, checker, 'C')!;
@@ -435,7 +435,7 @@ describe('filterExternalProperties', () => {
 			const result = filterExternalProperties(alias.type, alias.node.type, checker, isExternal);
 			return {
 				propNames: result.properties.map((p) => p.name).sort(),
-				externalTypes: result.externalTypes,
+				externalTypes: result.externalTypes
 			};
 		};
 
@@ -462,11 +462,11 @@ describe('extractTypeInfo: index-signature filtering on intersections', () => {
 		// Local intersection branch has its own named props; external branch is
 		// pure index-sig (Record-shaped). The external string-index sig should
 		// NOT appear on the local type's members.
-		const {declaration} = runExtractTypeInfo(
+		const { declaration } = runExtractTypeInfo(
 			[
 				{
 					path: '/src/lib/external/ext.ts',
-					content: 'export type Ext = { [key: string]: number };',
+					content: 'export type Ext = { [key: string]: number };'
 				},
 				{
 					path: '/src/lib/test.ts',
@@ -474,17 +474,17 @@ describe('extractTypeInfo: index-signature filtering on intersections', () => {
 						import type {Ext} from './external/ext.js';
 						type A = { a: string; b: number };
 						export type C = A & Ext;
-					`,
-				},
+					`
+				}
 			],
 			'C',
-			isExternal,
+			isExternal
 		);
 
 		assert.deepEqual(memberNames(declaration), ['a', 'b']);
 		assert.ok(
 			!declaration.members?.some((m) => m.name === '[key: string]'),
-			'external string index sig must not leak onto local type',
+			'external string index sig must not leak onto local type'
 		);
 		// `intersects` lists only branches with named external properties
 		// (per `filterExternalProperties`). A pure-index-sig external branch
@@ -495,7 +495,7 @@ describe('extractTypeInfo: index-signature filtering on intersections', () => {
 	test('external branch with named props + index sig (HTMLAttributes-shaped) — both filtered', () => {
 		// External branch has both named props and a string index sig. Named
 		// props go to `intersects`; the index sig is filtered out.
-		const {declaration} = runExtractTypeInfo(
+		const { declaration } = runExtractTypeInfo(
 			[
 				{
 					path: '/src/lib/external/ext.ts',
@@ -506,7 +506,7 @@ describe('extractTypeInfo: index-signature filtering on intersections', () => {
 							[key: \`data-\${string}\`]: string;
 							[key: string]: unknown;
 						};
-					`,
+					`
 				},
 				{
 					path: '/src/lib/test.ts',
@@ -514,29 +514,29 @@ describe('extractTypeInfo: index-signature filtering on intersections', () => {
 						import type {Ext} from './external/ext.js';
 						type A = { a: string };
 						export type C = A & Ext;
-					`,
-				},
+					`
+				}
 			],
 			'C',
-			isExternal,
+			isExternal
 		);
 
 		assert.deepEqual(memberNames(declaration), ['a']);
 		assert.deepEqual(declaration.intersects, ['Ext']);
 		assert.ok(
 			!declaration.members?.some((m) => m.name === '[key: string]'),
-			'external string index sig must not leak through HTMLAttributes-shaped branches',
+			'external string index sig must not leak through HTMLAttributes-shaped branches'
 		);
 	});
 
 	test('local branch with own index sig wins over external branch with index sig', () => {
 		// Both branches contribute string index sigs; the local one is kept,
 		// external one is filtered.
-		const {declaration} = runExtractTypeInfo(
+		const { declaration } = runExtractTypeInfo(
 			[
 				{
 					path: '/src/lib/external/ext.ts',
-					content: 'export type Ext = { [key: string]: boolean };',
+					content: 'export type Ext = { [key: string]: boolean };'
 				},
 				{
 					path: '/src/lib/test.ts',
@@ -544,11 +544,11 @@ describe('extractTypeInfo: index-signature filtering on intersections', () => {
 						import type {Ext} from './external/ext.js';
 						type A = { a: string; [key: string]: number | string };
 						export type C = A & Ext;
-					`,
-				},
+					`
+				}
 			],
 			'C',
-			isExternal,
+			isExternal
 		);
 
 		const stringIndex = declaration.members?.find((m) => m.name === '[key: string]');
@@ -563,7 +563,7 @@ describe('extractTypeInfo: index-signature filtering on intersections', () => {
 	test('non-intersection types still emit their own index signatures', () => {
 		// Regression guard: the filter only kicks in for intersections. A
 		// plain Record-like type alias should still surface its index sig.
-		const {declaration} = runExtractTypeInfo(
+		const { declaration } = runExtractTypeInfo(
 			[
 				{
 					path: '/src/lib/test.ts',
@@ -573,11 +573,11 @@ describe('extractTypeInfo: index-signature filtering on intersections', () => {
 							[key: string]: string | number;
 							[key: number]: boolean;
 						};
-					`,
-				},
+					`
+				}
 			],
 			'R',
-			isExternal,
+			isExternal
 		);
 
 		const names = memberNames(declaration);

@@ -1,7 +1,7 @@
 <script lang="ts">
 	let {
 		prop1 = undefined,
-		prop2,
+		prop2
 	}: {
 		/** Description 1 */
 		prop1?: string;

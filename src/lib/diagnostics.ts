@@ -58,7 +58,7 @@
  * @module
  */
 
-import {z} from 'zod';
+import { z } from 'zod';
 
 // Severity
 
@@ -90,7 +90,7 @@ export const DiagnosticKind = z.enum([
 	'source_map_failed',
 	'duplicate_declaration',
 	'transform_failed',
-	'resolver_failed',
+	'resolver_failed'
 ]);
 export type DiagnosticKind = z.infer<typeof DiagnosticKind>;
 
@@ -122,7 +122,7 @@ const baseDiagnosticFields = {
 	column: z.number().int().positive().optional(),
 	/** Human-readable description of the issue. */
 	message: z.string(),
-	severity: DiagnosticSeverity,
+	severity: DiagnosticSeverity
 };
 
 /**
@@ -132,7 +132,7 @@ export const TypeExtractionDiagnostic = z.strictObject({
 	kind: z.literal('type_extraction_failed'),
 	...baseDiagnosticFields,
 	/** Name of the symbol whose type couldn't be extracted. */
-	symbolName: z.string(),
+	symbolName: z.string()
 });
 export type TypeExtractionDiagnostic = z.infer<typeof TypeExtractionDiagnostic>;
 
@@ -143,7 +143,7 @@ export const SignatureAnalysisDiagnostic = z.strictObject({
 	kind: z.literal('signature_analysis_failed'),
 	...baseDiagnosticFields,
 	/** Name of the function or method. */
-	functionName: z.string(),
+	functionName: z.string()
 });
 export type SignatureAnalysisDiagnostic = z.infer<typeof SignatureAnalysisDiagnostic>;
 
@@ -156,7 +156,7 @@ export const ClassMemberDiagnostic = z.strictObject({
 	/** Name of the class. */
 	className: z.string(),
 	/** Name of the member that failed. */
-	memberName: z.string(),
+	memberName: z.string()
 });
 export type ClassMemberDiagnostic = z.infer<typeof ClassMemberDiagnostic>;
 
@@ -169,7 +169,7 @@ export const SveltePropDiagnostic = z.strictObject({
 	/** Name of the component. */
 	componentName: z.string(),
 	/** Name of the prop. */
-	propName: z.string(),
+	propName: z.string()
 });
 export type SveltePropDiagnostic = z.infer<typeof SveltePropDiagnostic>;
 
@@ -191,7 +191,7 @@ export const ModuleSkippedDiagnostic = z.strictObject({
 	kind: z.literal('module_skipped'),
 	...baseDiagnosticFields,
 	/** Reason the module was skipped. */
-	reason: z.enum(['not_in_program', 'no_analyzer', 'requires_program']),
+	reason: z.enum(['not_in_program', 'no_analyzer', 'requires_program'])
 });
 export type ModuleSkippedDiagnostic = z.infer<typeof ModuleSkippedDiagnostic>;
 
@@ -205,7 +205,7 @@ export type ModuleSkippedDiagnostic = z.infer<typeof ModuleSkippedDiagnostic>;
  */
 export const ModuleUnreadableDiagnostic = z.strictObject({
 	kind: z.literal('module_unreadable'),
-	...baseDiagnosticFields,
+	...baseDiagnosticFields
 });
 export type ModuleUnreadableDiagnostic = z.infer<typeof ModuleUnreadableDiagnostic>;
 
@@ -214,7 +214,7 @@ export type ModuleUnreadableDiagnostic = z.infer<typeof ModuleUnreadableDiagnost
  */
 export const ImportParseDiagnostic = z.strictObject({
 	kind: z.literal('import_parse_failed'),
-	...baseDiagnosticFields,
+	...baseDiagnosticFields
 });
 export type ImportParseDiagnostic = z.infer<typeof ImportParseDiagnostic>;
 
@@ -226,7 +226,7 @@ export const DuplicateCommentDiagnostic = z.strictObject({
 	kind: z.literal('duplicate_comment'),
 	...baseDiagnosticFields,
 	/** Which comment type is duplicated. */
-	commentType: z.enum(['module_comment', 'doc_comment']),
+	commentType: z.enum(['module_comment', 'doc_comment'])
 });
 export type DuplicateCommentDiagnostic = z.infer<typeof DuplicateCommentDiagnostic>;
 
@@ -261,13 +261,13 @@ export const MisplacedTagDiagnostic = z.strictObject({
 		'throws',
 		'mutates',
 		'default',
-		'nodocs',
+		'nodocs'
 	]),
 	/**
 	 * Name of the function or method whose overload carries the misplaced tag.
 	 * Absent for module-comment misplacements (no enclosing symbol).
 	 */
-	functionName: z.string().optional(),
+	functionName: z.string().optional()
 });
 export type MisplacedTagDiagnostic = z.infer<typeof MisplacedTagDiagnostic>;
 
@@ -283,7 +283,7 @@ export const UnknownParamDiagnostic = z.strictObject({
 	/** The `@param` key that didn't match a real parameter. */
 	paramName: z.string(),
 	/** Name of the function or method. */
-	functionName: z.string(),
+	functionName: z.string()
 });
 export type UnknownParamDiagnostic = z.infer<typeof UnknownParamDiagnostic>;
 
@@ -302,7 +302,7 @@ export const DuplicateDeclarationDiagnostic = z.strictObject({
 	/** The duplicated declaration name. */
 	declarationName: z.string(),
 	/** Module paths where the name was defined (>= 2). */
-	modules: z.array(z.string()).min(2),
+	modules: z.array(z.string()).min(2)
 });
 export type DuplicateDeclarationDiagnostic = z.infer<typeof DuplicateDeclarationDiagnostic>;
 
@@ -320,7 +320,7 @@ export type DuplicateDeclarationDiagnostic = z.infer<typeof DuplicateDeclaration
  */
 export const SourceMapFailedDiagnostic = z.strictObject({
 	kind: z.literal('source_map_failed'),
-	...baseDiagnosticFields,
+	...baseDiagnosticFields
 });
 export type SourceMapFailedDiagnostic = z.infer<typeof SourceMapFailedDiagnostic>;
 
@@ -335,7 +335,7 @@ export type SourceMapFailedDiagnostic = z.infer<typeof SourceMapFailedDiagnostic
  */
 export const TransformFailedDiagnostic = z.strictObject({
 	kind: z.literal('transform_failed'),
-	...baseDiagnosticFields,
+	...baseDiagnosticFields
 });
 export type TransformFailedDiagnostic = z.infer<typeof TransformFailedDiagnostic>;
 
@@ -354,7 +354,7 @@ export const ResolverFailedDiagnostic = z.strictObject({
 	kind: z.literal('resolver_failed'),
 	...baseDiagnosticFields,
 	/** The import specifier the resolver failed on. */
-	specifier: z.string(),
+	specifier: z.string()
 });
 export type ResolverFailedDiagnostic = z.infer<typeof ResolverFailedDiagnostic>;
 
@@ -376,7 +376,7 @@ export const Diagnostic: z.ZodDiscriminatedUnion<
 		typeof SourceMapFailedDiagnostic,
 		typeof DuplicateDeclarationDiagnostic,
 		typeof TransformFailedDiagnostic,
-		typeof ResolverFailedDiagnostic,
+		typeof ResolverFailedDiagnostic
 	],
 	'kind'
 > = z.discriminatedUnion('kind', [
@@ -393,7 +393,7 @@ export const Diagnostic: z.ZodDiscriminatedUnion<
 	SourceMapFailedDiagnostic,
 	DuplicateDeclarationDiagnostic,
 	TransformFailedDiagnostic,
-	ResolverFailedDiagnostic,
+	ResolverFailedDiagnostic
 ]);
 export type Diagnostic = z.infer<typeof Diagnostic>;
 
@@ -428,9 +428,9 @@ export const warningsOf = (diagnostics: Array<Diagnostic>): Array<Diagnostic> =>
  */
 export const byKind = <K extends DiagnosticKind>(
 	diagnostics: Array<Diagnostic>,
-	kind: K,
-): Array<Extract<Diagnostic, {kind: K}>> =>
-	diagnostics.filter((d) => d.kind === kind) as Array<Extract<Diagnostic, {kind: K}>>;
+	kind: K
+): Array<Extract<Diagnostic, { kind: K }>> =>
+	diagnostics.filter((d) => d.kind === kind) as Array<Extract<Diagnostic, { kind: K }>>;
 
 /**
  * Format a diagnostic for display.
@@ -449,7 +449,7 @@ export const byKind = <K extends DiagnosticKind>(
  * ```
  */
 export const formatDiagnostic = (diagnostic: Diagnostic): string => {
-	const {file, line, column, severity, message} = diagnostic;
+	const { file, line, column, severity, message } = diagnostic;
 	const location =
 		line !== undefined ? (column !== undefined ? `${line}:${column}` : `${line}`) : '';
 	const filePart = location ? `./${file}:${location}` : `./${file}`;

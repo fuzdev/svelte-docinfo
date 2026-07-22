@@ -1,12 +1,12 @@
-import {defineConfig} from 'vitest/config';
-import {sveltekit} from '@sveltejs/kit/vite';
-import {vite_plugin_fuz_css} from '@fuzdev/fuz_css/vite_plugin_fuz_css.ts';
-import {vite_plugin_pkg_json} from '@fuzdev/fuz_ui/vite_plugin_pkg_json.ts';
+import { defineConfig } from 'vitest/config';
+import { sveltekit } from '@sveltejs/kit/vite';
+import { vite_plugin_fuz_css } from '@fuzdev/fuz_css/vite_plugin_fuz_css.ts';
+import { vite_plugin_pkg_json } from '@fuzdev/fuz_ui/vite_plugin_pkg_json.ts';
 import svelte_docinfo from 'svelte-docinfo/vite.js';
 
 export default defineConfig({
 	plugins: [sveltekit(), svelte_docinfo(), vite_plugin_fuz_css(), vite_plugin_pkg_json()],
-	optimizeDeps: {exclude: ['@fuzdev/blake3_wasm']},
+	optimizeDeps: { exclude: ['@fuzdev/blake3_wasm'] },
 	test: {
 		// Cap the fork pool. The suite is TS-typecheck + svelte2tsx bound, so
 		// per-worker memory and cache/bandwidth pressure — not core count — is
@@ -24,6 +24,6 @@ export default defineConfig({
 		// per-case cost is well under 1s, but leftover fork contention can still
 		// stretch a case past the 5s default and flake in a way that doesn't
 		// repro in isolation. 10s gives a wide cushion while still catching hangs.
-		testTimeout: 10_000,
-	},
+		testTimeout: 10_000
+	}
 });

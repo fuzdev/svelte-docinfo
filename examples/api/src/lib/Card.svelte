@@ -6,7 +6,7 @@
 	 * @module
 	 */
 
-	import type {Snippet} from 'svelte';
+	import type { Snippet } from 'svelte';
 
 	/**
 	 * Card layout demonstrating `children` and snippet props —
@@ -19,7 +19,7 @@
 	let {
 		title,
 		header,
-		children,
+		children
 	}: {
 		/** Title rendered when no `header` snippet is provided. */
 		title?: string;

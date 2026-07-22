@@ -8,19 +8,19 @@
  * and path-leak lock-ins.
  */
 
-import {test, assert, describe} from 'vitest';
-import {join} from 'node:path';
+import { test, assert, describe } from 'vitest';
+import { join } from 'node:path';
 
-import {analyze} from '$lib/analyze.ts';
-import {hasErrors, hasWarnings} from '$lib/diagnostics.ts';
-import type {SourceFileInfo} from '$lib/source.ts';
-import {createSourceOptions} from '$lib/source-config.ts';
+import { analyze } from '$lib/analyze.ts';
+import { hasErrors, hasWarnings } from '$lib/diagnostics.ts';
+import type { SourceFileInfo } from '$lib/source.ts';
+import { createSourceOptions } from '$lib/source-config.ts';
 
-import {withTestProject} from './test-helpers.ts';
+import { withTestProject } from './test-helpers.ts';
 
 const createSourceFiles = (
 	projectRoot: string,
-	files: Record<string, string>,
+	files: Record<string, string>
 ): Array<SourceFileInfo> => {
 	return Object.entries(files)
 		.filter(
@@ -28,18 +28,18 @@ const createSourceFiles = (
 				path.endsWith('.ts') ||
 				path.endsWith('.svelte') ||
 				path.endsWith('.css') ||
-				path.endsWith('.json'),
+				path.endsWith('.json')
 		)
 		.map(([path, content]) => ({
 			id: join(projectRoot, path),
-			content,
+			content
 		}));
 };
 
 const setupAnalysis = (projectRoot: string, files: Record<string, string>) => {
 	const sourceFiles = createSourceFiles(projectRoot, files);
 	const sourceOptions = createSourceOptions(projectRoot);
-	return {sourceFiles, sourceOptions};
+	return { sourceFiles, sourceOptions };
 };
 
 /**
@@ -48,7 +48,7 @@ const setupAnalysis = (projectRoot: string, files: Record<string, string>) => {
  * the source module — consumers that want to render `ns.a`/`ns.b` deref by
  * reading that module's declarations.
  */
-describe('namespace re-exports (export * as ns from ./x)', {timeout: 15_000}, () => {
+describe('namespace re-exports (export * as ns from ./x)', { timeout: 15_000 }, () => {
 	test('synthesizes kind:namespace with module pointer; no path leak', async () => {
 		const files = {
 			'src/lib/x.ts': `
@@ -59,12 +59,12 @@ export function b(): void {}
 /** Third export — a type. */
 export type C = {value: string};
 `,
-			'src/lib/index.ts': `export * as ns from './x.js';`,
+			'src/lib/index.ts': `export * as ns from './x.js';`
 		};
 
 		await withTestProject(files, async (projectRoot) => {
-			const {sourceFiles, sourceOptions} = setupAnalysis(projectRoot, files);
-			const {modules, diagnostics} = await analyze({sourceFiles, sourceOptions});
+			const { sourceFiles, sourceOptions } = setupAnalysis(projectRoot, files);
+			const { modules, diagnostics } = await analyze({ sourceFiles, sourceOptions });
 
 			const indexModule = modules.find((m) => m.path === 'index.ts');
 			assert.ok(indexModule);
@@ -93,7 +93,7 @@ export type C = {value: string};
 			assert.notMatch(
 				json,
 				/typeof import\("\//,
-				'no `typeof import("/abs/path")` leak in JSON output',
+				'no `typeof import("/abs/path")` leak in JSON output'
 			);
 			assert(!json.includes(projectRoot), 'no absolute project path leak in JSON output');
 		});
@@ -106,12 +106,12 @@ export type C = {value: string};
 /** Grouped projection of x's exports.
  * @example import * as ns from 'pkg/index.js';
  */
-export * as ns from './x.js';`,
+export * as ns from './x.js';`
 		};
 
 		await withTestProject(files, async (projectRoot) => {
-			const {sourceFiles, sourceOptions} = setupAnalysis(projectRoot, files);
-			const {modules} = await analyze({sourceFiles, sourceOptions});
+			const { sourceFiles, sourceOptions } = setupAnalysis(projectRoot, files);
+			const { modules } = await analyze({ sourceFiles, sourceOptions });
 			const ns = modules
 				.find((m) => m.path === 'index.ts')
 				?.declarations.find((d) => d.name === 'ns');
@@ -127,12 +127,12 @@ export * as ns from './x.js';`,
 			'src/lib/x.ts': `export const a = 1;`,
 			'src/lib/index.ts': `
 /** @nodocs */
-export * as ns from './x.js';`,
+export * as ns from './x.js';`
 		};
 
 		await withTestProject(files, async (projectRoot) => {
-			const {sourceFiles, sourceOptions} = setupAnalysis(projectRoot, files);
-			const {modules} = await analyze({sourceFiles, sourceOptions});
+			const { sourceFiles, sourceOptions } = setupAnalysis(projectRoot, files);
+			const { modules } = await analyze({ sourceFiles, sourceOptions });
 			const indexModule = modules.find((m) => m.path === 'index.ts');
 			assert.ok(indexModule);
 			// The default await analyze() filter excludes @nodocs declarations from output.
@@ -147,12 +147,12 @@ export * as ns from './x.js';`,
 			'src/lib/index.ts': `
 export * as ns from './x.js';
 export {ns as renamed} from './y.js'; // referenced to keep ns in scope
-`,
+`
 		};
 
 		await withTestProject(files, async (projectRoot) => {
-			const {sourceFiles, sourceOptions} = setupAnalysis(projectRoot, files);
-			const {modules} = await analyze({sourceFiles, sourceOptions});
+			const { sourceFiles, sourceOptions } = setupAnalysis(projectRoot, files);
+			const { modules } = await analyze({ sourceFiles, sourceOptions });
 			// The namespace declaration is named `ns`; the variable in y.ts is also `ns`.
 			// findDuplicates is consumer-side, but the declaration's `name` field
 			// participates in the flat namespace just like any other declaration.
@@ -171,11 +171,11 @@ export {ns as renamed} from './y.js'; // referenced to keep ns in scope
 		const files = {
 			'src/lib/x.ts': `export const a = 1;`,
 			'src/lib/index.ts': `export * as ns from './x.js';`,
-			'src/lib/barrel.ts': `export {ns} from './index.js';`,
+			'src/lib/barrel.ts': `export {ns} from './index.js';`
 		};
 		await withTestProject(files, async (projectRoot) => {
-			const {sourceFiles, sourceOptions} = setupAnalysis(projectRoot, files);
-			const {modules} = await analyze({sourceFiles, sourceOptions});
+			const { sourceFiles, sourceOptions } = setupAnalysis(projectRoot, files);
+			const { modules } = await analyze({ sourceFiles, sourceOptions });
 			const barrel = modules.find((m) => m.path === 'barrel.ts');
 			const indexNs = modules
 				.find((m) => m.path === 'index.ts')
@@ -194,11 +194,11 @@ export {ns as renamed} from './y.js'; // referenced to keep ns in scope
 		const files = {
 			'src/lib/x.ts': `export const a = 1;`,
 			'src/lib/index.ts': `export * as ns from './x.js';`,
-			'src/lib/barrel-star.ts': `export * from './index.js';`,
+			'src/lib/barrel-star.ts': `export * from './index.js';`
 		};
 		await withTestProject(files, async (projectRoot) => {
-			const {sourceFiles, sourceOptions} = setupAnalysis(projectRoot, files);
-			const {modules} = await analyze({sourceFiles, sourceOptions});
+			const { sourceFiles, sourceOptions } = setupAnalysis(projectRoot, files);
+			const { modules } = await analyze({ sourceFiles, sourceOptions });
 			const barrelStar = modules.find((m) => m.path === 'barrel-star.ts');
 			const indexNs = modules
 				.find((m) => m.path === 'index.ts')
@@ -207,7 +207,7 @@ export {ns as renamed} from './y.js'; // referenced to keep ns in scope
 			assert.deepStrictEqual(
 				barrelStar?.declarations,
 				[],
-				'no duplicate ns declaration in the star-importing module',
+				'no duplicate ns declaration in the star-importing module'
 			);
 			assert.deepStrictEqual(barrelStar?.starExports, ['index.ts']);
 			assert.deepStrictEqual(barrelStar?.reExports, []);
@@ -224,18 +224,18 @@ export {ns as renamed} from './y.js'; // referenced to keep ns in scope
 			'src/lib/x.ts': `export const a = 1;`,
 			'src/lib/index.ts': `export * as ns from './x.js';`,
 			'src/lib/b.ts': `export {ns} from './index.js';`,
-			'src/lib/barrel-star.ts': `export * from './b.js';`,
+			'src/lib/barrel-star.ts': `export * from './b.js';`
 		};
 		await withTestProject(files, async (projectRoot) => {
-			const {sourceFiles, sourceOptions} = setupAnalysis(projectRoot, files);
-			const {modules} = await analyze({sourceFiles, sourceOptions});
+			const { sourceFiles, sourceOptions } = setupAnalysis(projectRoot, files);
+			const { modules } = await analyze({ sourceFiles, sourceOptions });
 			const barrelStar = modules.find((m) => m.path === 'barrel-star.ts')!;
 			assert.deepStrictEqual(barrelStar.declarations, []);
 			assert.deepStrictEqual(barrelStar.reExports, []);
 			assert.deepStrictEqual(barrelStar.starExports, ['b.ts']);
 			const bModule = modules.find((m) => m.path === 'b.ts')!;
 			assert.deepStrictEqual(bModule.reExports, [
-				{name: 'ns', module: 'index.ts', typeOnly: false, sourceLine: 1},
+				{ name: 'ns', module: 'index.ts', typeOnly: false, sourceLine: 1 }
 			]);
 			const indexNs = modules
 				.find((m) => m.path === 'index.ts')!
@@ -250,11 +250,11 @@ export {ns as renamed} from './y.js'; // referenced to keep ns in scope
 			'src/lib/index.ts': `export * as ns from './x.js';`,
 			'src/lib/renamed.ts': `
 /** A friendlier name for ns. */
-export {ns as renamedNs} from './index.js';`,
+export {ns as renamedNs} from './index.js';`
 		};
 		await withTestProject(files, async (projectRoot) => {
-			const {sourceFiles, sourceOptions} = setupAnalysis(projectRoot, files);
-			const {modules} = await analyze({sourceFiles, sourceOptions});
+			const { sourceFiles, sourceOptions } = setupAnalysis(projectRoot, files);
+			const { modules } = await analyze({ sourceFiles, sourceOptions });
 			const renamed = modules.find((m) => m.path === 'renamed.ts');
 			assert.ok(renamed);
 			assert.strictEqual(renamed.declarations.length, 1);
@@ -269,7 +269,7 @@ export {ns as renamedNs} from './index.js';`,
 			// aliasOf points to the canonical namespace declaration in index.ts.
 			assert.deepStrictEqual(decl.aliasOf, {
 				module: 'index.ts',
-				name: 'ns',
+				name: 'ns'
 			});
 			assert.strictEqual(decl.docComment, 'A friendlier name for ns.');
 			// Synthesized alias points at the local export specifier's line.
@@ -287,12 +287,12 @@ export {ns as renamedNs} from './index.js';`,
 let {label}: {label: string} = $props();
 </script>
 <button>{label}</button>`,
-			'src/lib/index.ts': `export * as FooNs from './Foo.svelte';`,
+			'src/lib/index.ts': `export * as FooNs from './Foo.svelte';`
 		};
 
 		await withTestProject(files, async (projectRoot) => {
-			const {sourceFiles, sourceOptions} = setupAnalysis(projectRoot, files);
-			const {modules} = await analyze({sourceFiles, sourceOptions});
+			const { sourceFiles, sourceOptions } = setupAnalysis(projectRoot, files);
+			const { modules } = await analyze({ sourceFiles, sourceOptions });
 			const ns = modules
 				.find((m) => m.path === 'index.ts')
 				?.declarations.find((d) => d.name === 'FooNs');
@@ -314,11 +314,11 @@ let {label}: {label: string} = $props();
 			'src/lib/x.ts': `export const a = 1;`,
 			'src/lib/a.ts': `export * as ns from './x.js';`,
 			'src/lib/b.ts': `export {ns} from './a.js';`,
-			'src/lib/c.ts': `export {ns as foo} from './b.js';`,
+			'src/lib/c.ts': `export {ns as foo} from './b.js';`
 		};
 		await withTestProject(files, async (projectRoot) => {
-			const {sourceFiles, sourceOptions} = setupAnalysis(projectRoot, files);
-			const {modules} = await analyze({sourceFiles, sourceOptions});
+			const { sourceFiles, sourceOptions } = setupAnalysis(projectRoot, files);
+			const { modules } = await analyze({ sourceFiles, sourceOptions });
 
 			const c = modules.find((m) => m.path === 'c.ts');
 			assert.ok(c);
@@ -333,7 +333,7 @@ let {label}: {label: string} = $props();
 			}
 			// aliasOf walks the chain to the canonical NamespaceExport in a.ts,
 			// not the deeply-resolved module symbol (which would have an abs-path name).
-			assert.deepStrictEqual(foo.aliasOf, {module: 'a.ts', name: 'ns'});
+			assert.deepStrictEqual(foo.aliasOf, { module: 'a.ts', name: 'ns' });
 			assert.strictEqual(foo.sourceLine, 1);
 
 			// b.ts's same-name re-export still links via alsoExportedFrom on a.ts's ns.
@@ -354,11 +354,11 @@ let {label}: {label: string} = $props();
 			'src/lib/a.ts': `export * as ns from './x.js';`,
 			'src/lib/b.ts': `export {ns as renamed} from './a.js';`,
 			'src/lib/c.ts': `export {renamed} from './b.js';`,
-			'src/lib/d.ts': `export {renamed as final} from './c.js';`,
+			'src/lib/d.ts': `export {renamed as final} from './c.js';`
 		};
 		await withTestProject(files, async (projectRoot) => {
-			const {sourceFiles, sourceOptions} = setupAnalysis(projectRoot, files);
-			const {modules} = await analyze({sourceFiles, sourceOptions});
+			const { sourceFiles, sourceOptions } = setupAnalysis(projectRoot, files);
+			const { modules } = await analyze({ sourceFiles, sourceOptions });
 
 			// b.ts's renamed alias declaration is the upstream rename.
 			const b = modules.find((m) => m.path === 'b.ts');
@@ -368,7 +368,7 @@ let {label}: {label: string} = $props();
 			if (bRenamed.kind === 'namespace') {
 				assert.strictEqual(bRenamed.module, 'x.ts');
 			}
-			assert.deepStrictEqual(bRenamed.aliasOf, {module: 'a.ts', name: 'ns'});
+			assert.deepStrictEqual(bRenamed.aliasOf, { module: 'a.ts', name: 'ns' });
 			// c.ts's same-name re-export links to b.ts's renamed alias.
 			assert.deepStrictEqual(bRenamed.alsoExportedFrom, ['c.ts']);
 
@@ -382,7 +382,7 @@ let {label}: {label: string} = $props();
 			if (final.kind === 'namespace') {
 				assert.strictEqual(final.module, 'x.ts');
 			}
-			assert.deepStrictEqual(final.aliasOf, {module: 'a.ts', name: 'ns'});
+			assert.deepStrictEqual(final.aliasOf, { module: 'a.ts', name: 'ns' });
 
 			const json = JSON.stringify(modules);
 			assert.notMatch(json, /typeof import\("\//, 'no typeof import("/abs/path") leak');
@@ -401,11 +401,11 @@ let {label}: {label: string} = $props();
 /** Re-projected for convenience.
  * @example import {ns} from 'pkg/barrel.js';
  */
-export {ns} from './index.js';`,
+export {ns} from './index.js';`
 		};
 		await withTestProject(files, async (projectRoot) => {
-			const {sourceFiles, sourceOptions} = setupAnalysis(projectRoot, files);
-			const {modules} = await analyze({sourceFiles, sourceOptions});
+			const { sourceFiles, sourceOptions } = setupAnalysis(projectRoot, files);
+			const { modules } = await analyze({ sourceFiles, sourceOptions });
 
 			const barrel = modules.find((m) => m.path === 'barrel.ts');
 			assert.ok(barrel);
@@ -417,7 +417,7 @@ export {ns} from './index.js';`,
 			}
 			assert.deepStrictEqual(barrelNs.aliasOf, {
 				module: 'index.ts',
-				name: 'ns',
+				name: 'ns'
 			});
 			assert.strictEqual(barrelNs.docComment, 'Re-projected for convenience.');
 			assert.deepStrictEqual(barrelNs.examples, ["import {ns} from 'pkg/barrel.js';"]);
@@ -442,11 +442,11 @@ export {ns} from './index.js';`,
 			'src/lib/index.ts': `export * as ns from './x.js';`,
 			'src/lib/barrel.ts': `
 /** @nodocs */
-export {ns} from './index.js';`,
+export {ns} from './index.js';`
 		};
 		await withTestProject(files, async (projectRoot) => {
-			const {sourceFiles, sourceOptions} = setupAnalysis(projectRoot, files);
-			const {modules} = await analyze({sourceFiles, sourceOptions});
+			const { sourceFiles, sourceOptions } = setupAnalysis(projectRoot, files);
+			const { modules } = await analyze({ sourceFiles, sourceOptions });
 
 			// The default await analyze() filter excludes @nodocs declarations, and
 			// the alsoExportedFrom link was suppressed.
@@ -465,11 +465,11 @@ export {ns} from './index.js';`,
 			'src/lib/x.ts': `export const a = 1;`,
 			'src/lib/a.ts': `export * as ns from './x.js';`,
 			'src/lib/b.ts': `export {ns as foo} from './a.js';`,
-			'src/lib/c.ts': `export {foo} from './b.js';`,
+			'src/lib/c.ts': `export {foo} from './b.js';`
 		};
 		await withTestProject(files, async (projectRoot) => {
-			const {sourceFiles, sourceOptions} = setupAnalysis(projectRoot, files);
-			const {modules} = await analyze({sourceFiles, sourceOptions});
+			const { sourceFiles, sourceOptions } = setupAnalysis(projectRoot, files);
+			const { modules } = await analyze({ sourceFiles, sourceOptions });
 
 			// b.ts holds the canonical-for-name (the renamed alias `foo`).
 			const b = modules.find((m) => m.path === 'b.ts');

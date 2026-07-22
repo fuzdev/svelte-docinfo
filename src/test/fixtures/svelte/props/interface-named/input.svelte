@@ -11,7 +11,7 @@
 		prop2?: number;
 	}
 
-	let {prop1, prop2}: ComponentProps = $props();
+	let { prop1, prop2 }: ComponentProps = $props();
 </script>
 
 <div>{prop1} {prop2}</div>

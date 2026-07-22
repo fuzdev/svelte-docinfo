@@ -1,9 +1,9 @@
 import ts from 'typescript';
 
-import type {TsdocParsedComment} from '$lib/tsdoc.ts';
-import {parseComment} from '$lib/tsdoc.ts';
+import type { TsdocParsedComment } from '$lib/tsdoc.ts';
+import { parseComment } from '$lib/tsdoc.ts';
 
-import {loadFixturesGeneric} from '../../test-helpers.ts';
+import { loadFixturesGeneric } from '../../test-helpers.ts';
 
 export interface TsdocFixture {
 	name: string;
@@ -17,7 +17,7 @@ export interface TsdocFixture {
 export const loadFixtures = async (): Promise<Array<TsdocFixture>> =>
 	loadFixturesGeneric<TsdocParsedComment | null>({
 		fixturesDir: import.meta.dirname,
-		inputExtension: '.ts',
+		inputExtension: '.ts'
 	});
 
 /**

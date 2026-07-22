@@ -7,7 +7,7 @@
  * - Component name extraction (getComponentName)
  */
 
-import {test, assert, describe} from 'vitest';
+import { test, assert, describe } from 'vitest';
 
 import {
 	getComponentName,
@@ -15,7 +15,7 @@ import {
 	isSvelte,
 	isCss,
 	isJson,
-	getDefaultAnalyzer,
+	getDefaultAnalyzer
 } from '$lib/source.ts';
 
 describe('getComponentName', () => {
@@ -51,7 +51,7 @@ describe('module type predicates', () => {
 			['foo.json', false],
 			// Case-sensitive — uppercase extensions are not recognized (correct on Linux)
 			['foo.TS', false],
-			['foo.JS', false],
+			['foo.JS', false]
 		])('%s → %s', (path, expected) => {
 			assert.strictEqual(isTypescript(path), expected);
 		});
@@ -64,7 +64,7 @@ describe('module type predicates', () => {
 			['components/Button.svelte', true],
 			// Other extensions
 			['foo.ts', false],
-			['foo.js', false],
+			['foo.js', false]
 		])('%s → %s', (path, expected) => {
 			assert.strictEqual(isSvelte(path), expected);
 		});
@@ -77,7 +77,7 @@ describe('module type predicates', () => {
 			['path/to/theme.css', true],
 			// Other extensions
 			['foo.ts', false],
-			['foo.svelte', false],
+			['foo.svelte', false]
 		])('%s → %s', (path, expected) => {
 			assert.strictEqual(isCss(path), expected);
 		});
@@ -90,7 +90,7 @@ describe('module type predicates', () => {
 			['path/to/config.json', true],
 			// Other extensions
 			['foo.ts', false],
-			['foo.js', false],
+			['foo.js', false]
 		])('%s → %s', (path, expected) => {
 			assert.strictEqual(isJson(path), expected);
 		});

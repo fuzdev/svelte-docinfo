@@ -1,10 +1,10 @@
 /** Build tool integration - construct SourceFileInfo when your build tool provides file data. */
 
-import {readFile, writeFile} from 'node:fs/promises';
-import {dirname, join} from 'node:path';
-import {fileURLToPath} from 'node:url';
+import { readFile, writeFile } from 'node:fs/promises';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-import {analyze, createSourceOptions, compactReplacer} from 'svelte-docinfo';
+import { analyze, createSourceOptions, compactReplacer } from 'svelte-docinfo';
 
 const dir = dirname(fileURLToPath(import.meta.url));
 
@@ -19,7 +19,7 @@ const dir = dirname(fileURLToPath(import.meta.url));
 const loadSource = async (relativePath, dependencies = []) => ({
 	id: join(dir, relativePath),
 	content: await readFile(join(dir, relativePath), 'utf-8'),
-	dependencies: dependencies.map((d) => join(dir, d)),
+	dependencies: dependencies.map((d) => join(dir, d))
 });
 
 const sourceFiles = await Promise.all([
@@ -34,17 +34,20 @@ const sourceFiles = await Promise.all([
 		'src/lib/Card.svelte',
 		'src/lib/counter.svelte.ts',
 		'src/lib/math.ts',
-		'src/lib/shapes.ts',
-	]),
+		'src/lib/shapes.ts'
+	])
 ]);
 
 // Let analyze() auto-create the TypeScript program with Svelte virtual files
 // for full checker-backed component analysis.
-const {modules} = await analyze({
+const { modules } = await analyze({
 	sourceFiles,
-	sourceOptions: createSourceOptions(dir),
+	sourceOptions: createSourceOptions(dir)
 });
 
-await writeFile(join(dir, 'output-build-tool.json'), JSON.stringify({modules}, compactReplacer, '\t'));
+await writeFile(
+	join(dir, 'output-build-tool.json'),
+	JSON.stringify({ modules }, compactReplacer, '\t')
+);
 
 console.log(`Analyzed ${modules.length} modules`);

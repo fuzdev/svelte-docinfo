@@ -1,5 +1,5 @@
 // @ts-nocheck
-import type {B} from './nonexistent_module.js';
+import type { B } from './nonexistent_module.js';
 
 /**
  * Description 1.

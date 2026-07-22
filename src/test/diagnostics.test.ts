@@ -1,5 +1,5 @@
-import {test, assert, describe} from 'vitest';
-import {z} from 'zod';
+import { test, assert, describe } from 'vitest';
+import { z } from 'zod';
 
 import {
 	byKind,
@@ -15,14 +15,14 @@ import {
 	type SignatureAnalysisDiagnostic,
 	type SveltePropDiagnostic,
 	type TypeExtractionDiagnostic,
-	type UnknownParamDiagnostic,
+	type UnknownParamDiagnostic
 } from '$lib/diagnostics.ts';
 
 /**
  * Create a type extraction diagnostic for testing.
  */
 const createTypeDiagnostic = (
-	overrides: Partial<TypeExtractionDiagnostic> = {},
+	overrides: Partial<TypeExtractionDiagnostic> = {}
 ): TypeExtractionDiagnostic => ({
 	kind: 'type_extraction_failed',
 	file: 'src/lib/test.ts',
@@ -31,14 +31,14 @@ const createTypeDiagnostic = (
 	message: 'Failed to extract type',
 	severity: 'error',
 	symbolName: 'testSymbol',
-	...overrides,
+	...overrides
 });
 
 /**
  * Create a signature analysis diagnostic for testing.
  */
 const createSignatureDiagnostic = (
-	overrides: Partial<SignatureAnalysisDiagnostic> = {},
+	overrides: Partial<SignatureAnalysisDiagnostic> = {}
 ): SignatureAnalysisDiagnostic => ({
 	kind: 'signature_analysis_failed',
 	file: 'src/lib/helpers.ts',
@@ -47,14 +47,14 @@ const createSignatureDiagnostic = (
 	message: 'Failed to analyze signature',
 	severity: 'warning',
 	functionName: 'helperFn',
-	...overrides,
+	...overrides
 });
 
 /**
  * Create a class member diagnostic for testing.
  */
 const createClassMemberDiagnostic = (
-	overrides: Partial<ClassMemberDiagnostic> = {},
+	overrides: Partial<ClassMemberDiagnostic> = {}
 ): ClassMemberDiagnostic => ({
 	kind: 'class_member_failed',
 	file: 'src/lib/MyClass.ts',
@@ -64,14 +64,14 @@ const createClassMemberDiagnostic = (
 	severity: 'error',
 	className: 'MyClass',
 	memberName: 'my_method',
-	...overrides,
+	...overrides
 });
 
 /**
  * Create a Svelte prop diagnostic for testing.
  */
 const createSveltePropDiagnostic = (
-	overrides: Partial<SveltePropDiagnostic> = {},
+	overrides: Partial<SveltePropDiagnostic> = {}
 ): SveltePropDiagnostic => ({
 	kind: 'svelte_prop_failed',
 	file: 'Button.svelte',
@@ -81,28 +81,28 @@ const createSveltePropDiagnostic = (
 	severity: 'warning',
 	componentName: 'Button',
 	propName: 'variant',
-	...overrides,
+	...overrides
 });
 
 /**
  * Create a module skipped diagnostic for testing.
  */
 const createModuleSkippedDiagnostic = (
-	overrides: Partial<ModuleSkippedDiagnostic> = {},
+	overrides: Partial<ModuleSkippedDiagnostic> = {}
 ): ModuleSkippedDiagnostic => ({
 	kind: 'module_skipped',
 	file: 'unknown.xyz',
 	message: 'No analyzer for file type',
 	severity: 'warning',
 	reason: 'no_analyzer',
-	...overrides,
+	...overrides
 });
 
 /**
  * Create a misplaced_tag diagnostic for testing.
  */
 const createMisplacedTagDiagnostic = (
-	overrides: Partial<MisplacedTagDiagnostic> = {},
+	overrides: Partial<MisplacedTagDiagnostic> = {}
 ): MisplacedTagDiagnostic => ({
 	kind: 'misplaced_tag',
 	file: 'src/lib/fn.ts',
@@ -112,14 +112,14 @@ const createMisplacedTagDiagnostic = (
 	severity: 'warning',
 	tagName: 'example',
 	functionName: 'fn',
-	...overrides,
+	...overrides
 });
 
 /**
  * Create an unknown_param diagnostic for testing.
  */
 const createUnknownParamDiagnostic = (
-	overrides: Partial<UnknownParamDiagnostic> = {},
+	overrides: Partial<UnknownParamDiagnostic> = {}
 ): UnknownParamDiagnostic => ({
 	kind: 'unknown_param',
 	file: 'src/lib/fn.ts',
@@ -129,14 +129,14 @@ const createUnknownParamDiagnostic = (
 	severity: 'warning',
 	paramName: 'argz',
 	functionName: 'fn',
-	...overrides,
+	...overrides
 });
 
 describe('diagnostics array', () => {
 	// Shared test pattern for severity-query helpers (hasErrors / hasWarnings)
 	const severityQueryTests = (
 		fn: (diagnostics: Array<Diagnostic>) => boolean,
-		targetSeverity: 'error' | 'warning',
+		targetSeverity: 'error' | 'warning'
 	) => {
 		const oppositeSeverity = targetSeverity === 'error' ? 'warning' : 'error';
 
@@ -156,22 +156,22 @@ describe('diagnostics array', () => {
 
 		test(`returns false when only ${oppositeSeverity}s`, () => {
 			const diagnostics: Array<Diagnostic> = [];
-			diagnostics.push(createOpposite({severity: oppositeSeverity}));
-			diagnostics.push(createOpposite2({severity: oppositeSeverity}));
+			diagnostics.push(createOpposite({ severity: oppositeSeverity }));
+			diagnostics.push(createOpposite2({ severity: oppositeSeverity }));
 			assert.strictEqual(fn(diagnostics), false);
 		});
 
 		test(`detects at least one ${targetSeverity}`, () => {
 			const diagnostics: Array<Diagnostic> = [];
-			diagnostics.push(createOpposite({severity: oppositeSeverity}));
-			diagnostics.push(createTarget({severity: targetSeverity}));
+			diagnostics.push(createOpposite({ severity: oppositeSeverity }));
+			diagnostics.push(createTarget({ severity: targetSeverity }));
 			assert.strictEqual(fn(diagnostics), true);
 		});
 
 		test(`detects all ${targetSeverity}s`, () => {
 			const diagnostics: Array<Diagnostic> = [];
-			diagnostics.push(createTarget({severity: targetSeverity}));
-			diagnostics.push(createTarget2({severity: targetSeverity}));
+			diagnostics.push(createTarget({ severity: targetSeverity }));
+			diagnostics.push(createTarget2({ severity: targetSeverity }));
 			assert.strictEqual(fn(diagnostics), true);
 		});
 	};
@@ -188,17 +188,17 @@ describe('diagnostics array', () => {
 
 		test('returns empty array when only warnings', () => {
 			const diagnostics: Array<Diagnostic> = [];
-			diagnostics.push(createSignatureDiagnostic({severity: 'warning'}));
-			diagnostics.push(createSveltePropDiagnostic({severity: 'warning'}));
+			diagnostics.push(createSignatureDiagnostic({ severity: 'warning' }));
+			diagnostics.push(createSveltePropDiagnostic({ severity: 'warning' }));
 
 			assert.deepEqual(errorsOf(diagnostics), []);
 		});
 
 		test('returns only error diagnostics', () => {
 			const diagnostics: Array<Diagnostic> = [];
-			const error1 = createTypeDiagnostic({severity: 'error'});
-			const warning = createSignatureDiagnostic({severity: 'warning'});
-			const error2 = createClassMemberDiagnostic({severity: 'error'});
+			const error1 = createTypeDiagnostic({ severity: 'error' });
+			const warning = createSignatureDiagnostic({ severity: 'warning' });
+			const error2 = createClassMemberDiagnostic({ severity: 'error' });
 
 			diagnostics.push(error1);
 			diagnostics.push(warning);
@@ -222,17 +222,17 @@ describe('diagnostics array', () => {
 
 		test('returns empty array when only errors', () => {
 			const diagnostics: Array<Diagnostic> = [];
-			diagnostics.push(createTypeDiagnostic({severity: 'error'}));
-			diagnostics.push(createClassMemberDiagnostic({severity: 'error'}));
+			diagnostics.push(createTypeDiagnostic({ severity: 'error' }));
+			diagnostics.push(createClassMemberDiagnostic({ severity: 'error' }));
 
 			assert.deepEqual(warningsOf(diagnostics), []);
 		});
 
 		test('returns only warning diagnostics', () => {
 			const diagnostics: Array<Diagnostic> = [];
-			const error = createTypeDiagnostic({severity: 'error'});
-			const warning1 = createSignatureDiagnostic({severity: 'warning'});
-			const warning2 = createSveltePropDiagnostic({severity: 'warning'});
+			const error = createTypeDiagnostic({ severity: 'error' });
+			const warning1 = createSignatureDiagnostic({ severity: 'warning' });
+			const warning2 = createSveltePropDiagnostic({ severity: 'warning' });
 
 			diagnostics.push(error);
 			diagnostics.push(warning1);
@@ -330,7 +330,7 @@ describe('diagnostics array', () => {
 
 		test('filters module_skipped by reason not_in_program', () => {
 			const diagnostics: Array<Diagnostic> = [];
-			const moduleDiag = createModuleSkippedDiagnostic({reason: 'not_in_program'});
+			const moduleDiag = createModuleSkippedDiagnostic({ reason: 'not_in_program' });
 			diagnostics.push(moduleDiag);
 
 			const result = byKind(diagnostics, 'module_skipped');
@@ -341,8 +341,8 @@ describe('diagnostics array', () => {
 
 		test('returns multiple diagnostics of same kind', () => {
 			const diagnostics: Array<Diagnostic> = [];
-			const typeDiag1 = createTypeDiagnostic({symbolName: 'foo'});
-			const typeDiag2 = createTypeDiagnostic({symbolName: 'bar'});
+			const typeDiag1 = createTypeDiagnostic({ symbolName: 'foo' });
+			const typeDiag2 = createTypeDiagnostic({ symbolName: 'bar' });
 			diagnostics.push(typeDiag1);
 			diagnostics.push(createSignatureDiagnostic());
 			diagnostics.push(typeDiag2);
@@ -374,9 +374,11 @@ describe('diagnostics array', () => {
 
 		test('populated collector survives JSON round-trip', () => {
 			const diagnostics: Array<Diagnostic> = [];
-			diagnostics.push(createTypeDiagnostic({message: 'type error', symbolName: 'Foo', line: 42}));
-			diagnostics.push(createSignatureDiagnostic({message: 'sig warning', functionName: 'bar'}));
-			diagnostics.push(createClassMemberDiagnostic({severity: 'error'}));
+			diagnostics.push(
+				createTypeDiagnostic({ message: 'type error', symbolName: 'Foo', line: 42 })
+			);
+			diagnostics.push(createSignatureDiagnostic({ message: 'sig warning', functionName: 'bar' }));
+			diagnostics.push(createClassMemberDiagnostic({ severity: 'error' }));
 
 			const parsed = JSON.parse(JSON.stringify(diagnostics)) as typeof diagnostics;
 
@@ -390,7 +392,7 @@ describe('diagnostics array', () => {
 			assert.deepEqual(warningsOf(parsed), warningsOf(diagnostics));
 			assert.deepEqual(
 				byKind(parsed, 'type_extraction_failed'),
-				byKind(diagnostics, 'type_extraction_failed'),
+				byKind(diagnostics, 'type_extraction_failed')
 			);
 
 			// And specific values land where expected
@@ -401,9 +403,9 @@ describe('diagnostics array', () => {
 
 		test('AnalyzeResultJson-shape survives JSON round-trip with diagnostics intact', () => {
 			const diagnostics: Array<Diagnostic> = [];
-			diagnostics.push(createTypeDiagnostic({message: 'test error'}));
+			diagnostics.push(createTypeDiagnostic({ message: 'test error' }));
 
-			const result = {modules: [], diagnostics};
+			const result = { modules: [], diagnostics };
 			const parsed = JSON.parse(JSON.stringify(result)) as typeof result;
 
 			// `diagnostics` is a bare array — flattened from the old `{all: [...]}` wrapper
@@ -436,15 +438,15 @@ describe('diagnostics array', () => {
 					line: 1,
 					column: 1,
 					message: 'Failed to parse imports',
-					severity: 'warning',
+					severity: 'warning'
 				},
 				{
 					kind: 'duplicate_comment',
 					file: 'Foo.svelte',
 					message: 'Multiple @module comments',
 					severity: 'warning',
-					commentType: 'module_comment',
-				},
+					commentType: 'module_comment'
+				}
 			];
 			for (const d of variants) {
 				const validated = Diagnostic.parse(d);
@@ -479,9 +481,9 @@ describe('diagnostics array', () => {
 
 		test('populated diagnostics survive JSON.stringify → z.array(Diagnostic).parse', () => {
 			const diagnostics: Array<Diagnostic> = [];
-			diagnostics.push(createTypeDiagnostic({line: 42, column: 7}));
+			diagnostics.push(createTypeDiagnostic({ line: 42, column: 7 }));
 			diagnostics.push(createModuleSkippedDiagnostic());
-			diagnostics.push(createMisplacedTagDiagnostic({tagName: 'deprecated'}));
+			diagnostics.push(createMisplacedTagDiagnostic({ tagName: 'deprecated' }));
 
 			const reparsed = z.array(Diagnostic).parse(JSON.parse(JSON.stringify(diagnostics)));
 			assert.deepEqual(reparsed, diagnostics);
@@ -522,7 +524,7 @@ describe('formatDiagnostic', () => {
 				line: 10,
 				column: 5,
 				severity: 'error',
-				message: 'Type extraction failed',
+				message: 'Type extraction failed'
 			});
 
 			const result = formatDiagnostic(diagnostic);
@@ -536,7 +538,7 @@ describe('formatDiagnostic', () => {
 				line: 25,
 				column: 1,
 				severity: 'warning',
-				message: 'Could not analyze signature',
+				message: 'Could not analyze signature'
 			});
 
 			const result = formatDiagnostic(diagnostic);
@@ -549,7 +551,7 @@ describe('formatDiagnostic', () => {
 				file: 'test.ts',
 				line: 10,
 				column: undefined,
-				message: 'Error message',
+				message: 'Error message'
 			});
 
 			const result = formatDiagnostic(diagnostic);
@@ -562,7 +564,7 @@ describe('formatDiagnostic', () => {
 				file: 'test.ts',
 				line: undefined,
 				column: undefined,
-				message: 'Error message',
+				message: 'Error message'
 			});
 
 			const result = formatDiagnostic(diagnostic);
@@ -573,7 +575,7 @@ describe('formatDiagnostic', () => {
 
 	describe('prefix', () => {
 		test('always prepends ./ to file path', () => {
-			const diagnostic = createTypeDiagnostic({file: 'test.ts'});
+			const diagnostic = createTypeDiagnostic({ file: 'test.ts' });
 
 			const result = formatDiagnostic(diagnostic);
 
@@ -586,7 +588,7 @@ describe('formatDiagnostic', () => {
 			const diagnostic = createTypeDiagnostic({
 				file: 'test.ts',
 				line: 10,
-				column: 5,
+				column: 5
 			});
 
 			const result = formatDiagnostic(diagnostic);
@@ -599,7 +601,7 @@ describe('formatDiagnostic', () => {
 			const diagnostic = createSignatureDiagnostic({
 				file: 'helpers.ts',
 				line: 25,
-				column: 1,
+				column: 1
 			});
 
 			const result = formatDiagnostic(diagnostic);
@@ -611,7 +613,7 @@ describe('formatDiagnostic', () => {
 			const diagnostic = createClassMemberDiagnostic({
 				file: 'MyClass.ts',
 				line: 50,
-				column: 3,
+				column: 3
 			});
 
 			const result = formatDiagnostic(diagnostic);
@@ -623,7 +625,7 @@ describe('formatDiagnostic', () => {
 			const diagnostic = createSveltePropDiagnostic({
 				file: 'Button.svelte',
 				line: 5,
-				column: 10,
+				column: 10
 			});
 
 			const result = formatDiagnostic(diagnostic);
@@ -636,7 +638,7 @@ describe('formatDiagnostic', () => {
 				file: 'unknown.xyz',
 				line: undefined,
 				column: undefined,
-				message: 'No analyzer for file type',
+				message: 'No analyzer for file type'
 			});
 
 			const result = formatDiagnostic(diagnostic);
@@ -649,7 +651,7 @@ describe('formatDiagnostic', () => {
 				file: 'fn.ts',
 				line: 7,
 				column: 2,
-				message: '@example on non-primary overload of "fn"',
+				message: '@example on non-primary overload of "fn"'
 			});
 
 			const result = formatDiagnostic(diagnostic);
@@ -664,7 +666,7 @@ describe('formatDiagnostic', () => {
 				file: 'fn.ts',
 				line: 3,
 				column: 1,
-				message: '@param "argz" on "fn" doesn\'t match any parameter',
+				message: '@param "argz" on "fn" doesn\'t match any parameter'
 			});
 
 			const result = formatDiagnostic(diagnostic);
@@ -685,7 +687,7 @@ describe('diagnostic type discrimination', () => {
 			createSveltePropDiagnostic(),
 			createModuleSkippedDiagnostic(),
 			createMisplacedTagDiagnostic(),
-			createUnknownParamDiagnostic(),
+			createUnknownParamDiagnostic()
 		];
 
 		for (const d of diagnostics) {

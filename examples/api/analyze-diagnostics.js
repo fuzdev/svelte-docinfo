@@ -1,8 +1,8 @@
 /** Diagnostics and duplicate detection - shows error handling and validation. */
 
-import {writeFile} from 'node:fs/promises';
-import {dirname, join} from 'node:path';
-import {fileURLToPath} from 'node:url';
+import { writeFile } from 'node:fs/promises';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 import {
 	analyzeFromFiles,
@@ -10,17 +10,17 @@ import {
 	errorsOf,
 	hasErrors,
 	hasWarnings,
-	warningsOf,
+	warningsOf
 } from 'svelte-docinfo';
 
 const dir = dirname(fileURLToPath(import.meta.url));
 
-const {modules, diagnostics} = await analyzeFromFiles({
+const { modules, diagnostics } = await analyzeFromFiles({
 	projectRoot: dir,
 	// Throws if any two declarations share the same name across modules.
 	// Use 'warn' to log instead of throwing, or pass a function for custom handling.
 	// Omit this for libraries that don't need flat namespace enforcement.
-	onDuplicates: 'throw',
+	onDuplicates: 'throw'
 });
 
 // Inspect diagnostics for warnings and errors. `diagnostics` is a plain
@@ -46,7 +46,7 @@ if (hasWarnings(diagnostics)) {
 // `compactReplacer` strips empty arrays — load via `AnalyzeResultJson.parse` to restore defaults.
 await writeFile(
 	join(dir, 'output-diagnostics.json'),
-	JSON.stringify({modules, diagnostics}, compactReplacer, '\t'),
+	JSON.stringify({ modules, diagnostics }, compactReplacer, '\t')
 );
 
 console.log(`Analyzed ${modules.length} modules with ${diagnostics.length} diagnostic(s)`);

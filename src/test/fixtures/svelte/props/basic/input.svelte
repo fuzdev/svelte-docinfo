@@ -5,7 +5,7 @@
 
 	let {
 		prop1,
-		prop2,
+		prop2
 	}: {
 		/** Description 1 */
 		prop1: string;

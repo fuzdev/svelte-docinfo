@@ -37,9 +37,9 @@ source files automatically — `package.json` exports first (when present),
 glob fallback otherwise:
 
 ```js
-import {analyzeFromFiles} from 'svelte-docinfo';
+import { analyzeFromFiles } from 'svelte-docinfo';
 
-const {modules} = await analyzeFromFiles({projectRoot: dir});
+const { modules } = await analyzeFromFiles({ projectRoot: dir });
 ```
 
 See [analyze-simple.js](analyze-simple.js) for the full script.
@@ -52,8 +52,8 @@ internally, which owns import lexing and dependency resolution:
 
 ```js
 const sourceOptions = createSourceOptions(dir);
-const files = await globFiles({projectRoot: dir, include: ['src/lib/**/*.{ts,svelte}']});
-const {modules} = await analyze({sourceFiles: files, sourceOptions});
+const files = await globFiles({ projectRoot: dir, include: ['src/lib/**/*.{ts,svelte}'] });
+const { modules } = await analyze({ sourceFiles: files, sourceOptions });
 ```
 
 See [analyze-custom-discovery.js](analyze-custom-discovery.js) for the full script
@@ -65,8 +65,8 @@ If your build tool already has file contents in memory,
 pass them directly to `analyze` to skip file discovery entirely:
 
 ```js
-const sourceFiles = [{id: '/path/to/file.ts', content: '...', dependencies: ['/path/to/dep.ts']}];
-const {modules} = await analyze({sourceFiles, sourceOptions: createSourceOptions(dir)});
+const sourceFiles = [{ id: '/path/to/file.ts', content: '...', dependencies: ['/path/to/dep.ts'] }];
+const { modules } = await analyze({ sourceFiles, sourceOptions: createSourceOptions(dir) });
 ```
 
 See [analyze-build-tool.js](analyze-build-tool.js) for the full script. The
@@ -81,11 +81,11 @@ svelte-docinfo collects warnings and errors without halting,
 so you can inspect problems in batch after analysis completes:
 
 ```js
-import {analyzeFromFiles, errorsOf, hasErrors} from 'svelte-docinfo';
+import { analyzeFromFiles, errorsOf, hasErrors } from 'svelte-docinfo';
 
-const {modules, diagnostics} = await analyzeFromFiles({
+const { modules, diagnostics } = await analyzeFromFiles({
 	projectRoot: dir,
-	onDuplicates: 'throw',
+	onDuplicates: 'throw'
 });
 
 if (hasErrors(diagnostics)) {
@@ -114,14 +114,14 @@ resolver identity) are no-ops; only files whose content changed pay re-analysis
 cost:
 
 ```js
-const session = createAnalysisSession({sourceOptions: createSourceOptions(dir)});
+const session = createAnalysisSession({ sourceOptions: createSourceOptions(dir) });
 try {
 	// Initial ingest of the source set.
 	await session.setFiles(sourceFiles);
 	const first = session.query();
 
 	// ...later, after a file change on disk:
-	await session.setFile({id: changedPath, content: newContent});
+	await session.setFile({ id: changedPath, content: newContent });
 	const second = session.query();
 
 	// ...or a delete:
@@ -146,10 +146,10 @@ For plain TypeScript libraries that don't use SvelteKit's `src/lib/` convention,
 configure `sourcePaths` to match your project layout:
 
 ```js
-const {modules} = await analyzeFromFiles({
+const { modules } = await analyzeFromFiles({
 	projectRoot: dir,
-	sourceOptions: {sourcePaths: ['src']},
-	include: ['src/*.ts'],
+	sourceOptions: { sourcePaths: ['src'] },
+	include: ['src/*.ts']
 });
 ```
 

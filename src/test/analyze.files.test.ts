@@ -4,10 +4,10 @@
  * These are integration tests covering the full pipeline from file discovery to analysis.
  */
 
-import {test, assert, describe} from 'vitest';
+import { test, assert, describe } from 'vitest';
 
-import {analyzeFromFiles} from '$lib/analyze.ts';
-import {errorsOf} from '$lib/diagnostics.ts';
+import { analyzeFromFiles } from '$lib/analyze.ts';
+import { errorsOf } from '$lib/diagnostics.ts';
 
 import {
 	createTestProject,
@@ -17,13 +17,13 @@ import {
 	assertHasDeclaration,
 	assertHasComponentDeclaration,
 	assertHasParameters,
-	assertHasProps,
+	assertHasProps
 } from './test-helpers.ts';
 
-describe('analyzeFromFiles', {timeout: 15_000}, () => {
+describe('analyzeFromFiles', { timeout: 15_000 }, () => {
 	describe('basic functionality', () => {
 		test('analyzes simple TypeScript library', async () => {
-			const {projectRoot, cleanup} = await createTestProject({
+			const { projectRoot, cleanup } = await createTestProject({
 				'src/lib/math.ts': `
 /**
  * Adds two numbers.
@@ -34,12 +34,12 @@ describe('analyzeFromFiles', {timeout: 15_000}, () => {
 export function add(a: number, b: number): number {
 	return a + b;
 }`,
-				'src/lib/utils.ts': `export const VERSION = '1.0.0';`,
+				'src/lib/utils.ts': `export const VERSION = '1.0.0';`
 			});
 
 			try {
-				const {modules, diagnostics} = await analyzeFromFiles({
-					projectRoot,
+				const { modules, diagnostics } = await analyzeFromFiles({
+					projectRoot
 				});
 
 				// Should have 2 modules
@@ -64,7 +64,7 @@ export function add(a: number, b: number): number {
 		});
 
 		test('analyzes Svelte component library', async () => {
-			const {projectRoot, cleanup} = await createTestProject({
+			const { projectRoot, cleanup } = await createTestProject({
 				'src/lib/Button.svelte': `<script lang="ts">
 /** The button label */
 let {label}: {label: string} = $props();
@@ -73,12 +73,12 @@ let {label}: {label: string} = $props();
 				'src/lib/Card.svelte': `<script lang="ts">
 let {title}: {title: string} = $props();
 </script>
-<div class="card">{title}</div>`,
+<div class="card">{title}</div>`
 			});
 
 			try {
-				const {modules} = await analyzeFromFiles({
-					projectRoot,
+				const { modules } = await analyzeFromFiles({
+					projectRoot
 				});
 
 				assert.strictEqual(modules.length, 2);
@@ -95,18 +95,18 @@ let {title}: {title: string} = $props();
 		});
 
 		test('analyzes mixed TypeScript and Svelte library', async () => {
-			const {projectRoot, cleanup} = await createTestProject({
+			const { projectRoot, cleanup } = await createTestProject({
 				'src/lib/types.ts': `export type Config = {name: string};`,
 				'src/lib/utils.ts': `export const helper = () => 'test';`,
 				'src/lib/Button.svelte': `<script lang="ts">
 let {label}: {label: string} = $props();
 </script>
-<button>{label}</button>`,
+<button>{label}</button>`
 			});
 
 			try {
-				const {modules} = await analyzeFromFiles({
-					projectRoot,
+				const { modules } = await analyzeFromFiles({
+					projectRoot
 				});
 
 				assert.strictEqual(modules.length, 3);
@@ -126,17 +126,17 @@ let {label}: {label: string} = $props();
 
 	describe('options', () => {
 		test('uses custom include patterns', async () => {
-			const {projectRoot, cleanup} = await createTestProject({
+			const { projectRoot, cleanup } = await createTestProject({
 				'src/lib/foo.ts': 'export const foo = 1;',
 				'src/lib/nested/Button.svelte':
-					'<script lang="ts">let {label}: {label: string} = $props();</script><button>{label}</button>',
+					'<script lang="ts">let {label}: {label: string} = $props();</script><button>{label}</button>'
 			});
 
 			try {
 				// Only include nested directory within src/lib
-				const {modules} = await analyzeFromFiles({
+				const { modules } = await analyzeFromFiles({
 					projectRoot,
-					include: ['src/lib/nested/**/*.svelte'],
+					include: ['src/lib/nested/**/*.svelte']
 				});
 
 				assert.strictEqual(modules.length, 1);
@@ -154,18 +154,18 @@ let {label}: {label: string} = $props();
 			// wasn't. The CLI compensated locally with its own derivation; the
 			// API didn't, so build-tool integrations driving `analyzeFromFiles`
 			// with custom `sourcePaths` got an empty result.
-			const {projectRoot, cleanup} = await createTestProject({
+			const { projectRoot, cleanup } = await createTestProject({
 				'packages/foo/library.ts': 'export const foo = 1;',
 				'packages/foo/utils.ts': 'export const bar = 2;',
-				'src/lib/should-not-appear.ts': 'export const irrelevant = 3;',
+				'src/lib/should-not-appear.ts': 'export const irrelevant = 3;'
 			});
 
 			try {
-				const {modules} = await analyzeFromFiles({
+				const { modules } = await analyzeFromFiles({
 					projectRoot,
-					sourceOptions: {sourcePaths: ['packages/foo']},
+					sourceOptions: { sourcePaths: ['packages/foo'] },
 					// No `include` — glob fallback should derive from sourcePaths.
-					discovery: 'glob',
+					discovery: 'glob'
 				});
 
 				assert.strictEqual(modules.length, 2, 'Should discover both files in packages/foo');
@@ -173,7 +173,7 @@ let {label}: {label: string} = $props();
 				assert.deepStrictEqual(paths, ['library.ts', 'utils.ts']);
 				assert.ok(
 					!modules.some((m) => m.path.includes('should-not-appear')),
-					'Should NOT pull in files from the default src/lib path',
+					'Should NOT pull in files from the default src/lib path'
 				);
 			} finally {
 				await cleanup();
@@ -181,22 +181,22 @@ let {label}: {label: string} = $props();
 		});
 
 		test('uses exclude patterns', async () => {
-			const {projectRoot, cleanup} = await createTestProject({
+			const { projectRoot, cleanup } = await createTestProject({
 				'src/lib/foo.ts': 'export const foo = 1;',
 				'src/lib/foo.test.ts': 'test("foo", () => {});',
-				'src/lib/bar.ts': 'export const bar = 2;',
+				'src/lib/bar.ts': 'export const bar = 2;'
 			});
 
 			try {
-				const {modules} = await analyzeFromFiles({
+				const { modules } = await analyzeFromFiles({
 					projectRoot,
-					exclude: ['**/*.test.ts'],
+					exclude: ['**/*.test.ts']
 				});
 
 				assert.strictEqual(modules.length, 2, 'Should exclude test file');
 				assert.ok(
 					!modules.some((m) => m.path.includes('.test')),
-					'No module should have .test in path',
+					'No module should have .test in path'
 				);
 			} finally {
 				await cleanup();
@@ -207,24 +207,24 @@ let {label}: {label: string} = $props();
 			// Without explicit exclude, **/*.test.ts and **/*.spec.ts should be filtered
 			// at discovery time (not just analysis time) — verifies defaulting at both
 			// the exports-based and glob-based call sites.
-			const {projectRoot, cleanup} = await createTestProject({
+			const { projectRoot, cleanup } = await createTestProject({
 				'src/lib/foo.ts': 'export const foo = 1;',
 				'src/lib/foo.test.ts': 'test("foo", () => {});',
 				'src/lib/bar.spec.ts': 'test("bar", () => {});',
-				'src/lib/baz.ts': 'export const baz = 2;',
+				'src/lib/baz.ts': 'export const baz = 2;'
 			});
 
 			try {
 				// Glob path (no package.json exports field)
-				const {modules: globModules} = await analyzeFromFiles({
+				const { modules: globModules } = await analyzeFromFiles({
 					projectRoot,
-					discovery: 'glob',
+					discovery: 'glob'
 				});
 
 				assert.strictEqual(globModules.length, 2, 'glob path: defaults exclude .test/.spec');
 				assert.ok(
 					!globModules.some((m) => m.path.includes('.test') || m.path.includes('.spec')),
-					'glob path: no .test/.spec module',
+					'glob path: no .test/.spec module'
 				);
 			} finally {
 				await cleanup();
@@ -238,19 +238,19 @@ let {label}: {label: string} = $props();
 				'package.json': JSON.stringify({
 					name: 'test-pkg',
 					exports: {
-						'./*': './dist/*.js',
-					},
-				}),
+						'./*': './dist/*.js'
+					}
+				})
 			});
 
 			try {
-				const {modules: exportModules} = await analyzeFromFiles({
-					projectRoot: exportsProject.projectRoot,
+				const { modules: exportModules } = await analyzeFromFiles({
+					projectRoot: exportsProject.projectRoot
 				});
 
 				assert.ok(
 					!exportModules.some((m) => m.path.includes('.test') || m.path.includes('.spec')),
-					'exports path: no .test/.spec module',
+					'exports path: no .test/.spec module'
 				);
 			} finally {
 				await exportsProject.cleanup();
@@ -263,17 +263,17 @@ let {label}: {label: string} = $props();
 			// should filter at BOTH stages. Without analysis-time enforcement, an in-source
 			// file importing an `.internal.ts` helper would drag the helper into
 			// `dependencies` even though the user excluded it.
-			const {projectRoot, cleanup} = await createTestProject({
+			const { projectRoot, cleanup } = await createTestProject({
 				'src/lib/public.ts': `
 import {secret} from './helpers.internal.js';
 export const exposed = secret + 1;`,
-				'src/lib/helpers.internal.ts': 'export const secret = 42;',
+				'src/lib/helpers.internal.ts': 'export const secret = 42;'
 			});
 
 			try {
-				const {modules} = await analyzeFromFiles({
+				const { modules } = await analyzeFromFiles({
 					projectRoot,
-					exclude: ['**/*.internal.ts'],
+					exclude: ['**/*.internal.ts']
 				});
 
 				assert.strictEqual(modules.length, 1, 'Only public.ts is a module');
@@ -281,7 +281,7 @@ export const exposed = secret + 1;`,
 				assert.deepStrictEqual(
 					publicMod.dependencies,
 					[],
-					'helpers.internal.ts must not appear in the dep graph',
+					'helpers.internal.ts must not appear in the dep graph'
 				);
 				assert.ok(!modules.some((m) => m.path.includes('.internal.ts')), 'No .internal.ts module');
 			} finally {
@@ -290,15 +290,15 @@ export const exposed = secret + 1;`,
 		});
 
 		test('resolves dependencies when resolveDependencies: true', async () => {
-			const {projectRoot, cleanup} = await createTestProject({
+			const { projectRoot, cleanup } = await createTestProject({
 				'src/lib/math.ts': 'export const add = (a: number, b: number) => a + b;',
-				'src/lib/utils.ts': `import {add} from './math.js';\nexport const sum = add(1, 2);`,
+				'src/lib/utils.ts': `import {add} from './math.js';\nexport const sum = add(1, 2);`
 			});
 
 			try {
-				const {modules} = await analyzeFromFiles({
+				const { modules } = await analyzeFromFiles({
 					projectRoot,
-					resolveDependencies: true,
+					resolveDependencies: true
 				});
 
 				const utils = findModule(modules, 'utils.ts');
@@ -315,15 +315,15 @@ export const exposed = secret + 1;`,
 		});
 
 		test('skips dependency resolution when resolveDependencies: false', async () => {
-			const {projectRoot, cleanup} = await createTestProject({
+			const { projectRoot, cleanup } = await createTestProject({
 				'src/lib/math.ts': 'export const add = (a: number, b: number) => a + b;',
-				'src/lib/utils.ts': `import {add} from './math.js';\nexport const sum = add(1, 2);`,
+				'src/lib/utils.ts': `import {add} from './math.js';\nexport const sum = add(1, 2);`
 			});
 
 			try {
-				const {modules} = await analyzeFromFiles({
+				const { modules } = await analyzeFromFiles({
 					projectRoot,
-					resolveDependencies: false,
+					resolveDependencies: false
 				});
 
 				// Dependencies should be empty (not populated)
@@ -339,15 +339,15 @@ export const exposed = secret + 1;`,
 
 	describe('duplicate handling', () => {
 		test('detects duplicates without throwing by default', async () => {
-			const {projectRoot, cleanup} = await createTestProject({
+			const { projectRoot, cleanup } = await createTestProject({
 				'src/lib/foo.ts': 'export type Duplicate = {value: string};',
-				'src/lib/bar.ts': 'export class Duplicate {}',
+				'src/lib/bar.ts': 'export class Duplicate {}'
 			});
 
 			try {
 				// Should not throw by default
-				const {modules} = await analyzeFromFiles({
-					projectRoot,
+				const { modules } = await analyzeFromFiles({
+					projectRoot
 				});
 
 				assert.strictEqual(modules.length, 2);
@@ -357,9 +357,9 @@ export const exposed = secret + 1;`,
 		});
 
 		test("throws on duplicates with onDuplicates: 'throw'", async () => {
-			const {projectRoot, cleanup} = await createTestProject({
+			const { projectRoot, cleanup } = await createTestProject({
 				'src/lib/foo.ts': 'export type Duplicate = {value: string};',
-				'src/lib/bar.ts': 'export class Duplicate {}',
+				'src/lib/bar.ts': 'export class Duplicate {}'
 			});
 
 			try {
@@ -369,7 +369,7 @@ export const exposed = secret + 1;`,
 				try {
 					await analyzeFromFiles({
 						projectRoot,
-						onDuplicates: 'throw',
+						onDuplicates: 'throw'
 					});
 				} catch (err: any) {
 					errorThrown = true;
@@ -379,7 +379,7 @@ export const exposed = secret + 1;`,
 				// Verify error message mentions duplicates (exact wording may vary)
 				assert.ok(
 					errorMessage.toLowerCase().includes('duplicate'),
-					`Expected error message to mention duplicates, got: ${errorMessage}`,
+					`Expected error message to mention duplicates, got: ${errorMessage}`
 				);
 			} finally {
 				await cleanup();
@@ -389,14 +389,14 @@ export const exposed = secret + 1;`,
 
 	describe('error handling', () => {
 		test('continues analysis with invalid syntax in one file', async () => {
-			const {projectRoot, cleanup} = await createTestProject({
+			const { projectRoot, cleanup } = await createTestProject({
 				'src/lib/valid.ts': 'export const valid = 1;',
-				'src/lib/malformed.ts': 'export const broken = {{{', // Invalid syntax
+				'src/lib/malformed.ts': 'export const broken = {{{' // Invalid syntax
 			});
 
 			try {
-				const {modules, diagnostics} = await analyzeFromFiles({
-					projectRoot,
+				const { modules, diagnostics } = await analyzeFromFiles({
+					projectRoot
 				});
 
 				// Valid file should still be analyzed
@@ -419,11 +419,11 @@ export const exposed = secret + 1;`,
 					assert.ok(!d.file.startsWith('/'), `diagnostic file should not be absolute: ${d.file}`);
 					assert.ok(
 						!d.file.startsWith('./'),
-						`diagnostic file should not have ./ prefix: ${d.file}`,
+						`diagnostic file should not have ./ prefix: ${d.file}`
 					);
 					assert.ok(
 						!d.file.startsWith(projectRoot),
-						`diagnostic file should not include projectRoot: ${d.file}`,
+						`diagnostic file should not include projectRoot: ${d.file}`
 					);
 				}
 			} finally {
@@ -432,13 +432,13 @@ export const exposed = secret + 1;`,
 		});
 
 		test('handles empty library gracefully', async () => {
-			const {projectRoot, cleanup} = await createTestProject({
+			const { projectRoot, cleanup } = await createTestProject({
 				// No source files, only config
 			});
 
 			try {
-				const {modules, diagnostics} = await analyzeFromFiles({
-					projectRoot,
+				const { modules, diagnostics } = await analyzeFromFiles({
+					projectRoot
 				});
 
 				assert.strictEqual(modules.length, 0, 'Empty library should have no modules');
@@ -452,15 +452,15 @@ export const exposed = secret + 1;`,
 
 	describe('module sorting and determinism', () => {
 		test('returns modules sorted alphabetically by path', async () => {
-			const {projectRoot, cleanup} = await createTestProject({
+			const { projectRoot, cleanup } = await createTestProject({
 				'src/lib/zebra.ts': 'export const zebra = 1;',
 				'src/lib/alpha.ts': 'export const alpha = 2;',
-				'src/lib/beta.ts': 'export const beta = 3;',
+				'src/lib/beta.ts': 'export const beta = 3;'
 			});
 
 			try {
-				const {modules} = await analyzeFromFiles({
-					projectRoot,
+				const { modules } = await analyzeFromFiles({
+					projectRoot
 				});
 
 				assert.strictEqual(modules[0]!.path, 'alpha.ts');
@@ -472,19 +472,19 @@ export const exposed = secret + 1;`,
 		});
 
 		test('produces deterministic output on multiple calls', async () => {
-			const {projectRoot, cleanup} = await createTestProject({
+			const { projectRoot, cleanup } = await createTestProject({
 				'src/lib/c.ts': 'export const c = 1;',
 				'src/lib/a.ts': 'export const a = 2;',
-				'src/lib/b.ts': 'export const b = 3;',
+				'src/lib/b.ts': 'export const b = 3;'
 			});
 
 			try {
-				const result1 = await analyzeFromFiles({projectRoot});
-				const result2 = await analyzeFromFiles({projectRoot});
+				const result1 = await analyzeFromFiles({ projectRoot });
+				const result2 = await analyzeFromFiles({ projectRoot });
 
 				assert.deepEqual(
 					result1.modules.map((m) => m.path),
-					result2.modules.map((m) => m.path),
+					result2.modules.map((m) => m.path)
 				);
 			} finally {
 				await cleanup();
@@ -494,16 +494,16 @@ export const exposed = secret + 1;`,
 
 	describe('dependency verification', () => {
 		test('verifies bidirectional dependencies and dependents', async () => {
-			const {projectRoot, cleanup} = await createTestProject({
+			const { projectRoot, cleanup } = await createTestProject({
 				'src/lib/core.ts': 'export const core = 1;',
 				'src/lib/utils.ts': `import {core} from './core.js';\nexport const util = core + 1;`,
-				'src/lib/app.ts': `import {util} from './utils.js';\nimport {core} from './core.js';\nexport const app = util + core;`,
+				'src/lib/app.ts': `import {util} from './utils.js';\nimport {core} from './core.js';\nexport const app = util + core;`
 			});
 
 			try {
-				const {modules} = await analyzeFromFiles({
+				const { modules } = await analyzeFromFiles({
 					projectRoot,
-					resolveDependencies: true,
+					resolveDependencies: true
 				});
 
 				const coreModule = findModule(modules, 'core.ts');
@@ -531,16 +531,16 @@ export const exposed = secret + 1;`,
 
 	describe('nested directory structures', () => {
 		test('handles deeply nested source files', async () => {
-			const {projectRoot, cleanup} = await createTestProject({
+			const { projectRoot, cleanup } = await createTestProject({
 				'src/lib/utils/math/arithmetic.ts': 'export const add = (a: number, b: number) => a + b;',
 				'src/lib/utils/string/format.ts': 'export const trim = (s: string) => s.trim();',
 				'src/lib/components/ui/Button.svelte':
-					'<script lang="ts">let {label}: {label: string} = $props();</script><button>{label}</button>',
+					'<script lang="ts">let {label}: {label: string} = $props();</script><button>{label}</button>'
 			});
 
 			try {
-				const {modules} = await analyzeFromFiles({
-					projectRoot,
+				const { modules } = await analyzeFromFiles({
+					projectRoot
 				});
 
 				assert.strictEqual(modules.length, 3, 'Should analyze all nested files');
@@ -548,15 +548,15 @@ export const exposed = secret + 1;`,
 				// Paths should be relative to src/lib
 				assert.ok(
 					modules.some((m) => m.path === 'utils/math/arithmetic.ts'),
-					'Should find deeply nested arithmetic.ts',
+					'Should find deeply nested arithmetic.ts'
 				);
 				assert.ok(
 					modules.some((m) => m.path === 'utils/string/format.ts'),
-					'Should find deeply nested format.ts',
+					'Should find deeply nested format.ts'
 				);
 				assert.ok(
 					modules.some((m) => m.path === 'components/ui/Button.svelte'),
-					'Should find deeply nested Button.svelte',
+					'Should find deeply nested Button.svelte'
 				);
 			} finally {
 				await cleanup();
@@ -566,14 +566,14 @@ export const exposed = secret + 1;`,
 
 	describe('glob edge cases', () => {
 		test('handles include patterns that match no files', async () => {
-			const {projectRoot, cleanup} = await createTestProject({
-				'src/lib/foo.ts': 'export const foo = 1;',
+			const { projectRoot, cleanup } = await createTestProject({
+				'src/lib/foo.ts': 'export const foo = 1;'
 			});
 
 			try {
-				const {modules} = await analyzeFromFiles({
+				const { modules } = await analyzeFromFiles({
 					projectRoot,
-					include: ['src/lib/**/*.xyz'], // no files match
+					include: ['src/lib/**/*.xyz'] // no files match
 				});
 
 				assert.strictEqual(modules.length, 0);
@@ -585,7 +585,7 @@ export const exposed = secret + 1;`,
 
 	describe('JSDoc extraction', () => {
 		test('extracts module-level and declaration-level documentation', async () => {
-			const {projectRoot, cleanup} = await createTestProject({
+			const { projectRoot, cleanup } = await createTestProject({
 				'src/lib/math.ts': `
 /**
  * Math utilities.
@@ -601,12 +601,12 @@ export const exposed = secret + 1;`,
  */
 export function add(a: number, b: number): number {
 	return a + b;
-}`,
+}`
 			});
 
 			try {
-				const {modules} = await analyzeFromFiles({
-					projectRoot,
+				const { modules } = await analyzeFromFiles({
+					projectRoot
 				});
 
 				const math = modules.find((m) => m.path === 'math.ts')!;
@@ -616,7 +616,7 @@ export function add(a: number, b: number): number {
 				assert.include(
 					math.moduleComment,
 					'Math utilities',
-					'Module comment should contain description',
+					'Module comment should contain description'
 				);
 
 				// Declaration comment
@@ -632,7 +632,7 @@ export function add(a: number, b: number): number {
 
 	describe('include overrides exports', () => {
 		test('include patterns skip exports-based discovery', async () => {
-			const {projectRoot, cleanup} = await createTestProject({
+			const { projectRoot, cleanup } = await createTestProject({
 				'src/lib/index.ts': 'export const fromExports = 1;',
 				'src/lib/other.ts': 'export const other = 2;',
 				'package.json': JSON.stringify({
@@ -640,17 +640,17 @@ export function add(a: number, b: number): number {
 					exports: {
 						'.': {
 							types: './dist/index.d.ts',
-							default: './dist/index.js',
-						},
-					},
-				}),
+							default: './dist/index.js'
+						}
+					}
+				})
 			});
 
 			try {
 				// With include, exports field should be ignored
-				const {modules} = await analyzeFromFiles({
+				const { modules } = await analyzeFromFiles({
 					projectRoot,
-					include: ['src/lib/other.ts'],
+					include: ['src/lib/other.ts']
 				});
 
 				// Should only find other.ts, not index.ts (which exports would discover)
@@ -664,15 +664,15 @@ export function add(a: number, b: number): number {
 
 	describe('discovery option', () => {
 		test("falls back to glob when discovery is 'glob'", async () => {
-			const {projectRoot, cleanup} = await createTestProject({
+			const { projectRoot, cleanup } = await createTestProject({
 				'src/lib/foo.ts': 'export const foo = 1;',
-				'src/lib/bar.ts': 'export const bar = 2;',
+				'src/lib/bar.ts': 'export const bar = 2;'
 			});
 
 			try {
-				const {modules} = await analyzeFromFiles({
+				const { modules } = await analyzeFromFiles({
 					projectRoot,
-					discovery: 'glob',
+					discovery: 'glob'
 				});
 
 				assert.strictEqual(modules.length, 2);
@@ -682,20 +682,20 @@ export function add(a: number, b: number): number {
 		});
 
 		test("'exports' strict mode throws when package.json has no exports", async () => {
-			const {projectRoot, cleanup} = await createTestProject({
-				'src/lib/foo.ts': 'export const foo = 1;',
+			const { projectRoot, cleanup } = await createTestProject({
+				'src/lib/foo.ts': 'export const foo = 1;'
 			});
 
 			try {
 				let thrown: unknown;
 				try {
-					await analyzeFromFiles({projectRoot, discovery: 'exports'});
+					await analyzeFromFiles({ projectRoot, discovery: 'exports' });
 				} catch (error) {
 					thrown = error;
 				}
 				assert.ok(
 					thrown instanceof Error && thrown.message.includes("discovery: 'exports' failed"),
-					`should throw with strict-exports message; got: ${String(thrown)}`,
+					`should throw with strict-exports message; got: ${String(thrown)}`
 				);
 			} finally {
 				await cleanup();
@@ -703,12 +703,12 @@ export function add(a: number, b: number): number {
 		});
 
 		test("'exports' strict mode rejects combination with `include`", async () => {
-			const {projectRoot, cleanup} = await createTestProject({
+			const { projectRoot, cleanup } = await createTestProject({
 				'src/lib/foo.ts': 'export const foo = 1;',
 				'package.json': JSON.stringify({
 					name: 'test-pkg',
-					exports: {'.': {default: './dist/foo.js'}},
-				}),
+					exports: { '.': { default: './dist/foo.js' } }
+				})
 			});
 
 			try {
@@ -717,14 +717,14 @@ export function add(a: number, b: number): number {
 					await analyzeFromFiles({
 						projectRoot,
 						discovery: 'exports',
-						include: ['src/**/*.ts'],
+						include: ['src/**/*.ts']
 					});
 				} catch (error) {
 					thrown = error;
 				}
 				assert.ok(
 					thrown instanceof Error && thrown.message.includes('incompatible with `include`'),
-					`should throw incompatibility error; got: ${String(thrown)}`,
+					`should throw incompatibility error; got: ${String(thrown)}`
 				);
 			} finally {
 				await cleanup();
@@ -732,7 +732,7 @@ export function add(a: number, b: number): number {
 		});
 
 		test('uses package.json exports when available', async () => {
-			const {projectRoot, cleanup} = await createTestProject({
+			const { projectRoot, cleanup } = await createTestProject({
 				'src/lib/foo.ts': 'export const foo = 1;',
 				'src/lib/bar.ts': 'export const bar = 2;',
 				'package.json': JSON.stringify({
@@ -740,21 +740,21 @@ export function add(a: number, b: number): number {
 					exports: {
 						'.': {
 							types: './dist/foo.d.ts',
-							default: './dist/foo.js',
-						},
-					},
-				}),
+							default: './dist/foo.js'
+						}
+					}
+				})
 			});
 
 			try {
-				const {modules} = await analyzeFromFiles({
-					projectRoot,
+				const { modules } = await analyzeFromFiles({
+					projectRoot
 				});
 
 				// Should discover foo.ts from exports mapping
 				assert.ok(
 					modules.some((m) => m.path === 'foo.ts'),
-					'Should discover foo.ts from package.json exports',
+					'Should discover foo.ts from package.json exports'
 				);
 			} finally {
 				await cleanup();
@@ -764,21 +764,21 @@ export function add(a: number, b: number): number {
 
 	describe('logger integration', () => {
 		test('logs discovery and diagnostic messages', async () => {
-			const {projectRoot, cleanup} = await createTestProject({
-				'src/lib/foo.ts': 'export const foo = 1;',
+			const { projectRoot, cleanup } = await createTestProject({
+				'src/lib/foo.ts': 'export const foo = 1;'
 			});
 
 			try {
-				const logCalls: Array<{level: string; args: Array<unknown>}> = [];
+				const logCalls: Array<{ level: string; args: Array<unknown> }> = [];
 				const mockLog = {
-					info: (...args: Array<unknown>) => logCalls.push({level: 'info', args}),
-					warn: (...args: Array<unknown>) => logCalls.push({level: 'warn', args}),
-					error: (...args: Array<unknown>) => logCalls.push({level: 'error', args}),
+					info: (...args: Array<unknown>) => logCalls.push({ level: 'info', args }),
+					warn: (...args: Array<unknown>) => logCalls.push({ level: 'warn', args }),
+					error: (...args: Array<unknown>) => logCalls.push({ level: 'error', args })
 				};
 
 				await analyzeFromFiles({
 					projectRoot,
-					log: mockLog as any,
+					log: mockLog as any
 				});
 
 				// Should have some info logs about discovery

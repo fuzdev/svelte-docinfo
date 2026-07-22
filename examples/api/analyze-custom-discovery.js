@@ -1,17 +1,17 @@
 /** Custom file discovery - compose helpers for control over glob patterns. */
 
-import {writeFile} from 'node:fs/promises';
-import {dirname, join} from 'node:path';
-import {fileURLToPath} from 'node:url';
+import { writeFile } from 'node:fs/promises';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-import {analyze, createSourceOptions, compactReplacer} from 'svelte-docinfo';
-import {globFiles} from 'svelte-docinfo/files.js';
+import { analyze, createSourceOptions, compactReplacer } from 'svelte-docinfo';
+import { globFiles } from 'svelte-docinfo/files.js';
 
 const dir = dirname(fileURLToPath(import.meta.url));
 
 const files = await globFiles({
 	projectRoot: dir,
-	include: ['src/lib/**/*.{ts,svelte}'],
+	include: ['src/lib/**/*.{ts,svelte}']
 });
 
 // `analyze()` ingests via a single-use AnalysisSession internally. The session
@@ -21,14 +21,14 @@ const files = await globFiles({
 // custom `resolveImport` (the `{resolve, identity}` pair) to
 // bypass — wrap a bare function like Vite's `pluginContainer.resolveId` with
 // a synthesized `identity` string for cache-key purposes.
-const {modules} = await analyze({
+const { modules } = await analyze({
 	sourceFiles: files,
-	sourceOptions: createSourceOptions(dir),
+	sourceOptions: createSourceOptions(dir)
 });
 
 await writeFile(
 	join(dir, 'output-custom-discovery.json'),
-	JSON.stringify({modules}, compactReplacer, '\t'),
+	JSON.stringify({ modules }, compactReplacer, '\t')
 );
 
 console.log(`Analyzed ${modules.length} modules`);

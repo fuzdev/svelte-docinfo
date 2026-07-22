@@ -9,28 +9,28 @@
  * Dependency resolution moved into the session (see analyze.session.test.ts).
  */
 
-import {test, assert, describe} from 'vitest';
-import {join} from 'node:path';
+import { test, assert, describe } from 'vitest';
+import { join } from 'node:path';
 
-import {loadFile, globFiles, deriveIncludePatterns} from '$lib/files.ts';
+import { loadFile, globFiles, deriveIncludePatterns } from '$lib/files.ts';
 
-import {withTestProject} from './test-helpers.ts';
+import { withTestProject } from './test-helpers.ts';
 
 describe('loadFile', () => {
 	test('loads file with absolute path', async () => {
 		await withTestProject(
-			{'src/lib/math.ts': 'export const add = (a: number, b: number) => a + b;'},
+			{ 'src/lib/math.ts': 'export const add = (a: number, b: number) => a + b;' },
 			async (projectRoot) => {
 				const file = await loadFile(join(projectRoot, 'src/lib/math.ts'), projectRoot);
 
 				assert.strictEqual(file.id, join(projectRoot, 'src/lib/math.ts'));
 				assert.include(file.content, 'export const add');
-			},
+			}
 		);
 	});
 
 	test('loads file with relative path', async () => {
-		await withTestProject({'src/lib/utils.ts': 'export const foo = 42;'}, async (projectRoot) => {
+		await withTestProject({ 'src/lib/utils.ts': 'export const foo = 42;' }, async (projectRoot) => {
 			const file = await loadFile('src/lib/utils.ts', projectRoot);
 
 			assert.strictEqual(file.id, join(projectRoot, 'src/lib/utils.ts'));
@@ -42,14 +42,14 @@ describe('loadFile', () => {
 		await withTestProject(
 			{
 				'src/lib/Button.svelte':
-					'<script lang="ts">let {label}: {label: string} = $props();</script><button>{label}</button>',
+					'<script lang="ts">let {label}: {label: string} = $props();</script><button>{label}</button>'
 			},
 			async (projectRoot) => {
 				const file = await loadFile('src/lib/Button.svelte', projectRoot);
 
 				assert.strictEqual(file.id, join(projectRoot, 'src/lib/Button.svelte'));
 				assert.include(file.content, 'button');
-			},
+			}
 		);
 	});
 
@@ -69,14 +69,14 @@ describe('loadFile', () => {
 	test('loads file with UTF-8 content', async () => {
 		await withTestProject(
 			{
-				'src/lib/unicode.ts': '// Comment with emoji: 🎉\nexport const greeting = "Hello, 世界!";',
+				'src/lib/unicode.ts': '// Comment with emoji: 🎉\nexport const greeting = "Hello, 世界!";'
 			},
 			async (projectRoot) => {
 				const file = await loadFile('src/lib/unicode.ts', projectRoot);
 
 				assert.include(file.content, '🎉');
 				assert.include(file.content, '世界');
-			},
+			}
 		);
 	});
 });
@@ -87,19 +87,19 @@ describe('globFiles', () => {
 			{
 				'src/lib/foo.ts': 'export const foo = 1;',
 				'src/lib/bar.ts': 'export const bar = 2;',
-				'src/lib/baz.ts': 'export const baz = 3;',
+				'src/lib/baz.ts': 'export const baz = 3;'
 			},
 			async (projectRoot) => {
 				const files = await globFiles({
 					projectRoot,
-					include: ['src/lib/**/*.ts'],
+					include: ['src/lib/**/*.ts']
 				});
 
 				assert.strictEqual(files.length, 3);
 				assert.ok(files.some((f) => f.id.endsWith('foo.ts')));
 				assert.ok(files.some((f) => f.id.endsWith('bar.ts')));
 				assert.ok(files.some((f) => f.id.endsWith('baz.ts')));
-			},
+			}
 		);
 	});
 
@@ -108,19 +108,19 @@ describe('globFiles', () => {
 			{
 				'src/lib/utils.ts': 'export const util = 1;',
 				'src/lib/Button.svelte': '<button>Click</button>',
-				'src/lib/helpers.js': 'export const helper = 2;',
+				'src/lib/helpers.js': 'export const helper = 2;'
 			},
 			async (projectRoot) => {
 				const files = await globFiles({
 					projectRoot,
-					include: ['src/lib/**/*.{ts,js,svelte}'],
+					include: ['src/lib/**/*.{ts,js,svelte}']
 				});
 
 				assert.strictEqual(files.length, 3);
 				assert.ok(files.some((f) => f.id.endsWith('.ts')));
 				assert.ok(files.some((f) => f.id.endsWith('.svelte')));
 				assert.ok(files.some((f) => f.id.endsWith('.js')));
-			},
+			}
 		);
 	});
 
@@ -129,19 +129,19 @@ describe('globFiles', () => {
 			{
 				'src/lib/foo.ts': 'export const foo = 1;',
 				'src/lib/foo.test.ts': 'test("foo", () => {});',
-				'src/lib/bar.ts': 'export const bar = 2;',
+				'src/lib/bar.ts': 'export const bar = 2;'
 			},
 			async (projectRoot) => {
 				const files = await globFiles({
 					projectRoot,
 					include: ['src/lib/**/*.ts'],
-					exclude: ['**/*.test.ts'],
+					exclude: ['**/*.test.ts']
 				});
 
 				assert.strictEqual(files.length, 2);
 				assert.ok(files.some((f) => f.id.endsWith('foo.ts') && !f.id.includes('.test')));
 				assert.ok(files.some((f) => f.id.endsWith('bar.ts')));
-			},
+			}
 		);
 	});
 
@@ -151,18 +151,18 @@ describe('globFiles', () => {
 				'src/lib/utils/math.ts': 'export const add = 1;',
 				'src/lib/utils/string.ts': 'export const trim = 2;',
 				'src/lib/components/Button.svelte': '<button></button>',
-				'src/lib/types/index.ts': 'export type Foo = string;',
+				'src/lib/types/index.ts': 'export type Foo = string;'
 			},
 			async (projectRoot) => {
 				const files = await globFiles({
 					projectRoot,
-					include: ['src/lib/**/*.{ts,svelte}'],
+					include: ['src/lib/**/*.{ts,svelte}']
 				});
 
 				assert.strictEqual(files.length, 4);
 				assert.ok(files.some((f) => f.id.includes('utils/math.ts')));
 				assert.ok(files.some((f) => f.id.includes('components/Button.svelte')));
-			},
+			}
 		);
 	});
 
@@ -170,31 +170,31 @@ describe('globFiles', () => {
 		await withTestProject(
 			{
 				'src/lib/foo.txt': 'plain text',
-				'src/lib/bar.md': '# Markdown',
+				'src/lib/bar.md': '# Markdown'
 			},
 			async (projectRoot) => {
 				const files = await globFiles({
 					projectRoot,
-					include: ['src/lib/**/*.ts'],
+					include: ['src/lib/**/*.ts']
 				});
 
 				assert.strictEqual(files.length, 0);
-			},
+			}
 		);
 	});
 
 	test('returns files with content loaded', async () => {
 		await withTestProject(
-			{'src/lib/foo.ts': 'export const foo = "test content";'},
+			{ 'src/lib/foo.ts': 'export const foo = "test content";' },
 			async (projectRoot) => {
 				const files = await globFiles({
 					projectRoot,
-					include: ['src/lib/**/*.ts'],
+					include: ['src/lib/**/*.ts']
 				});
 
 				assert.strictEqual(files.length, 1);
 				assert.include(files[0]!.content, 'test content');
-			},
+			}
 		);
 	});
 
@@ -202,24 +202,24 @@ describe('globFiles', () => {
 		await withTestProject(
 			{
 				'src/lib/utils.ts': 'export const util = 1;',
-				'src/components/Button.svelte': '<button></button>',
+				'src/components/Button.svelte': '<button></button>'
 			},
 			async (projectRoot) => {
 				const files = await globFiles({
 					projectRoot,
-					include: ['src/lib/**/*.ts', 'src/components/**/*.svelte'],
+					include: ['src/lib/**/*.ts', 'src/components/**/*.svelte']
 				});
 
 				assert.strictEqual(files.length, 2);
-			},
+			}
 		);
 	});
 
 	test('returns absolute paths in file.id', async () => {
-		await withTestProject({'src/lib/foo.ts': 'export const foo = 1;'}, async (projectRoot) => {
+		await withTestProject({ 'src/lib/foo.ts': 'export const foo = 1;' }, async (projectRoot) => {
 			const files = await globFiles({
 				projectRoot,
-				include: ['src/lib/**/*.ts'],
+				include: ['src/lib/**/*.ts']
 			});
 
 			assert.strictEqual(files.length, 1);
@@ -241,7 +241,7 @@ describe('globFiles', () => {
 		await withTestProject(fixtures, async (projectRoot) => {
 			const files = await globFiles({
 				projectRoot,
-				include: ['src/lib/**/*.ts'],
+				include: ['src/lib/**/*.ts']
 			});
 			assert.strictEqual(files.length, N);
 			// Spot-check content loaded correctly under bounded concurrency.
@@ -254,11 +254,11 @@ describe('globFiles', () => {
 describe('deriveIncludePatterns', () => {
 	test('builds one glob per source path', () => {
 		assert.deepStrictEqual(deriveIncludePatterns(['packages/foo']), [
-			'packages/foo/**/*.{ts,js,svelte,css,json}',
+			'packages/foo/**/*.{ts,js,svelte,css,json}'
 		]);
 		assert.deepStrictEqual(deriveIncludePatterns(['src/lib', 'src/routes']), [
 			'src/lib/**/*.{ts,js,svelte,css,json}',
-			'src/routes/**/*.{ts,js,svelte,css,json}',
+			'src/routes/**/*.{ts,js,svelte,css,json}'
 		]);
 	});
 

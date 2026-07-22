@@ -9,7 +9,7 @@
  * @module
  */
 
-import type {DeclarationJson, MemberJson, DeclarationKind, MemberKind} from './types.ts';
+import type { DeclarationJson, MemberJson, DeclarationKind, MemberKind } from './types.ts';
 
 // Serialization
 
@@ -115,7 +115,7 @@ export const getDisplayName = (declaration: DeclarationJson | MemberJson): strin
 export const generateImport = (
 	declaration: DeclarationJson,
 	modulePath: string,
-	libraryName: string,
+	libraryName: string
 ): string => {
 	const jsPath = modulePath.replace(/\.ts$/, '.js');
 	const specifier = `${libraryName}/${jsPath}`;
@@ -188,7 +188,7 @@ const buildIdentifierPattern = (name: string): RegExp =>
  * ```
  */
 export const buildTypeReferencePatterns = (
-	declarationNames: ReadonlySet<string>,
+	declarationNames: ReadonlySet<string>
 ): Array<[string, RegExp]> => {
 	const patterns: Array<[string, RegExp]> = [];
 	for (const name of declarationNames) {
@@ -229,7 +229,7 @@ export const buildTypeReferencePatterns = (
  */
 export const findTypeReferences = (
 	typeString: string,
-	declarationNames: ReadonlySet<string> | Array<[string, RegExp]>,
+	declarationNames: ReadonlySet<string> | Array<[string, RegExp]>
 ): Array<string> => {
 	if (!typeString) return [];
 	const patterns: Array<[string, RegExp]> = Array.isArray(declarationNames)
@@ -265,5 +265,5 @@ export const findTypeReferences = (
  */
 export const isKind = <K extends DeclarationKind | MemberKind>(
 	declaration: DeclarationJson | MemberJson,
-	kind: K,
-): declaration is Extract<DeclarationJson | MemberJson, {kind: K}> => declaration.kind === kind;
+	kind: K
+): declaration is Extract<DeclarationJson | MemberJson, { kind: K }> => declaration.kind === kind;

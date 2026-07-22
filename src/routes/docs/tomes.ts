@@ -1,4 +1,4 @@
-import type {Tome} from '@fuzdev/fuz_ui/tome.ts';
+import type { Tome } from '@fuzdev/fuz_ui/tome.ts';
 import IntroductionPage from './introduction/+page.svelte';
 import ArchitecturePage from './architecture/+page.svelte';
 import CliPage from './cli/+page.svelte';
@@ -23,15 +23,15 @@ export const tomes: Array<Tome> = [
 			'build-tools',
 			'output-format',
 			'tags',
-			'api',
+			'api'
 		],
 		related_modules: ['analyze.ts', 'session.ts'],
 		related_declarations: [
 			'analyzeFromFiles',
 			'analyze',
 			'createAnalysisSession',
-			'createSourceOptions',
-		],
+			'createSourceOptions'
+		]
 	},
 	{
 		slug: 'cli',
@@ -39,7 +39,7 @@ export const tomes: Array<Tome> = [
 		Component: CliPage,
 		related_tomes: ['introduction', 'vite-plugin', 'output-format', 'diagnostics'],
 		related_modules: ['cli.ts'],
-		related_declarations: ['analyzeFromFiles'],
+		related_declarations: ['analyzeFromFiles']
 	},
 	{
 		slug: 'vite-plugin',
@@ -53,8 +53,8 @@ export const tomes: Array<Tome> = [
 			'createAnalysisSession',
 			'OnDuplicates',
 			'VitePluginSvelteDocinfoOptions',
-			'createSourceOptions',
-		],
+			'createSourceOptions'
+		]
 	},
 	{
 		slug: 'architecture',
@@ -62,7 +62,7 @@ export const tomes: Array<Tome> = [
 		Component: ArchitecturePage,
 		related_tomes: ['introduction', 'api', 'session', 'vite-plugin'],
 		related_modules: [],
-		related_declarations: [],
+		related_declarations: []
 	},
 	{
 		slug: 'session',
@@ -78,8 +78,8 @@ export const tomes: Array<Tome> = [
 			'SetFileResult',
 			'SetFilesResult',
 			'QueryOptions',
-			'ImportResolver',
-		],
+			'ImportResolver'
+		]
 	},
 	{
 		slug: 'build-tools',
@@ -97,8 +97,8 @@ export const tomes: Array<Tome> = [
 			'ModuleSourceOptions',
 			'ImportResolver',
 			'analyze',
-			'analyzeFromFiles',
-		],
+			'analyzeFromFiles'
+		]
 	},
 	{
 		slug: 'output-format',
@@ -119,8 +119,8 @@ export const tomes: Array<Tome> = [
 			'GenericParamJson',
 			'compactReplacer',
 			'findTypeReferences',
-			'buildTypeReferencePatterns',
-		],
+			'buildTypeReferencePatterns'
+		]
 	},
 	{
 		slug: 'tags',
@@ -128,7 +128,7 @@ export const tomes: Array<Tome> = [
 		Component: TagsPage,
 		related_tomes: ['introduction', 'output-format', 'diagnostics'],
 		related_modules: ['tsdoc.ts'],
-		related_declarations: ['ComponentPropJson', 'ParameterJson', 'OverloadJson'],
+		related_declarations: ['ComponentPropJson', 'ParameterJson', 'OverloadJson']
 	},
 	{
 		slug: 'diagnostics',
@@ -145,8 +145,8 @@ export const tomes: Array<Tome> = [
 			'errorsOf',
 			'warningsOf',
 			'byKind',
-			'formatDiagnostic',
-		],
+			'formatDiagnostic'
+		]
 	},
 	{
 		slug: 'api',
@@ -159,7 +159,7 @@ export const tomes: Array<Tome> = [
 			'session',
 			'build-tools',
 			'output-format',
-			'diagnostics',
+			'diagnostics'
 		],
 		related_modules: ['analyze.ts', 'types.ts', 'typescript-exports.ts'],
 		related_declarations: [
@@ -168,7 +168,7 @@ export const tomes: Array<Tome> = [
 			'createAnalysisSession',
 			'AnalyzeResultJson',
 			'ModuleJson',
-			'DeclarationJson',
-		],
-	},
+			'DeclarationJson'
+		]
+	}
 ];

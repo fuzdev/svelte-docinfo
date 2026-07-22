@@ -1,5 +1,5 @@
 <script lang="ts">
-	import {modules} from 'virtual:svelte-docinfo';
+	import { modules } from 'virtual:svelte-docinfo';
 
 	console.log('svelte-docinfo modules:', modules);
 </script>
@@ -7,8 +7,9 @@
 <main>
 	<h1>svelte-docinfo + Vite</h1>
 	<p>
-		Vite plugin serves analysis as the <code>virtual:svelte-docinfo</code> import with HMR
-		(<a href="https://svelte-docinfo.fuz.dev/">docs</a>,
+		Vite plugin serves analysis as the <code>virtual:svelte-docinfo</code> import with HMR (<a
+			href="https://svelte-docinfo.fuz.dev/">docs</a
+		>,
 		<a href="https://github.com/fuzdev/svelte-docinfo/tree/main/examples/vite">source</a>).
 	</p>
 	<p>{modules.length} module{modules.length === 1 ? '' : 's'} analyzed:</p>
@@ -19,7 +20,8 @@
 				{#if mod.declarations?.length}
 					—
 					{#each mod.declarations as decl, i}
-						{#if i > 0}, {/if}<code>{decl.name}</code>
+						{#if i > 0},
+						{/if}<code>{decl.name}</code>
 					{/each}
 				{/if}
 			</li>

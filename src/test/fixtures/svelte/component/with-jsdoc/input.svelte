@@ -12,7 +12,7 @@
 
 <script lang="ts">
 	let {
-		value,
+		value
 	}: {
 		value: string;
 	} = $props();

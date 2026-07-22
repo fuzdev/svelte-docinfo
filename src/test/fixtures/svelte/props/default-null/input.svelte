@@ -1,9 +1,9 @@
 <script lang="ts">
-	type A = {a: string} | null;
+	type A = { a: string } | null;
 
 	let {
 		prop1 = null,
-		prop2,
+		prop2
 	}: {
 		/** Description 1 */
 		prop1?: A;

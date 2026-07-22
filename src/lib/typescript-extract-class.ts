@@ -14,17 +14,17 @@
 
 import ts from 'typescript';
 
-import type {MemberKind, DeclarationModifier} from './types.ts';
-import type {DeclarationJsonBuild, MemberJsonBuild} from './declaration-build.ts';
-import {type Diagnostic} from './diagnostics.ts';
-import {to_error_message} from './error.ts';
-import {parseComment, applyToDeclaration} from './tsdoc.ts';
+import type { MemberKind, DeclarationModifier } from './types.ts';
+import type { DeclarationJsonBuild, MemberJsonBuild } from './declaration-build.ts';
+import { type Diagnostic } from './diagnostics.ts';
+import { to_error_message } from './error.ts';
+import { parseComment, applyToDeclaration } from './tsdoc.ts';
 import {
 	detectReactivity,
 	extractModifiers,
 	getNodeLocation,
 	parseGenericParam,
-	populateCallableMember,
+	populateCallableMember
 } from './typescript-extract-shared.ts';
 
 /**
@@ -42,13 +42,13 @@ export const extractClassInfo = (
 	node: ts.Node,
 	checker: ts.TypeChecker,
 	declaration: DeclarationJsonBuild,
-	diagnostics: Array<Diagnostic>,
+	diagnostics: Array<Diagnostic>
 ): void => {
 	if (!ts.isClassDeclaration(node)) return;
 
 	if (node.heritageClauses) {
 		const extendsClause = node.heritageClauses.find(
-			(hc) => hc.token === ts.SyntaxKind.ExtendsKeyword,
+			(hc) => hc.token === ts.SyntaxKind.ExtendsKeyword
 		);
 		if (extendsClause?.types[0]) {
 			declaration.extends = extendsClause.types[0].getText();
@@ -109,7 +109,7 @@ export const extractClassInfo = (
 
 			const memberDeclaration: MemberJsonBuild = {
 				name: memberName,
-				kind: memberKind,
+				kind: memberKind
 			};
 
 			if (ts.isPropertyDeclaration(member) && member.questionToken) {
@@ -174,7 +174,7 @@ export const extractClassInfo = (
 						member,
 						memberName,
 						diagnostics,
-						!isConstructor,
+						!isConstructor
 					);
 				}
 			} catch (err) {
@@ -189,7 +189,7 @@ export const extractClassInfo = (
 					message: `Failed to analyze member "${memberName}" in class "${className}": ${to_error_message(err)}`,
 					severity: 'warning',
 					className,
-					memberName,
+					memberName
 				});
 			}
 
@@ -206,7 +206,7 @@ export const extractClassInfo = (
 	// Extract accessors (getters/setters) - group by name to merge pairs
 	const accessors: Map<
 		string,
-		{getter: ts.GetAccessorDeclaration | null; setter: ts.SetAccessorDeclaration | null}
+		{ getter: ts.GetAccessorDeclaration | null; setter: ts.SetAccessorDeclaration | null }
 	> = new Map();
 
 	for (const member of node.members) {
@@ -221,7 +221,7 @@ export const extractClassInfo = (
 				if (isPrivate) continue;
 			}
 
-			const existing = accessors.get(accessorName) ?? {getter: null, setter: null};
+			const existing = accessors.get(accessorName) ?? { getter: null, setter: null };
 			if (ts.isGetAccessor(member)) {
 				existing.getter = member;
 			} else {
@@ -232,10 +232,10 @@ export const extractClassInfo = (
 	}
 
 	// Create declarations for accessor pairs
-	for (const [accessorName, {getter, setter}] of accessors) {
+	for (const [accessorName, { getter, setter }] of accessors) {
 		const accessorDeclaration: MemberJsonBuild = {
 			name: accessorName,
-			kind: 'variable',
+			kind: 'variable'
 		};
 
 		// Build modifiers: getter/setter indicators + other modifiers (static, etc.)
@@ -285,7 +285,7 @@ export const extractClassInfo = (
 				message: `Failed to analyze accessor "${accessorName}" in class "${className}": ${to_error_message(err)}`,
 				severity: 'warning',
 				className,
-				memberName: accessorName,
+				memberName: accessorName
 			});
 		}
 

@@ -1,2 +1,1 @@
-export {add, multiply, type MathConfig} from './math.js';
-
+export { add, multiply, type MathConfig } from './math.js';

@@ -1,7 +1,7 @@
 <script lang="ts">
 	let {
 		prop1,
-		prop2,
+		prop2
 	}: {
 		/** @deprecated */
 		prop1: string;

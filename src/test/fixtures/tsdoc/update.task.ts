@@ -1,13 +1,13 @@
-import type {Task} from '@fuzdev/gro';
-import {join} from 'node:path';
+import type { Task } from '@fuzdev/gro';
+import { join } from 'node:path';
 import ts from 'typescript';
 
-import {runUpdateTask} from '../../test-helpers.ts';
-import {findAndParseTsdoc} from './tsdoc-test-helpers.ts';
+import { runUpdateTask } from '../../test-helpers.ts';
+import { findAndParseTsdoc } from './tsdoc-test-helpers.ts';
 
 export const task: Task = {
 	summary: 'generate expected.json files for tsdoc fixtures',
-	run: async ({log}) => {
+	run: async ({ log }) => {
 		await runUpdateTask(
 			{
 				fixturesDir: join(import.meta.dirname),
@@ -18,7 +18,7 @@ export const task: Task = {
 						input,
 						ts.ScriptTarget.Latest,
 						true,
-						ts.ScriptKind.TS,
+						ts.ScriptKind.TS
 					);
 					return findAndParseTsdoc(sourceFile);
 				},
@@ -28,9 +28,9 @@ export const task: Task = {
 						return Object.fromEntries(value);
 					}
 					return value;
-				},
+				}
 			},
-			log,
+			log
 		);
-	},
+	}
 };

@@ -11,7 +11,7 @@ import {
 	createSourceOptions,
 	DEFAULT_SOURCE_OPTIONS,
 	type ModuleSourceOptions,
-	type SourceOptionsDefaults,
+	type SourceOptionsDefaults
 } from '$lib/source-config.ts';
 
 /** Default project root for tests. */
@@ -25,7 +25,7 @@ export const TEST_PROJECT_ROOT = '/home/user/project';
  */
 export const createTestSourceOptions = (
 	projectRoot: string = TEST_PROJECT_ROOT,
-	overrides?: Partial<SourceOptionsDefaults>,
+	overrides?: Partial<SourceOptionsDefaults>
 ): ModuleSourceOptions => createSourceOptions(projectRoot, overrides);
 
 /**
@@ -43,7 +43,7 @@ export const createTestSourceOptions = (
  * ```
  */
 export const testSourceOptions = (
-	overrides?: Partial<SourceOptionsDefaults>,
+	overrides?: Partial<SourceOptionsDefaults>
 ): ModuleSourceOptions => createTestSourceOptions(process.cwd(), overrides);
 
 /**
@@ -75,11 +75,11 @@ export const testMockOptions = (overrides?: Partial<SourceOptionsDefaults>): Mod
  */
 export const createVirtualSourceOptions = (
 	projectRoot: string = '',
-	overrides?: Partial<SourceOptionsDefaults>,
+	overrides?: Partial<SourceOptionsDefaults>
 ): ModuleSourceOptions => ({
 	projectRoot,
 	...DEFAULT_SOURCE_OPTIONS,
-	...overrides,
+	...overrides
 });
 
 /**
@@ -90,7 +90,7 @@ export const createVirtualSourceOptions = (
  *
  * @param files Array of virtual files with path and content
  */
-export const createTestProgram = (files: Array<{path: string; content: string}>): ts.Program => {
+export const createTestProgram = (files: Array<{ path: string; content: string }>): ts.Program => {
 	const fileMap = new Map(files.map((f) => [f.path, f.content]));
 
 	const compilerOptions: ts.CompilerOptions = {
@@ -100,7 +100,7 @@ export const createTestProgram = (files: Array<{path: string; content: string}>)
 		strict: true,
 		skipLibCheck: true,
 		noEmit: true,
-		allowJs: true,
+		allowJs: true
 	};
 
 	const host = ts.createCompilerHost(compilerOptions);
@@ -113,7 +113,7 @@ export const createTestProgram = (files: Array<{path: string; content: string}>)
 
 // Cached program for incremental compilation
 
-let _cachedParsedConfig: {options: ts.CompilerOptions; fileNames: Array<string>} | undefined;
+let _cachedParsedConfig: { options: ts.CompilerOptions; fileNames: Array<string> } | undefined;
 let _lastProgram: ts.Program | undefined;
 
 /**
@@ -136,7 +136,7 @@ export const createCachedAnalysisProgram = (virtualFiles?: Map<string, string>):
 		_cachedParsedConfig = ts.parseJsonConfigFileContent(configFile.config, ts.sys, projectRoot);
 	}
 
-	const {options, fileNames} = _cachedParsedConfig;
+	const { options, fileNames } = _cachedParsedConfig;
 	const rootNames = virtualFiles?.size ? [...fileNames, ...virtualFiles.keys()] : fileNames;
 
 	let host: ts.CompilerHost | undefined;

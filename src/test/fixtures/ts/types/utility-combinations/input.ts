@@ -1,7 +1,7 @@
 /**
  * Utility type combinations.
  */
-type B = {a: string; b: number; c: boolean};
+type B = { a: string; b: number; c: boolean };
 
 export type A = {
 	a: Pick<B, 'a' | 'b'>;

@@ -10,12 +10,12 @@
 
 	let {
 		prop1,
-		prop2,
+		prop2
 	}: {
 		/** Description 1 */
 		prop1: A;
 		/** Description 2 */
-		prop2: Array<Array<{id: number; values: string[]}>>;
+		prop2: Array<Array<{ id: number; values: string[] }>>;
 	} = $props();
 </script>
 

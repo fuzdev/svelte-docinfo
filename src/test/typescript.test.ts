@@ -1,11 +1,11 @@
-import {test, assert, describe, beforeAll} from 'vitest';
+import { test, assert, describe, beforeAll } from 'vitest';
 import ts from 'typescript';
 
-import {DeclarationJson, type DeclarationJsonInput} from '$lib/types.ts';
-import {createAnalysisProgram} from '$lib/typescript-program.ts';
-import {detectReactivity, extractSignatureParameters} from '$lib/typescript-extract-shared.ts';
-import {analyzeExports, analyzeTypescriptModule} from '$lib/typescript-exports.ts';
-import {type Diagnostic, hasErrors, hasWarnings} from '$lib/diagnostics.ts';
+import { DeclarationJson, type DeclarationJsonInput } from '$lib/types.ts';
+import { createAnalysisProgram } from '$lib/typescript-program.ts';
+import { detectReactivity, extractSignatureParameters } from '$lib/typescript-extract-shared.ts';
+import { analyzeExports, analyzeTypescriptModule } from '$lib/typescript-exports.ts';
+import { type Diagnostic, hasErrors, hasWarnings } from '$lib/diagnostics.ts';
 
 import {
 	loadFixtures,
@@ -14,13 +14,13 @@ import {
 	createMultiFileProgram,
 	createFixtureProgram,
 	extractDeclarationFromSource,
-	type TsFixture,
+	type TsFixture
 } from './fixtures/ts/ts-test-helpers.ts';
-import {normalizeJson} from './test-helpers.ts';
+import { normalizeJson } from './test-helpers.ts';
 import {
 	testSourceOptions,
 	createTestSourceOptions,
-	createVirtualSourceOptions,
+	createVirtualSourceOptions
 } from './test-module-helpers.ts';
 
 let fixtures: Array<TsFixture> = [];
@@ -33,7 +33,7 @@ describe('TypeScript helpers (fixture-based)', () => {
 	test('all fixtures extract correctly', () => {
 		for (const fixture of fixtures) {
 			// Create program and source file from fixture
-			const {checker, sourceFile} = createFixtureProgram(fixture);
+			const { checker, sourceFile } = createFixtureProgram(fixture);
 
 			// Extract the declaration from the source file
 			const result = extractDeclarationFromSource(sourceFile, checker, fixture.category);
@@ -42,7 +42,7 @@ describe('TypeScript helpers (fixture-based)', () => {
 			assert.deepEqual(
 				normalizeJson(result),
 				normalizeJson(fixture.expected),
-				`Fixture "${fixture.category}/${fixture.name}" failed`,
+				`Fixture "${fixture.category}/${fixture.name}" failed`
 			);
 		}
 	});
@@ -61,7 +61,7 @@ describe('TypeScript helpers (fixture-based)', () => {
 				if (fixture.name !== 'tsdoc/nodocs-filtering') {
 					throw new Error(
 						`Unexpected null in fixture ${fixture.name} - only module/comment/*, errors/*, and tsdoc/nodocs-filtering should return null. ` +
-							`This likely indicates a fixture that doesn't test anything useful and should be removed.`,
+							`This likely indicates a fixture that doesn't test anything useful and should be removed.`
 					);
 				}
 				continue; // Skip structure validation for null
@@ -74,7 +74,7 @@ describe('TypeScript helpers (fixture-based)', () => {
 
 	test('class fixtures correctly exclude private fields', () => {
 		const privateFieldsFixture = fixtures.find(
-			(f) => f.category === 'class' && f.name === 'declarations/class/private-excluded',
+			(f) => f.category === 'class' && f.name === 'declarations/class/private-excluded'
 		);
 
 		if (!privateFieldsFixture) {
@@ -89,7 +89,7 @@ describe('TypeScript helpers (fixture-based)', () => {
 
 		// Verify that private members are NOT in the output
 		if (result?.kind === 'class') {
-			const memberNames = result.members.map((m: {name?: string}) => m.name);
+			const memberNames = result.members.map((m: { name?: string }) => m.name);
 			// Private fields (#field syntax)
 			assert.notInclude(memberNames, '#a', 'Private field #a should be excluded');
 			assert.notInclude(memberNames, '#b', 'Private field #b should be excluded');
@@ -114,7 +114,7 @@ describe('TypeScript helpers (fixture-based)', () => {
 
 	test('class fixtures correctly extract getters and setters', () => {
 		const accessorsFixture = fixtures.find(
-			(f) => f.category === 'class' && f.name === 'members/class-accessors',
+			(f) => f.category === 'class' && f.name === 'members/class-accessors'
 		);
 
 		if (!accessorsFixture) {
@@ -130,19 +130,19 @@ describe('TypeScript helpers (fixture-based)', () => {
 		}
 
 		// Find accessor 'a' (has both getter and setter)
-		const accessorA = result.members.find((m: {name?: string}) => m.name === 'a');
+		const accessorA = result.members.find((m: { name?: string }) => m.name === 'a');
 		assert.ok(accessorA, 'Accessor "a" should be present');
 		assert.strictEqual(accessorA.kind, 'variable', 'Accessor should have kind "variable"');
 		assert.deepEqual(
 			accessorA.modifiers,
 			['getter', 'setter'],
-			'Accessor "a" should have both getter and setter modifiers',
+			'Accessor "a" should have both getter and setter modifiers'
 		);
 		assert.strictEqual(accessorA.typeSignature, 'string', 'Accessor "a" should have type "string"');
 		assert.strictEqual(
 			accessorA.docComment,
 			'Description 1',
-			'Accessor "a" should use getter\'s JSDoc',
+			'Accessor "a" should use getter\'s JSDoc'
 		);
 
 		// Find accessor 'b' (read-only, only getter)
@@ -151,7 +151,7 @@ describe('TypeScript helpers (fixture-based)', () => {
 		assert.deepEqual(
 			accessorB.modifiers,
 			['getter'],
-			'Accessor "b" should only have getter modifier',
+			'Accessor "b" should only have getter modifier'
 		);
 		assert.strictEqual(accessorB.typeSignature, 'number', 'Accessor "b" should have type "number"');
 
@@ -177,7 +177,7 @@ export class A {
 			sourceFile,
 			checker,
 			testSourceOptions(),
-			[] as Array<Diagnostic>,
+			[] as Array<Diagnostic>
 		);
 
 		assert.strictEqual(result.declarations.length, 1, 'Should have 1 class declaration');
@@ -199,7 +199,7 @@ export class A {
 		assert.include(
 			protAccessor.modifiers!,
 			'protected',
-			'Protected accessor should have protected modifier',
+			'Protected accessor should have protected modifier'
 		);
 	});
 
@@ -218,7 +218,7 @@ export class A {
 			sourceFile,
 			checker,
 			testSourceOptions(),
-			[] as Array<Diagnostic>,
+			[] as Array<Diagnostic>
 		);
 
 		const classDecl = result.declarations[0]!.declaration;
@@ -253,7 +253,7 @@ export class A {
 			sourceFile,
 			checker,
 			testSourceOptions(),
-			[] as Array<Diagnostic>,
+			[] as Array<Diagnostic>
 		);
 
 		const classDecl = result.declarations[0]!.declaration;
@@ -265,12 +265,12 @@ export class A {
 		assert.strictEqual(
 			writeOnly.typeSignature,
 			'string',
-			'Should extract type from setter parameter',
+			'Should extract type from setter parameter'
 		);
 		assert.strictEqual(
 			writeOnly.docComment,
 			'Write-only property',
-			'Should extract JSDoc from setter',
+			'Should extract JSDoc from setter'
 		);
 	});
 
@@ -290,7 +290,7 @@ export class A {
 			sourceFile,
 			checker,
 			testSourceOptions(),
-			[] as Array<Diagnostic>,
+			[] as Array<Diagnostic>
 		);
 
 		assert.strictEqual(result.declarations.length, 1, 'Should have 1 class declaration');
@@ -316,7 +316,7 @@ export abstract class A {
 			sourceFile,
 			checker,
 			testSourceOptions(),
-			[] as Array<Diagnostic>,
+			[] as Array<Diagnostic>
 		);
 
 		assert.strictEqual(result.declarations.length, 1, 'Should have 1 class declaration');
@@ -343,7 +343,7 @@ export class A {
 			sourceFile,
 			checker,
 			testSourceOptions(),
-			[] as Array<Diagnostic>,
+			[] as Array<Diagnostic>
 		);
 
 		const classDecl = result.declarations[0]!.declaration;
@@ -370,7 +370,7 @@ export default class {
 			sourceFile,
 			checker,
 			testSourceOptions(),
-			[] as Array<Diagnostic>,
+			[] as Array<Diagnostic>
 		);
 
 		assert.strictEqual(result.declarations.length, 1, 'Should have 1 class declaration');
@@ -407,7 +407,7 @@ export default class {
 			sourceFile,
 			checker,
 			testSourceOptions(),
-			[] as Array<Diagnostic>,
+			[] as Array<Diagnostic>
 		);
 
 		const classDecl = result.declarations[0]!.declaration;
@@ -417,7 +417,7 @@ export default class {
 		assert.strictEqual(
 			ctor.overloads?.length,
 			2,
-			'Should extract two overload signatures (impl excluded)',
+			'Should extract two overload signatures (impl excluded)'
 		);
 		assert.strictEqual(ctor.overloads![0]!.parameters![0]!.type, 'string');
 		assert.strictEqual(ctor.overloads![1]!.parameters![0]!.type, 'number');
@@ -445,7 +445,7 @@ export type Baz = { value: number };
 			sourceFile,
 			checker,
 			testSourceOptions(),
-			[] as Array<Diagnostic>,
+			[] as Array<Diagnostic>
 		);
 
 		// Should have module comment
@@ -511,7 +511,7 @@ export const foo = 42;
 
 		assert.deepStrictEqual(
 			diagnostics.filter((d) => d.kind === 'misplaced_tag'),
-			[],
+			[]
 		);
 	});
 
@@ -533,7 +533,7 @@ const internal = 'not exported';
 			sourceFile,
 			checker,
 			testSourceOptions(),
-			[] as Array<Diagnostic>,
+			[] as Array<Diagnostic>
 		);
 
 		assert.strictEqual(result.moduleComment, 'Module with no exports.');
@@ -550,7 +550,7 @@ export const bar = 123;
 			'module_no_comment.ts',
 			sourceCode,
 			ts.ScriptTarget.Latest,
-			true,
+			true
 		);
 		const checker = createTestProgram(sourceFile, 'module_no_comment.ts').getTypeChecker();
 
@@ -558,7 +558,7 @@ export const bar = 123;
 			sourceFile,
 			checker,
 			testSourceOptions(),
-			[] as Array<Diagnostic>,
+			[] as Array<Diagnostic>
 		);
 
 		assert.isUndefined(result.moduleComment);
@@ -585,7 +585,7 @@ export function add(a: number, b: number): number {
 			sourceFile,
 			checker,
 			testSourceOptions(),
-			[] as Array<Diagnostic>,
+			[] as Array<Diagnostic>
 		);
 
 		assert.strictEqual(result.declarations.length, 1);
@@ -622,7 +622,7 @@ export class Counter {
 			sourceFile,
 			checker,
 			testSourceOptions(),
-			[] as Array<Diagnostic>,
+			[] as Array<Diagnostic>
 		);
 
 		assert.strictEqual(result.declarations.length, 1);
@@ -655,7 +655,7 @@ export interface Config {
 			sourceFile,
 			checker,
 			testSourceOptions(),
-			[] as Array<Diagnostic>,
+			[] as Array<Diagnostic>
 		);
 
 		assert.strictEqual(result.declarations.length, 1);
@@ -680,7 +680,7 @@ export { internalValue as exportedValue };
 			sourceFile,
 			checker,
 			testSourceOptions(),
-			[] as Array<Diagnostic>,
+			[] as Array<Diagnostic>
 		);
 
 		// Should have the re-exported value
@@ -720,7 +720,7 @@ export class Service {
 			sourceFile,
 			checker,
 			testSourceOptions(),
-			[] as Array<Diagnostic>,
+			[] as Array<Diagnostic>
 		);
 
 		// Should have 5 identifiers of different kinds
@@ -779,7 +779,7 @@ export function public_function(): string {
 			sourceFile,
 			checker,
 			testSourceOptions(),
-			[] as Array<Diagnostic>,
+			[] as Array<Diagnostic>
 		);
 
 		// Should have ALL 4 identifiers - filtering is now consumer responsibility
@@ -805,7 +805,7 @@ export function public_function(): string {
 	});
 
 	test('detects same-name re-exports and tracks in reExports array', () => {
-		const {program, sourceFiles} = createMultiFileProgram([
+		const { program, sourceFiles } = createMultiFileProgram([
 			{
 				path: '/src/lib/helpers.ts',
 				content: `
@@ -813,7 +813,7 @@ export function public_function(): string {
 export function helper(): void {}
 
 export const CONSTANT = 42;
-`,
+`
 			},
 			{
 				path: '/src/lib/index.ts',
@@ -823,8 +823,8 @@ export {helper, CONSTANT} from './helpers.js';
 
 // Direct export
 export const localValue = 'local';
-`,
-			},
+`
+			}
 		]);
 		const checker = program.getTypeChecker();
 
@@ -851,7 +851,7 @@ export const localValue = 'local';
 	});
 
 	test('handles renamed re-exports with aliasOf metadata', () => {
-		const {program, sourceFiles} = createMultiFileProgram([
+		const { program, sourceFiles } = createMultiFileProgram([
 			{
 				path: '/src/lib/internal.ts',
 				content: `
@@ -859,15 +859,15 @@ export const localValue = 'local';
 export function internalImpl(): string {
 	return 'internal';
 }
-`,
+`
 			},
 			{
 				path: '/src/lib/public.ts',
 				content: `
 // Renamed re-export
 export {internalImpl as public_api} from './internal.js';
-`,
-			},
+`
+			}
 		]);
 		const checker = program.getTypeChecker();
 
@@ -888,13 +888,13 @@ export {internalImpl as public_api} from './internal.js';
 	});
 
 	test('handles mixed direct exports and re-exports', () => {
-		const {program, sourceFiles} = createMultiFileProgram([
+		const { program, sourceFiles } = createMultiFileProgram([
 			{
 				path: '/src/lib/utils.ts',
 				content: `
 export const utilA = 'a';
 export const utilB = 'b';
-`,
+`
 			},
 			{
 				path: '/src/lib/mixed.ts',
@@ -908,8 +908,8 @@ export {utilA} from './utils.js';
 
 // Renamed re-export
 export {utilB as renamedUtil} from './utils.js';
-`,
-			},
+`
+			}
 		]);
 		const checker = program.getTypeChecker();
 
@@ -953,7 +953,7 @@ export { fn1 };
 			sourceFile,
 			checker,
 			testSourceOptions(),
-			[] as Array<Diagnostic>,
+			[] as Array<Diagnostic>
 		);
 
 		assert.strictEqual(result.declarations.length, 1);
@@ -978,7 +978,7 @@ export { fn1 };
 			sourceFile,
 			checker,
 			testSourceOptions(),
-			[] as Array<Diagnostic>,
+			[] as Array<Diagnostic>
 		);
 
 		assert.strictEqual(result.declarations.length, 1);
@@ -986,7 +986,7 @@ export { fn1 };
 	});
 });
 
-describe('createAnalysisProgram with AnalysisProgramOptions', {timeout: 10_000}, () => {
+describe('createAnalysisProgram with AnalysisProgramOptions', { timeout: 10_000 }, () => {
 	test('creates program with default options', () => {
 		// Uses current directory and default tsconfig.json
 		const program = createAnalysisProgram();
@@ -998,7 +998,7 @@ describe('createAnalysisProgram with AnalysisProgramOptions', {timeout: 10_000},
 
 	test('creates program with explicit projectRoot', () => {
 		// Explicit projectRoot pointing to project directory
-		const program = createAnalysisProgram({projectRoot: process.cwd()});
+		const program = createAnalysisProgram({ projectRoot: process.cwd() });
 
 		assert.ok(program);
 		assert.ok(program.getSourceFiles().length > 0);
@@ -1008,8 +1008,8 @@ describe('createAnalysisProgram with AnalysisProgramOptions', {timeout: 10_000},
 		// Override strict mode
 		const program = createAnalysisProgram({
 			compilerOptions: {
-				strict: false,
-			},
+				strict: false
+			}
 		});
 
 		assert.ok(program);
@@ -1020,16 +1020,16 @@ describe('createAnalysisProgram with AnalysisProgramOptions', {timeout: 10_000},
 	test('throws when tsconfig not found', () => {
 		// Non-existent directory
 		assert.throws(
-			() => createAnalysisProgram({projectRoot: '/non/existent/path'}),
-			/No tsconfig\.json found/,
+			() => createAnalysisProgram({ projectRoot: '/non/existent/path' }),
+			/No tsconfig\.json found/
 		);
 	});
 
 	test('throws with custom tsconfig name when not found', () => {
 		// Try to use a non-existent custom tsconfig name
 		assert.throws(
-			() => createAnalysisProgram({tsconfig: 'nonexistent.config.json'}),
-			/No nonexistent\.config\.json found/,
+			() => createAnalysisProgram({ tsconfig: 'nonexistent.config.json' }),
+			/No nonexistent\.config\.json found/
 		);
 	});
 });
@@ -1095,7 +1095,7 @@ export function third(): void {}
 		const result = analyzeExports(sourceFile, checker, testSourceOptions(), diagnostics);
 
 		// Each declaration should have a sourceLine
-		for (const {declaration: decl} of result.declarations) {
+		for (const { declaration: decl } of result.declarations) {
 			assert.ok(decl.sourceLine, `Declaration ${decl.name} should have sourceLine`);
 			assert.ok(decl.sourceLine > 0, `sourceLine should be positive for ${decl.name}`);
 		}
@@ -1103,7 +1103,7 @@ export function third(): void {}
 		// Verify relative ordering (second comes after first)
 		const firstDecl = result.declarations.find((d) => d.declaration.name === 'first')!.declaration;
 		const secondDecl = result.declarations.find(
-			(d) => d.declaration.name === 'second',
+			(d) => d.declaration.name === 'second'
 		)!.declaration;
 		assert.ok(secondDecl.sourceLine! > firstDecl.sourceLine!);
 	});
@@ -1112,28 +1112,28 @@ export function third(): void {}
 describe('re-export chains', () => {
 	test('handles re-export chain (A → B → C)', () => {
 		// C.ts exports original, B.ts re-exports from C, A.ts re-exports from B
-		const {program, sourceFiles} = createMultiFileProgram([
+		const { program, sourceFiles } = createMultiFileProgram([
 			{
 				path: '/src/lib/c.ts',
 				content: `
 /** Original declaration in C. */
 export const original = 'from C';
-`,
+`
 			},
 			{
 				path: '/src/lib/b.ts',
 				content: `
 // Re-export from C
 export {original} from './c.js';
-`,
+`
 			},
 			{
 				path: '/src/lib/a.ts',
 				content: `
 // Re-export from B (which re-exports from C)
 export {original} from './b.js';
-`,
-			},
+`
+			}
 		]);
 		const checker = program.getTypeChecker();
 
@@ -1167,12 +1167,12 @@ export {original} from './b.js';
 	});
 
 	test('handles mixed direct exports and re-export chains', () => {
-		const {program, sourceFiles} = createMultiFileProgram([
+		const { program, sourceFiles } = createMultiFileProgram([
 			{
 				path: '/src/lib/base.ts',
 				content: `
 export const baseValue = 'base';
-`,
+`
 			},
 			{
 				path: '/src/lib/combined.ts',
@@ -1182,8 +1182,8 @@ export const localValue = 'local';
 
 // Re-export from base
 export {baseValue} from './base.js';
-`,
-			},
+`
+			}
 		]);
 		const checker = program.getTypeChecker();
 
@@ -1204,14 +1204,14 @@ export {baseValue} from './base.js';
 
 describe('star exports tracking', () => {
 	test('detects export * from statements', () => {
-		const {program, sourceFiles} = createMultiFileProgram([
+		const { program, sourceFiles } = createMultiFileProgram([
 			{
 				path: '/src/lib/helpers.ts',
 				content: `
 export const helperA = 'a';
 export const helperB = 'b';
 export function helperFn(): void {}
-`,
+`
 			},
 			{
 				path: '/src/lib/index.ts',
@@ -1221,8 +1221,8 @@ export * from './helpers.js';
 
 // Direct export
 export const indexValue = 'index';
-`,
-			},
+`
+			}
 		]);
 		const checker = program.getTypeChecker();
 
@@ -1252,15 +1252,15 @@ export const indexValue = 'index';
 		// `declarations[0]`) in the augmenting file — the star-projection skip
 		// must test whether ANY declaration is local, not just one of them,
 		// or a.ts's own interface vanishes depending on bind order.
-		const {program, sourceFiles} = createMultiFileProgram([
+		const { program, sourceFiles } = createMultiFileProgram([
 			{
 				path: '/src/lib/a.ts',
-				content: `export interface Config {\n\ta: string;\n}\n`,
+				content: `export interface Config {\n\ta: string;\n}\n`
 			},
 			{
 				path: '/src/lib/b.ts',
-				content: `import './a.js';\n\ndeclare module './a.js' {\n\texport const Config: number;\n}\n\nexport const other = 1;\n`,
-			},
+				content: `import './a.js';\n\ndeclare module './a.js' {\n\texport const Config: number;\n}\n\nexport const other = 1;\n`
+			}
 		]);
 		const checker = program.getTypeChecker();
 
@@ -1271,27 +1271,27 @@ export const indexValue = 'index';
 
 		assert.ok(
 			result.declarations.some((d) => d.declaration.name === 'Config'),
-			'merged symbol with a local declaration must not be skipped',
+			'merged symbol with a local declaration must not be skipped'
 		);
 	});
 
 	test('handles multiple star exports', () => {
-		const {program, sourceFiles} = createMultiFileProgram([
+		const { program, sourceFiles } = createMultiFileProgram([
 			{
 				path: '/src/lib/utilsA.ts',
-				content: `export const utilA = 'a';`,
+				content: `export const utilA = 'a';`
 			},
 			{
 				path: '/src/lib/utilsB.ts',
-				content: `export const utilB = 'b';`,
+				content: `export const utilB = 'b';`
 			},
 			{
 				path: '/src/lib/barrel.ts',
 				content: `
 export * from './utilsA.js';
 export * from './utilsB.js';
-`,
-			},
+`
+			}
 		]);
 		const checker = program.getTypeChecker();
 
@@ -1326,19 +1326,19 @@ export const local = 'value';
 	});
 
 	test('mixed star exports and named re-exports', () => {
-		const {program, sourceFiles} = createMultiFileProgram([
+		const { program, sourceFiles } = createMultiFileProgram([
 			{
 				path: '/src/lib/types.ts',
 				content: `
 export type Config = { value: string };
 export type Options = { enabled: boolean };
-`,
+`
 			},
 			{
 				path: '/src/lib/utils.ts',
 				content: `
 export const utilFn = (): void => {};
-`,
+`
 			},
 			{
 				path: '/src/lib/combined.ts',
@@ -1351,8 +1351,8 @@ export {utilFn} from './utils.js';
 
 // Direct export
 export const combinedValue = 'combined';
-`,
-			},
+`
+			}
 		]);
 		const checker = program.getTypeChecker();
 
@@ -1377,18 +1377,18 @@ export const combinedValue = 'combined';
 	});
 
 	test('star export and named re-export of same symbol does not duplicate', () => {
-		const {program, sourceFiles} = createMultiFileProgram([
+		const { program, sourceFiles } = createMultiFileProgram([
 			{
 				path: '/src/lib/a.ts',
-				content: `export const foo = 'value';`,
+				content: `export const foo = 'value';`
 			},
 			{
 				path: '/src/lib/index.ts',
 				content: `
 export * from './a.js';
 export {foo} from './a.js';
-`,
-			},
+`
+			}
 		]);
 		const checker = program.getTypeChecker();
 
@@ -1427,15 +1427,15 @@ export function fn(): void {}
 
 describe('type-only re-exports', () => {
 	test('handles type-only same-name re-exports', () => {
-		const {program, sourceFiles} = createMultiFileProgram([
+		const { program, sourceFiles } = createMultiFileProgram([
 			{
 				path: '/src/lib/types.ts',
-				content: `export type A = { value: string };`,
+				content: `export type A = { value: string };`
 			},
 			{
 				path: '/src/lib/index.ts',
-				content: `export type {A} from './types.js';`,
-			},
+				content: `export type {A} from './types.js';`
+			}
 		]);
 		const checker = program.getTypeChecker();
 
@@ -1452,15 +1452,15 @@ describe('type-only re-exports', () => {
 	});
 
 	test('handles renamed type-only re-exports with aliasOf', () => {
-		const {program, sourceFiles} = createMultiFileProgram([
+		const { program, sourceFiles } = createMultiFileProgram([
 			{
 				path: '/src/lib/types.ts',
-				content: `export type A = { value: string };`,
+				content: `export type A = { value: string };`
 			},
 			{
 				path: '/src/lib/index.ts',
-				content: `export type {A as B} from './types.js';`,
-			},
+				content: `export type {A as B} from './types.js';`
+			}
 		]);
 		const checker = program.getTypeChecker();
 
@@ -1490,7 +1490,7 @@ describe('analyzeTypescriptModule with SourceFileInfo dependencies', () => {
 		const diagnostics: Array<Diagnostic> = [];
 
 		const options = createTestSourceOptions('/project', {
-			sourcePaths: ['src/lib'],
+			sourcePaths: ['src/lib']
 		});
 
 		const result = analyzeTypescriptModule(
@@ -1500,15 +1500,15 @@ describe('analyzeTypescriptModule with SourceFileInfo dependencies', () => {
 				dependencies: [
 					'/project/src/lib/depA.ts',
 					'/project/src/lib/depB.ts',
-					'/project/node_modules/external/index.js', // should be filtered
+					'/project/node_modules/external/index.js' // should be filtered
 				],
-				dependents: ['/project/src/lib/user.ts'],
+				dependents: ['/project/src/lib/user.ts']
 			},
 			sourceFile,
 			'consumer.ts',
 			checker,
 			options,
-			diagnostics,
+			diagnostics
 		);
 
 		// Dependencies should be filtered to source modules only
@@ -1529,26 +1529,26 @@ describe('analyzeTypescriptModule with SourceFileInfo dependencies', () => {
 			'standalone.ts',
 			sourceCode,
 			ts.ScriptTarget.Latest,
-			true,
+			true
 		);
 		const checker = createTestProgram(sourceFile, 'standalone.ts').getTypeChecker();
 		const diagnostics: Array<Diagnostic> = [];
 
 		const options = createTestSourceOptions('/project', {
-			sourcePaths: ['src/lib'],
+			sourcePaths: ['src/lib']
 		});
 
 		const result = analyzeTypescriptModule(
 			{
 				id: '/project/src/lib/standalone.ts',
-				content: sourceCode,
+				content: sourceCode
 				// No dependencies or dependents provided
 			},
 			sourceFile,
 			'standalone.ts',
 			checker,
 			options,
-			diagnostics,
+			diagnostics
 		);
 
 		// Should return empty arrays, not undefined
@@ -1566,12 +1566,12 @@ describe('analyzeTypescriptModule with SourceFileInfo dependencies', () => {
 		const diagnostics: Array<Diagnostic> = [];
 
 		const result = analyzeTypescriptModule(
-			{id: '/project/src/lib/simple.ts', content: sourceCode},
+			{ id: '/project/src/lib/simple.ts', content: sourceCode },
 			sourceFile,
 			'simple.ts',
 			checker,
 			testSourceOptions(),
-			diagnostics,
+			diagnostics
 		);
 
 		// Verify all array fields are arrays
@@ -1591,7 +1591,7 @@ describe('extractSignatureParameters', () => {
 
 		// Get the function's signature
 		const fnSymbol = checker.getSymbolAtLocation(
-			(sourceFile.statements[0] as ts.FunctionDeclaration).name!,
+			(sourceFile.statements[0] as ts.FunctionDeclaration).name!
 		)!;
 		const fnType = checker.getTypeOfSymbolAtLocation(fnSymbol, sourceFile.statements[0]!);
 		const sig = fnType.getCallSignatures()[0]!;
@@ -1611,7 +1611,7 @@ describe('extractSignatureParameters', () => {
 		const checker = createTestProgram(sourceFile, 'test.ts').getTypeChecker();
 
 		const fnSymbol = checker.getSymbolAtLocation(
-			(sourceFile.statements[0] as ts.FunctionDeclaration).name!,
+			(sourceFile.statements[0] as ts.FunctionDeclaration).name!
 		)!;
 		const fnType = checker.getTypeOfSymbolAtLocation(fnSymbol, sourceFile.statements[0]!);
 		const sig = fnType.getCallSignatures()[0]!;
@@ -1629,7 +1629,7 @@ describe('extractSignatureParameters', () => {
 		const checker = createTestProgram(sourceFile, 'test.ts').getTypeChecker();
 
 		const fnSymbol = checker.getSymbolAtLocation(
-			(sourceFile.statements[0] as ts.FunctionDeclaration).name!,
+			(sourceFile.statements[0] as ts.FunctionDeclaration).name!
 		)!;
 		const fnType = checker.getTypeOfSymbolAtLocation(fnSymbol, sourceFile.statements[0]!);
 		const sig = fnType.getCallSignatures()[0]!;
@@ -1646,12 +1646,12 @@ describe('extractSignatureParameters', () => {
 		const checker = createTestProgram(sourceFile, 'test.ts').getTypeChecker();
 
 		const fnSymbol = checker.getSymbolAtLocation(
-			(sourceFile.statements[0] as ts.FunctionDeclaration).name!,
+			(sourceFile.statements[0] as ts.FunctionDeclaration).name!
 		)!;
 		const fnType = checker.getTypeOfSymbolAtLocation(fnSymbol, sourceFile.statements[0]!);
 		const sig = fnType.getCallSignatures()[0]!;
 
-		const tsdocParams = {name: 'The user name'};
+		const tsdocParams = { name: 'The user name' };
 		const params = extractSignatureParameters(sig, checker, tsdocParams);
 
 		assert.strictEqual(params[0]!.description, 'The user name');
@@ -1663,7 +1663,7 @@ describe('extractSignatureParameters', () => {
 		const checker = createTestProgram(sourceFile, 'test.ts').getTypeChecker();
 
 		const fnSymbol = checker.getSymbolAtLocation(
-			(sourceFile.statements[0] as ts.FunctionDeclaration).name!,
+			(sourceFile.statements[0] as ts.FunctionDeclaration).name!
 		)!;
 		const fnType = checker.getTypeOfSymbolAtLocation(fnSymbol, sourceFile.statements[0]!);
 		const sig = fnType.getCallSignatures()[0]!;
@@ -1702,7 +1702,7 @@ describe('detectReactivity', () => {
 	test('detects $derived.by', () => {
 		assert.strictEqual(
 			detectReactivity(initializerOf('let a = $derived.by(() => 0);')),
-			'$derived.by',
+			'$derived.by'
 		);
 	});
 
@@ -1758,7 +1758,7 @@ describe('detectReactivity', () => {
 	test('detects rune through `satisfies` clause', () => {
 		assert.strictEqual(
 			detectReactivity(initializerOf('let a = $state.raw([]) satisfies Array<number>;')),
-			'$state.raw',
+			'$state.raw'
 		);
 	});
 
@@ -1777,7 +1777,7 @@ describe('detectReactivity', () => {
 	test('detects rune through stacked wrappers', () => {
 		assert.strictEqual(
 			detectReactivity(initializerOf('let a = (($state(0) as number)!);')),
-			'$state',
+			'$state'
 		);
 	});
 
@@ -1808,7 +1808,7 @@ export default function foo(a: string): number {
 			sourceFile,
 			checker,
 			testSourceOptions(),
-			[] as Array<Diagnostic>,
+			[] as Array<Diagnostic>
 		);
 
 		assert.strictEqual(result.declarations.length, 1);
@@ -1831,7 +1831,7 @@ export default class Foo {
 			sourceFile,
 			checker,
 			testSourceOptions(),
-			[] as Array<Diagnostic>,
+			[] as Array<Diagnostic>
 		);
 
 		const decl = result.declarations[0]!.declaration;
@@ -1852,7 +1852,7 @@ export default function (a: string): number {
 			sourceFile,
 			checker,
 			testSourceOptions(),
-			[] as Array<Diagnostic>,
+			[] as Array<Diagnostic>
 		);
 
 		const decl = result.declarations[0]!.declaration;
@@ -1872,7 +1872,7 @@ export {x as default};
 			sourceFile,
 			checker,
 			testSourceOptions(),
-			[] as Array<Diagnostic>,
+			[] as Array<Diagnostic>
 		);
 
 		const decl = result.declarations[0]!.declaration;
@@ -1895,7 +1895,7 @@ export {x as default};
 			sourceFile,
 			checker,
 			testSourceOptions(),
-			[] as Array<Diagnostic>,
+			[] as Array<Diagnostic>
 		);
 
 		assert.strictEqual(result.declarations.length, 2);
@@ -1909,9 +1909,9 @@ export {x as default};
 		// Two modules each have their own default slot. They share the name
 		// `'default'` but the slot is module-scoped per the JS spec, so
 		// `findDuplicates` skips `name === 'default'` (no collision).
-		const {program} = createMultiFileProgram([
-			{path: '/src/lib/a.ts', content: 'export default function foo() {}\n'},
-			{path: '/src/lib/b.ts', content: 'export default function bar() {}\n'},
+		const { program } = createMultiFileProgram([
+			{ path: '/src/lib/a.ts', content: 'export default function foo() {}\n' },
+			{ path: '/src/lib/b.ts', content: 'export default function bar() {}\n' }
 		]);
 		const checker = program.getTypeChecker();
 		const options = createVirtualSourceOptions();
@@ -1920,13 +1920,13 @@ export {x as default};
 			program.getSourceFile('/src/lib/a.ts')!,
 			checker,
 			options,
-			[] as Array<Diagnostic>,
+			[] as Array<Diagnostic>
 		);
 		const bResult = analyzeExports(
 			program.getSourceFile('/src/lib/b.ts')!,
 			checker,
 			options,
-			[] as Array<Diagnostic>,
+			[] as Array<Diagnostic>
 		);
 
 		assert.strictEqual(aResult.declarations[0]!.declaration.name, 'default');
@@ -1934,9 +1934,9 @@ export {x as default};
 	});
 
 	test("renamed re-export of default lands in named slot with aliasOf.name === 'default'", () => {
-		const {program} = createMultiFileProgram([
-			{path: '/src/lib/a.ts', content: 'export default function foo() {}\n'},
-			{path: '/src/lib/b.ts', content: "export {default as Foo} from './a.js';\n"},
+		const { program } = createMultiFileProgram([
+			{ path: '/src/lib/a.ts', content: 'export default function foo() {}\n' },
+			{ path: '/src/lib/b.ts', content: "export {default as Foo} from './a.js';\n" }
 		]);
 		const checker = program.getTypeChecker();
 		const options = createVirtualSourceOptions();
@@ -1945,7 +1945,7 @@ export {x as default};
 			program.getSourceFile('/src/lib/b.ts')!,
 			checker,
 			options,
-			[] as Array<Diagnostic>,
+			[] as Array<Diagnostic>
 		);
 
 		assert.strictEqual(bResult.declarations.length, 1);
@@ -1970,14 +1970,14 @@ declare function $derived<T>(value: T): T;
 			'test.ts',
 			RUNE_AMBIENTS + source,
 			ts.ScriptTarget.Latest,
-			true,
+			true
 		);
 		const checker = createTestProgram(sourceFile, 'test.ts').getTypeChecker();
 		const result = analyzeExports(
 			sourceFile,
 			checker,
 			testSourceOptions(),
-			[] as Array<Diagnostic>,
+			[] as Array<Diagnostic>
 		);
 		return result.declarations[0]!.declaration;
 	};

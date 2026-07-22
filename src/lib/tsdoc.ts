@@ -48,7 +48,7 @@
 
 import ts from 'typescript';
 
-import type {DeclarationJsonBuild, MemberJsonBuild} from './declaration-build.ts';
+import type { DeclarationJsonBuild, MemberJsonBuild } from './declaration-build.ts';
 
 /**
  * Parsed JSDoc/TSDoc comment with structured metadata.
@@ -64,7 +64,7 @@ export interface TsdocParsedComment {
 	/** Return value description from `@returns`. */
 	returns?: string;
 	/** Thrown errors from `@throws`. */
-	throws?: Array<{type?: string; description: string}>;
+	throws?: Array<{ type?: string; description: string }>;
 	/** Code examples from `@example`. */
 	examples?: Array<string>;
 	/** Deprecation message from `@deprecated`. */
@@ -147,7 +147,7 @@ const belongsToModuleBlock = (node: ts.JSDoc | ts.JSDocTag): boolean =>
  */
 export const parseComment = (
 	node: ts.Node,
-	sourceFile: ts.SourceFile,
+	sourceFile: ts.SourceFile
 ): TsdocParsedComment | undefined => {
 	const tsdocComments = ts.getJSDocCommentsAndTags(node).filter((c) => !belongsToModuleBlock(c));
 	if (tsdocComments.length === 0) return undefined;
@@ -160,7 +160,7 @@ export const parseComment = (
 	// and writing such a key (`@param __proto__`) would pollute the prototype.
 	const params: Record<string, string> = Object.create(null);
 	let returns: string | undefined;
-	let throws: Array<{type?: string; description: string}> | undefined;
+	let throws: Array<{ type?: string; description: string }> | undefined;
 	let examples: Array<string> | undefined;
 	let deprecatedMessage: string | undefined;
 	let seeAlso: Array<string> | undefined;
@@ -199,9 +199,9 @@ export const parseComment = (
 			// Try to extract error type and description
 			const match = /^\{?(\w+)\}?\s+(.+)/.exec(tagText);
 			if (match) {
-				(throws ??= []).push({type: match[1], description: cleanTagDescription(match[2]!)});
+				(throws ??= []).push({ type: match[1], description: cleanTagDescription(match[2]!) });
 			} else {
-				(throws ??= []).push({description: cleanTagDescription(tagText)});
+				(throws ??= []).push({ description: cleanTagDescription(tagText) });
 			}
 		} else if (tagName === 'example' && tagText) {
 			(examples ??= []).push(tagText.trim());
@@ -254,7 +254,7 @@ export const parseComment = (
 		since,
 		defaultValue,
 		mutates,
-		nodocs,
+		nodocs
 	};
 };
 
@@ -270,7 +270,7 @@ export const parseComment = (
  */
 export const applyToDeclaration = (
 	declaration: DeclarationJsonBuild | MemberJsonBuild,
-	tsdoc: TsdocParsedComment | undefined,
+	tsdoc: TsdocParsedComment | undefined
 ): void => {
 	if (!tsdoc) return;
 

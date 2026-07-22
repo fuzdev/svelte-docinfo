@@ -1,9 +1,9 @@
 /**
  * Keyof and typeof operators.
  */
-const b = {a: 'value', c: 1} as const;
+const b = { a: 'value', c: 1 } as const;
 
-type C = {a: string; b: number};
+type C = { a: string; b: number };
 
 export type A = {
 	a: keyof C;

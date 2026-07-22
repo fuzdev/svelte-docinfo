@@ -1,31 +1,31 @@
-import {test, assert, describe, beforeAll} from 'vitest';
-import {join, dirname} from 'node:path';
-import {readFileSync} from 'node:fs';
+import { test, assert, describe, beforeAll } from 'vitest';
+import { join, dirname } from 'node:path';
+import { readFileSync } from 'node:fs';
 
 import {
 	analyzeSvelteModule,
 	transformSvelteSource,
 	extractScriptContent,
 	extractSvelteModuleComment,
-	extractHtmlModuleComment,
+	extractHtmlModuleComment
 } from '$lib/svelte.ts';
-import {createAnalysisProgram} from '$lib/typescript-program.ts';
-import {type Diagnostic, hasErrors, hasWarnings, warningsOf} from '$lib/diagnostics.ts';
-import type {ModuleAnalysis} from '$lib/declaration-build.ts';
-import type {SourceFileInfo} from '$lib/source.ts';
-import type {ModuleSourceOptions} from '$lib/source-config.ts';
+import { createAnalysisProgram } from '$lib/typescript-program.ts';
+import { type Diagnostic, hasErrors, hasWarnings, warningsOf } from '$lib/diagnostics.ts';
+import type { ModuleAnalysis } from '$lib/declaration-build.ts';
+import type { SourceFileInfo } from '$lib/source.ts';
+import type { ModuleSourceOptions } from '$lib/source-config.ts';
 
 import {
 	loadFixtures,
 	validateDeclarationStructures,
 	fixtureNameToComponentName,
-	type SvelteFixture,
+	type SvelteFixture
 } from './fixtures/svelte/svelte-test-helpers.ts';
-import {normalizeJson, FIXTURES_SVELTE_DIR} from './test-helpers.ts';
+import { normalizeJson, FIXTURES_SVELTE_DIR } from './test-helpers.ts';
 import {
 	testSourceOptions,
 	createTestSourceOptions,
-	createCachedAnalysisProgram,
+	createCachedAnalysisProgram
 } from './test-module-helpers.ts';
 
 /** Read fixture file content for analysis. */
@@ -50,11 +50,11 @@ beforeAll(async () => {
 const analyzeTestComponent = (
 	sourceFile: SourceFileInfo,
 	modulePath: string,
-	diagnostics: Array<Diagnostic> = [] as Array<Diagnostic>,
+	diagnostics: Array<Diagnostic> = [] as Array<Diagnostic>
 ) => {
 	const virtualFile = transformOrThrow(sourceFile);
 	const program = createCachedAnalysisProgram(
-		new Map([[virtualFile.virtualPath, virtualFile.content]]),
+		new Map([[virtualFile.virtualPath, virtualFile.content]])
 	);
 	const testChecker = program.getTypeChecker();
 	const result = analyzeSvelteModule(
@@ -69,7 +69,7 @@ const analyzeTestComponent = (
 		createTestSourceOptions(dirname(sourceFile.id)),
 		diagnostics,
 		program,
-		virtualFile,
+		virtualFile
 	);
 	if (!result) throw new Error(`Analysis returned undefined for ${modulePath}`);
 	const componentDecl = result.declarations.find((d) => d.declaration.kind === 'component');
@@ -79,10 +79,10 @@ const analyzeTestComponent = (
 
 /** Analyze a Svelte source through the production pipeline (for tests that need moduleComment or full analysis). */
 const analyzeSvelteTestIntegration = (
-	sourceFile: SourceFileInfo & {dependents?: ReadonlyArray<string>},
+	sourceFile: SourceFileInfo & { dependents?: ReadonlyArray<string> },
 	modulePath: string,
 	diagnostics: Array<Diagnostic>,
-	options?: ModuleSourceOptions,
+	options?: ModuleSourceOptions
 ): ModuleAnalysis => {
 	// Default options root at the component's own directory so its file is treated
 	// as internal (see `analyzeTestComponent` for why); callers needing a specific
@@ -90,7 +90,7 @@ const analyzeSvelteTestIntegration = (
 	const opts = options ?? createTestSourceOptions(dirname(sourceFile.id));
 	const virtualFile = transformOrThrow(sourceFile);
 	const program = createCachedAnalysisProgram(
-		new Map([[virtualFile.virtualPath, virtualFile.content]]),
+		new Map([[virtualFile.virtualPath, virtualFile.content]])
 	);
 	const testChecker = program.getTypeChecker();
 	const result = analyzeSvelteModule(
@@ -100,34 +100,34 @@ const analyzeSvelteTestIntegration = (
 		opts,
 		diagnostics,
 		program,
-		virtualFile,
+		virtualFile
 	);
 	if (!result) throw new Error(`Analysis returned undefined for ${modulePath}`);
 	return result;
 };
 
 describe('svelte component analyzer (fixture-based)', () => {
-	test('all fixtures analyze correctly', {timeout: 15_000}, () => {
+	test('all fixtures analyze correctly', { timeout: 15_000 }, () => {
 		// Pre-transform all fixtures and create a single shared program (much faster than per-fixture)
 		const fixtureData = fixtures.map((fixture) => {
 			const componentName = fixtureNameToComponentName(fixture.name);
 			const modulePath = `${componentName}.svelte`;
 			const sourceFile: SourceFileInfo = {
 				id: join(FIXTURES_SVELTE_DIR, `${fixture.name}/input.svelte`),
-				content: fixture.input,
+				content: fixture.input
 			};
 			const virtualFile = transformOrThrow(sourceFile);
-			return {fixture, modulePath, sourceFile, virtualFile};
+			return { fixture, modulePath, sourceFile, virtualFile };
 		});
 
 		const allVirtualFiles = new Map(
-			fixtureData.map((d) => [d.virtualFile.virtualPath, d.virtualFile.content]),
+			fixtureData.map((d) => [d.virtualFile.virtualPath, d.virtualFile.content])
 		);
-		const program = createAnalysisProgram({virtualFiles: allVirtualFiles});
+		const program = createAnalysisProgram({ virtualFiles: allVirtualFiles });
 		const fixtureChecker = program.getTypeChecker();
 		const opts = testSourceOptions();
 
-		for (const {fixture, modulePath, sourceFile, virtualFile} of fixtureData) {
+		for (const { fixture, modulePath, sourceFile, virtualFile } of fixtureData) {
 			const diagnostics: Array<Diagnostic> = [];
 			const moduleResult = analyzeSvelteModule(
 				sourceFile,
@@ -136,7 +136,7 @@ describe('svelte component analyzer (fixture-based)', () => {
 				opts,
 				diagnostics,
 				program,
-				virtualFile,
+				virtualFile
 			);
 			assert.ok(moduleResult, `Analysis returned undefined for fixture "${fixture.name}"`);
 
@@ -147,7 +147,7 @@ describe('svelte component analyzer (fixture-based)', () => {
 			assert.deepEqual(
 				normalizeJson(actualDeclarations),
 				normalizeJson(fixture.expected),
-				`Fixture "${fixture.name}" failed`,
+				`Fixture "${fixture.name}" failed`
 			);
 		}
 	});
@@ -165,8 +165,8 @@ describe('svelte component analysis', () => {
 		const modulePath = 'PropsBasic.svelte';
 
 		const declaration = analyzeTestComponent(
-			{id: filePath, content: readFixture(filePath)},
-			modulePath,
+			{ id: filePath, content: readFixture(filePath) },
+			modulePath
 		);
 
 		assert.strictEqual(declaration.name, 'PropsBasic');
@@ -184,8 +184,8 @@ describe('svelte component analysis', () => {
 		const modulePath = 'PropsBasic.svelte';
 
 		const declaration = analyzeTestComponent(
-			{id: filePath, content: readFixture(filePath)},
-			modulePath,
+			{ id: filePath, content: readFixture(filePath) },
+			modulePath
 		);
 
 		// The component has JSDoc in the script block - extraction depends on svelte2tsx behavior
@@ -199,8 +199,8 @@ describe('svelte component analysis', () => {
 		const modulePath = 'ComponentJsdoc.svelte';
 
 		const declaration = analyzeTestComponent(
-			{id: filePath, content: readFixture(filePath)},
-			modulePath,
+			{ id: filePath, content: readFixture(filePath) },
+			modulePath
 		);
 
 		assert.strictEqual(declaration.name, 'ComponentJsdoc');
@@ -212,8 +212,8 @@ describe('svelte component analysis', () => {
 		const modulePath = 'ComponentNoProps.svelte';
 
 		const declaration = analyzeTestComponent(
-			{id: filePath, content: readFixture(filePath)},
-			modulePath,
+			{ id: filePath, content: readFixture(filePath) },
+			modulePath
 		);
 
 		assert.strictEqual(declaration.name, 'ComponentNoProps');
@@ -227,8 +227,8 @@ describe('svelte component analysis', () => {
 		const modulePath = 'PropsDescriptions.svelte';
 
 		const declaration = analyzeTestComponent(
-			{id: filePath, content: readFixture(filePath)},
-			modulePath,
+			{ id: filePath, content: readFixture(filePath) },
+			modulePath
 		);
 
 		assert.ok(declaration.props);
@@ -246,8 +246,8 @@ describe('svelte component analysis', () => {
 		const modulePath = 'PropsOptional.svelte';
 
 		const declaration = analyzeTestComponent(
-			{id: filePath, content: readFixture(filePath)},
-			modulePath,
+			{ id: filePath, content: readFixture(filePath) },
+			modulePath
 		);
 
 		assert.ok(declaration.props);
@@ -264,8 +264,8 @@ describe('svelte component analysis', () => {
 		const modulePath = 'PropsBindable.svelte';
 
 		const declaration = analyzeTestComponent(
-			{id: filePath, content: readFixture(filePath)},
-			modulePath,
+			{ id: filePath, content: readFixture(filePath) },
+			modulePath
 		);
 
 		assert.ok(declaration.props);
@@ -282,11 +282,14 @@ describe('svelte component analysis', () => {
 		const content = readFixture(filePath);
 
 		// Test with nested path
-		const declaration1 = analyzeTestComponent({id: filePath, content}, 'components/Button.svelte');
+		const declaration1 = analyzeTestComponent(
+			{ id: filePath, content },
+			'components/Button.svelte'
+		);
 		assert.strictEqual(declaration1.name, 'Button');
 
 		// Test with simple path
-		const declaration2 = analyzeTestComponent({id: filePath, content}, 'Alert.svelte');
+		const declaration2 = analyzeTestComponent({ id: filePath, content }, 'Alert.svelte');
 		assert.strictEqual(declaration2.name, 'Alert');
 	});
 
@@ -296,8 +299,8 @@ describe('svelte component analysis', () => {
 		const modulePath = 'TypeScript_Component.svelte';
 
 		const declaration = analyzeTestComponent(
-			{id: filePath, content: readFixture(filePath)},
-			modulePath,
+			{ id: filePath, content: readFixture(filePath) },
+			modulePath
 		);
 
 		assert.strictEqual(declaration.kind, 'component');
@@ -314,8 +317,8 @@ describe('svelte component analysis', () => {
 		const modulePath = 'Js_Component.svelte';
 
 		const declaration = analyzeTestComponent(
-			{id: filePath, content: readFixture(filePath)},
-			modulePath,
+			{ id: filePath, content: readFixture(filePath) },
+			modulePath
 		);
 
 		assert.strictEqual(declaration.name, 'Js_Component');
@@ -331,8 +334,8 @@ describe('svelte component analysis', () => {
 <p>{count}</p>`;
 
 		const declaration = analyzeTestComponent(
-			{id: '/fake/path/SingleQuote.svelte', content: svelteContent},
-			'SingleQuote.svelte',
+			{ id: '/fake/path/SingleQuote.svelte', content: svelteContent },
+			'SingleQuote.svelte'
 		);
 
 		assert.strictEqual(declaration.kind, 'component');
@@ -349,8 +352,8 @@ describe('svelte component analysis', () => {
 <p>{value}</p>`;
 
 		const declaration = analyzeTestComponent(
-			{id: '/fake/path/Test.svelte', content: svelteContent},
-			'Test.svelte',
+			{ id: '/fake/path/Test.svelte', content: svelteContent },
+			'Test.svelte'
 		);
 
 		assert.strictEqual(declaration.name, 'Test');
@@ -657,9 +660,9 @@ let {name}: {name: string} = $props();
 <p>Hello {name}</p>`;
 
 		const result = analyzeSvelteTestIntegration(
-			{id: '/fake/path/Greeting.svelte', content: svelteContent},
+			{ id: '/fake/path/Greeting.svelte', content: svelteContent },
 			'Greeting.svelte',
-			[] as Array<Diagnostic>,
+			[] as Array<Diagnostic>
 		);
 		const componentDecl = result.declarations.find((d) => d.declaration.kind === 'component');
 
@@ -676,9 +679,9 @@ let {name}: {name: string} = $props();
 <p>Hello {name}</p>`;
 
 		const result = analyzeSvelteTestIntegration(
-			{id: '/fake/path/Simple.svelte', content: svelteContent},
+			{ id: '/fake/path/Simple.svelte', content: svelteContent },
 			'Simple.svelte',
-			[] as Array<Diagnostic>,
+			[] as Array<Diagnostic>
 		);
 
 		assert.isUndefined(result.moduleComment);
@@ -698,12 +701,12 @@ let {name}: {name: string} = $props();
 <p>Hello {name}</p>`;
 
 		const result = analyzeSvelteTestIntegration(
-			{id: '/fake/path/Dual.svelte', content: svelteContent},
+			{ id: '/fake/path/Dual.svelte', content: svelteContent },
 			'Dual.svelte',
-			[] as Array<Diagnostic>,
+			[] as Array<Diagnostic>
 		);
 		const declaration = result.declarations.find(
-			(d) => d.declaration.kind === 'component',
+			(d) => d.declaration.kind === 'component'
 		)!.declaration;
 
 		assert.ok(result.moduleComment);
@@ -733,9 +736,9 @@ void tick;
 
 		const diagnostics: Array<Diagnostic> = [];
 		const result = analyzeSvelteTestIntegration(
-			{id: '/fake/path/Hoisted.svelte', content: svelteContent},
+			{ id: '/fake/path/Hoisted.svelte', content: svelteContent },
 			'Hoisted.svelte',
-			diagnostics,
+			diagnostics
 		);
 
 		assert.ok(result.moduleComment);
@@ -756,9 +759,9 @@ export const shared = 1;
 
 		const diagnostics: Array<Diagnostic> = [];
 		const result = analyzeSvelteTestIntegration(
-			{id: '/fake/path/ModuleScript.svelte', content: svelteContent},
+			{ id: '/fake/path/ModuleScript.svelte', content: svelteContent },
 			'ModuleScript.svelte',
-			diagnostics,
+			diagnostics
 		);
 
 		assert.ok(result.moduleComment);
@@ -786,9 +789,9 @@ let {name}: {name: string} = $props();
 
 		const diagnostics: Array<Diagnostic> = [];
 		const result = analyzeSvelteTestIntegration(
-			{id: '/fake/path/DualModule.svelte', content: svelteContent},
+			{ id: '/fake/path/DualModule.svelte', content: svelteContent },
 			'DualModule.svelte',
-			diagnostics,
+			diagnostics
 		);
 
 		// Instance comment wins per the documented priority
@@ -796,7 +799,7 @@ let {name}: {name: string} = $props();
 		assert.include(result.moduleComment, 'From the instance script');
 
 		const duplicates = diagnostics.filter(
-			(d) => d.kind === 'duplicate_comment' && d.commentType === 'module_comment',
+			(d) => d.kind === 'duplicate_comment' && d.commentType === 'module_comment'
 		);
 		assert.strictEqual(duplicates.length, 1);
 		assert.include(duplicates[0]!.message, 'JSDoc in <script>');
@@ -820,9 +823,9 @@ export const a = 1;
 
 		const scriptModuleDiagnostics: Array<Diagnostic> = [];
 		analyzeSvelteTestIntegration(
-			{id: '/fake/path/ScriptModule.svelte', content: scriptModuleContent},
+			{ id: '/fake/path/ScriptModule.svelte', content: scriptModuleContent },
 			'ScriptModule.svelte',
-			scriptModuleDiagnostics,
+			scriptModuleDiagnostics
 		);
 		const fromScriptModule = scriptModuleDiagnostics.filter((d) => d.kind === 'misplaced_tag');
 		assert.strictEqual(fromScriptModule.length, 1);
@@ -837,9 +840,9 @@ Module docs.
 
 		const htmlDiagnostics: Array<Diagnostic> = [];
 		analyzeSvelteTestIntegration(
-			{id: '/fake/path/HtmlModule.svelte', content: htmlContent},
+			{ id: '/fake/path/HtmlModule.svelte', content: htmlContent },
 			'HtmlModule.svelte',
-			htmlDiagnostics,
+			htmlDiagnostics
 		);
 		const fromHtml = htmlDiagnostics.filter((d) => d.kind === 'misplaced_tag');
 		assert.strictEqual(fromHtml.length, 1);
@@ -856,9 +859,9 @@ let {name, count}: {name: string; count: number} = $props();
 
 		const diagnostics: Array<Diagnostic> = [];
 		const declaration = analyzeTestComponent(
-			{id: '/fake/path/Valid.svelte', content: svelteContent},
+			{ id: '/fake/path/Valid.svelte', content: svelteContent },
 			'Valid.svelte',
-			diagnostics,
+			diagnostics
 		);
 
 		// Valid component should produce no diagnostics
@@ -877,8 +880,8 @@ let {name, count}: {name: string; count: number} = $props();
 <p>Static content</p>`;
 
 		const declaration = analyzeTestComponent(
-			{id: '/fake/path/Empty.svelte', content: svelteContent},
-			'Empty.svelte',
+			{ id: '/fake/path/Empty.svelte', content: svelteContent },
+			'Empty.svelte'
 		);
 
 		assert.strictEqual(declaration.name, 'Empty');
@@ -892,12 +895,12 @@ let {name, count}: {name: string; count: number} = $props();
 
 		const diagnostics: Array<Diagnostic> = [];
 		const result = analyzeSvelteTestIntegration(
-			{id: '/fake/path/NoScript.svelte', content: svelteContent},
+			{ id: '/fake/path/NoScript.svelte', content: svelteContent },
 			'NoScript.svelte',
-			diagnostics,
+			diagnostics
 		);
 		const componentDecl = result.declarations.find(
-			(d) => d.declaration.kind === 'component',
+			(d) => d.declaration.kind === 'component'
 		)!.declaration;
 
 		assert.strictEqual(componentDecl.name, 'NoScript');
@@ -913,12 +916,12 @@ export const sharedValue = 'shared';
 <p>Module context only</p>`;
 
 		const result = analyzeSvelteTestIntegration(
-			{id: '/fake/path/ModuleOnly.svelte', content: svelteContent},
+			{ id: '/fake/path/ModuleOnly.svelte', content: svelteContent },
 			'ModuleOnly.svelte',
-			[] as Array<Diagnostic>,
+			[] as Array<Diagnostic>
 		);
 		const componentDecl = result.declarations.find(
-			(d) => d.declaration.kind === 'component',
+			(d) => d.declaration.kind === 'component'
 		)!.declaration;
 
 		assert.strictEqual(componentDecl.name, 'ModuleOnly');
@@ -937,12 +940,12 @@ let {name}: {name: string} = $props();
 <p>Hello {name}</p>`;
 
 		const result = analyzeSvelteTestIntegration(
-			{id: '/fake/path/Both.svelte', content: svelteContent},
+			{ id: '/fake/path/Both.svelte', content: svelteContent },
 			'Both.svelte',
-			[] as Array<Diagnostic>,
+			[] as Array<Diagnostic>
 		);
 		const componentDecl = result.declarations.find(
-			(d) => d.declaration.kind === 'component',
+			(d) => d.declaration.kind === 'component'
 		)!.declaration;
 
 		assert.strictEqual(componentDecl.name, 'Both');
@@ -961,8 +964,8 @@ let {untypedProp} = $props();
 <p>{untypedProp}</p>`;
 
 		const declaration = analyzeTestComponent(
-			{id: '/fake/path/Untyped.svelte', content: svelteContent},
-			'Untyped.svelte',
+			{ id: '/fake/path/Untyped.svelte', content: svelteContent },
+			'Untyped.svelte'
 		);
 
 		assert.strictEqual(declaration.name, 'Untyped');
@@ -979,8 +982,8 @@ let {untypedProp} = $props();
 		const modulePath = 'TypesIntersection.svelte';
 
 		const declaration = analyzeTestComponent(
-			{id: filePath, content: readFixture(filePath)},
-			modulePath,
+			{ id: filePath, content: readFixture(filePath) },
+			modulePath
 		);
 
 		assert.strictEqual(declaration.kind, 'component');
@@ -1000,10 +1003,10 @@ let {name}: {name: string} = $props();
 		assert.throws(
 			() =>
 				analyzeTestComponent(
-					{id: '/fake/path/Malformed.svelte', content: svelteContent},
-					'Malformed.svelte',
+					{ id: '/fake/path/Malformed.svelte', content: svelteContent },
+					'Malformed.svelte'
 				),
-			/Unterminated regular expression/,
+			/Unterminated regular expression/
 		);
 	});
 });
@@ -1019,11 +1022,11 @@ let {name}: MissingType = $props();
 		const diagnostics: Array<Diagnostic> = [];
 		const sourceFile: SourceFileInfo = {
 			id: '/fake/path/Test.svelte',
-			content: svelteContent,
+			content: svelteContent
 		};
 		const virtualFile = transformOrThrow(sourceFile);
 		const program = createCachedAnalysisProgram(
-			new Map([[virtualFile.virtualPath, virtualFile.content]]),
+			new Map([[virtualFile.virtualPath, virtualFile.content]])
 		);
 		const testChecker = program.getTypeChecker();
 		const result = analyzeSvelteModule(
@@ -1033,12 +1036,12 @@ let {name}: MissingType = $props();
 			testSourceOptions(),
 			diagnostics,
 			program,
-			virtualFile,
+			virtualFile
 		);
 
 		assert.ok(result);
 		const componentDecl = result.declarations.find(
-			(d) => d.declaration.kind === 'component',
+			(d) => d.declaration.kind === 'component'
 		)!.declaration;
 		assert.strictEqual(componentDecl.kind, 'component');
 		assert.strictEqual(componentDecl.name, 'Test');
@@ -1056,9 +1059,9 @@ const greeting = 'hello';
 
 		const diagnostics: Array<Diagnostic> = [];
 		analyzeTestComponent(
-			{id: '/fake/path/NoProps.svelte', content: svelteContent},
+			{ id: '/fake/path/NoProps.svelte', content: svelteContent },
 			'NoProps.svelte',
-			diagnostics,
+			diagnostics
 		);
 
 		// No diagnostic for components that simply don't use $props()
@@ -1073,9 +1076,9 @@ let {name}: {name: string} = $props();
 
 		const diagnostics: Array<Diagnostic> = [];
 		const declaration = analyzeTestComponent(
-			{id: '/fake/path/GoodProps.svelte', content: svelteContent},
+			{ id: '/fake/path/GoodProps.svelte', content: svelteContent },
 			'GoodProps.svelte',
-			diagnostics,
+			diagnostics
 		);
 
 		assert.ok(declaration.props);
@@ -1093,8 +1096,8 @@ let {value}: {value: number} = $props();
 <p>{value}</p>`;
 
 		const declaration = analyzeTestComponent(
-			{id: '/fake/path/WithLine.svelte', content: svelteContent},
-			'WithLine.svelte',
+			{ id: '/fake/path/WithLine.svelte', content: svelteContent },
+			'WithLine.svelte'
 		);
 
 		assert.ok(declaration.sourceLine);
@@ -1109,8 +1112,8 @@ let {value}: {value: number} = $props();
 <p>{value}</p>`;
 
 		const declaration = analyzeTestComponent(
-			{id: '/fake/path/WithComment.svelte', content: svelteContent},
-			'WithComment.svelte',
+			{ id: '/fake/path/WithComment.svelte', content: svelteContent },
+			'WithComment.svelte'
 		);
 
 		// sourceLine should point to the <script> tag, not always 1
@@ -1126,8 +1129,8 @@ let {value}: {value: number} = $props();
 <p>Content</p>`;
 
 		const declaration = analyzeTestComponent(
-			{id: '/fake/path/Comments.svelte', content: svelteContent},
-			'Comments.svelte',
+			{ id: '/fake/path/Comments.svelte', content: svelteContent },
+			'Comments.svelte'
 		);
 
 		assert.strictEqual(declaration.name, 'Comments');
@@ -1141,8 +1144,8 @@ import {onMount} from 'svelte';
 <p>No props, just imports</p>`;
 
 		const declaration = analyzeTestComponent(
-			{id: '/fake/path/ImportsOnly.svelte', content: svelteContent},
-			'ImportsOnly.svelte',
+			{ id: '/fake/path/ImportsOnly.svelte', content: svelteContent },
+			'ImportsOnly.svelte'
 		);
 
 		assert.strictEqual(declaration.name, 'ImportsOnly');
@@ -1156,8 +1159,8 @@ let {first, second, third}: {first: string; second: number; third: boolean} = $p
 <p>{first} {second} {third}</p>`;
 
 		const declaration = analyzeTestComponent(
-			{id: '/fake/path/PropOrder.svelte', content: svelteContent},
-			'PropOrder.svelte',
+			{ id: '/fake/path/PropOrder.svelte', content: svelteContent },
+			'PropOrder.svelte'
 		);
 
 		assert.ok(declaration.props);
@@ -1177,7 +1180,7 @@ let {value}: {value: string} = $props();
 <p>{value}</p>`;
 
 		const options = createTestSourceOptions('/project', {
-			sourcePaths: ['src/lib'],
+			sourcePaths: ['src/lib']
 		});
 
 		const diagnostics: Array<Diagnostic> = [];
@@ -1187,13 +1190,13 @@ let {value}: {value: string} = $props();
 				content: svelteContent,
 				dependencies: [
 					'/project/src/lib/utils.ts',
-					'/project/node_modules/external/index.js', // should be filtered
+					'/project/node_modules/external/index.js' // should be filtered
 				],
-				dependents: ['/project/src/lib/Parent.svelte'],
+				dependents: ['/project/src/lib/Parent.svelte']
 			},
 			'Consumer.svelte',
 			diagnostics,
-			options,
+			options
 		);
 
 		// Dependencies should be filtered to source modules only
@@ -1212,19 +1215,19 @@ let {standalone}: {standalone: boolean} = $props();
 <p>{standalone}</p>`;
 
 		const options = createTestSourceOptions('/project', {
-			sourcePaths: ['src/lib'],
+			sourcePaths: ['src/lib']
 		});
 
 		const diagnostics: Array<Diagnostic> = [];
 		const result = analyzeSvelteTestIntegration(
 			{
 				id: '/project/src/lib/Standalone.svelte',
-				content: svelteContent,
+				content: svelteContent
 				// No dependencies or dependents provided
 			},
 			'Standalone.svelte',
 			diagnostics,
-			options,
+			options
 		);
 
 		// Should return empty arrays, not undefined
@@ -1242,9 +1245,9 @@ let {x}: {x: number} = $props();
 
 		const diagnostics: Array<Diagnostic> = [];
 		const result = analyzeSvelteTestIntegration(
-			{id: '/fake/path/Simple.svelte', content: svelteContent},
+			{ id: '/fake/path/Simple.svelte', content: svelteContent },
 			'Simple.svelte',
-			diagnostics,
+			diagnostics
 		);
 
 		// Verify all array fields are arrays
@@ -1356,9 +1359,9 @@ let {x}: {x: string} = $props();
 <p>{x}</p>`;
 
 		const result = analyzeSvelteTestIntegration(
-			{id: '/fake/path/Test.svelte', content: svelteContent},
+			{ id: '/fake/path/Test.svelte', content: svelteContent },
 			'Test.svelte',
-			[] as Array<Diagnostic>,
+			[] as Array<Diagnostic>
 		);
 
 		assert.ok(result.moduleComment);
@@ -1382,9 +1385,9 @@ let {x}: {x: string} = $props();
 
 		const diagnostics: Array<Diagnostic> = [];
 		const result = analyzeSvelteTestIntegration(
-			{id: '/fake/path/Test.svelte', content: svelteContent},
+			{ id: '/fake/path/Test.svelte', content: svelteContent },
 			'Test.svelte',
-			diagnostics,
+			diagnostics
 		);
 
 		assert.ok(result.moduleComment);
@@ -1405,9 +1408,9 @@ let {x}: {x: string} = $props();
 <div>Static content</div>`;
 
 		const result = analyzeSvelteTestIntegration(
-			{id: '/fake/path/Static.svelte', content: svelteContent},
+			{ id: '/fake/path/Static.svelte', content: svelteContent },
 			'Static.svelte',
-			[] as Array<Diagnostic>,
+			[] as Array<Diagnostic>
 		);
 
 		assert.ok(result.moduleComment);
@@ -1430,12 +1433,12 @@ let {x}: {x: string} = $props();
 
 		const diagnostics: Array<Diagnostic> = [];
 		const result = analyzeSvelteTestIntegration(
-			{id: '/fake/path/Test.svelte', content: svelteContent},
+			{ id: '/fake/path/Test.svelte', content: svelteContent },
 			'Test.svelte',
-			diagnostics,
+			diagnostics
 		);
 		const declaration = result.declarations.find(
-			(d) => d.declaration.kind === 'component',
+			(d) => d.declaration.kind === 'component'
 		)!.declaration;
 
 		assert.ok(declaration.docComment);
@@ -1458,12 +1461,12 @@ let {prop1}: {prop1: string} = $props();
 <div>{prop1}</div>`;
 
 		const result = analyzeSvelteTestIntegration(
-			{id: '/fake/path/Test.svelte', content: svelteContent},
+			{ id: '/fake/path/Test.svelte', content: svelteContent },
 			'Test.svelte',
-			[] as Array<Diagnostic>,
+			[] as Array<Diagnostic>
 		);
 		const declaration = result.declarations.find(
-			(d) => d.declaration.kind === 'component',
+			(d) => d.declaration.kind === 'component'
 		)!.declaration;
 
 		assert.ok(result.moduleComment);
@@ -1487,12 +1490,12 @@ let {x}: {x: string} = $props();
 
 		const diagnostics: Array<Diagnostic> = [];
 		const result = analyzeSvelteTestIntegration(
-			{id: '/fake/path/Test.svelte', content: svelteContent},
+			{ id: '/fake/path/Test.svelte', content: svelteContent },
 			'Test.svelte',
-			diagnostics,
+			diagnostics
 		);
 		const declaration = result.declarations.find(
-			(d) => d.declaration.kind === 'component',
+			(d) => d.declaration.kind === 'component'
 		)!.declaration;
 
 		// JSDoc wins
@@ -1520,9 +1523,9 @@ let {x}: {x: string} = $props();
 
 		const diagnostics: Array<Diagnostic> = [];
 		analyzeSvelteTestIntegration(
-			{id: '/fake/path/Test.svelte', content: svelteContent},
+			{ id: '/fake/path/Test.svelte', content: svelteContent },
 			'Test.svelte',
-			diagnostics,
+			diagnostics
 		);
 
 		assert.strictEqual(hasWarnings(diagnostics), false);
@@ -1537,9 +1540,9 @@ let {x}: {x: string} = $props();
 
 		const diagnostics: Array<Diagnostic> = [];
 		analyzeSvelteTestIntegration(
-			{id: '/fake/path/Test.svelte', content: svelteContent},
+			{ id: '/fake/path/Test.svelte', content: svelteContent },
 			'Test.svelte',
-			diagnostics,
+			diagnostics
 		);
 
 		assert.strictEqual(hasWarnings(diagnostics), false);
@@ -1557,9 +1560,9 @@ describe('svelte exported snippet declarations', () => {
 {/snippet}`;
 
 		const result = analyzeSvelteTestIntegration(
-			{id: '/fake/path/Test.svelte', content: svelteContent},
+			{ id: '/fake/path/Test.svelte', content: svelteContent },
 			'Test.svelte',
-			[] as Array<Diagnostic>,
+			[] as Array<Diagnostic>
 		);
 
 		const snippetDecl = result.declarations.find((d) => d.declaration.kind === 'snippet');
@@ -1583,9 +1586,9 @@ describe('svelte exported snippet declarations', () => {
 {/snippet}`;
 
 		const result = analyzeSvelteTestIntegration(
-			{id: '/fake/path/Test.svelte', content: svelteContent},
+			{ id: '/fake/path/Test.svelte', content: svelteContent },
 			'Test.svelte',
-			[] as Array<Diagnostic>,
+			[] as Array<Diagnostic>
 		);
 
 		const snippetDecl = result.declarations.find((d) => d.declaration.kind === 'snippet');
@@ -1607,9 +1610,9 @@ describe('svelte exported snippet declarations', () => {
 {/snippet}`;
 
 		const result = analyzeSvelteTestIntegration(
-			{id: '/fake/path/Test.svelte', content: svelteContent},
+			{ id: '/fake/path/Test.svelte', content: svelteContent },
 			'Test.svelte',
-			[] as Array<Diagnostic>,
+			[] as Array<Diagnostic>
 		);
 
 		const snippetDecl = result.declarations.find((d) => d.declaration.kind === 'snippet');
@@ -1630,9 +1633,9 @@ describe('svelte exported snippet declarations', () => {
 {/snippet}`;
 
 		const result = analyzeSvelteTestIntegration(
-			{id: '/fake/path/Test.svelte', content: svelteContent},
+			{ id: '/fake/path/Test.svelte', content: svelteContent },
 			'Test.svelte',
-			[] as Array<Diagnostic>,
+			[] as Array<Diagnostic>
 		);
 
 		const snippetDecl = result.declarations.find((d) => d.declaration.kind === 'snippet');
@@ -1652,9 +1655,9 @@ describe('svelte exported snippet declarations', () => {
 {/snippet}`;
 
 		const result = analyzeSvelteTestIntegration(
-			{id: '/fake/path/Test.svelte', content: svelteContent},
+			{ id: '/fake/path/Test.svelte', content: svelteContent },
 			'Test.svelte',
-			[] as Array<Diagnostic>,
+			[] as Array<Diagnostic>
 		);
 
 		const snippetDecl = result.declarations.find((d) => d.declaration.kind === 'snippet');
@@ -1677,9 +1680,9 @@ describe('svelte exported snippet declarations', () => {
 {/snippet}`;
 
 		const result = analyzeSvelteTestIntegration(
-			{id: '/fake/path/Test.svelte', content: svelteContent},
+			{ id: '/fake/path/Test.svelte', content: svelteContent },
 			'Test.svelte',
-			[] as Array<Diagnostic>,
+			[] as Array<Diagnostic>
 		);
 
 		const snippetDecl = result.declarations.find((d) => d.declaration.kind === 'snippet');
@@ -1701,9 +1704,9 @@ describe('svelte exported snippet declarations', () => {
 {/snippet}`;
 
 		const result = analyzeSvelteTestIntegration(
-			{id: '/fake/path/Test.svelte', content: svelteContent},
+			{ id: '/fake/path/Test.svelte', content: svelteContent },
 			'Test.svelte',
-			[] as Array<Diagnostic>,
+			[] as Array<Diagnostic>
 		);
 
 		const snippetDecl = result.declarations.find((d) => d.declaration.kind === 'snippet');
@@ -1722,14 +1725,14 @@ describe('svelte exported snippet declarations', () => {
 {/snippet}`;
 
 		const result = analyzeSvelteTestIntegration(
-			{id: '/fake/path/Test.svelte', content: svelteContent},
+			{ id: '/fake/path/Test.svelte', content: svelteContent },
 			'Test.svelte',
-			[] as Array<Diagnostic>,
+			[] as Array<Diagnostic>
 		);
 
 		// The nodocs snippet should be present with nodocs: true
 		const nodocSnippet = result.declarations.find(
-			(d) => d.declaration.name === 'greet' && d.nodocs,
+			(d) => d.declaration.name === 'greet' && d.nodocs
 		);
 		assert.ok(nodocSnippet, 'Expected snippet with nodocs: true');
 		assert.strictEqual(nodocSnippet.declaration.kind, 'snippet');
@@ -1751,9 +1754,9 @@ describe('svelte exported snippet declarations', () => {
 <div>{prop1}</div>`;
 
 		const result = analyzeSvelteTestIntegration(
-			{id: '/fake/path/Test.svelte', content: svelteContent},
+			{ id: '/fake/path/Test.svelte', content: svelteContent },
 			'Test.svelte',
-			[] as Array<Diagnostic>,
+			[] as Array<Diagnostic>
 		);
 
 		const snippetDecl = result.declarations.find((d) => d.declaration.kind === 'snippet');
@@ -1776,8 +1779,8 @@ describe('svelte acceptsChildren detection', () => {
 		const svelteContent = '<div>{@render children?.()}</div>';
 
 		const result = analyzeTestComponent(
-			{id: '/fake/path/Test.svelte', content: svelteContent},
-			'Test.svelte',
+			{ id: '/fake/path/Test.svelte', content: svelteContent },
+			'Test.svelte'
 		);
 
 		assert.strictEqual(result.acceptsChildren, true);
@@ -1789,12 +1792,12 @@ describe('svelte acceptsChildren detection', () => {
 		// Verify the svelte2tsx transformation produces the expected detection pattern
 		const virtualFile = transformOrThrow({
 			id: '/fake/path/Test.svelte',
-			content: '<div>{@render children?.()}</div>',
+			content: '<div>{@render children?.()}</div>'
 		});
 
 		assert.ok(
 			virtualFile.content.includes('__sveltets_2_ensureSnippet(children'),
-			'Expected virtual source to contain children snippet pattern',
+			'Expected virtual source to contain children snippet pattern'
 		);
 	});
 });

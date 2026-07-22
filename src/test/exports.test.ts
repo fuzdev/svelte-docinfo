@@ -1,10 +1,10 @@
-import {test, assert, describe} from 'vitest';
-import {writeFile, mkdir, chmod} from 'node:fs/promises';
-import {join} from 'node:path';
+import { test, assert, describe } from 'vitest';
+import { writeFile, mkdir, chmod } from 'node:fs/promises';
+import { join } from 'node:path';
 
-import {parsePackageExports, mapDistToSource, discoverFromExports} from '$lib/exports.ts';
+import { parsePackageExports, mapDistToSource, discoverFromExports } from '$lib/exports.ts';
 
-import {withTestDir} from './test-helpers.ts';
+import { withTestDir } from './test-helpers.ts';
 
 describe('parsePackageExports', () => {
 	test('parses object conditions', async () => {
@@ -13,9 +13,9 @@ describe('parsePackageExports', () => {
 				join(dir, 'package.json'),
 				JSON.stringify({
 					exports: {
-						'.': {types: './dist/index.d.ts', default: './dist/index.js'},
-					},
-				}),
+						'.': { types: './dist/index.d.ts', default: './dist/index.js' }
+					}
+				})
 			);
 
 			const result = await parsePackageExports(dir);
@@ -34,9 +34,9 @@ describe('parsePackageExports', () => {
 				join(dir, 'package.json'),
 				JSON.stringify({
 					exports: {
-						'./*.js': {types: './dist/*.d.ts', default: './dist/*.js'},
-					},
-				}),
+						'./*.js': { types: './dist/*.d.ts', default: './dist/*.js' }
+					}
+				})
 			);
 
 			const result = await parsePackageExports(dir);
@@ -53,9 +53,9 @@ describe('parsePackageExports', () => {
 				JSON.stringify({
 					exports: {
 						'./package.json': './package.json',
-						'.': {default: './dist/index.js'},
-					},
-				}),
+						'.': { default: './dist/index.js' }
+					}
+				})
 			);
 
 			const result = await parsePackageExports(dir);
@@ -71,10 +71,10 @@ describe('parsePackageExports', () => {
 				join(dir, 'package.json'),
 				JSON.stringify({
 					exports: {
-						'.': {default: './dist/index.js'},
-						'./internal': null,
-					},
-				}),
+						'.': { default: './dist/index.js' },
+						'./internal': null
+					}
+				})
 			);
 
 			const result = await parsePackageExports(dir);
@@ -85,7 +85,7 @@ describe('parsePackageExports', () => {
 
 	test('returns hasExports: false when no exports field', async () => {
 		await withTestDir(async (dir) => {
-			await writeFile(join(dir, 'package.json'), JSON.stringify({name: 'test'}));
+			await writeFile(join(dir, 'package.json'), JSON.stringify({ name: 'test' }));
 
 			const result = await parsePackageExports(dir);
 			assert.ok(!result.hasExports);
@@ -106,9 +106,9 @@ describe('parsePackageExports', () => {
 				join(dir, 'package.json'),
 				JSON.stringify({
 					exports: {
-						'.': './dist/index.js',
-					},
-				}),
+						'.': './dist/index.js'
+					}
+				})
 			);
 
 			const result = await parsePackageExports(dir);
@@ -124,10 +124,10 @@ describe('parsePackageExports', () => {
 				JSON.stringify({
 					exports: {
 						'./package.json': './package.json',
-						'.': {types: './dist/index.d.ts', default: './dist/index.js'},
-						'./*.js': {types: './dist/*.d.ts', default: './dist/*.js'},
-					},
-				}),
+						'.': { types: './dist/index.d.ts', default: './dist/index.js' },
+						'./*.js': { types: './dist/*.d.ts', default: './dist/*.js' }
+					}
+				})
 			);
 
 			const result = await parsePackageExports(dir);
@@ -140,7 +140,7 @@ describe('parsePackageExports', () => {
 });
 
 describe('mapDistToSource', () => {
-	const defaults = {distDir: 'dist', sourceDir: 'src/lib'};
+	const defaults = { distDir: 'dist', sourceDir: 'src/lib' };
 
 	test('maps .js to .ts for default condition', () => {
 		const result = mapDistToSource('./dist/index.js', 'default', defaults);
@@ -193,7 +193,7 @@ describe('mapDistToSource', () => {
 	});
 
 	test('respects custom dist and source dirs', () => {
-		const custom = {distDir: 'build', sourceDir: 'src'};
+		const custom = { distDir: 'build', sourceDir: 'src' };
 		const result = mapDistToSource('./build/index.js', 'default', custom);
 		assert.strictEqual(result, 'src/index.ts');
 	});
@@ -203,7 +203,7 @@ describe('mapDistToSource', () => {
 		// (`getSourceRoot` returns `''`). The result must be a relative path
 		// (no leading slash) so downstream `resolve(projectRoot, ...)` produces
 		// `projectRoot/foo.ts` rather than treating `/foo.ts` as absolute.
-		const empty = {distDir: 'dist', sourceDir: ''};
+		const empty = { distDir: 'dist', sourceDir: '' };
 		assert.strictEqual(mapDistToSource('./dist/lib/a.js', 'default', empty), 'lib/a.ts');
 		assert.strictEqual(mapDistToSource('./dist/index.js', 'default', empty), 'index.ts');
 		assert.strictEqual(mapDistToSource('./dist/*.js', 'default', empty), '*.ts');
@@ -213,7 +213,7 @@ describe('mapDistToSource', () => {
 describe('condition priority via mapDistToSource', () => {
 	test('svelte condition wins over default', async () => {
 		await withTestDir(async (dir) => {
-			await mkdir(join(dir, 'src/lib'), {recursive: true});
+			await mkdir(join(dir, 'src/lib'), { recursive: true });
 			await writeFile(join(dir, 'src/lib/Button.svelte'), '<div>A</div>');
 			await writeFile(
 				join(dir, 'package.json'),
@@ -221,13 +221,13 @@ describe('condition priority via mapDistToSource', () => {
 					exports: {
 						'./Button.svelte': {
 							svelte: './dist/Button.svelte',
-							default: './dist/Button.js',
-						},
-					},
-				}),
+							default: './dist/Button.js'
+						}
+					}
+				})
 			);
 
-			const {files} = await discoverFromExports({projectRoot: dir});
+			const { files } = await discoverFromExports({ projectRoot: dir });
 			assert.ok(files);
 			assert.strictEqual(files.length, 1);
 			// svelte condition selected → maps to .svelte, not .ts
@@ -237,7 +237,7 @@ describe('condition priority via mapDistToSource', () => {
 
 	test('default condition wins over import', async () => {
 		await withTestDir(async (dir) => {
-			await mkdir(join(dir, 'src/lib'), {recursive: true});
+			await mkdir(join(dir, 'src/lib'), { recursive: true });
 			await writeFile(join(dir, 'src/lib/index.ts'), 'export const a = 1;');
 			await writeFile(
 				join(dir, 'package.json'),
@@ -246,13 +246,13 @@ describe('condition priority via mapDistToSource', () => {
 						'.': {
 							types: './dist/index.d.ts',
 							import: './dist/index.mjs',
-							default: './dist/index.js',
-						},
-					},
-				}),
+							default: './dist/index.js'
+						}
+					}
+				})
 			);
 
-			const {files} = await discoverFromExports({projectRoot: dir});
+			const { files } = await discoverFromExports({ projectRoot: dir });
 			assert.ok(files);
 			assert.strictEqual(files.length, 1);
 			// default condition selected over import
@@ -262,7 +262,7 @@ describe('condition priority via mapDistToSource', () => {
 
 	test('import condition wins over require', async () => {
 		await withTestDir(async (dir) => {
-			await mkdir(join(dir, 'src/lib'), {recursive: true});
+			await mkdir(join(dir, 'src/lib'), { recursive: true });
 			await writeFile(join(dir, 'src/lib/index.ts'), 'export const a = 1;');
 			await writeFile(
 				join(dir, 'package.json'),
@@ -271,13 +271,13 @@ describe('condition priority via mapDistToSource', () => {
 						'.': {
 							types: './dist/index.d.ts',
 							import: './dist/index.js',
-							require: './dist/index.cjs',
-						},
-					},
-				}),
+							require: './dist/index.cjs'
+						}
+					}
+				})
 			);
 
-			const {files} = await discoverFromExports({projectRoot: dir});
+			const { files } = await discoverFromExports({ projectRoot: dir });
 			assert.ok(files);
 			assert.strictEqual(files.length, 1);
 			// import condition selected over require
@@ -289,18 +289,18 @@ describe('condition priority via mapDistToSource', () => {
 describe('discoverFromExports', () => {
 	test('discovers concrete exports', async () => {
 		await withTestDir(async (dir) => {
-			await mkdir(join(dir, 'src/lib'), {recursive: true});
+			await mkdir(join(dir, 'src/lib'), { recursive: true });
 			await writeFile(join(dir, 'src/lib/index.ts'), 'export const a = 1;');
 			await writeFile(
 				join(dir, 'package.json'),
 				JSON.stringify({
 					exports: {
-						'.': {types: './dist/index.d.ts', default: './dist/index.js'},
-					},
-				}),
+						'.': { types: './dist/index.d.ts', default: './dist/index.js' }
+					}
+				})
 			);
 
-			const {files} = await discoverFromExports({projectRoot: dir});
+			const { files } = await discoverFromExports({ projectRoot: dir });
 			assert.ok(files);
 			assert.strictEqual(files.length, 1);
 			assert.ok(files[0]!.id.endsWith('src/lib/index.ts'));
@@ -312,21 +312,21 @@ describe('discoverFromExports', () => {
 		// Mirrors the no-common-prefix sourcePaths case (e.g. ['lib', 'utils']):
 		// `getSourceRoot` returns `''` and discovery must still find sources.
 		await withTestDir(async (dir) => {
-			await mkdir(join(dir, 'lib'), {recursive: true});
-			await mkdir(join(dir, 'utils'), {recursive: true});
+			await mkdir(join(dir, 'lib'), { recursive: true });
+			await mkdir(join(dir, 'utils'), { recursive: true });
 			await writeFile(join(dir, 'lib/a.ts'), 'export const a = 1;');
 			await writeFile(join(dir, 'utils/b.ts'), 'export const b = 2;');
 			await writeFile(
 				join(dir, 'package.json'),
 				JSON.stringify({
 					exports: {
-						'./a': {default: './dist/lib/a.js'},
-						'./b': {default: './dist/utils/b.js'},
-					},
-				}),
+						'./a': { default: './dist/lib/a.js' },
+						'./b': { default: './dist/utils/b.js' }
+					}
+				})
 			);
 
-			const {files} = await discoverFromExports({projectRoot: dir, sourceDir: ''});
+			const { files } = await discoverFromExports({ projectRoot: dir, sourceDir: '' });
 			assert.ok(files);
 			assert.strictEqual(files.length, 2);
 			const paths = files.map((f) => f.id).sort();
@@ -337,19 +337,19 @@ describe('discoverFromExports', () => {
 
 	test('discovers wildcard exports', async () => {
 		await withTestDir(async (dir) => {
-			await mkdir(join(dir, 'src/lib'), {recursive: true});
+			await mkdir(join(dir, 'src/lib'), { recursive: true });
 			await writeFile(join(dir, 'src/lib/a.ts'), 'export const a = 1;');
 			await writeFile(join(dir, 'src/lib/b.ts'), 'export const b = 2;');
 			await writeFile(
 				join(dir, 'package.json'),
 				JSON.stringify({
 					exports: {
-						'./*.js': {types: './dist/*.d.ts', default: './dist/*.js'},
-					},
-				}),
+						'./*.js': { types: './dist/*.d.ts', default: './dist/*.js' }
+					}
+				})
 			);
 
-			const {files} = await discoverFromExports({projectRoot: dir});
+			const { files } = await discoverFromExports({ projectRoot: dir });
 			assert.ok(files);
 			assert.strictEqual(files.length, 2);
 			const paths = files.map((f) => f.id).sort();
@@ -363,8 +363,8 @@ describe('discoverFromExports', () => {
 		// `/` — `@scope/pkg/auth/session.js` resolves through it — so discovery
 		// must recurse into subdirectories, not just the top-level source dir.
 		await withTestDir(async (dir) => {
-			await mkdir(join(dir, 'src/lib/auth'), {recursive: true});
-			await mkdir(join(dir, 'src/lib/db/deep'), {recursive: true});
+			await mkdir(join(dir, 'src/lib/auth'), { recursive: true });
+			await mkdir(join(dir, 'src/lib/db/deep'), { recursive: true });
 			await writeFile(join(dir, 'src/lib/root.ts'), 'export const r = 0;');
 			await writeFile(join(dir, 'src/lib/auth/session.ts'), 'export const s = 1;');
 			await writeFile(join(dir, 'src/lib/auth/Login.svelte'), '<div>login</div>');
@@ -373,13 +373,13 @@ describe('discoverFromExports', () => {
 				join(dir, 'package.json'),
 				JSON.stringify({
 					exports: {
-						'./*.js': {types: './dist/*.d.ts', default: './dist/*.js'},
-						'./*.svelte': {svelte: './dist/*.svelte', default: './dist/*.svelte'},
-					},
-				}),
+						'./*.js': { types: './dist/*.d.ts', default: './dist/*.js' },
+						'./*.svelte': { svelte: './dist/*.svelte', default: './dist/*.svelte' }
+					}
+				})
 			);
 
-			const {files} = await discoverFromExports({projectRoot: dir});
+			const { files } = await discoverFromExports({ projectRoot: dir });
 			assert.ok(files);
 			const paths = files.map((f) => f.id).sort();
 			assert.strictEqual(files.length, 4);
@@ -395,19 +395,19 @@ describe('discoverFromExports', () => {
 		// that a non-recursive `src/lib/*.ts` glob never reached. A co-located
 		// test file (or any excluded subtree) must still be dropped.
 		await withTestDir(async (dir) => {
-			await mkdir(join(dir, 'src/lib/auth'), {recursive: true});
+			await mkdir(join(dir, 'src/lib/auth'), { recursive: true });
 			await writeFile(join(dir, 'src/lib/auth/session.ts'), 'export const s = 1;');
 			await writeFile(join(dir, 'src/lib/auth/session.test.ts'), 'export const t = 1;');
 			await writeFile(
 				join(dir, 'package.json'),
 				JSON.stringify({
-					exports: {'./*.js': {types: './dist/*.d.ts', default: './dist/*.js'}},
-				}),
+					exports: { './*.js': { types: './dist/*.d.ts', default: './dist/*.js' } }
+				})
 			);
 
-			const {files} = await discoverFromExports({
+			const { files } = await discoverFromExports({
 				projectRoot: dir,
-				exclude: ['**/*.test.ts'],
+				exclude: ['**/*.test.ts']
 			});
 			assert.ok(files);
 			assert.strictEqual(files.length, 1);
@@ -421,17 +421,17 @@ describe('discoverFromExports', () => {
 		// `node_modules`/`dist`, so it must stay a single-segment match. Only the
 		// root-level file is found; the nested one is not.
 		await withTestDir(async (dir) => {
-			await mkdir(join(dir, 'nested'), {recursive: true});
+			await mkdir(join(dir, 'nested'), { recursive: true });
 			await writeFile(join(dir, 'root.ts'), 'export const r = 0;');
 			await writeFile(join(dir, 'nested/deep.ts'), 'export const d = 1;');
 			await writeFile(
 				join(dir, 'package.json'),
 				JSON.stringify({
-					exports: {'./*.js': {types: './dist/*.d.ts', default: './dist/*.js'}},
-				}),
+					exports: { './*.js': { types: './dist/*.d.ts', default: './dist/*.js' } }
+				})
 			);
 
-			const {files} = await discoverFromExports({projectRoot: dir, sourceDir: ''});
+			const { files } = await discoverFromExports({ projectRoot: dir, sourceDir: '' });
 			assert.ok(files);
 			assert.strictEqual(files.length, 1);
 			assert.ok(files[0]!.id.endsWith('root.ts'));
@@ -441,19 +441,19 @@ describe('discoverFromExports', () => {
 
 	test('deduplicates across .js and .ts patterns', async () => {
 		await withTestDir(async (dir) => {
-			await mkdir(join(dir, 'src/lib'), {recursive: true});
+			await mkdir(join(dir, 'src/lib'), { recursive: true });
 			await writeFile(join(dir, 'src/lib/a.ts'), 'export const a = 1;');
 			await writeFile(
 				join(dir, 'package.json'),
 				JSON.stringify({
 					exports: {
-						'./*.js': {types: './dist/*.d.ts', default: './dist/*.js'},
-						'./*.ts': {types: './dist/*.d.ts', default: './dist/*.js'},
-					},
-				}),
+						'./*.js': { types: './dist/*.d.ts', default: './dist/*.js' },
+						'./*.ts': { types: './dist/*.d.ts', default: './dist/*.js' }
+					}
+				})
 			);
 
-			const {files} = await discoverFromExports({projectRoot: dir});
+			const { files } = await discoverFromExports({ projectRoot: dir });
 			assert.ok(files);
 			assert.strictEqual(files.length, 1);
 		});
@@ -461,19 +461,19 @@ describe('discoverFromExports', () => {
 
 	test('discovers Svelte files from wildcard', async () => {
 		await withTestDir(async (dir) => {
-			await mkdir(join(dir, 'src/lib'), {recursive: true});
+			await mkdir(join(dir, 'src/lib'), { recursive: true });
 			await writeFile(join(dir, 'src/lib/A.svelte'), '<div>A</div>');
 			await writeFile(join(dir, 'src/lib/a.ts'), 'export const a = 1;');
 			await writeFile(
 				join(dir, 'package.json'),
 				JSON.stringify({
 					exports: {
-						'./*.js': {types: './dist/*.d.ts', default: './dist/*.js'},
-					},
-				}),
+						'./*.js': { types: './dist/*.d.ts', default: './dist/*.js' }
+					}
+				})
 			);
 
-			const {files} = await discoverFromExports({projectRoot: dir});
+			const { files } = await discoverFromExports({ projectRoot: dir });
 			assert.ok(files);
 			// Should find both .ts and .svelte files
 			assert.strictEqual(files.length, 2);
@@ -485,15 +485,15 @@ describe('discoverFromExports', () => {
 
 	test('returns null when no package.json', async () => {
 		await withTestDir(async (dir) => {
-			const {files} = await discoverFromExports({projectRoot: dir});
+			const { files } = await discoverFromExports({ projectRoot: dir });
 			assert.isNull(files);
 		});
 	});
 
 	test('returns null when no exports field', async () => {
 		await withTestDir(async (dir) => {
-			await writeFile(join(dir, 'package.json'), JSON.stringify({name: 'test'}));
-			const {files} = await discoverFromExports({projectRoot: dir});
+			await writeFile(join(dir, 'package.json'), JSON.stringify({ name: 'test' }));
+			const { files } = await discoverFromExports({ projectRoot: dir });
 			assert.isNull(files);
 		});
 	});
@@ -504,12 +504,12 @@ describe('discoverFromExports', () => {
 				join(dir, 'package.json'),
 				JSON.stringify({
 					exports: {
-						'.': {default: './dist/index.js'},
-					},
-				}),
+						'.': { default: './dist/index.js' }
+					}
+				})
 			);
 			// No src/lib/index.ts exists
-			const {files} = await discoverFromExports({projectRoot: dir});
+			const { files } = await discoverFromExports({ projectRoot: dir });
 			assert.isNotNull(files);
 			assert.deepEqual(files, []);
 		});
@@ -517,18 +517,18 @@ describe('discoverFromExports', () => {
 
 	test('respects custom sourceDir', async () => {
 		await withTestDir(async (dir) => {
-			await mkdir(join(dir, 'src'), {recursive: true});
+			await mkdir(join(dir, 'src'), { recursive: true });
 			await writeFile(join(dir, 'src/index.ts'), 'export const a = 1;');
 			await writeFile(
 				join(dir, 'package.json'),
 				JSON.stringify({
 					exports: {
-						'.': {default: './dist/index.js'},
-					},
-				}),
+						'.': { default: './dist/index.js' }
+					}
+				})
 			);
 
-			const {files} = await discoverFromExports({projectRoot: dir, sourceDir: 'src'});
+			const { files } = await discoverFromExports({ projectRoot: dir, sourceDir: 'src' });
 			assert.ok(files);
 			assert.strictEqual(files.length, 1);
 		});
@@ -537,16 +537,16 @@ describe('discoverFromExports', () => {
 	test('returns error diagnostics for unreadable files', async () => {
 		await withTestDir(async (dir) => {
 			const sourceFile = join(dir, 'src/lib/index.ts');
-			await mkdir(join(dir, 'src/lib'), {recursive: true});
+			await mkdir(join(dir, 'src/lib'), { recursive: true });
 			await writeFile(sourceFile, 'export const a = 1;');
 			await writeFile(
 				join(dir, 'package.json'),
 				JSON.stringify({
 					exports: {
-						'.': {default: './dist/index.js'},
-						'./util': {default: './dist/util.js'},
-					},
-				}),
+						'.': { default: './dist/index.js' },
+						'./util': { default: './dist/util.js' }
+					}
+				})
 			);
 			// Second file so files is not null
 			await writeFile(join(dir, 'src/lib/util.ts'), 'export const b = 2;');
@@ -555,7 +555,7 @@ describe('discoverFromExports', () => {
 			await chmod(sourceFile, 0o111);
 
 			try {
-				const {files, diagnostics} = await discoverFromExports({projectRoot: dir});
+				const { files, diagnostics } = await discoverFromExports({ projectRoot: dir });
 
 				// Only the readable file should be returned
 				assert.ok(files);

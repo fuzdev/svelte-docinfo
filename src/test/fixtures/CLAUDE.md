@@ -99,7 +99,7 @@ Directory names should be **descriptive and specific**:
 <script lang="ts">
 	let {
 		prop1,
-		prop2,
+		prop2
 	}: {
 		/** Description 1 */
 		prop1: string;
@@ -117,7 +117,7 @@ Directory names should be **descriptive and specific**:
 <script lang="ts">
 	let {
 		userName,
-		age,
+		age
 	}: {
 		/** The user's full name */
 		userName: string;

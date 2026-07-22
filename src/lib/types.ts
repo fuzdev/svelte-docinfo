@@ -40,7 +40,7 @@
  * @module
  */
 
-import {z} from 'zod';
+import { z } from 'zod';
 
 /**
  * The kind of top-level exported declaration.
@@ -58,7 +58,7 @@ export const DeclarationKind = z.enum([
 	'enum',
 	'component',
 	'snippet',
-	'namespace',
+	'namespace'
 ]);
 export type DeclarationKind = z.infer<typeof DeclarationKind>;
 
@@ -76,7 +76,7 @@ export const DeclarationModifier = z.enum([
 	'static',
 	'abstract',
 	'getter',
-	'setter',
+	'setter'
 ]);
 export type DeclarationModifier = z.infer<typeof DeclarationModifier>;
 
@@ -117,7 +117,7 @@ export const GenericParamJson = z.strictObject({
 	/** Constraint like `string` from `T extends string`. */
 	constraint: z.string().optional(),
 	/** Default type like `unknown` from `T = unknown`. */
-	defaultType: z.string().optional(),
+	defaultType: z.string().optional()
 });
 export type GenericParamJson = z.infer<typeof GenericParamJson>;
 
@@ -157,7 +157,7 @@ export const ParameterJson = z.strictObject({
 	 * (`fn({a, b}: T)`) are not covered — TypeScript names them `__0`, with no
 	 * author-facing identifier for a `@param` key to reference.
 	 */
-	propertyDescriptions: z.record(z.string(), z.string()).optional(),
+	propertyDescriptions: z.record(z.string(), z.string()).optional()
 });
 export type ParameterJson = z.infer<typeof ParameterJson>;
 export type ParameterJsonInput = z.input<typeof ParameterJson>;
@@ -177,10 +177,10 @@ const docFields = {
 	seeAlso: z.array(z.string()).default([]),
 	/** Exceptions from `@throws` tags. */
 	throws: z
-		.array(z.strictObject({type: z.string().optional(), description: z.string()}))
+		.array(z.strictObject({ type: z.string().optional(), description: z.string() }))
 		.default([]),
 	/** Version introduced, from `@since` tag. */
-	since: z.string().optional(),
+	since: z.string().optional()
 } as const;
 
 /**
@@ -214,7 +214,7 @@ export const ComponentPropJson = z.strictObject({
 	 * meaningful signal, not an empty list.
 	 */
 	parameters: z.array(ParameterJson).optional(),
-	...docFields,
+	...docFields
 });
 export type ComponentPropJson = z.infer<typeof ComponentPropJson>;
 export type ComponentPropJsonInput = z.input<typeof ComponentPropJson>;
@@ -237,7 +237,7 @@ export const OverloadJson = z.strictObject({
 	/** JSDoc/TSDoc comment specific to this overload. */
 	docComment: z.string().optional(),
 	/** Return value description from `@returns` tag on this overload. */
-	returnDescription: z.string().optional(),
+	returnDescription: z.string().optional()
 });
 export type OverloadJson = z.infer<typeof OverloadJson>;
 export type OverloadJsonInput = z.input<typeof OverloadJson>;
@@ -301,7 +301,7 @@ const declarationSharedFields = {
 	 */
 	mutates: z.record(z.string(), z.string()).optional(),
 	/** Whether extraction failed partway through, leaving some fields missing (e.g., `typeSignature`, `parameters`). */
-	partial: z.boolean().default(false),
+	partial: z.boolean().default(false)
 } as const;
 
 /** Callable fields shared by functions and constructors (but not variables). */
@@ -313,7 +313,7 @@ const callableFields = {
 	 * Includes all public overloads. The implementation signature is excluded.
 	 * Empty when there are no overloads (single signature).
 	 */
-	overloads: z.array(OverloadJson).default([]),
+	overloads: z.array(OverloadJson).default([])
 } as const;
 
 /** Return-value fields for functions only (not constructors or variables). */
@@ -321,13 +321,13 @@ const returnFields = {
 	/** Function/method return type. */
 	returnType: z.string().optional(),
 	/** Return value description from `@returns` tag. */
-	returnDescription: z.string().optional(),
+	returnDescription: z.string().optional()
 } as const;
 
 /** Function-like fields shared by `FunctionMemberJson` and `FunctionDeclarationJson`. */
 const functionLikeFields = {
 	...callableFields,
-	...returnFields,
+	...returnFields
 } as const;
 
 // MemberJson Variants
@@ -355,7 +355,7 @@ export const FunctionMemberJson = z.strictObject({
 	 */
 	name: z.string(),
 	/** Whether the member has a `?` token in its declaration. */
-	optional: z.boolean().default(false),
+	optional: z.boolean().default(false)
 });
 export type FunctionMemberJson = z.infer<typeof FunctionMemberJson>;
 
@@ -375,7 +375,7 @@ export const VariableMemberJson = z.strictObject({
 	/** Rune flavor when this field is initialized with a value-producing reactivity rune. */
 	reactivity: Reactivity.optional(),
 	/** Default value documented via `@default`. Authoritative initializer (when human-readable) is in `typeSignature`. */
-	defaultValue: z.string().optional(),
+	defaultValue: z.string().optional()
 });
 export type VariableMemberJson = z.infer<typeof VariableMemberJson>;
 
@@ -396,7 +396,7 @@ export const ConstructorMemberJson = z.strictObject({
 	...declarationSharedFields,
 	...callableFields,
 	kind: z.literal('constructor'),
-	name: z.union([z.literal('constructor'), z.literal('(construct)')]),
+	name: z.union([z.literal('constructor'), z.literal('(construct)')])
 });
 export type ConstructorMemberJson = z.infer<typeof ConstructorMemberJson>;
 
@@ -460,9 +460,9 @@ const declarationTopLevelFields = {
 	aliasOf: z
 		.strictObject({
 			module: z.string(),
-			name: z.string(),
+			name: z.string()
 		})
-		.optional(),
+		.optional()
 } as const;
 
 /** A function declaration. Has `parameters`, `returnType`, `returnDescription`, `overloads`. */
@@ -470,7 +470,7 @@ export const FunctionDeclarationJson = z.strictObject({
 	...declarationSharedFields,
 	...declarationTopLevelFields,
 	...functionLikeFields,
-	kind: z.literal('function'),
+	kind: z.literal('function')
 });
 export type FunctionDeclarationJson = z.infer<typeof FunctionDeclarationJson>;
 
@@ -492,7 +492,7 @@ export const ClassDeclarationJson = z.strictObject({
 	/**
 	 * Class members: methods, properties, constructors, getters/setters.
 	 */
-	members: z.array(MemberJson).default([]),
+	members: z.array(MemberJson).default([])
 });
 export type ClassDeclarationJson = z.infer<typeof ClassDeclarationJson>;
 
@@ -513,7 +513,7 @@ export const InterfaceDeclarationJson = z.strictObject({
 	 * Interface members: property signatures, method signatures, index signatures,
 	 * call/construct signatures.
 	 */
-	members: z.array(MemberJson).default([]),
+	members: z.array(MemberJson).default([])
 });
 export type InterfaceDeclarationJson = z.infer<typeof InterfaceDeclarationJson>;
 
@@ -534,7 +534,7 @@ export const TypeDeclarationJson = z.strictObject({
 	 * Type members: property signatures, method signatures, index signatures,
 	 * call/construct signatures.
 	 */
-	members: z.array(MemberJson).default([]),
+	members: z.array(MemberJson).default([])
 });
 export type TypeDeclarationJson = z.infer<typeof TypeDeclarationJson>;
 
@@ -549,7 +549,7 @@ export const VariableDeclarationJson = z.strictObject({
 	/** Rune flavor when this variable is initialized with a value-producing reactivity rune. */
 	reactivity: Reactivity.optional(),
 	/** Default value documented via `@default`. Useful when the AST initializer is opaque (a call expression, computed value) and the author wants to document the conceptual default. */
-	defaultValue: z.string().optional(),
+	defaultValue: z.string().optional()
 });
 export type VariableDeclarationJson = z.infer<typeof VariableDeclarationJson>;
 
@@ -559,7 +559,7 @@ export const EnumDeclarationJson = z.strictObject({
 	...declarationTopLevelFields,
 	kind: z.literal('enum'),
 	/** Enum members: name/value pairs with optional JSDoc. */
-	members: z.array(MemberJson).default([]),
+	members: z.array(MemberJson).default([])
 });
 export type EnumDeclarationJson = z.infer<typeof EnumDeclarationJson>;
 
@@ -581,7 +581,7 @@ export const ComponentDeclarationJson = z.strictObject({
 	/** Whether the component accepts children (explicit `children` prop, inherited, or implicit template usage). */
 	acceptsChildren: z.boolean().default(false),
 	/** Script language. `undefined` means TypeScript (default), `'js'` for JavaScript-only components. */
-	lang: z.enum(['js']).optional(),
+	lang: z.enum(['js']).optional()
 });
 export type ComponentDeclarationJson = z.infer<typeof ComponentDeclarationJson>;
 
@@ -591,7 +591,7 @@ export const SnippetDeclarationJson = z.strictObject({
 	...declarationTopLevelFields,
 	kind: z.literal('snippet'),
 	/** Snippet parameters. */
-	parameters: z.array(ParameterJson).default([]),
+	parameters: z.array(ParameterJson).default([])
 });
 export type SnippetDeclarationJson = z.infer<typeof SnippetDeclarationJson>;
 
@@ -607,7 +607,7 @@ export const NamespaceDeclarationJson = z.strictObject({
 	...declarationTopLevelFields,
 	kind: z.literal('namespace'),
 	/** Source module path (relative to `sourceRoot`) projected under this binding. */
-	module: z.string(),
+	module: z.string()
 });
 export type NamespaceDeclarationJson = z.infer<typeof NamespaceDeclarationJson>;
 
@@ -627,7 +627,7 @@ export const DeclarationJson: z.ZodDiscriminatedUnion<
 		typeof EnumDeclarationJson,
 		typeof ComponentDeclarationJson,
 		typeof SnippetDeclarationJson,
-		typeof NamespaceDeclarationJson,
+		typeof NamespaceDeclarationJson
 	],
 	'kind'
 > = z.discriminatedUnion('kind', [
@@ -639,7 +639,7 @@ export const DeclarationJson: z.ZodDiscriminatedUnion<
 	EnumDeclarationJson,
 	ComponentDeclarationJson,
 	SnippetDeclarationJson,
-	NamespaceDeclarationJson,
+	NamespaceDeclarationJson
 ]);
 export type DeclarationJson = z.infer<typeof DeclarationJson>;
 export type DeclarationJsonInput = z.input<typeof DeclarationJson>;
@@ -697,7 +697,7 @@ export const ReExportJson = z.strictObject({
 	 * identical `(name, module)` edges are deduped (Svelte default-slot
 	 * re-keying), the smallest line is kept.
 	 */
-	sourceLine: z.number().optional(),
+	sourceLine: z.number().optional()
 });
 export type ReExportJson = z.infer<typeof ReExportJson>;
 export type ReExportJsonInput = z.input<typeof ReExportJson>;
@@ -731,7 +731,7 @@ export const ExternalReExportJson = z.strictObject({
 	/** Whether the statement or specifier is type-only — see `ReExportJson.typeOnly`. */
 	typeOnly: z.boolean().default(false),
 	/** 1-based line of the export specifier in this module's source. */
-	sourceLine: z.number().optional(),
+	sourceLine: z.number().optional()
 });
 export type ExternalReExportJson = z.infer<typeof ExternalReExportJson>;
 export type ExternalReExportJsonInput = z.input<typeof ExternalReExportJson>;
@@ -795,7 +795,7 @@ export const ModuleJson = z.strictObject({
 	 * `modules` array reflects the full owned set; consumers render them as
 	 * "broken" entries.
 	 */
-	partial: z.boolean().default(false),
+	partial: z.boolean().default(false)
 });
 export type ModuleJson = z.infer<typeof ModuleJson>;
 export type ModuleJsonInput = z.input<typeof ModuleJson>;

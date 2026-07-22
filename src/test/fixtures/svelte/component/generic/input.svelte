@@ -5,7 +5,7 @@
 
 <script lang="ts" generics="T">
 	let {
-		prop1,
+		prop1
 	}: {
 		/** Description 1 */
 		prop1: T[];
