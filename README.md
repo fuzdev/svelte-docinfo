@@ -176,11 +176,9 @@ All three produce the same JSON shape:
 }
 ```
 
-For examples of source input paired with the exact JSON `svelte-docinfo` emits:
-
-- see svelte-docinfo's own source code's extracted JSON at
-  [svelte-docinfo.fuz.dev/demo/extraction](https://svelte-docinfo.fuz.dev/demo/extraction)
-- browse the [test fixtures](https://github.com/fuzdev/svelte-docinfo/tree/main/src/test/fixtures)
+The [extraction demo](https://svelte-docinfo.fuz.dev/demo/extraction) has more examples,
+and see the docs for the complete [output format](https://svelte-docinfo.fuz.dev/docs/output-format).
+You may also want to browse the [test fixtures](https://github.com/fuzdev/svelte-docinfo/tree/main/src/test/fixtures).
 
 ## Vite plugin
 
