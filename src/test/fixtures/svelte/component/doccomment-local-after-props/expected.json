@@ -1,0 +1,14 @@
+[
+	{
+		"name": "ComponentDoccommentLocalAfterProps",
+		"kind": "component",
+		"props": [
+			{
+				"name": "prop1",
+				"type": "string"
+			}
+		],
+		"docComment": "Description 1.",
+		"sourceLine": 6
+	}
+]

@@ -1474,6 +1474,64 @@ let {prop1}: {prop1: string} = $props();
 		// @module JSDoc should NOT leak into component docComment
 		assert.isUndefined(declaration.docComment);
 	});
+
+	test('@nodocs on the component comment marks the component', () => {
+		const svelteContent = `<script lang="ts">
+/**
+ * Component description.
+ * @nodocs
+ */
+let {prop1}: {prop1: string} = $props();
+</script>
+<div>{prop1}</div>`;
+
+		const result = analyzeSvelteTestIntegration(
+			{ id: '/fake/path/Test.svelte', content: svelteContent },
+			'Test.svelte',
+			[] as Array<Diagnostic>
+		);
+		const component = result.declarations.find((d) => d.declaration.kind === 'component')!;
+
+		assert.strictEqual(component.nodocs, true);
+	});
+
+	test('@nodocs in the HTML @component comment marks the component', () => {
+		const svelteContent = `<!--
+	@component
+	Component description.
+	@nodocs
+-->
+<script lang="ts">
+let {prop1}: {prop1: string} = $props();
+</script>
+<div>{prop1}</div>`;
+
+		const result = analyzeSvelteTestIntegration(
+			{ id: '/fake/path/Test.svelte', content: svelteContent },
+			'Test.svelte',
+			[] as Array<Diagnostic>
+		);
+		const component = result.declarations.find((d) => d.declaration.kind === 'component')!;
+
+		assert.strictEqual(component.nodocs, true);
+	});
+
+	test('component without @nodocs is not marked', () => {
+		const svelteContent = `<script lang="ts">
+/** Component description. */
+let {prop1}: {prop1: string} = $props();
+</script>
+<div>{prop1}</div>`;
+
+		const result = analyzeSvelteTestIntegration(
+			{ id: '/fake/path/Test.svelte', content: svelteContent },
+			'Test.svelte',
+			[] as Array<Diagnostic>
+		);
+		const component = result.declarations.find((d) => d.declaration.kind === 'component')!;
+
+		assert.strictEqual(component.nodocs, false);
+	});
 });
 
 describe('svelte duplicate docComment diagnostic', () => {
@@ -1545,6 +1603,34 @@ let {x}: {x: string} = $props();
 			diagnostics
 		);
 
+		assert.strictEqual(hasWarnings(diagnostics), false);
+	});
+
+	test('a documented local below $props is neither docComment nor a duplicate', () => {
+		const svelteContent = `<!--
+	@component
+	HTML component description.
+-->
+<script lang="ts">
+let {x}: {x: string} = $props();
+
+/** Local state, not component docs. */
+let open = $state(false);
+</script>
+<p>{x}{open}</p>`;
+
+		const diagnostics: Array<Diagnostic> = [];
+		const result = analyzeSvelteTestIntegration(
+			{ id: '/fake/path/Test.svelte', content: svelteContent },
+			'Test.svelte',
+			diagnostics
+		);
+		const declaration = result.declarations.find(
+			(d) => d.declaration.kind === 'component'
+		)!.declaration;
+
+		assert.ok(declaration.docComment);
+		assert.include(declaration.docComment, 'HTML component description.');
 		assert.strictEqual(hasWarnings(diagnostics), false);
 	});
 });

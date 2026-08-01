@@ -20,12 +20,12 @@
 	<section>
 		<p>
 			svelte-docinfo extracts JSON describing the exports of TypeScript and Svelte modules for
-			open-ended use cases like docs, code search, and dev tools. It uses
+			open-ended use cases like docs, code search, and dev tools. It uses the TypeScript compiler
+			API and
 			<a href="https://github.com/sveltejs/language-tools/tree/master/packages/svelte2tsx"
 				>svelte2tsx</a
 			>
-			and the TypeScript compiler API to resolve types, track exports+imports, and extract semantic details.
-			The
+			to resolve types, track exports+imports, and extract semantic details. The
 			<a href="https://www.npmjs.com/package/svelte-docinfo">npm package</a> has a Vite plugin, CLI, and
 			programmatic API.
 		</p>
@@ -49,9 +49,13 @@
 			<TomeLink slug="api">API reference</TomeLink>, with <a href="https://ui.fuz.dev/">fuz_ui</a> components.
 		</p>
 		<p class="panel p_md">
-			<strong>AI disclosure:</strong> the code and docs beyond the intro were mostly written by Claude
-			Code with uneven human guidance. The first release took 5 months of intermittent work and ~500 manual
-			commits.
+			<strong>AI disclosure:</strong> the code and docs beyond the intro were mostly written by
+			Claude Code with uneven human guidance. The first release took 5 months of intermittent work
+			and ~500 manual commits to
+			<a href="https://github.com/fuzdev/fuz_ui/pull/107"
+				>extract its initial implementation from fuz_ui</a
+			>, which was more limited, lacking the fancy TS compiler usage, and grew slowly over years
+			without AI assistance.
 		</p>
 		<TomeSection>
 			<TomeSectionHeader text="Install" />
