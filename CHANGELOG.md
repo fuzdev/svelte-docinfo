@@ -1,11 +1,17 @@
 # svelte-docinfo
 
+## 0.5.5
+
+### Patch Changes
+
+- fix: docComment detection should ignore module script ([#9](https://github.com/fuzdev/svelte-docinfo/pull/9))
+
 ## 0.5.4
 
 ### Patch Changes
 
 - fix: non-root module detection with Node-resolving rules for glob exports ([4570f3e](https://github.com/fuzdev/svelte-docinfo/commit/4570f3e))
-- refactor: add `to_error_message` and `error.ts` ([d145381](https://github.com/fuzdev/svelte-docinfo/commit/d145381))
+- add `to_error_message` and `error.ts` ([d145381](https://github.com/fuzdev/svelte-docinfo/commit/d145381)) ([refactor](https://github.com/fuzdev/svelte-docinfo/commit/refactor))
 
 ## 0.5.3
 
