@@ -132,6 +132,10 @@ Svelte 5+ only by design — svelte2tsx output format changed significantly betw
 7. Synthesize `ComponentDeclarationJson` with `lang`, props, generics, JSDoc, source line, `acceptsChildren`
 8. Extract props via `extractPropsViaChecker` — resolves imported types; extracts structured `parameters` for snippet-typed props; detects `acceptsChildren` via Path A (resolves `children` symbol on the unfiltered props type and verifies it is `Snippet<...>` — handles inherited `Snippet`-typed children from `SvelteHTMLElements`/`DOMAttributes` while rejecting non-Snippet `children: string`) or Path B (template usage via `__sveltets_2_ensureSnippet`)
 
+Steps 5–7 read three svelte2tsx landmarks located in a single pass by `findComponentNodes` — `$$render` (whose body is the instance script), `__sveltets_Render` (generics on generic components), and the `<Name>__SvelteComponent_` const (where the HTML `@component` comment lands as JSDoc).
+
+**Component `docComment` precedence** — in-script JSDoc at or above the `$props()` declaration wins; the HTML `@component` comment is the fallback, and `duplicate_comment` warns when both supply one. Two things are deliberately out of scope: `<script module>` JSDoc (it documents its own export — those declarations hoist above `$$render` in the virtual) and a documented local below `$props()` (`/** ... */ let open = $state(false)`). A JSDoc above the instance script's first import is also missed, since svelte2tsx hoists imports out of `$$render`. `@nodocs` in either accepted form excludes the component from output and from duplicate checking, like any other declaration.
+
 ### Incremental Analysis (`createAnalysisSession`)
 
 Persistent handle backed by a `ts.LanguageService` for consumers re-analyzing the same source set repeatedly (Vite plugin, future LSP). One-shot consumers use `analyze()` / `analyzeFromFiles()` — both wrap a single-use session internally.

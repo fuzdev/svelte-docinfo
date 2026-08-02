@@ -1,0 +1,21 @@
+[
+	{
+		"name": "ComponentDoccommentScriptModuleAndJsdoc",
+		"kind": "component",
+		"props": [
+			{
+				"name": "prop1",
+				"type": "string"
+			}
+		],
+		"docComment": "Description 2.",
+		"sourceLine": 6
+	},
+	{
+		"name": "a",
+		"kind": "variable",
+		"docComment": "Description 1.",
+		"sourceLine": 3,
+		"typeSignature": "\"value\""
+	}
+]

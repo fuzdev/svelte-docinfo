@@ -8,7 +8,7 @@
 			"name": "a",
 			"type": "{ b: string; c: number; }",
 			"description": "Description 1",
-			"defaultValue": "{b: 'value', c: 1}"
+			"defaultValue": "{ b: 'value', c: 1 }"
 		},
 		{
 			"name": "b",

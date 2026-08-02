@@ -6,7 +6,7 @@
 	"genericParams": [
 		{
 			"name": "T",
-			"constraint": "{id: number}"
+			"constraint": "{ id: number }"
 		}
 	],
 	"parameters": [

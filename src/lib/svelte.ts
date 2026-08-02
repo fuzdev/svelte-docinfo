@@ -172,7 +172,9 @@ const SVELTE2TSX_IDENTIFIERS = {
 	/** Identifier for `$props()` rune. */
 	PROPS_RUNE: '$props',
 	/** Identifier for `$bindable()` rune. */
-	BINDABLE_RUNE: '$bindable'
+	BINDABLE_RUNE: '$bindable',
+	/** Suffix on the synthesized component const/type alias. */
+	COMPONENT_ALIAS_SUFFIX: '__SvelteComponent_'
 } as const;
 
 /**
@@ -198,71 +200,80 @@ const assertSvelteVersion = (): void => {
 };
 
 /**
+ * The svelte2tsx landmarks that component analysis reads.
+ *
+ * Everything the synthesized `ComponentDeclarationJson` needs — generics,
+ * source line, doc comment — keys off these three nodes, so they're located in
+ * one pass and the virtual's layout is described in one place.
+ */
+interface ComponentNodes {
+	/** `function $$render()`, whose body is the instance `<script>`. */
+	renderFunction?: ts.FunctionDeclaration;
+	/** `class __sveltets_Render`, emitted for generic components. */
+	renderClass?: ts.ClassDeclaration;
+	/** `const <Name>__SvelteComponent_`, which carries the HTML `@component` JSDoc. */
+	componentAlias?: ts.VariableStatement;
+}
+
+/** Locate the svelte2tsx landmarks in a transformed source. */
+const findComponentNodes = (virtualSource: ts.SourceFile): ComponentNodes => {
+	const nodes: ComponentNodes = {};
+	for (const statement of virtualSource.statements) {
+		if (ts.isFunctionDeclaration(statement)) {
+			if (statement.name?.text === SVELTE2TSX_IDENTIFIERS.RENDER_FUNCTION) {
+				nodes.renderFunction = statement;
+			}
+		} else if (ts.isClassDeclaration(statement)) {
+			if (statement.name?.text === SVELTE2TSX_IDENTIFIERS.RENDER_CLASS) {
+				nodes.renderClass = statement;
+			}
+		} else if (
+			ts.isVariableStatement(statement) &&
+			statement.declarationList.declarations.some(
+				(declaration) =>
+					ts.isIdentifier(declaration.name) &&
+					declaration.name.text.endsWith(SVELTE2TSX_IDENTIFIERS.COMPONENT_ALIAS_SUFFIX)
+			)
+		) {
+			nodes.componentAlias = statement;
+		}
+	}
+	return nodes;
+};
+
+/**
  * Extract generic type parameters from Svelte component.
  *
- * svelte2tsx preserves generic parameters from the component's `generics` attribute
- * in both the `$$render` function and `__sveltets_Render` class. This function
- * searches for these declarations and extracts their type parameters.
+ * svelte2tsx preserves generic parameters from the component's `generics`
+ * attribute on both the `$$render` function and the `__sveltets_Render` class.
+ * The class wins when both carry them — it's the later declaration.
  *
- * @param virtualSource - the svelte2tsx transformed TypeScript source
  * @returns array of `GenericParamJson`, or undefined if no generics found
  */
-const extractGenericParams = (
-	virtualSource: ts.SourceFile
-): Array<GenericParamJson> | undefined => {
-	let genericParams: Array<GenericParamJson> | undefined;
-
-	// Search for $$render function or __sveltets_Render class
-	ts.forEachChild(virtualSource, (node) => {
-		// Check for function declaration named $$render
-		if (
-			ts.isFunctionDeclaration(node) &&
-			node.name?.text === SVELTE2TSX_IDENTIFIERS.RENDER_FUNCTION
-		) {
-			if (node.typeParameters?.length) {
-				genericParams = node.typeParameters.map(parseGenericParam);
-			}
-		}
-		// Check for class declaration named __sveltets_Render
-		else if (
-			ts.isClassDeclaration(node) &&
-			node.name?.text === SVELTE2TSX_IDENTIFIERS.RENDER_CLASS
-		) {
-			if (node.typeParameters?.length) {
-				genericParams = node.typeParameters.map(parseGenericParam);
-			}
-		}
-	});
-
-	return genericParams;
+const extractGenericParams = (nodes: ComponentNodes): Array<GenericParamJson> | undefined => {
+	const typeParameters = nodes.renderClass?.typeParameters?.length
+		? nodes.renderClass.typeParameters
+		: nodes.renderFunction?.typeParameters;
+	return typeParameters?.length ? typeParameters.map(parseGenericParam) : undefined;
 };
 
 /**
  * Extract the original source line for the component's `<script>` tag.
  *
- * Finds the `$$render` function in the virtual source and maps its position
- * back to the original `.svelte` file via the source map. Falls back to line 1
- * when no source map is available or the mapping fails.
+ * Maps the `$$render` function's position back to the original `.svelte` file
+ * via the source map. Falls back to line 1 when no source map is available or
+ * the mapping fails.
  */
 const extractComponentSourceLine = (
+	nodes: ComponentNodes,
 	virtualSource: ts.SourceFile,
 	sourceMap: SourceMap | null
 ): number => {
-	if (sourceMap) {
-		for (const statement of virtualSource.statements) {
-			if (
-				ts.isFunctionDeclaration(statement) &&
-				statement.name?.text === SVELTE2TSX_IDENTIFIERS.RENDER_FUNCTION
-			) {
-				const pos = virtualSource.getLineAndCharacterOfPosition(statement.getStart());
-				const original = originalPositionFor(sourceMap, {
-					line: pos.line + 1,
-					column: pos.character
-				});
-				if (original.line !== null) {
-					return original.line;
-				}
-			}
+	if (sourceMap && nodes.renderFunction) {
+		const pos = virtualSource.getLineAndCharacterOfPosition(nodes.renderFunction.getStart());
+		const original = originalPositionFor(sourceMap, { line: pos.line + 1, column: pos.character });
+		if (original.line !== null) {
+			return original.line;
 		}
 	}
 	return 1;
@@ -386,58 +397,97 @@ const hasHtmlComponentComment = (svelteSource: string): boolean => {
 	return false;
 };
 
-/**
- * Check if the given `<script>` content has a non-`@module` JSDoc comment that
- * would serve as a component `docComment`.
- *
- * Used for duplicate `docComment` detection — when both an HTML `@component`
- * comment and a script JSDoc exist. Caller pre-extracts the script content so
- * this check shares it with `extractSvelteModuleComment` further down.
- */
-const hasScriptDocComment = (scriptContent: string | undefined): boolean => {
-	if (!scriptContent) return false;
-
-	const sourceFile = ts.createSourceFile(
-		'script.ts',
-		scriptContent,
-		ts.ScriptTarget.Latest,
-		true,
-		ts.ScriptKind.TS
-	);
-
-	// Walk statements looking for a JSDoc comment (`parseComment` filters
-	// `@module` blocks, so module comments don't count)
-	for (const statement of sourceFile.statements) {
-		if (ts.isVariableStatement(statement)) {
-			const tsdoc = parseComment(statement, sourceFile);
-			if (tsdoc) return true;
-		}
-	}
-	return false;
-};
+/** A component `docComment` plus the authoring form it came from. */
+interface ComponentTsdoc {
+	tsdoc: TsdocParsedComment;
+	/** `script` for in-script JSDoc, `html` for the `@component` comment. */
+	source: 'script' | 'html';
+}
 
 /**
  * Extract component-level TSDoc comment from svelte2tsx transformed output.
  *
- * svelte2tsx places component-level JSDoc inside the `$$render()` function,
- * attached to a variable statement (usually before the props destructuring).
- * This function searches the AST recursively to find it.
+ * Two authoring forms reach here, searched in precedence order:
+ *
+ * 1. in-script JSDoc — the instance `<script>` becomes the body of the
+ *    `$$render()` function, so the comment rides the props destructuring (or an
+ *    earlier statement in that body)
+ * 2. the HTML `@component` comment — re-emitted as JSDoc on the synthesized
+ *    `<Name>__SvelteComponent_` const at the end of the virtual source
+ *
+ * Scoping the search to those two regions is what keeps `<script module>` out:
+ * its declarations hoist above `$$render`, and a whole-file walk would take the
+ * first one's JSDoc — which documents that export, not the component.
  */
-const extractComponentTsdoc = (sourceFile: ts.SourceFile): TsdocParsedComment | undefined => {
+const extractComponentTsdoc = (
+	nodes: ComponentNodes,
+	sourceFile: ts.SourceFile
+): ComponentTsdoc | undefined => {
+	const renderBody = nodes.renderFunction?.body;
+	if (renderBody) {
+		const tsdoc = findInstanceTsdoc(renderBody, sourceFile);
+		if (tsdoc) return { tsdoc, source: 'script' };
+	}
+	if (nodes.componentAlias) {
+		const tsdoc = findComponentTsdoc(nodes.componentAlias, sourceFile);
+		if (tsdoc) return { tsdoc, source: 'html' };
+	}
+	return undefined;
+};
+
+/**
+ * Find the in-script component JSDoc: the first one at or above the `$props()`
+ * declaration.
+ *
+ * Scanning stops there so a documented local below it — a JSDoc'd `$state`
+ * declaration, say — can't pass itself off as the component's own docs. A
+ * component with no `$props()` call has no such boundary, so its whole body is
+ * in scope.
+ */
+const findInstanceTsdoc = (
+	renderBody: ts.Block,
+	sourceFile: ts.SourceFile
+): TsdocParsedComment | undefined => {
+	for (const statement of renderBody.statements) {
+		const tsdoc = findComponentTsdoc(statement, sourceFile);
+		if (tsdoc) return tsdoc;
+		if (isPropsDeclaration(statement)) return undefined;
+	}
+	return undefined;
+};
+
+/** Whether `initializer` is a `$props()` call. */
+const isPropsCall = (initializer: ts.Expression | undefined): initializer is ts.CallExpression =>
+	initializer !== undefined &&
+	ts.isCallExpression(initializer) &&
+	ts.isIdentifier(initializer.expression) &&
+	initializer.expression.text === SVELTE2TSX_IDENTIFIERS.PROPS_RUNE;
+
+/** Check whether a statement is the `let {...} = $props()` declaration. */
+const isPropsDeclaration = (statement: ts.Statement): boolean =>
+	ts.isVariableStatement(statement) &&
+	statement.declarationList.declarations.some((declaration) =>
+		isPropsCall(declaration.initializer)
+	);
+
+/**
+ * Search `root` recursively for the first JSDoc-bearing variable declaration.
+ *
+ * Prop-level JSDoc rides `PropertySignature` nodes, so those are skipped;
+ * `parseComment` filters module-level `@module` blocks.
+ */
+const findComponentTsdoc = (
+	root: ts.Node,
+	sourceFile: ts.SourceFile
+): TsdocParsedComment | undefined => {
 	let foundTsdoc: TsdocParsedComment | undefined = undefined;
 
-	// Recursively search for component-level JSDoc
-	function visit(node: ts.Node) {
-		if (foundTsdoc) return; // Already found, stop searching
+	const visit = (node: ts.Node): void => {
+		if (foundTsdoc) return; // already found, stop searching
 
-		// Skip PropertySignature nodes - those are prop-level JSDoc, not component-level
-		if (ts.isPropertySignature(node)) {
-			return; // Don't recurse into property signatures
-		}
+		// prop-level JSDoc, not component-level
+		if (ts.isPropertySignature(node)) return;
 
-		// Check for JSDoc on VariableStatement or VariableDeclaration
-		// Component-level JSDoc is attached to these node types
-		// (`parseComment` filters module-level `@module` blocks)
 		if (ts.isVariableStatement(node) || ts.isVariableDeclaration(node)) {
 			const tsdoc = parseComment(node, sourceFile);
 			if (tsdoc) {
@@ -446,11 +496,10 @@ const extractComponentTsdoc = (sourceFile: ts.SourceFile): TsdocParsedComment | 
 			}
 		}
 
-		// Continue searching child nodes
 		ts.forEachChild(node, visit);
-	}
+	};
 
-	visit(sourceFile);
+	visit(root);
 	return foundTsdoc;
 };
 
@@ -555,52 +604,48 @@ const extractPropsMetadata = (virtualSource: ts.SourceFile): PropsMetadata => {
 
 		// Extract defaults and type name from $props() call
 		if (ts.isVariableDeclaration(node)) {
-			if (node.initializer && ts.isCallExpression(node.initializer)) {
-				const expr = node.initializer.expression;
-				// Check if it's $props() call
-				if (ts.isIdentifier(expr) && expr.text === SVELTE2TSX_IDENTIFIERS.PROPS_RUNE) {
-					// Extract type annotation name
-					if (!propsTypeName && node.type && ts.isTypeReferenceNode(node.type)) {
-						if (ts.isIdentifier(node.type.typeName)) {
-							propsTypeName = node.type.typeName.text;
-						}
+			if (isPropsCall(node.initializer)) {
+				// Extract type annotation name
+				if (!propsTypeName && node.type && ts.isTypeReferenceNode(node.type)) {
+					if (ts.isIdentifier(node.type.typeName)) {
+						propsTypeName = node.type.typeName.text;
 					}
+				}
 
-					// Extract defaults from binding pattern
-					if (ts.isObjectBindingPattern(node.name)) {
-						for (const element of node.name.elements) {
-							if (ts.isBindingElement(element) && element.initializer) {
-								const propName = ts.isIdentifier(element.name) ? element.name.text : undefined;
-								if (!propName) continue;
+				// Extract defaults from binding pattern
+				if (ts.isObjectBindingPattern(node.name)) {
+					for (const element of node.name.elements) {
+						if (ts.isBindingElement(element) && element.initializer) {
+							const propName = ts.isIdentifier(element.name) ? element.name.text : undefined;
+							if (!propName) continue;
 
-								// Skip $bindable() with no args (no default), but extract argument if present
-								if (ts.isCallExpression(element.initializer)) {
-									const expr = element.initializer.expression;
-									if (ts.isIdentifier(expr) && expr.text === SVELTE2TSX_IDENTIFIERS.BINDABLE_RUNE) {
-										// Only extract if has argument: $bindable('value') → 'value'
-										if (element.initializer.arguments.length > 0) {
-											const arg = element.initializer.arguments[0]!;
-											// Skip $bindable(undefined) - same semantic as $bindable()
-											if (!(ts.isIdentifier(arg) && arg.text === 'undefined')) {
-												propsDefaults.set(propName, arg.getText());
-											}
+							// Skip $bindable() with no args (no default), but extract argument if present
+							if (ts.isCallExpression(element.initializer)) {
+								const expr = element.initializer.expression;
+								if (ts.isIdentifier(expr) && expr.text === SVELTE2TSX_IDENTIFIERS.BINDABLE_RUNE) {
+									// Only extract if has argument: $bindable('value') → 'value'
+									if (element.initializer.arguments.length > 0) {
+										const arg = element.initializer.arguments[0]!;
+										// Skip $bindable(undefined) - same semantic as $bindable()
+										if (!(ts.isIdentifier(arg) && arg.text === 'undefined')) {
+											propsDefaults.set(propName, arg.getText());
 										}
-										// Skip $bindable() with no args
-										continue;
 									}
-								}
-
-								// Skip explicit undefined (same semantic as no default)
-								if (
-									ts.isIdentifier(element.initializer) &&
-									element.initializer.text === 'undefined'
-								) {
+									// Skip $bindable() with no args
 									continue;
 								}
-
-								// Regular default value
-								propsDefaults.set(propName, element.initializer.getText());
 							}
+
+							// Skip explicit undefined (same semantic as no default)
+							if (
+								ts.isIdentifier(element.initializer) &&
+								element.initializer.text === 'undefined'
+							) {
+								continue;
+							}
+
+							// Regular default value
+							propsDefaults.set(propName, element.initializer.getText());
 						}
 					}
 				}
@@ -707,7 +752,9 @@ export const synthesizeSnippetTypeSignature = (parameters: Array<ParameterJsonIn
  */
 const isSvelte2tsxInternal = (name: string): boolean => {
 	return (
-		name.startsWith('$$') || name.startsWith('__sveltets_') || name.endsWith('__SvelteComponent_')
+		name.startsWith('$$') ||
+		name.startsWith('__sveltets_') ||
+		name.endsWith(SVELTE2TSX_IDENTIFIERS.COMPONENT_ALIAS_SUFFIX)
 	);
 };
 
@@ -781,24 +828,15 @@ const extractPropsViaChecker = (
 
 	const findPropsType = (node: ts.Node) => {
 		if (propsType) return;
-		if (
-			ts.isVariableDeclaration(node) &&
-			node.initializer &&
-			ts.isCallExpression(node.initializer)
-		) {
-			const expr = node.initializer.expression;
-			if (ts.isIdentifier(expr) && expr.text === SVELTE2TSX_IDENTIFIERS.PROPS_RUNE) {
-				if (node.type) {
-					try {
-						propsType = checker.getTypeAtLocation(node.type);
-						propsTypeNode = node.type;
-						if (ts.isTypeReferenceNode(node.type) && ts.isIdentifier(node.type.typeName)) {
-							propsTypeName = node.type.typeName.text;
-						}
-					} catch (_) {
-						// Fall through — propsType stays undefined
-					}
+		if (ts.isVariableDeclaration(node) && isPropsCall(node.initializer) && node.type) {
+			try {
+				propsType = checker.getTypeAtLocation(node.type);
+				propsTypeNode = node.type;
+				if (ts.isTypeReferenceNode(node.type) && ts.isIdentifier(node.type.typeName)) {
+					propsTypeName = node.type.typeName.text;
 				}
+			} catch (_) {
+				// Fall through — propsType stays undefined
 			}
 		}
 		ts.forEachChild(node, findPropsType);
@@ -1129,29 +1167,35 @@ export const analyzeSvelteModule = (
 		componentDecl.acceptsChildren = true;
 	}
 
+	// Locate the svelte2tsx landmarks once — generics, doc comment, and source
+	// line all read from them
+	const componentNodes = findComponentNodes(virtualTsSource);
+
 	// Extract generic params
-	const genericParams = extractGenericParams(virtualTsSource);
+	const genericParams = extractGenericParams(componentNodes);
 	if (genericParams?.length) {
 		componentDecl.genericParams = genericParams;
 	}
 
 	// Extract component-level TSDoc from virtual source
-	const componentTsdoc = extractComponentTsdoc(virtualTsSource);
-	applyToDeclaration(componentDecl, componentTsdoc);
+	const componentTsdoc = extractComponentTsdoc(componentNodes, virtualTsSource);
+	applyToDeclaration(componentDecl, componentTsdoc?.tsdoc);
 
 	// Extract source line via source map (maps $$render back to <script> tag)
-	componentDecl.sourceLine = extractComponentSourceLine(virtualTsSource, virtualFile.sourceMap);
+	componentDecl.sourceLine = extractComponentSourceLine(
+		componentNodes,
+		virtualTsSource,
+		virtualFile.sourceMap
+	);
 
-	// Extract script content once — shared by the duplicate-doc check below
-	// and the module comment extraction in step 4. Avoids re-running the
-	// `<script>` regex on the raw Svelte source twice per file.
+	// Extract script content once for the module comment extraction in step 4.
 	const scriptContent = extractScriptContent(sourceFile.content);
 
 	// Warn if both HTML @component and script JSDoc provide docComment
 	if (
 		componentDecl.docComment &&
-		hasHtmlComponentComment(sourceFile.content) &&
-		hasScriptDocComment(scriptContent)
+		componentTsdoc?.source === 'script' &&
+		hasHtmlComponentComment(sourceFile.content)
 	) {
 		diagnostics.push({
 			kind: 'duplicate_comment',
@@ -1198,7 +1242,7 @@ export const analyzeSvelteModule = (
 
 	// 5. Combine: component declaration first (primary export), then <script module> exports
 	const allDeclarations: Array<DeclarationAnalysis> = [
-		{ declaration: componentDecl, nodocs: false },
+		{ declaration: componentDecl, nodocs: componentTsdoc?.tsdoc.nodocs === true },
 		...moduleDeclarations
 	];
 
