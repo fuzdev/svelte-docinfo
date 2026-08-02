@@ -8,9 +8,9 @@
 svelte-docinfo extracts JSON describing the exports
 of TypeScript and Svelte modules for open-ended use cases
 like docs, code search, and dev tools.
-It uses
-[svelte2tsx](https://github.com/sveltejs/language-tools/tree/master/packages/svelte2tsx)
-and the TypeScript compiler API to resolve types, track exports+imports, and extract semantic details.
+It uses the TypeScript compiler API
+and [svelte2tsx](https://github.com/sveltejs/language-tools/tree/master/packages/svelte2tsx)
+to resolve types, track exports+imports, and extract semantic details.
 It includes a Vite plugin, CLI, and programmatic API
 in the [npm package](https://www.npmjs.com/package/svelte-docinfo).
 
