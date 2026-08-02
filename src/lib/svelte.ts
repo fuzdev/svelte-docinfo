@@ -456,15 +456,18 @@ const findInstanceTsdoc = (
 	return undefined;
 };
 
+/** Whether `initializer` is a `$props()` call. */
+const isPropsCall = (initializer: ts.Expression | undefined): initializer is ts.CallExpression =>
+	initializer !== undefined &&
+	ts.isCallExpression(initializer) &&
+	ts.isIdentifier(initializer.expression) &&
+	initializer.expression.text === SVELTE2TSX_IDENTIFIERS.PROPS_RUNE;
+
 /** Check whether a statement is the `let {...} = $props()` declaration. */
 const isPropsDeclaration = (statement: ts.Statement): boolean =>
 	ts.isVariableStatement(statement) &&
-	statement.declarationList.declarations.some(
-		(declaration) =>
-			declaration.initializer !== undefined &&
-			ts.isCallExpression(declaration.initializer) &&
-			ts.isIdentifier(declaration.initializer.expression) &&
-			declaration.initializer.expression.text === SVELTE2TSX_IDENTIFIERS.PROPS_RUNE
+	statement.declarationList.declarations.some((declaration) =>
+		isPropsCall(declaration.initializer)
 	);
 
 /**
@@ -601,52 +604,48 @@ const extractPropsMetadata = (virtualSource: ts.SourceFile): PropsMetadata => {
 
 		// Extract defaults and type name from $props() call
 		if (ts.isVariableDeclaration(node)) {
-			if (node.initializer && ts.isCallExpression(node.initializer)) {
-				const expr = node.initializer.expression;
-				// Check if it's $props() call
-				if (ts.isIdentifier(expr) && expr.text === SVELTE2TSX_IDENTIFIERS.PROPS_RUNE) {
-					// Extract type annotation name
-					if (!propsTypeName && node.type && ts.isTypeReferenceNode(node.type)) {
-						if (ts.isIdentifier(node.type.typeName)) {
-							propsTypeName = node.type.typeName.text;
-						}
+			if (isPropsCall(node.initializer)) {
+				// Extract type annotation name
+				if (!propsTypeName && node.type && ts.isTypeReferenceNode(node.type)) {
+					if (ts.isIdentifier(node.type.typeName)) {
+						propsTypeName = node.type.typeName.text;
 					}
+				}
 
-					// Extract defaults from binding pattern
-					if (ts.isObjectBindingPattern(node.name)) {
-						for (const element of node.name.elements) {
-							if (ts.isBindingElement(element) && element.initializer) {
-								const propName = ts.isIdentifier(element.name) ? element.name.text : undefined;
-								if (!propName) continue;
+				// Extract defaults from binding pattern
+				if (ts.isObjectBindingPattern(node.name)) {
+					for (const element of node.name.elements) {
+						if (ts.isBindingElement(element) && element.initializer) {
+							const propName = ts.isIdentifier(element.name) ? element.name.text : undefined;
+							if (!propName) continue;
 
-								// Skip $bindable() with no args (no default), but extract argument if present
-								if (ts.isCallExpression(element.initializer)) {
-									const expr = element.initializer.expression;
-									if (ts.isIdentifier(expr) && expr.text === SVELTE2TSX_IDENTIFIERS.BINDABLE_RUNE) {
-										// Only extract if has argument: $bindable('value') → 'value'
-										if (element.initializer.arguments.length > 0) {
-											const arg = element.initializer.arguments[0]!;
-											// Skip $bindable(undefined) - same semantic as $bindable()
-											if (!(ts.isIdentifier(arg) && arg.text === 'undefined')) {
-												propsDefaults.set(propName, arg.getText());
-											}
+							// Skip $bindable() with no args (no default), but extract argument if present
+							if (ts.isCallExpression(element.initializer)) {
+								const expr = element.initializer.expression;
+								if (ts.isIdentifier(expr) && expr.text === SVELTE2TSX_IDENTIFIERS.BINDABLE_RUNE) {
+									// Only extract if has argument: $bindable('value') → 'value'
+									if (element.initializer.arguments.length > 0) {
+										const arg = element.initializer.arguments[0]!;
+										// Skip $bindable(undefined) - same semantic as $bindable()
+										if (!(ts.isIdentifier(arg) && arg.text === 'undefined')) {
+											propsDefaults.set(propName, arg.getText());
 										}
-										// Skip $bindable() with no args
-										continue;
 									}
-								}
-
-								// Skip explicit undefined (same semantic as no default)
-								if (
-									ts.isIdentifier(element.initializer) &&
-									element.initializer.text === 'undefined'
-								) {
+									// Skip $bindable() with no args
 									continue;
 								}
-
-								// Regular default value
-								propsDefaults.set(propName, element.initializer.getText());
 							}
+
+							// Skip explicit undefined (same semantic as no default)
+							if (
+								ts.isIdentifier(element.initializer) &&
+								element.initializer.text === 'undefined'
+							) {
+								continue;
+							}
+
+							// Regular default value
+							propsDefaults.set(propName, element.initializer.getText());
 						}
 					}
 				}
@@ -829,24 +828,15 @@ const extractPropsViaChecker = (
 
 	const findPropsType = (node: ts.Node) => {
 		if (propsType) return;
-		if (
-			ts.isVariableDeclaration(node) &&
-			node.initializer &&
-			ts.isCallExpression(node.initializer)
-		) {
-			const expr = node.initializer.expression;
-			if (ts.isIdentifier(expr) && expr.text === SVELTE2TSX_IDENTIFIERS.PROPS_RUNE) {
-				if (node.type) {
-					try {
-						propsType = checker.getTypeAtLocation(node.type);
-						propsTypeNode = node.type;
-						if (ts.isTypeReferenceNode(node.type) && ts.isIdentifier(node.type.typeName)) {
-							propsTypeName = node.type.typeName.text;
-						}
-					} catch (_) {
-						// Fall through — propsType stays undefined
-					}
+		if (ts.isVariableDeclaration(node) && isPropsCall(node.initializer) && node.type) {
+			try {
+				propsType = checker.getTypeAtLocation(node.type);
+				propsTypeNode = node.type;
+				if (ts.isTypeReferenceNode(node.type) && ts.isIdentifier(node.type.typeName)) {
+					propsTypeName = node.type.typeName.text;
 				}
+			} catch (_) {
+				// Fall through — propsType stays undefined
 			}
 		}
 		ts.forEachChild(node, findPropsType);
