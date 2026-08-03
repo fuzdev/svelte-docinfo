@@ -91,7 +91,8 @@
 					<tr>
 						<td><code>@mutates</code></td>
 						<td>
-							<code>mutates</code> record. Non-standard; same format as <code>@param</code>:
+							Non-standard tag for marking params that get mutated by a function. Uses the same
+							format as <code>@param</code>:
 							<code>@mutates key - description</code>
 						</td>
 					</tr>
