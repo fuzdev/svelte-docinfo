@@ -22,7 +22,10 @@
 		<p>
 			svelte-docinfo extracts TSDoc/JSDoc tags from source comments and surfaces them as structured
 			fields on the <TomeLink slug="output-format">output</TomeLink>. This page lists every tag that
-			is parsed, where its value lands, and the rules that decide which symbol receives it.
+			is parsed, where its value lands, and the rules that decide which symbol receives it. It's
+			currently a subset of the <a href="https://tsdoc.org/">TSDoc spec</a> with the added custom
+			tags <code>@nodocs</code> and <code>@mutates</code> - please submit issues if it's missing something
+			you need or if any tags are off-spec.
 		</p>
 
 		<TomeSection>
@@ -99,8 +102,8 @@
 					<tr>
 						<td><code>@nodocs</code></td>
 						<td>
-							Excludes the declaration from output entirely; also excludes it from flat-namespace
-							duplicate checking. Declaration- and statement-level only — in a
+							Non-standard tag that excludes the declaration from output entirely; also excludes it
+							from flat-namespace duplicate checking. Declaration- and statement-level only — in a
 							<code>@module</code> comment it has no effect and warns
 						</td>
 					</tr>
