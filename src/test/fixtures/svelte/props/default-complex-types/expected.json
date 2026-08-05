@@ -40,7 +40,7 @@
 			},
 			{
 				"name": "prop6",
-				"type": "string",
+				"type": "string | null",
 				"optional": true,
 				"description": "Description 6",
 				"defaultValue": "null",

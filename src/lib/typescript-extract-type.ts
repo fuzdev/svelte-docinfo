@@ -29,6 +29,7 @@ import {
 	emitCallOrConstructSignature,
 	extractModifiers,
 	getNodeLocation,
+	getNonOptionalType,
 	parseGenericParam,
 	populateCallableMember
 } from './typescript-extract-shared.ts';
@@ -153,9 +154,12 @@ export const extractTypeInfo = (
 					const memberSymbol = checker.getSymbolAtLocation(member.name);
 					if (memberSymbol) {
 						const memberType = checker.getTypeOfSymbolAtLocation(memberSymbol, member);
+						// an optional method resolves to a union with `undefined`, which
+						// reports no call signatures — strip it before asking
+						const callableType = member.questionToken ? getNonOptionalType(memberType) : memberType;
 						populateCallableMember(
 							methodDeclaration,
-							memberType.getCallSignatures(),
+							callableType.getCallSignatures(),
 							checker,
 							methodTsdoc,
 							member,

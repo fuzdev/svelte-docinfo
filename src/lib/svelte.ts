@@ -36,7 +36,11 @@ import type {
 } from './declaration-build.ts';
 import { parseComment, applyToDeclaration, type TsdocParsedComment } from './tsdoc.ts';
 import { type IsExternalFile, createIsExternalFile } from './typescript-program.ts';
-import { parseGenericParam, filterExternalProperties } from './typescript-extract-shared.ts';
+import {
+	parseGenericParam,
+	filterExternalProperties,
+	getOptionalTypeSignature
+} from './typescript-extract-shared.ts';
 import {
 	extractModuleComment,
 	analyzeExports,
@@ -897,18 +901,21 @@ const extractPropsViaChecker = (
 		let typeString = 'any';
 		let snippetParams: Array<ParameterJsonInput> | undefined;
 		try {
-			let propType = checker.getTypeOfSymbolAtLocation(prop, propsTypeNode);
+			const propType = checker.getTypeOfSymbolAtLocation(prop, propsTypeNode);
 			// For optional properties, the checker includes `undefined` in the union.
 			// Strip it to match the declared type (e.g., `number` not `number | undefined`).
-			if (optional) {
-				propType = checker.getNonNullableType(propType);
-			}
-			typeString = checker.typeToString(propType);
+			typeString = optional
+				? getOptionalTypeSignature(propType, checker)
+				: checker.typeToString(propType);
 
 			// Detect Snippet type via type string, then extract structured parameters.
-			// After getNonNullableType, propType is the Snippet<...> TypeReference directly.
+			// Optionality is stripped again here so the extraction sees the
+			// `Snippet<...>` TypeReference rather than the union wrapping it.
 			if (isSnippetTypeString(typeString)) {
-				snippetParams = extractSnippetParameters(propType, checker);
+				snippetParams = extractSnippetParameters(
+					optional ? checker.getNonNullableType(propType) : propType,
+					checker
+				);
 			}
 		} catch (err) {
 			// Map position if possible

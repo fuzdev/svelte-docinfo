@@ -2,7 +2,7 @@
 	"name": "fn",
 	"kind": "function",
 	"docComment": "Description.\n\nAdditional description line.",
-	"typeSignature": "(a: string, b: { c?: boolean; }): string",
+	"typeSignature": "(a: string, b: { c?: boolean | undefined; }): string",
 	"examples": [
 		"const result = fn('value', {c: true});"
 	],
@@ -33,7 +33,7 @@
 		},
 		{
 			"name": "b",
-			"type": "{ c?: boolean; }",
+			"type": "{ c?: boolean | undefined; }",
 			"description": "Description 2"
 		}
 	],

@@ -76,6 +76,70 @@ export const inferDeclarationKind = (symbol: ts.Symbol, node: ts.Node): Declarat
 	return 'variable';
 };
 
+/** Separator the TypeScript printer emits before a top-level `undefined` union member. */
+const UNDEFINED_UNION_SUFFIX = ' | undefined';
+
+/**
+ * Type signature of an optional declaration, with the implicit `| undefined` removed.
+ *
+ * The checker widens every optional property and parameter to include `undefined`,
+ * which is redundant with `optional: true` in the output. Removing it with
+ * `checker.getNonNullableType` drops `null` too, so `x?: string | null` printed as
+ * `"string"` and `x?: null` as `"never"` — both silently wrong. Filtering `undefined`
+ * out of `type.types` and rejoining the members is no better: it loses the alias name,
+ * the printer's member order, and the parens that keep function members legal.
+ *
+ * So `null`-bearing types are trimmed on the printed union instead, where TypeScript
+ * always emits a top-level `undefined` last — truncated unions
+ * (`'a' | ... 11 more ... | undefined`) included. Everything else keeps taking
+ * `getNonNullableType`, which prints an optional function type without the union parens
+ * the trim would leave behind (`() => void`, not `(() => void)`).
+ *
+ * Applies to the structured fields only. A callable's `typeSignature` comes from
+ * `checker.signatureToString`, which has no flag to omit the widening, so it renders
+ * optional parameters as the checker does — `(a?: number | undefined): void`.
+ *
+ * Known limitation: under `exactOptionalPropertyTypes` the checker doesn't widen
+ * optional properties at all, so a written `x?: T | undefined` (a distinct type from
+ * `x?: T` in that mode) is trimmed to `T` here. The two are indistinguishable from the
+ * type alone — both carry one union member whose intrinsic name is `undefined` — so
+ * telling them apart needs `compilerOptions.exactOptionalPropertyTypes`, which the
+ * extractors don't thread through. Parameters are unaffected: the flag governs
+ * properties only.
+ */
+export const getOptionalTypeSignature = (type: ts.Type, checker: ts.TypeChecker): string => {
+	const hasNull = type.isUnion()
+		? type.types.some((t) => !!(t.flags & ts.TypeFlags.Null))
+		: !!(type.flags & ts.TypeFlags.Null);
+	if (!hasNull) return checker.typeToString(checker.getNonNullableType(type));
+
+	const printed = checker.typeToString(type);
+	// no `undefined` member to trim when `strictNullChecks` is off
+	return printed.endsWith(UNDEFINED_UNION_SUFFIX)
+		? printed.slice(0, -UNDEFINED_UNION_SUFFIX.length)
+		: printed;
+};
+
+/**
+ * The type of an optional declaration with the widening `undefined` member removed —
+ * the counterpart to `getOptionalTypeSignature` for structural queries.
+ *
+ * `getCallSignatures` returns nothing for a union, so under `strictNullChecks` an
+ * optional method (`fn?(a: string): number`) or function-typed property resolves to
+ * `((a: string) => number) | undefined` and reads as non-callable, silently costing it
+ * `typeSignature`, `parameters`, and `returnType`. Analogous to `getNonNullableType`,
+ * but leaves `null` in place: `fn?: (() => void) | null` really isn't callable, and
+ * reporting it as a function would hide the `null`.
+ *
+ * Falls back to the original type when the remainder isn't a single member, since
+ * there's no public API to rebuild a union.
+ */
+export const getNonOptionalType = (type: ts.Type): ts.Type => {
+	if (!type.isUnion()) return type;
+	const kept = type.types.filter((t) => !(t.flags & ts.TypeFlags.Undefined));
+	return kept.length === 1 ? kept[0]! : type;
+};
+
 /**
  * Extract parameters from a TypeScript signature with TSDoc descriptions and default values.
  *
@@ -94,12 +158,18 @@ export const extractSignatureParameters = (
 ): Array<ParameterJson> => {
 	return sig.parameters.map((param) => {
 		const paramDecl = param.valueDeclaration;
+		const optional = !!(paramDecl && ts.isParameter(paramDecl) && paramDecl.questionToken);
 
-		// Get type - use declaration location if available, otherwise get declared type
+		// Get type - use declaration location if available, otherwise get declared type.
+		// An optional parameter is widened to include `undefined` like an optional
+		// property, and is stripped the same way so `optional` carries it alone.
+		// `exactOptionalPropertyTypes` governs properties only, so it never applies here.
 		let typeString = 'unknown';
 		if (paramDecl) {
 			const paramType = checker.getTypeOfSymbolAtLocation(param, paramDecl);
-			typeString = checker.typeToString(paramType);
+			typeString = optional
+				? getOptionalTypeSignature(paramType, checker)
+				: checker.typeToString(paramType);
 		} else {
 			const paramType = checker.getDeclaredTypeOfSymbol(param);
 			typeString = checker.typeToString(paramType);
@@ -130,7 +200,6 @@ export const extractSignatureParameters = (
 			defaultValue = paramDecl.initializer.getText();
 		}
 
-		const optional = !!(paramDecl && ts.isParameter(paramDecl) && paramDecl.questionToken);
 		const rest = !!(paramDecl && ts.isParameter(paramDecl) && paramDecl.dotDotDotToken);
 
 		return {

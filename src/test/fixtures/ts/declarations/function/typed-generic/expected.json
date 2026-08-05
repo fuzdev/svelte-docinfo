@@ -2,7 +2,7 @@
 	"name": "fn",
 	"kind": "function",
 	"docComment": "A generic arrow function with generics on the type annotation.",
-	"typeSignature": "<T extends { id: number; }>(a: Array<T>): T",
+	"typeSignature": "<T extends { id: number; }>(a: Array<T>): T | undefined",
 	"genericParams": [
 		{
 			"name": "T",
@@ -16,6 +16,6 @@
 			"description": "Description 1"
 		}
 	],
-	"returnType": "T",
+	"returnType": "T | undefined",
 	"returnDescription": "Description 2"
 }

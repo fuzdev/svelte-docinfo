@@ -2,7 +2,7 @@
 	"name": "fn",
 	"kind": "function",
 	"docComment": "A generic function with type constraints.",
-	"typeSignature": "<T extends { id: number; }>(a: Array<T>, b: (x: T) => boolean): T",
+	"typeSignature": "<T extends { id: number; }>(a: Array<T>, b: (x: T) => boolean): T | undefined",
 	"genericParams": [
 		{
 			"name": "T",
@@ -21,6 +21,6 @@
 			"description": "Description 2"
 		}
 	],
-	"returnType": "T",
+	"returnType": "T | undefined",
 	"returnDescription": "Description 3"
 }

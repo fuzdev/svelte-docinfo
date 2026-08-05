@@ -42,6 +42,9 @@ export const createTestProgram = (sourceFile: ts.SourceFile, filePath: string): 
 		{
 			target: ts.ScriptTarget.Latest,
 			module: ts.ModuleKind.ESNext,
+			// consumers analyze under `strict`; without it nullable unions collapse
+			// before extraction sees them and fixtures stop reflecting real output
+			strict: true,
 			noResolve: true
 		},
 		{
@@ -118,7 +121,8 @@ export const createMultiFileProgram = (
 		{
 			target: ts.ScriptTarget.Latest,
 			module: ts.ModuleKind.ESNext,
-			moduleResolution: ts.ModuleResolutionKind.NodeNext
+			moduleResolution: ts.ModuleResolutionKind.NodeNext,
+			strict: true
 		},
 		{
 			getSourceFile: (fileName) => sourceFiles.get(fileName),

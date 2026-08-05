@@ -5,14 +5,14 @@
 		"props": [
 			{
 				"name": "prop1",
-				"type": "{ a: string; }",
+				"type": "A",
 				"optional": true,
 				"description": "Description 1",
 				"defaultValue": "null"
 			},
 			{
 				"name": "prop2",
-				"type": "{ a: string; }",
+				"type": "A",
 				"optional": true,
 				"description": "Description 2"
 			}
