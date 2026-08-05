@@ -28,7 +28,7 @@
 			"name": "fn3",
 			"kind": "function",
 			"docComment": "Description 3",
-			"typeSignature": "(a: string, b?: number): boolean",
+			"typeSignature": "(a: string, b?: number | undefined): boolean",
 			"parameters": [
 				{
 					"name": "a",

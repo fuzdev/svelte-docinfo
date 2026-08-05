@@ -27,6 +27,8 @@ import {
 	emitCallOrConstructSignature,
 	filterExternalProperties,
 	getNodeLocation,
+	getNonOptionalType,
+	getTypeSignature,
 	isExternalIntersectionBranch,
 	populateCallableMember,
 	resolveIntersectionTypeNode
@@ -250,7 +252,10 @@ export const extractTypeAliasProperties = (
 			continue;
 		}
 
-		const callSigs = propType.getCallSignatures();
+		// an optional property resolves to a union with `undefined`, which reports no
+		// call signatures — strip it so `fn?: () => void` still reads as a function
+		const callableType = optional ? getNonOptionalType(propType, checker) : propType;
+		const callSigs = callableType.getCallSignatures();
 		const kind: MemberKind = callSigs.length > 0 ? 'function' : 'variable';
 
 		const member: MemberJsonBuild = {
@@ -285,11 +290,7 @@ export const extractTypeAliasProperties = (
 				diagnostics
 			);
 		} else {
-			member.typeSignature = checker.typeToString(propType);
-			if (optional) {
-				// Strip trailing " | undefined" that the checker adds for optional props
-				member.typeSignature = checker.typeToString(checker.getNonNullableType(propType));
-			}
+			member.typeSignature = getTypeSignature(propType, checker, optional);
 		}
 
 		(declaration.members ??= []).push(member);

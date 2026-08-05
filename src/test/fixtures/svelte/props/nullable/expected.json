@@ -1,0 +1,39 @@
+[
+	{
+		"name": "PropsNullable",
+		"kind": "component",
+		"props": [
+			{
+				"name": "prop1",
+				"type": "null",
+				"optional": true,
+				"description": "Description 1"
+			},
+			{
+				"name": "prop2",
+				"type": "string | null",
+				"optional": true,
+				"description": "Description 2"
+			},
+			{
+				"name": "prop3",
+				"type": "(() => void) | null",
+				"optional": true,
+				"description": "Description 3"
+			},
+			{
+				"name": "prop4",
+				"type": "string",
+				"optional": true,
+				"description": "Description 4"
+			},
+			{
+				"name": "prop5",
+				"type": "() => void",
+				"optional": true,
+				"description": "Description 5"
+			}
+		],
+		"sourceLine": 1
+	}
+]

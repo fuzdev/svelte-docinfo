@@ -1,0 +1,63 @@
+{
+	"name": "A",
+	"kind": "type",
+	"docComment": "Optional properties whose declared type includes `null`.",
+	"typeSignature": "A",
+	"members": [
+		{
+			"name": "a",
+			"kind": "variable",
+			"typeSignature": "null",
+			"optional": true
+		},
+		{
+			"name": "b",
+			"kind": "variable",
+			"typeSignature": "string | null",
+			"optional": true
+		},
+		{
+			"name": "c",
+			"kind": "variable",
+			"typeSignature": "(() => void) | null",
+			"optional": true
+		},
+		{
+			"name": "d",
+			"kind": "variable",
+			"typeSignature": "null",
+			"optional": true
+		},
+		{
+			"name": "e",
+			"kind": "variable",
+			"typeSignature": "string",
+			"optional": true
+		},
+		{
+			"name": "f",
+			"kind": "function",
+			"typeSignature": "(): void",
+			"returnType": "void",
+			"optional": true
+		},
+		{
+			"name": "g",
+			"kind": "variable",
+			"typeSignature": "string | null"
+		},
+		{
+			"name": "h",
+			"kind": "variable",
+			"typeSignature": "undefined",
+			"optional": true
+		},
+		{
+			"name": "i",
+			"kind": "function",
+			"typeSignature": "(): number | void",
+			"returnType": "number | void",
+			"optional": true
+		}
+	]
+}

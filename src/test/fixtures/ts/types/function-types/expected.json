@@ -19,7 +19,7 @@
 		{
 			"name": "b",
 			"kind": "function",
-			"typeSignature": "(x: number, y?: boolean): string",
+			"typeSignature": "(x: number, y?: boolean | undefined): string",
 			"parameters": [
 				{
 					"name": "x",

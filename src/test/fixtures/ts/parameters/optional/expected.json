@@ -2,7 +2,7 @@
 	"name": "fn",
 	"kind": "function",
 	"docComment": "A function with optional and default parameters.",
-	"typeSignature": "(a: string, b?: number, c?: boolean): void",
+	"typeSignature": "(a: string, b?: number | undefined, c?: boolean): void",
 	"parameters": [
 		{
 			"name": "a",
