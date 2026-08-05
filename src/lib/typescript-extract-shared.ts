@@ -79,8 +79,16 @@ export const inferDeclarationKind = (symbol: ts.Symbol, node: ts.Node): Declarat
 /** Separator the TypeScript printer emits before a top-level `undefined` union member. */
 const UNDEFINED_UNION_SUFFIX = ' | undefined';
 
+/** Whether the type is `null` or a union with a `null` member. */
+const hasNullMember = (type: ts.Type): boolean =>
+	type.isUnion()
+		? type.types.some((t) => !!(t.flags & ts.TypeFlags.Null))
+		: !!(type.flags & ts.TypeFlags.Null);
+
 /**
- * Type signature of an optional declaration, with the implicit `| undefined` removed.
+ * Type signature of a declaration — for an optional one, with the implicit
+ * `| undefined` widening removed. The single chokepoint pairing `optional` with the
+ * strip, so a call site can't apply one without the other.
  *
  * The checker widens every optional property and parameter to include `undefined`,
  * which is redundant with `optional: true` in the output. Removing it with
@@ -111,14 +119,17 @@ const UNDEFINED_UNION_SUFFIX = ' | undefined';
  * extractors don't thread through. Parameters are unaffected: the flag governs
  * properties only.
  */
-export const getOptionalTypeSignature = (type: ts.Type, checker: ts.TypeChecker): string => {
+export const getTypeSignature = (
+	type: ts.Type,
+	checker: ts.TypeChecker,
+	optional: boolean
+): string => {
+	if (!optional) return checker.typeToString(type);
+
 	// `x?: undefined` — the whole type is the widening; stripping would leave `never`
 	if (!type.isUnion() && type.flags & ts.TypeFlags.Undefined) return checker.typeToString(type);
 
-	const hasNull = type.isUnion()
-		? type.types.some((t) => !!(t.flags & ts.TypeFlags.Null))
-		: !!(type.flags & ts.TypeFlags.Null);
-	if (!hasNull) return checker.typeToString(checker.getNonNullableType(type));
+	if (!hasNullMember(type)) return checker.typeToString(checker.getNonNullableType(type));
 
 	const printed = checker.typeToString(type);
 	// no `undefined` member to trim when `strictNullChecks` is off
@@ -129,7 +140,7 @@ export const getOptionalTypeSignature = (type: ts.Type, checker: ts.TypeChecker)
 
 /**
  * The type of an optional declaration with the widening `undefined` member removed —
- * the counterpart to `getOptionalTypeSignature` for structural queries.
+ * the counterpart to `getTypeSignature`'s optional strip for structural queries.
  *
  * A union with `undefined` reports no call signatures of its own, so under
  * `strictNullChecks` an optional method (`fn?(a: string): number`) or function-typed
@@ -146,8 +157,7 @@ export const getOptionalTypeSignature = (type: ts.Type, checker: ts.TypeChecker)
  */
 export const getNonOptionalType = (type: ts.Type, checker: ts.TypeChecker): ts.Type => {
 	if (!type.isUnion()) return type;
-	const hasNull = type.types.some((t) => !!(t.flags & ts.TypeFlags.Null));
-	return hasNull ? type : checker.getNonNullableType(type);
+	return hasNullMember(type) ? type : checker.getNonNullableType(type);
 };
 
 /**
@@ -177,9 +187,7 @@ export const extractSignatureParameters = (
 		let typeString = 'unknown';
 		if (paramDecl) {
 			const paramType = checker.getTypeOfSymbolAtLocation(param, paramDecl);
-			typeString = optional
-				? getOptionalTypeSignature(paramType, checker)
-				: checker.typeToString(paramType);
+			typeString = getTypeSignature(paramType, checker, optional);
 		} else {
 			const paramType = checker.getDeclaredTypeOfSymbol(param);
 			typeString = checker.typeToString(paramType);

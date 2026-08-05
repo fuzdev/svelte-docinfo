@@ -39,7 +39,7 @@ import { type IsExternalFile, createIsExternalFile } from './typescript-program.
 import {
 	parseGenericParam,
 	filterExternalProperties,
-	getOptionalTypeSignature
+	getTypeSignature
 } from './typescript-extract-shared.ts';
 import {
 	extractModuleComment,
@@ -686,7 +686,7 @@ export const isSnippetTypeString = (typeString: string): boolean => {
  * Returns full `ParameterJson` input objects (with `optional` and `rest` always set)
  * for runtime consistency with `extractSignatureParameters` in `typescript-extract-shared.ts`.
  * Optional tuple elements are widened to include `undefined` like optional properties;
- * the element type is stripped via `getOptionalTypeSignature` so `optional: true`
+ * the element type is stripped via `getTypeSignature` so `optional: true`
  * carries it alone. Callers pass the bare `Snippet<...>` TypeReference — a union
  * wrapping it (optional widening, `| null`) reports no type arguments.
  *
@@ -716,9 +716,7 @@ export const extractSnippetParameters = (
 		const optional = !!(target.elementFlags[i]! & ts.ElementFlags.Optional);
 		// an optional tuple element is widened to include `undefined` like an
 		// optional property — strip it so `optional: true` carries it alone
-		const type = optional
-			? getOptionalTypeSignature(elementType, checker)
-			: checker.typeToString(elementType);
+		const type = getTypeSignature(elementType, checker, optional);
 		params.push({ name, type, optional, rest: false });
 	}
 	return params;
@@ -776,10 +774,11 @@ const isSvelte2tsxInternal = (name: string): boolean => {
  * Detect whether the props type accepts a `Snippet`-typed `children` prop.
  *
  * Resolves the `children` symbol on the (unfiltered) props type, strips
- * `undefined` for optional props, and checks the resulting type — including
- * each branch of a union — against `isSnippetTypeString`. Returns `false`
- * for non-Snippet `children` (e.g. `string`) and emits a `svelte_prop_failed`
- * warning when type resolution throws so the false negative is observable.
+ * `null`/`undefined` (unconditionally, matching the prop-extraction path), and
+ * checks the resulting type — including each branch of a union — against
+ * `isSnippetTypeString`. Returns `false` for non-Snippet `children` (e.g.
+ * `string`) and emits a `svelte_prop_failed` warning when type resolution
+ * throws so the false negative is observable.
  */
 const detectChildrenSnippet = (
 	propsType: ts.Type,
@@ -792,10 +791,12 @@ const detectChildrenSnippet = (
 	const childrenSym = propsType.getProperty('children');
 	if (!childrenSym) return false;
 	try {
-		let childrenType = checker.getTypeOfSymbolAtLocation(childrenSym, propsTypeNode);
-		if (childrenSym.flags & ts.SymbolFlags.Optional) {
-			childrenType = checker.getNonNullableType(childrenType);
-		}
+		// stripped unconditionally — the optional widening and a written `| null`
+		// both wrap the `Snippet` reference in a union; a union with non-nullable
+		// members (e.g. `Snippet | string`) survives and hits the branch check below
+		const childrenType = checker.getNonNullableType(
+			checker.getTypeOfSymbolAtLocation(childrenSym, propsTypeNode)
+		);
 		if (isSnippetTypeString(checker.typeToString(childrenType))) return true;
 		if (childrenType.isUnion()) {
 			return childrenType.types.some((t) => isSnippetTypeString(checker.typeToString(t)));
@@ -914,9 +915,7 @@ const extractPropsViaChecker = (
 			const propType = checker.getTypeOfSymbolAtLocation(prop, propsTypeNode);
 			// For optional properties, the checker includes `undefined` in the union.
 			// Strip it to match the declared type (e.g., `number` not `number | undefined`).
-			typeString = optional
-				? getOptionalTypeSignature(propType, checker)
-				: checker.typeToString(propType);
+			typeString = getTypeSignature(propType, checker, optional);
 
 			// Detect Snippet type via type string, then extract structured parameters.
 			// Stripped unconditionally so the extraction sees the `Snippet<...>`

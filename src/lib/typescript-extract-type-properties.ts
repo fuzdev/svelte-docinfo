@@ -28,7 +28,7 @@ import {
 	filterExternalProperties,
 	getNodeLocation,
 	getNonOptionalType,
-	getOptionalTypeSignature,
+	getTypeSignature,
 	isExternalIntersectionBranch,
 	populateCallableMember,
 	resolveIntersectionTypeNode
@@ -290,9 +290,7 @@ export const extractTypeAliasProperties = (
 				diagnostics
 			);
 		} else {
-			member.typeSignature = optional
-				? getOptionalTypeSignature(propType, checker)
-				: checker.typeToString(propType);
+			member.typeSignature = getTypeSignature(propType, checker, optional);
 		}
 
 		(declaration.members ??= []).push(member);

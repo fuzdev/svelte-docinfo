@@ -5,7 +5,7 @@
  * The checker widens every optional property to include `undefined`, and the
  * signature-building code strips that back off. Stripping it with
  * `checker.getNonNullableType` also drops `null` — `a?: string | null` printed as
- * `"string"`, `a?: null` as `"never"` — so `getOptionalTypeSignature` removes only
+ * `"string"`, `a?: null` as `"never"` — so `getTypeSignature` removes only
  * the `undefined` member (and keeps `a?: undefined` as `"undefined"`, where
  * stripping would leave `never` too). These exercise the whole `analyze` pipeline;
  * the extractors are covered directly by the `ts/types/nullable-optional` and
