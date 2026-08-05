@@ -1,13 +1,14 @@
 /**
- * Tests for optional declarations whose type includes `null`, under
- * `strictNullChecks`.
+ * Tests for optional declarations whose type includes `null`, plus adjacent
+ * optional-widening edge cases, under `strictNullChecks`.
  *
  * The checker widens every optional property to include `undefined`, and the
  * signature-building code strips that back off. Stripping it with
  * `checker.getNonNullableType` also drops `null` — `a?: string | null` printed as
  * `"string"`, `a?: null` as `"never"` — so `getOptionalTypeSignature` removes only
- * the `undefined` member. These exercise the whole `analyze` pipeline; the
- * extractors are covered directly by the `ts/types/nullable-optional` and
+ * the `undefined` member (and keeps `a?: undefined` as `"undefined"`, where
+ * stripping would leave `never` too). These exercise the whole `analyze` pipeline;
+ * the extractors are covered directly by the `ts/types/nullable-optional` and
  * `svelte/props/nullable` fixtures.
  */
 
@@ -41,8 +42,8 @@ const typeSignatures = (members: Array<MemberJson>): Record<string, string | und
 const propTypes = (props: Array<ComponentPropJson>): Record<string, string> =>
 	Object.fromEntries(props.map((p) => [p.name, p.type]));
 
-describe('optional members with `null`', () => {
-	test('keeps `null` in type-alias property signatures', async () => {
+describe('optional type normalization', () => {
+	test('normalizes optional type-alias property signatures', async () => {
 		const module = await analyzeFile(
 			'src/lib/a.ts',
 			`export type A = {
@@ -53,12 +54,13 @@ describe('optional members with `null`', () => {
 	e?: string;
 	f?: () => void;
 	g: string | null;
+	h?: undefined;
+	i?: (() => void) | (() => number);
 };`
 		);
 
 		const declaration = module.declarations[0];
-		assert.strictEqual(declaration?.kind, 'type');
-		if (declaration?.kind !== 'type') throw new Error('expected a type declaration');
+		assert(declaration?.kind === 'type', 'expected a type declaration');
 
 		assert.deepStrictEqual(typeSignatures(declaration.members), {
 			a: 'null',
@@ -70,7 +72,12 @@ describe('optional members with `null`', () => {
 			// a callable member, rendered from its signature — `getNonOptionalType`
 			// strips the `undefined` that would otherwise hide the call signatures
 			f: '(): void',
-			g: 'string | null'
+			g: 'string | null',
+			// the whole type is the widening — stripping would leave `never`
+			h: 'undefined',
+			// a union of callables is itself callable; `getNonNullableType` rebuilds
+			// the union so the combined call signature survives
+			i: '(): number | void'
 		});
 	});
 
@@ -85,13 +92,10 @@ describe('optional members with `null`', () => {
 		);
 
 		const declaration = module.declarations[0];
-		assert.strictEqual(declaration?.kind, 'interface');
-		if (declaration?.kind !== 'interface') throw new Error('expected an interface declaration');
+		assert(declaration?.kind === 'interface', 'expected an interface declaration');
 
 		const member = declaration.members[0];
-		assert.ok(member, 'expected a member');
-		assert.strictEqual(member.kind, 'function');
-		if (member.kind !== 'function') throw new Error('expected a function member');
+		assert(member?.kind === 'function', 'expected a function member');
 		assert.strictEqual(member.optional, true);
 		assert.strictEqual(member.typeSignature, '(a: string): number');
 		assert.strictEqual(member.returnType, 'number');
@@ -118,8 +122,7 @@ let {a, b, c, d, e, f}: {
 		);
 
 		const declaration = module.declarations[0];
-		assert.strictEqual(declaration?.kind, 'component');
-		if (declaration?.kind !== 'component') throw new Error('expected a component declaration');
+		assert(declaration?.kind === 'component', 'expected a component declaration');
 
 		assert.deepStrictEqual(propTypes(declaration.props), {
 			a: 'null',
@@ -143,8 +146,7 @@ let {a, b}: {a?: A; b: A} = $props();
 		);
 
 		const declaration = module.declarations[0];
-		assert.strictEqual(declaration?.kind, 'component');
-		if (declaration?.kind !== 'component') throw new Error('expected a component declaration');
+		assert(declaration?.kind === 'component', 'expected a component declaration');
 
 		// the optional prop prints like the required one — stripping optionality
 		// through `getNonNullableType` used to rebuild the union and lose the alias
@@ -160,21 +162,57 @@ let {a, b}: {a?: A; b: A} = $props();
 			'src/lib/A.svelte',
 			`<script lang="ts">
 interface Snippet<T extends Array<unknown>> {(...args: T): void}
-let {a}: {a?: Snippet<[b: string]> | null} = $props();
+let {a, b}: {
+	a?: Snippet<[c: string]> | null;
+	b: Snippet<[d: string]> | null;
+} = $props();
 </script>
-<div>{@render a?.('c')}</div>`
+<div>{@render a?.('e')}{@render b?.('e')}</div>`
 		);
 
 		const declaration = module.declarations[0];
-		assert.strictEqual(declaration?.kind, 'component');
-		if (declaration?.kind !== 'component') throw new Error('expected a component declaration');
+		assert(declaration?.kind === 'component', 'expected a component declaration');
+
+		const [a, b] = declaration.props;
+		assert.ok(a && b, 'expected two props');
+		assert.strictEqual(a.type, 'Snippet<[c: string]> | null');
+		assert.deepStrictEqual(
+			a.parameters?.map((p) => [p.name, p.type]),
+			[['c', 'string']]
+		);
+		// a required nullable snippet reveals its parameters too — the strip before
+		// extraction is unconditional, not gated on optionality
+		assert.strictEqual(b.type, 'Snippet<[d: string]> | null');
+		assert.deepStrictEqual(
+			b.parameters?.map((p) => [p.name, p.type]),
+			[['d', 'string']]
+		);
+	});
+
+	test('strips the widened `undefined` from optional snippet tuple elements', async () => {
+		const module = await analyzeFile(
+			'src/lib/A.svelte',
+			`<script lang="ts">
+interface Snippet<T extends Array<unknown>> {(...args: T): void}
+let {a}: {a?: Snippet<[b: string, c?: number]>} = $props();
+</script>
+<div>{@render a?.('d')}</div>`
+		);
+
+		const declaration = module.declarations[0];
+		assert(declaration?.kind === 'component', 'expected a component declaration');
 
 		const prop = declaration.props[0];
 		assert.ok(prop, 'expected a prop');
-		assert.strictEqual(prop.type, 'Snippet<[b: string]> | null');
+		// the prop's `type` is the checker's canonical rendering — nested positions
+		// keep the widening (see the `optional` notes in CLAUDE.md)
+		assert.strictEqual(prop.type, 'Snippet<[b: string, c?: number | undefined]>');
 		assert.deepStrictEqual(
-			prop.parameters?.map((p) => [p.name, p.type]),
-			[['b', 'string']]
+			prop.parameters?.map((p) => [p.name, p.type, p.optional]),
+			[
+				['b', 'string', false],
+				['c', 'number', true]
+			]
 		);
 	});
 });

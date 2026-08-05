@@ -9,4 +9,6 @@ export type A = {
 	e?: string;
 	f?: () => void;
 	g: string | null;
+	h?: undefined;
+	i?: (() => void) | (() => number);
 };

@@ -254,7 +254,7 @@ export const extractTypeAliasProperties = (
 
 		// an optional property resolves to a union with `undefined`, which reports no
 		// call signatures — strip it so `fn?: () => void` still reads as a function
-		const callableType = optional ? getNonOptionalType(propType) : propType;
+		const callableType = optional ? getNonOptionalType(propType, checker) : propType;
 		const callSigs = callableType.getCallSignatures();
 		const kind: MemberKind = callSigs.length > 0 ? 'function' : 'variable';
 

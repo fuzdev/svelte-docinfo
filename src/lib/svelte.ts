@@ -685,6 +685,10 @@ export const isSnippetTypeString = (typeString: string): boolean => {
  *
  * Returns full `ParameterJson` input objects (with `optional` and `rest` always set)
  * for runtime consistency with `extractSignatureParameters` in `typescript-extract-shared.ts`.
+ * Optional tuple elements are widened to include `undefined` like optional properties;
+ * the element type is stripped via `getOptionalTypeSignature` so `optional: true`
+ * carries it alone. Callers pass the bare `Snippet<...>` TypeReference — a union
+ * wrapping it (optional widening, `| null`) reports no type arguments.
  *
  * @returns array of parameter info for the snippet's tuple type arguments,
  *   or `[]` for bare `Snippet` / `Snippet<[]>`
@@ -710,7 +714,12 @@ export const extractSnippetParameters = (
 		const label = target.labeledElementDeclarations?.[i];
 		const name = label && ts.isNamedTupleMember(label) ? label.name.text : `arg${i}`;
 		const optional = !!(target.elementFlags[i]! & ts.ElementFlags.Optional);
-		params.push({ name, type: checker.typeToString(elementType), optional, rest: false });
+		// an optional tuple element is widened to include `undefined` like an
+		// optional property — strip it so `optional: true` carries it alone
+		const type = optional
+			? getOptionalTypeSignature(elementType, checker)
+			: checker.typeToString(elementType);
+		params.push({ name, type, optional, rest: false });
 	}
 	return params;
 };
@@ -737,11 +746,12 @@ export const isSnippetReturnType = (returnType: string): boolean => {
  * Synthesize a `Snippet<[...]>` type string from structured parameters.
  *
  * Used for `kind: 'snippet'` declarations where the raw svelte2tsx type
- * is implementation noise. Produces type strings consistent with how
- * the checker formats Snippet types on props.
+ * is implementation noise. Renders the normalized form — an optional parameter
+ * as `b?: number`, matching the structured parameter fields rather than the
+ * checker's widened `b?: number | undefined`.
  */
 export const synthesizeSnippetTypeSignature = (parameters: Array<ParameterJsonInput>): string => {
-	const inner = parameters.map((p) => `${p.name}: ${p.type}`).join(', ');
+	const inner = parameters.map((p) => `${p.name}${p.optional ? '?' : ''}: ${p.type}`).join(', ');
 	return `Snippet<[${inner}]>`;
 };
 
@@ -894,7 +904,7 @@ const extractPropsViaChecker = (
 		const propDecl = prop.valueDeclaration || prop.declarations?.[0];
 
 		// Check optionality via symbol flags (computed before type resolution
-		// since getNonNullableType needs it to strip the `undefined` union member)
+		// since the type-string path strips the widened `undefined` for optional props)
 		const optional = (prop.flags & ts.SymbolFlags.Optional) !== 0;
 
 		// Get type string via checker
@@ -909,13 +919,12 @@ const extractPropsViaChecker = (
 				: checker.typeToString(propType);
 
 			// Detect Snippet type via type string, then extract structured parameters.
-			// Optionality is stripped again here so the extraction sees the
-			// `Snippet<...>` TypeReference rather than the union wrapping it.
+			// Stripped unconditionally so the extraction sees the `Snippet<...>`
+			// TypeReference rather than a union wrapping it — the optional widening
+			// and a written `| null` both hide the type arguments otherwise
+			// (`getTypeArguments` on a union returns nothing).
 			if (isSnippetTypeString(typeString)) {
-				snippetParams = extractSnippetParameters(
-					optional ? checker.getNonNullableType(propType) : propType,
-					checker
-				);
+				snippetParams = extractSnippetParameters(checker.getNonNullableType(propType), checker);
 			}
 		} catch (err) {
 			// Map position if possible

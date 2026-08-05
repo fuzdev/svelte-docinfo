@@ -14,7 +14,7 @@
 					},
 					{
 						"name": "b",
-						"type": "number | undefined",
+						"type": "number",
 						"optional": true
 					}
 				]

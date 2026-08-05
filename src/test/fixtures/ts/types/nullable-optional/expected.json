@@ -45,6 +45,19 @@
 			"name": "g",
 			"kind": "variable",
 			"typeSignature": "string | null"
+		},
+		{
+			"name": "h",
+			"kind": "variable",
+			"typeSignature": "undefined",
+			"optional": true
+		},
+		{
+			"name": "i",
+			"kind": "function",
+			"typeSignature": "(): number | void",
+			"returnType": "number | void",
+			"optional": true
 		}
 	]
 }

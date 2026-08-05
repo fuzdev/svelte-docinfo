@@ -99,6 +99,10 @@ const UNDEFINED_UNION_SUFFIX = ' | undefined';
  * `checker.signatureToString`, which has no flag to omit the widening, so it renders
  * optional parameters as the checker does — `(a?: number | undefined): void`.
  *
+ * `x?: undefined` is kept as `"undefined"` — there the written type and the widening
+ * coincide, and stripping would leave `never` (the same silent-wrong shape as the
+ * `null` cases above).
+ *
  * Known limitation: under `exactOptionalPropertyTypes` the checker doesn't widen
  * optional properties at all, so a written `x?: T | undefined` (a distinct type from
  * `x?: T` in that mode) is trimmed to `T` here. The two are indistinguishable from the
@@ -108,6 +112,9 @@ const UNDEFINED_UNION_SUFFIX = ' | undefined';
  * properties only.
  */
 export const getOptionalTypeSignature = (type: ts.Type, checker: ts.TypeChecker): string => {
+	// `x?: undefined` — the whole type is the widening; stripping would leave `never`
+	if (!type.isUnion() && type.flags & ts.TypeFlags.Undefined) return checker.typeToString(type);
+
 	const hasNull = type.isUnion()
 		? type.types.some((t) => !!(t.flags & ts.TypeFlags.Null))
 		: !!(type.flags & ts.TypeFlags.Null);
@@ -124,20 +131,23 @@ export const getOptionalTypeSignature = (type: ts.Type, checker: ts.TypeChecker)
  * The type of an optional declaration with the widening `undefined` member removed —
  * the counterpart to `getOptionalTypeSignature` for structural queries.
  *
- * `getCallSignatures` returns nothing for a union, so under `strictNullChecks` an
- * optional method (`fn?(a: string): number`) or function-typed property resolves to
- * `((a: string) => number) | undefined` and reads as non-callable, silently costing it
- * `typeSignature`, `parameters`, and `returnType`. Analogous to `getNonNullableType`,
- * but leaves `null` in place: `fn?: (() => void) | null` really isn't callable, and
- * reporting it as a function would hide the `null`.
+ * A union with `undefined` reports no call signatures of its own, so under
+ * `strictNullChecks` an optional method (`fn?(a: string): number`) or function-typed
+ * property resolves to `((a: string) => number) | undefined` and reads as non-callable,
+ * silently costing it `typeSignature`, `parameters`, and `returnType`. Analogous to
+ * `getNonNullableType`, but leaves `null` in place: `fn?: (() => void) | null` really
+ * isn't callable, and reporting it as a function would hide the `null`.
  *
- * Falls back to the original type when the remainder isn't a single member, since
- * there's no public API to rebuild a union.
+ * A `null`-free union goes through `getNonNullableType`, which rebuilds the union
+ * rather than picking a member — so a union of callables
+ * (`fn?: (() => void) | (() => number)`) keeps its combined call signature. A
+ * `null`-bearing union is returned unchanged: `null` poisons callability regardless,
+ * so there's nothing to recover by stripping `undefined` from it.
  */
-export const getNonOptionalType = (type: ts.Type): ts.Type => {
+export const getNonOptionalType = (type: ts.Type, checker: ts.TypeChecker): ts.Type => {
 	if (!type.isUnion()) return type;
-	const kept = type.types.filter((t) => !(t.flags & ts.TypeFlags.Undefined));
-	return kept.length === 1 ? kept[0]! : type;
+	const hasNull = type.types.some((t) => !!(t.flags & ts.TypeFlags.Null));
+	return hasNull ? type : checker.getNonNullableType(type);
 };
 
 /**

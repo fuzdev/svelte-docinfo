@@ -156,7 +156,9 @@ export const extractTypeInfo = (
 						const memberType = checker.getTypeOfSymbolAtLocation(memberSymbol, member);
 						// an optional method resolves to a union with `undefined`, which
 						// reports no call signatures — strip it before asking
-						const callableType = member.questionToken ? getNonOptionalType(memberType) : memberType;
+						const callableType = member.questionToken
+							? getNonOptionalType(memberType, checker)
+							: memberType;
 						populateCallableMember(
 							methodDeclaration,
 							callableType.getCallSignatures(),
