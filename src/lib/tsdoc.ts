@@ -160,7 +160,8 @@ export const parseComment = (
 		const text = ts.getTextOfJSDocComment(node.comment);
 		const cleaned = text && cleanTagDescription(text);
 		if (!cleaned) return undefined;
-		return { text: cleaned, params: Object.create(null) };
+		const params: Record<string, string> = Object.create(null);
+		return { text: cleaned, params };
 	}
 
 	const tsdocComments = ts.getJSDocCommentsAndTags(node).filter((c) => !belongsToModuleBlock(c));

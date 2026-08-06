@@ -856,12 +856,14 @@ const extractPropsViaChecker = (
 		// `ScriptKind.JS` (see `SvelteVirtualFile.scriptKind`).
 		const typeNode = metadata.propsDeclaration.type ?? ts.getJSDocType(metadata.propsDeclaration);
 		if (typeNode) {
+			// Read the name from the AST before the checker call so a throw
+			// below still knows what it failed to resolve
+			if (ts.isTypeReferenceNode(typeNode) && ts.isIdentifier(typeNode.typeName)) {
+				propsTypeName = typeNode.typeName.text;
+			}
 			try {
 				propsType = checker.getTypeAtLocation(typeNode);
 				propsTypeNode = typeNode;
-				if (ts.isTypeReferenceNode(typeNode) && ts.isIdentifier(typeNode.typeName)) {
-					propsTypeName = typeNode.typeName.text;
-				}
 			} catch (_) {
 				// Fall through — propsType stays undefined
 			}
@@ -869,8 +871,8 @@ const extractPropsViaChecker = (
 	}
 
 	if (!propsType || !propsTypeNode) {
-		// If $props() was used with a type name but the checker couldn't resolve it,
-		// emit a diagnostic (same as the legacy path)
+		// If $props() was used with a type name but the checker threw resolving
+		// it, emit a diagnostic
 		if (propsTypeName) {
 			diagnostics.push({
 				kind: 'svelte_prop_failed',

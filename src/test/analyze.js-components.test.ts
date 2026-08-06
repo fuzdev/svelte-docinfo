@@ -112,6 +112,25 @@ describe('JS component props via JSDoc @type', () => {
 			{ name: 'prop2', type: 'any', optional: false }
 		]);
 	});
+
+	test('an unresolvable @type reference extracts zero props without failing', async () => {
+		// JS twin of the TS-side `MissingType` test (svelte.test.ts): the
+		// checker resolves the reference to its error type — no properties,
+		// no crash. Analysis completing is the lock; like the TS side, no
+		// assertion on diagnostics (checker-behavior dependent).
+		const { modules } = await analyzeTestProject({
+			'src/lib/Comp.svelte': `<script>
+	/** @type {Missing} */
+	let { prop1 } = $props();
+</script>
+<div>{prop1}</div>
+`
+		});
+
+		const component = compOf(modules);
+		assert.strictEqual(component.lang, 'js');
+		assert.deepStrictEqual(component.props, []);
+	});
 });
 
 describe('JS component doc precedence', () => {

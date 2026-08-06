@@ -72,17 +72,19 @@ export interface VirtualFileEntry {
  *
  * Entries are copied to minimal `{content, scriptKind}` records so the host's
  * closures don't retain larger caller objects (a `SvelteVirtualFile`'s source
- * map, say) for the program's lifetime. Module resolution is not touched —
- * `.svelte` specifier mapping is layered separately.
+ * map, say) for the program's lifetime. The copied map is returned so callers
+ * layering module resolution on top (`.svelte` specifier mapping) can key it
+ * off the same snapshot instead of re-capturing the caller's map.
  *
  * @internal Shared host decoration for `createAnalysisProgram`; exported for
  *   test-side hosts — not a stable API.
  * @mutates host - replaces `getSourceFile`, `fileExists`, and `readFile`
+ * @returns the copied entries, keyed by path
  */
 export const applyVirtualFiles = (
 	host: ts.CompilerHost,
 	virtualFiles: ReadonlyMap<string, VirtualFileEntry>
-): void => {
+): ReadonlyMap<string, VirtualFileEntry> => {
 	const entries = new Map<string, VirtualFileEntry>();
 	for (const [path, entry] of virtualFiles) {
 		entries.set(path, { content: entry.content, scriptKind: entry.scriptKind });
@@ -110,6 +112,8 @@ export const applyVirtualFiles = (
 		if (entry !== undefined) return entry.content;
 		return originalReadFile.call(host, fileName);
 	};
+
+	return entries;
 };
 
 /**
@@ -310,11 +314,10 @@ export const createAnalysisProgram = (
 	const allRootFiles = [...rootFileNames, ...virtualFiles.keys()];
 
 	const host = ts.createCompilerHost(compilerOptions);
-	applyVirtualFiles(host, virtualFiles);
-	host.resolveModuleNameLiterals = createResolveModuleNameLiterals(
-		(p) => virtualFiles.has(p),
-		host
-	);
+	// Resolution keys off the copied snapshot, not the caller's map — same
+	// view as the file-serving hooks, and no `SvelteVirtualFile` retention.
+	const entries = applyVirtualFiles(host, virtualFiles);
+	host.resolveModuleNameLiterals = createResolveModuleNameLiterals((p) => entries.has(p), host);
 
 	return ts.createProgram(allRootFiles, compilerOptions, host);
 };
