@@ -15,6 +15,8 @@ Previously JS components yielded `props: []` silently and lost their HTML
   `@type`/`@typedef` blocks no longer claim the doc slot
 - `@property` descriptions on typedef-declared symbols now flow through
   `parseComment` for all extractors, not just component props
+- a checker throw while resolving the `$props()` type now emits the
+  `svelte_prop_failed` diagnostic it always claimed to (previously swallowed)
 
 Breaking API changes: `SvelteVirtualFile` replaces `lang` with `scriptKind`
 (analysis output unchanged); `virtualFiles` values and

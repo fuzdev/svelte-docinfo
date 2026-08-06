@@ -853,7 +853,10 @@ const extractPropsViaChecker = (
 		// the author's `@type {Props}`, or the `@type {$$ComponentProps}`
 		// typedef svelte2tsx synthesizes for untyped destructuring. The JSDoc
 		// type participates in checking because JS-lang virtuals parse with
-		// `ScriptKind.JS` (see `SvelteVirtualFile.scriptKind`).
+		// `ScriptKind.JS` (see `SvelteVirtualFile.scriptKind`). TS virtuals
+		// never reach the fallback — svelte2tsx synthesizes a real annotation
+		// (`$$ComponentProps`) even for untyped `$props()` — so a stray JSDoc
+		// `@type` on a TS component is ignored, not honored.
 		const typeNode = metadata.propsDeclaration.type ?? ts.getJSDocType(metadata.propsDeclaration);
 		if (typeNode) {
 			// Read the name from the AST before the checker call so a throw

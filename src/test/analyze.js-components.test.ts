@@ -113,6 +113,30 @@ describe('JS component props via JSDoc @type', () => {
 		]);
 	});
 
+	test('a stray JSDoc @type on a TS component is ignored', async () => {
+		// The `ts.getJSDocType` fallback never fires for TS virtuals:
+		// svelte2tsx synthesizes a real annotation (`$$ComponentProps`, all
+		// props `any`) even for untyped `$props()`, and the anchor prefers
+		// `.type` — even though the JSDoc reference here would resolve to
+		// `{prop1: string}` if consulted.
+		const { modules, diagnostics } = await analyzeTestProject({
+			'src/lib/Comp.svelte': `<script lang="ts">
+	type A = { prop1: string };
+	/** @type {A} */
+	let { prop1 } = $props();
+</script>
+<div>{prop1}</div>
+`
+		});
+
+		assert.deepStrictEqual(diagnostics, []);
+		const component = compOf(modules);
+		assert.strictEqual(component.lang, undefined);
+		assert.deepStrictEqual(propShapes(component), [
+			{ name: 'prop1', type: 'any', optional: false }
+		]);
+	});
+
 	test('an unresolvable @type reference extracts zero props without failing', async () => {
 		// JS twin of the TS-side `MissingType` test (svelte.test.ts): the
 		// checker resolves the reference to its error type — no properties,
