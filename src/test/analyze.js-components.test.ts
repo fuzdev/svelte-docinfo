@@ -279,6 +279,46 @@ describe('JS <script module> exports', () => {
 	});
 });
 
+describe('script lang detection', () => {
+	test('a JS component stays JS when its template mentions lang="ts"', async () => {
+		const { modules, diagnostics } = await analyzeTestProject({
+			'src/lib/Comp.svelte': `<script>
+	/** @type {{ label: string }} */
+	let { label } = $props();
+</script>
+<pre>{'<script lang="ts">'}</pre>
+<div>{label}</div>
+`
+		});
+
+		// a whole-file text scan would flip this component to ScriptKind.TS,
+		// silently discarding the JSDoc prop type
+		assert.deepStrictEqual(diagnostics, []);
+		const component = compOf(modules);
+		assert.strictEqual(component.lang, 'js');
+		assert.deepStrictEqual(propShapes(component), [
+			{ name: 'label', type: 'string', optional: false }
+		]);
+	});
+
+	test('lang="typescript" is recognized as TS', async () => {
+		const { modules, diagnostics } = await analyzeTestProject({
+			'src/lib/Comp.svelte': `<script lang="typescript">
+	let { label }: { label: string } = $props();
+</script>
+<div>{label}</div>
+`
+		});
+
+		assert.deepStrictEqual(diagnostics, []);
+		const component = compOf(modules);
+		assert.strictEqual(component.lang, undefined);
+		assert.deepStrictEqual(propShapes(component), [
+			{ name: 'label', type: 'string', optional: false }
+		]);
+	});
+});
+
 describe('session script-kind handling', () => {
 	test('a component flipping lang in place re-extracts under the new kind', async () => {
 		const TS_VERSION = `<script lang="ts">

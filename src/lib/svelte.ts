@@ -75,11 +75,11 @@ export interface SvelteVirtualFile {
 	sourceMap: SourceMap | null;
 	/**
 	 * Parser treatment for the virtual: `ts.ScriptKind.JS` for JS-only
-	 * components (no `lang="ts"`), so the checker reads their JSDoc types —
-	 * the parse tolerates the TS-only statements svelte2tsx emits (a grammar
-	 * diagnostic, never surfaced) — else `ts.ScriptKind.TS`. The single
-	 * encoding of the script language: `ComponentDeclarationJson.lang` is
-	 * derived from it at output.
+	 * components (no TS `lang` attribute), so the checker reads their JSDoc
+	 * types — the parse tolerates the TS-only statements svelte2tsx emits (a
+	 * grammar diagnostic, never surfaced) — else `ts.ScriptKind.TS`. The
+	 * single encoding of the script language: `ComponentDeclarationJson.lang`
+	 * is derived from it at output.
 	 */
 	scriptKind: ts.ScriptKind;
 }
@@ -128,7 +128,16 @@ export const transformSvelteSource = (sourceFile: SourceFileInfo): TransformResu
 	// already posixified at ingest.
 	const posixId = toPosixPath(sourceFile.id);
 	const diagnostics: Array<Diagnostic> = [];
-	const isTsFile = /lang\s*=\s*["']ts["']/.test(sourceFile.content);
+	// read `lang` from actual script-tag attributes — a whole-file text scan
+	// would false-positive on `lang="ts"` appearing in markup (e.g. a code
+	// sample), silently flipping a JS component to `ScriptKind.TS` and
+	// discarding its JSDoc prop types. `typescript` matches svelte2tsx's own
+	// detection, the engine this flag feeds; Svelte core takes only `ts`, so
+	// such a component doesn't compile, but extraction reads it as authored
+	const isTsFile = findScriptTags(sourceFile.content).some((tag) => {
+		const lang = tag.attributes.get('lang');
+		return lang === 'ts' || lang === 'typescript';
+	});
 
 	let tsResult: ReturnType<typeof svelte2tsx>;
 	try {
@@ -298,13 +307,14 @@ const extractComponentSourceLine = (
 /**
  * Extract the content of the main `<script>` tag from Svelte source.
  *
- * Matches `<script>` with any attributes (e.g., `lang`, `generics`) but excludes
- * module scripts (`<script module>`, `<script context="module">`).
+ * Matches `<script>` with any attributes (`lang`, `generics`, … — values
+ * containing `>` are fine), skips commented-out scripts, and excludes module
+ * scripts (`<script module>`, `<script context="module">`).
  *
  * @returns the script tag content, or undefined if no matching script tag is found
  */
 export const extractScriptContent = (svelteSource: string): string | undefined =>
-	findScript(svelteSource, false)?.content;
+	findScriptTags(svelteSource).find((tag) => !isModuleScript(tag.attributes))?.content;
 
 /**
  * Extract the content of the module `<script>` tag from Svelte source.
@@ -316,35 +326,91 @@ export const extractScriptContent = (svelteSource: string): string | undefined =
  * @returns the module script tag content, or undefined if no module script is found
  */
 export const extractModuleScriptContent = (svelteSource: string): string | undefined =>
-	findScript(svelteSource, true)?.content;
+	findScriptTags(svelteSource).find((tag) => isModuleScript(tag.attributes))?.content;
 
-/** A located script tag: its content plus where that content starts in the source. */
-interface ScriptContent {
+/** A located script tag: parsed attributes, content, and where the content starts in the source. */
+interface ScriptTag {
+	/** Opening-tag attributes; bare attributes (`module`) map to `true`. */
+	attributes: Map<string, string | true>;
 	content: string;
-	/** Offset of `content` within the full Svelte source. */
+	/**
+	 * Offset of `content` within the full Svelte source — lets callers map
+	 * positions inside the script back to original-source lines (the
+	 * legacy-prop scan needs this).
+	 */
 	start: number;
 }
 
 /**
- * Shared scan behind `extractScriptContent`/`extractModuleScriptContent`.
+ * Scan Svelte source for script tags, in source order.
  *
- * A script tag is a module script when its attributes contain the word
- * `module` — covers Svelte 5 `<script module>` (with any `lang`) and
- * Svelte 4 `<script context="module">`. The content's `start` offset lets
- * callers map positions inside the script back to original-source lines
- * (the legacy-prop scan needs this).
+ * The regex is ported from Svelte's own preprocessor
+ * (`svelte/src/compiler/preprocess`): quote-aware attribute matching so `>`
+ * inside an attribute value (`generics="T extends () => void"`) doesn't end
+ * the opening tag, an HTML-comment alternative so commented-out scripts are
+ * skipped, and a self-closing branch (`<script />` has no content and is
+ * dropped). Local adaptations: the `d` flag for content offsets, no `i`
+ * flag (`<Script>` is a component — Svelte tag names are lowercase), and
+ * `\s*` before the closing `>` to match the parser's `/<\/script\s*>/`.
+ * Shared preprocessor limits, both costless: whitespace around an attribute
+ * `=` makes the tag unmatchable (Svelte's parser rejects that spelling —
+ * svelte2tsx throws first), and `</script>` inside a string literal ends
+ * the content early.
  */
-const findScript = (svelteSource: string, wantModule: boolean): ScriptContent | undefined => {
-	const scriptRegex = /<script(\s+[^>]*)?>([^]*?)<\/script>/dgi;
+const findScriptTags = (svelteSource: string): Array<ScriptTag> => {
+	const scriptRegex =
+		/<!--[^]*?-->|<script((?:\s+[^=>'"/\s]+=(?:"[^"]*"|'[^']*'|[^>\s]+)|\s+[^=>'"/\s]+)*\s*)(?:\/>|>([^]*?)<\/script\s*>)/dg;
+	const tags: Array<ScriptTag> = [];
 	let match;
 	while ((match = scriptRegex.exec(svelteSource)) !== null) {
-		const attrs = match[1] ?? '';
-		if (/\bmodule\b/.test(attrs) === wantModule) {
-			return { content: match[2]!, start: match.indices![2]![0] };
-		}
+		// the comment alternative and the self-closing branch capture no content
+		if (match[2] === undefined) continue;
+		tags.push({
+			attributes: parseAttributes(match[1]!),
+			content: match[2],
+			start: match.indices![2]![0]
+		});
 	}
-	return undefined;
+	return tags;
 };
+
+/**
+ * Parse an opening-tag attribute string into a name → value map.
+ *
+ * Bare attributes map to `true`; valued attributes to their unquoted text.
+ * The token grammar mirrors `findScriptTags`'s attribute branch, so anything
+ * that regex matched parses cleanly here.
+ */
+const parseAttributes = (attrs: string): Map<string, string | true> => {
+	const attributes: Map<string, string | true> = new Map();
+	const attributeRegex = /([^=>'"/\s]+)(?:=(?:"([^"]*)"|'([^']*)'|([^>\s]+)))?/g;
+	let match;
+	while ((match = attributeRegex.exec(attrs)) !== null) {
+		attributes.set(match[1]!, match[2] ?? match[3] ?? match[4] ?? true);
+	}
+	return attributes;
+};
+
+/** Collect the raw content of each HTML comment (`<!-- ... -->`) in source order. */
+const findHtmlComments = (svelteSource: string): Array<string> => {
+	const commentRegex = /<!--([^]*?)-->/g;
+	const contents: Array<string> = [];
+	let match;
+	while ((match = commentRegex.exec(svelteSource)) !== null) {
+		contents.push(match[1]!);
+	}
+	return contents;
+};
+
+/**
+ * A script tag is a module script when it carries a `module` attribute
+ * (Svelte 5 `<script module>`) or `context="module"` (Svelte 4) — the same
+ * test as Svelte's `read_script`, minus its error paths. The word `module`
+ * inside an attribute *value* (`generics="T extends import('./module.js').Item"`)
+ * doesn't count.
+ */
+const isModuleScript = (attributes: Map<string, string | true>): boolean =>
+	attributes.has('module') || attributes.get('context') === 'module';
 
 /**
  * Parse script-tag content as standalone TypeScript for syntactic scans.
@@ -447,11 +513,7 @@ const detectLegacyProps = (scriptSource: ts.SourceFile): Array<LegacyProp> => {
  * @returns the cleaned module comment text, or undefined if no `@module` HTML comment found
  */
 export const extractHtmlModuleComment = (svelteSource: string): string | undefined => {
-	const commentRegex = /<!--([^]*?)-->/g;
-	let match;
-	while ((match = commentRegex.exec(svelteSource)) !== null) {
-		const rawContent = match[1]!;
-
+	for (const rawContent of findHtmlComments(svelteSource)) {
 		// Clean: normalize CRLF, strip leading/trailing whitespace per line, trim
 		const cleaned = rawContent
 			.replace(/\r\n/g, '\n')
@@ -494,16 +556,8 @@ export const extractSvelteModuleComment = (scriptContent: string): string | unde
  * Only checks HTML comments (`<!-- @component ... -->`), not JSDoc in `<script>`.
  * Used for duplicate `docComment` detection.
  */
-const hasHtmlComponentComment = (svelteSource: string): boolean => {
-	// Match HTML comments and check for @component tag
-	const commentRegex = /<!--([^]*?)-->/g;
-	let match;
-	while ((match = commentRegex.exec(svelteSource)) !== null) {
-		const content = match[1]!;
-		if (/(?:^|\n)\s*@component\b/.test(content)) return true;
-	}
-	return false;
-};
+const hasHtmlComponentComment = (svelteSource: string): boolean =>
+	findHtmlComments(svelteSource).some((content) => /(?:^|\n)\s*@component\b/.test(content));
 
 /** A component `docComment` plus the authoring form it came from. */
 interface ComponentTsdoc {
@@ -1248,9 +1302,10 @@ export const analyzeSvelteModule = (
 
 	const isExternalFile = createIsExternalFile(options);
 
-	// Locate and parse the instance script once — the legacy-prop scan below
-	// and the module comment extraction in step 4 both read the parsed source
-	const instanceScript = findScript(sourceFile.content, false);
+	// Scan the original source for script tags once — the legacy-prop scan
+	// reads the instance script, step 4's module-comment extraction reads both
+	const scriptTags = findScriptTags(sourceFile.content);
+	const instanceScript = scriptTags.find((tag) => !isModuleScript(tag.attributes));
 	const instanceScriptSource = instanceScript
 		? parseScriptContent(instanceScript.content)
 		: undefined;
@@ -1354,9 +1409,9 @@ export const analyzeSvelteModule = (
 	const instanceModuleComment = instanceScriptSource
 		? extractModuleComment(instanceScriptSource)
 		: undefined;
-	const moduleScriptContent = extractModuleScriptContent(sourceFile.content);
-	const scriptModuleComment = moduleScriptContent
-		? extractSvelteModuleComment(moduleScriptContent)
+	const moduleScript = scriptTags.find((tag) => isModuleScript(tag.attributes));
+	const scriptModuleComment = moduleScript
+		? extractSvelteModuleComment(moduleScript.content)
 		: undefined;
 	const htmlModuleComment = extractHtmlModuleComment(sourceFile.content);
 	const moduleComment = instanceModuleComment ?? scriptModuleComment ?? htmlModuleComment;
