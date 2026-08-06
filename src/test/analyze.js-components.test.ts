@@ -301,10 +301,12 @@ describe('script lang detection', () => {
 		]);
 	});
 
-	test('lang="typescript" is recognized as TS', async () => {
+	test('lang="typescript" is treated as JS, matching the Svelte compiler', async () => {
+		// only lang="ts" sets the compiler's TS mode, so JSDoc prop types apply
 		const { modules, diagnostics } = await analyzeTestProject({
 			'src/lib/Comp.svelte': `<script lang="typescript">
-	let { label }: { label: string } = $props();
+	/** @type {{ label: string }} */
+	let { label } = $props();
 </script>
 <div>{label}</div>
 `
@@ -312,7 +314,7 @@ describe('script lang detection', () => {
 
 		assert.deepStrictEqual(diagnostics, []);
 		const component = compOf(modules);
-		assert.strictEqual(component.lang, undefined);
+		assert.strictEqual(component.lang, 'js');
 		assert.deepStrictEqual(propShapes(component), [
 			{ name: 'label', type: 'string', optional: false }
 		]);

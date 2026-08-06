@@ -18,7 +18,9 @@ pattern-matching raw tag text:
 - commented-out scripts (`<!-- <script>… -->`) are skipped
 - `</script >` is matched (Svelte's parser accepts it); self-closing
   `<script />` and capitalized `<Script>` component tags are not
-- `lang` is read from script-tag attributes, not a whole-file text search —
-  `lang="ts"` appearing in markup no longer flips a JS component to TS
-  parsing and silently discards its JSDoc prop types. `lang="typescript"`
-  is now recognized, matching svelte2tsx's detection
+- `lang` is read from script-tag attributes, not a whole-file text search, so
+  `lang="ts"` appearing in markup no longer flips a JS component to TS parsing
+  and silently discards its JSDoc prop types
+- `lang` detection matches the Svelte compiler: the first script tag with a
+  valued `lang` decides the file, and only `lang="ts"` counts —
+  `lang="typescript"` is now treated as JS

@@ -760,19 +760,32 @@ describe('transformSvelteSource script-kind detection', () => {
 		assert.strictEqual(kind, ts.ScriptKind.JS);
 	});
 
-	test('lang="typescript" parses as TS', () => {
-		// svelte2tsx's own detection accepts ts|typescript; match the engine we feed
+	test('lang="typescript" parses as JS — Svelte core accepts only ts', () => {
+		// svelte2tsx's fallback detection takes ts|typescript; the compiler
+		// doesn't, and it decides whether the component compiles at all
 		const kind = scriptKindOf(`<script lang="typescript">
-	let {a}: {a: string} = $props();
+	let {a} = $props();
 </script>
 <div>{a}</div>`);
-		assert.strictEqual(kind, ts.ScriptKind.TS);
+		assert.strictEqual(kind, ts.ScriptKind.JS);
+	});
+
+	test('the first valued lang attribute decides the whole file', () => {
+		// the compiler's ts flag is parser-wide, so this instance lang="ts"
+		// can't flip a file the module script already declared js
+		const kind = scriptKindOf(`<script module lang="js">
+	export const shared = 'value';
+</script>
+<script lang="ts">
+	let {a} = $props();
+</script>
+<div>{a}</div>`);
+		assert.strictEqual(kind, ts.ScriptKind.JS);
 	});
 
 	test('whitespace around the lang = sign is a Svelte parse error', () => {
-		// the scan requiring literal `lang=` costs nothing: Svelte's own
-		// parser rejects the spaced spelling, so svelte2tsx throws before
-		// script kind could matter
+		// requiring a literal `lang=` costs nothing — Svelte's parser rejects
+		// the spaced spelling, so svelte2tsx throws before kind could matter
 		const result = transformSvelteSource({
 			id: '/project/src/lib/Comp.svelte',
 			content: `<script lang = "ts">
