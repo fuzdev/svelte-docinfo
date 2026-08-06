@@ -81,6 +81,7 @@ export const DiagnosticKind = z.enum([
 	'signature_analysis_failed',
 	'class_member_failed',
 	'svelte_prop_failed',
+	'legacy_props',
 	'module_skipped',
 	'module_unreadable',
 	'import_parse_failed',
@@ -172,6 +173,26 @@ export const SveltePropDiagnostic = z.strictObject({
 	propName: z.string()
 });
 export type SveltePropDiagnostic = z.infer<typeof SveltePropDiagnostic>;
+
+/**
+ * Legacy (runes-less) component props detected — not extracted.
+ *
+ * `export let` components are still-legal Svelte 5 syntax, but prop extraction
+ * anchors on the `$props()` declaration, so their props yield no
+ * `ComponentPropJson` entries. Emitted once per component, listing the
+ * detected prop names — exported `let`/`var` statements plus export-clause
+ * renames of mutable bindings (`export {a as b}`) — with `line` pointing at
+ * the first legacy prop export in the original `.svelte` source.
+ */
+export const LegacyPropsDiagnostic = z.strictObject({
+	kind: z.literal('legacy_props'),
+	...baseDiagnosticFields,
+	/** Name of the component. */
+	componentName: z.string(),
+	/** Exported prop names, in source order. */
+	propNames: z.array(z.string()).min(1)
+});
+export type LegacyPropsDiagnostic = z.infer<typeof LegacyPropsDiagnostic>;
 
 /**
  * Module was skipped during the analysis pass.
@@ -367,6 +388,7 @@ export const Diagnostic: z.ZodDiscriminatedUnion<
 		typeof SignatureAnalysisDiagnostic,
 		typeof ClassMemberDiagnostic,
 		typeof SveltePropDiagnostic,
+		typeof LegacyPropsDiagnostic,
 		typeof ModuleSkippedDiagnostic,
 		typeof ModuleUnreadableDiagnostic,
 		typeof ImportParseDiagnostic,
@@ -384,6 +406,7 @@ export const Diagnostic: z.ZodDiscriminatedUnion<
 	SignatureAnalysisDiagnostic,
 	ClassMemberDiagnostic,
 	SveltePropDiagnostic,
+	LegacyPropsDiagnostic,
 	ModuleSkippedDiagnostic,
 	ModuleUnreadableDiagnostic,
 	ImportParseDiagnostic,
