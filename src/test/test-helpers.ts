@@ -165,14 +165,14 @@ export const createTestProject = async (
  * @param fn - Test function receiving the project root path
  * @param options - Optional configuration passed to createTestProject
  */
-export const withTestProject = async (
+export const withTestProject = async <T = void>(
 	files: Record<string, string>,
-	fn: (projectRoot: string) => Promise<void>,
+	fn: (projectRoot: string) => Promise<T>,
 	options?: Parameters<typeof createTestProject>[1]
-): Promise<void> => {
+): Promise<T> => {
 	const { projectRoot, cleanup } = await createTestProject(files, options);
 	try {
-		await fn(projectRoot);
+		return await fn(projectRoot);
 	} finally {
 		await cleanup();
 	}

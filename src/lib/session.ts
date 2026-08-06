@@ -610,9 +610,9 @@ export const createAnalysisSession = (options: AnalysisSessionOptions): Analysis
 		// Transform-failed Svelte: no virtual; skip.
 		const analyzer = sourceOptions.getAnalyzerType(pending.file.id);
 		if (pending.virtual) {
-			ls.setFile(pending.virtual.virtualPath, pending.virtual.content);
+			ls.setFile(pending.virtual.virtualPath, pending.virtual);
 		} else if (analyzer === 'typescript') {
-			ls.setFile(pending.file.id, pending.file.content);
+			ls.setFile(pending.file.id, pending.file);
 		} else if (pending.previousVirtualPath) {
 			// Transform regressed (had virtual → now transform_failed). Evict the
 			// stale virtual from the LS so other files importing this `.svelte`

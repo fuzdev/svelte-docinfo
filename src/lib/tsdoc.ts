@@ -35,6 +35,10 @@
  * and tags) — module comments attach to the file's first statement in the AST
  * and are owned by `extractModuleComment` instead.
  *
+ * `JSDocPropertyLikeTag` nodes (`@property`/`@param` declaring a symbol in a
+ * typedef or callback) parse to their own tag description — the only doc such
+ * a declaration can carry.
+ *
  * Due to TS Compiler API limitations:
  * - TS API includes dash separator in `@param` tag text; we strip the leading `- ` as it's syntax, not content
  * - `@throws` tags have `{Type}` stripped by TS API; fallback regex extracts first word as error type
@@ -133,7 +137,7 @@ const belongsToModuleBlock = (node: ts.JSDoc | ts.JSDocTag): boolean =>
  * (`typescript-exports.ts`) owns module comments.
  *
  * @param node - the TypeScript node to extract JSDoc from
- * @param sourceFile - source file (used for extracting full `@see` tag text)
+ * @param sourceFile - source file for full-text tag reads (`@see`); defaults to the node's own
  * @returns parsed comment with structured metadata, or undefined if no JSDoc found (or only `@module` blocks)
  *
  * @example
@@ -147,8 +151,19 @@ const belongsToModuleBlock = (node: ts.JSDoc | ts.JSDocTag): boolean =>
  */
 export const parseComment = (
 	node: ts.Node,
-	sourceFile: ts.SourceFile
+	sourceFile: ts.SourceFile = node.getSourceFile()
 ): TsdocParsedComment | undefined => {
+	// `@property`/`@param` tags declare symbols themselves (JSDoc typedefs,
+	// callbacks); their description rides the tag, not an attached block —
+	// `getJSDocCommentsAndTags` on the tag finds nothing
+	if (ts.isJSDocPropertyLikeTag(node)) {
+		const text = ts.getTextOfJSDocComment(node.comment);
+		const cleaned = text && cleanTagDescription(text);
+		if (!cleaned) return undefined;
+		const params: Record<string, string> = Object.create(null);
+		return { text: cleaned, params };
+	}
+
 	const tsdocComments = ts.getJSDocCommentsAndTags(node).filter((c) => !belongsToModuleBlock(c));
 	if (tsdocComments.length === 0) return undefined;
 
@@ -257,6 +272,23 @@ export const parseComment = (
 		nodocs
 	};
 };
+
+/**
+ * Whether a parsed comment carries any documentation — description text or an
+ * extracted tag.
+ *
+ * Type machinery parses to an empty result (`@type`/`@typedef`/`@template`
+ * tags populate no fields), so doc-hunting walks (component `docComment`) use
+ * this to keep lower-precedence sources like the HTML `@component` comment
+ * reachable instead of letting an annotation claim the doc slot with empty
+ * text. Structural over the parsed result — any field beyond `text`/`params`
+ * counts when present — so it can't drift from `parseComment`'s extraction or
+ * from `TsdocParsedComment` gaining fields.
+ */
+export const hasDocContent = ({ text, params, ...tags }: TsdocParsedComment): boolean =>
+	text.length > 0 ||
+	Object.keys(params).length > 0 ||
+	Object.values(tags).some((value) => value !== undefined);
 
 /**
  * Apply parsed TSDoc metadata to a declaration.

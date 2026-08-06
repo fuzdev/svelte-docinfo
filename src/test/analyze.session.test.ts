@@ -18,6 +18,10 @@
  * 7. **Transform-failed placeholder** — Svelte files whose svelte2tsx throws
  *    surface in `query().modules` as `{partial: true, declarations: []}`.
  *
+ * The script-kind facet of mutation correctness — a component flipping
+ * `lang="ts"` in place must reparse under the new kind — is covered in
+ * `analyze.js-components.test.ts` (session script-kind handling).
+ *
  * The svelte2tsx call-count tests use `vi.spyOn` on the `svelte` module
  * namespace — Vitest's ESM transform routes named imports through the
  * namespace, so spying there intercepts the binding the session reads.

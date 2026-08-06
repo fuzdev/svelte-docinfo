@@ -55,19 +55,83 @@ export interface LoadTsconfigOptions {
 }
 
 /**
+ * A host-served file entry: content plus optional parser treatment.
+ */
+export interface VirtualFileEntry {
+	content: string;
+	/**
+	 * Overrides script-kind inference from the path's extension; `undefined`
+	 * defers to the extension.
+	 */
+	scriptKind?: ts.ScriptKind;
+}
+
+/**
+ * Decorate a compiler host so `virtualFiles` shadow the filesystem —
+ * `getSourceFile` (honoring per-entry `scriptKind`), `fileExists`, `readFile`.
+ *
+ * Entries are copied to minimal `{content, scriptKind}` records so the host's
+ * closures don't retain larger caller objects (a `SvelteVirtualFile`'s source
+ * map, say) for the program's lifetime. The copied map is returned so callers
+ * layering module resolution on top (`.svelte` specifier mapping) can key it
+ * off the same snapshot instead of re-capturing the caller's map.
+ *
+ * @internal Shared host decoration for `createAnalysisProgram`; exported for
+ *   test-side hosts — not a stable API.
+ * @mutates host - replaces `getSourceFile`, `fileExists`, and `readFile`
+ * @returns the copied entries, keyed by path
+ */
+export const applyVirtualFiles = (
+	host: ts.CompilerHost,
+	virtualFiles: ReadonlyMap<string, VirtualFileEntry>
+): ReadonlyMap<string, VirtualFileEntry> => {
+	const entries = new Map<string, VirtualFileEntry>();
+	for (const [path, entry] of virtualFiles) {
+		entries.set(path, { content: entry.content, scriptKind: entry.scriptKind });
+	}
+
+	const originalGetSourceFile = host.getSourceFile;
+	const originalFileExists = host.fileExists;
+	const originalReadFile = host.readFile;
+
+	host.getSourceFile = (fileName, languageVersion, onError, shouldCreate) => {
+		const entry = entries.get(fileName);
+		if (entry !== undefined) {
+			return ts.createSourceFile(fileName, entry.content, languageVersion, true, entry.scriptKind);
+		}
+		return originalGetSourceFile.call(host, fileName, languageVersion, onError, shouldCreate);
+	};
+
+	host.fileExists = (fileName) => {
+		if (entries.has(fileName)) return true;
+		return originalFileExists.call(host, fileName);
+	};
+
+	host.readFile = (fileName) => {
+		const entry = entries.get(fileName);
+		if (entry !== undefined) return entry.content;
+		return originalReadFile.call(host, fileName);
+	};
+
+	return entries;
+};
+
+/**
  * Options for `createAnalysisProgram`.
  */
 export interface AnalysisProgramOptions extends LoadTsconfigOptions {
 	/**
-	 * Virtual files to seed the program (maps virtual path to content).
+	 * Virtual files to seed the program, keyed by virtual path.
 	 *
 	 * Used to include svelte2tsx transformed outputs alongside real source files,
 	 * enabling full type resolution for Svelte components via the checker.
+	 * `SvelteVirtualFile` satisfies the entry shape structurally, so transform
+	 * results can be passed as entries directly.
 	 *
 	 * On a `LanguageService`, virtuals can also be added/replaced/removed after
 	 * construction via `setFile` / `deleteFile`.
 	 */
-	virtualFiles?: Map<string, string>;
+	virtualFiles?: Map<string, VirtualFileEntry>;
 }
 
 /**
@@ -87,14 +151,15 @@ export interface AnalysisLanguageServiceOptions extends AnalysisProgramOptions {
 /**
  * Persistent language-service handle that drives a `ts.Program` incrementally.
  *
- * Owns the LS, document registry, and a `Map<path, {content, version}>` of
- * "owned" files (real source files + virtuals pushed via `setFile`). Files
- * not in the owned map are read from disk on demand by the LS host.
+ * Owns the LS, document registry, and a `Map<path, {content, version,
+ * scriptKind}>` of "owned" files (real source files + virtuals pushed via
+ * `setFile`). Files not in the owned map are read from disk on demand by the
+ * LS host.
  *
- * Each `setFile(path, content)` bumps the version when content differs from
- * cache, so the next `getProgram()` reparses only the changed file. Calling
- * `getProgram()` with no version bumps returns the same `ts.Program` as the
- * previous call (reference-stable when nothing changed).
+ * Each `setFile(path, entry)` bumps the version when content or script kind
+ * differs from cache, so the next `getProgram()` reparses only the changed
+ * file. Calling `getProgram()` with no version bumps returns the same
+ * `ts.Program` as the previous call (reference-stable when nothing changed).
  *
  * @see `createAnalysisSession` in `session.ts` for the high-level API that
  * wraps this with content cache + svelte virtual cache + analysis pipeline.
@@ -116,12 +181,12 @@ export interface AnalysisLanguageService {
 	 * Set or replace a file's content (real path or virtual path).
 	 *
 	 * - New file: added to the owned map with version 1.
-	 * - Existing file with identical content: no-op (version unchanged).
-	 * - Existing file with new content: version bumped.
+	 * - Existing file with identical content and script kind: no-op (version unchanged).
+	 * - Existing file with new content or script kind: version bumped.
 	 *
 	 * @returns `true` when the file was added or its version bumped, `false` on no-op.
 	 */
-	setFile(path: string, content: string): boolean;
+	setFile(path: string, entry: VirtualFileEntry): boolean;
 	/**
 	 * Remove a file from the owned set.
 	 *
@@ -200,6 +265,24 @@ const resolveSvelteVirtualSpecifier = (
 };
 
 /**
+ * Build the `resolveModuleNameLiterals` hook shared by the `CompilerHost` and
+ * `LanguageServiceHost` paths: `.svelte` specifiers map to owned virtuals via
+ * `resolveSvelteVirtualSpecifier`; everything else falls through to
+ * `ts.resolveModuleName` against `resolutionHost`.
+ */
+const createResolveModuleNameLiterals =
+	(
+		hasVirtual: (path: string) => boolean,
+		resolutionHost: ts.ModuleResolutionHost
+	): NonNullable<ts.LanguageServiceHost['resolveModuleNameLiterals']> =>
+	(literals, containingFile, _redirected, options) =>
+		literals.map((literal) => {
+			const resolved = resolveSvelteVirtualSpecifier(literal.text, containingFile, hasVirtual);
+			if (resolved) return { resolvedModule: resolved };
+			return ts.resolveModuleName(literal.text, containingFile, options, resolutionHost);
+		});
+
+/**
  * Create TypeScript program for one-shot analysis.
  *
  * Use `createAnalysisLanguageService` instead when you need to analyze the
@@ -231,38 +314,10 @@ export const createAnalysisProgram = (
 	const allRootFiles = [...rootFileNames, ...virtualFiles.keys()];
 
 	const host = ts.createCompilerHost(compilerOptions);
-	const originalGetSourceFile = host.getSourceFile;
-	const originalFileExists = host.fileExists;
-	const originalReadFile = host.readFile;
-
-	host.getSourceFile = (fileName, languageVersion, onError, shouldCreate) => {
-		const virtualContent = virtualFiles.get(fileName);
-		if (virtualContent !== undefined) {
-			return ts.createSourceFile(fileName, virtualContent, languageVersion, true);
-		}
-		return originalGetSourceFile.call(host, fileName, languageVersion, onError, shouldCreate);
-	};
-
-	host.fileExists = (fileName) => {
-		if (virtualFiles.has(fileName)) return true;
-		return originalFileExists.call(host, fileName);
-	};
-
-	host.readFile = (fileName) => {
-		const virtualContent = virtualFiles.get(fileName);
-		if (virtualContent !== undefined) return virtualContent;
-		return originalReadFile.call(host, fileName);
-	};
-
-	host.resolveModuleNameLiterals = (literals, containingFile, _redirected, optionsInner) => {
-		return literals.map((literal) => {
-			const resolved = resolveSvelteVirtualSpecifier(literal.text, containingFile, (p) =>
-				virtualFiles.has(p)
-			);
-			if (resolved) return { resolvedModule: resolved };
-			return ts.resolveModuleName(literal.text, containingFile, optionsInner, host);
-		});
-	};
+	// Resolution keys off the copied snapshot, not the caller's map — same
+	// view as the file-serving hooks, and no `SvelteVirtualFile` retention.
+	const entries = applyVirtualFiles(host, virtualFiles);
+	host.resolveModuleNameLiterals = createResolveModuleNameLiterals((p) => entries.has(p), host);
 
 	return ts.createProgram(allRootFiles, compilerOptions, host);
 };
@@ -284,10 +339,10 @@ export const createAnalysisProgram = (
  * @example
  * ```ts
  * const ls = createAnalysisLanguageService({projectRoot});
- * ls.setFile('/abs/path/to/foo.ts', 'export const x = 1;');
+ * ls.setFile('/abs/path/to/foo.ts', {content: 'export const x = 1;'});
  * const program = ls.getProgram();
  * // ... use program ...
- * ls.setFile('/abs/path/to/foo.ts', 'export const x = 2;'); // bumps version
+ * ls.setFile('/abs/path/to/foo.ts', {content: 'export const x = 2;'}); // bumps version
  * const program2 = ls.getProgram(); // fresh program, foo.ts reparsed
  * ls.dispose();
  * ```
@@ -300,8 +355,7 @@ export const createAnalysisLanguageService = (
 	const { compilerOptions, rootFileNames } = loadTsconfig(options, log);
 	const documentRegistry = options?.documentRegistry ?? ts.createDocumentRegistry();
 
-	interface OwnedFile {
-		content: string;
+	interface OwnedFile extends VirtualFileEntry {
 		version: number;
 		snapshot: ts.IScriptSnapshot;
 	}
@@ -314,13 +368,22 @@ export const createAnalysisLanguageService = (
 	// Tracked separately so `deleteFile` can drop them from the LS's root list.
 	const ownedRoots = new Set<string>();
 
-	const setFileInternal = (path: string, content: string): boolean => {
+	const setFileInternal = (path: string, entry: VirtualFileEntry): boolean => {
 		const existing = owned.get(path);
-		if (existing && existing.content === content) return false;
+		// Script-kind change with identical content still bumps — a `.svelte`
+		// file flipping `lang` must reparse under the new kind.
+		if (
+			existing &&
+			existing.content === entry.content &&
+			existing.scriptKind === entry.scriptKind
+		) {
+			return false;
+		}
 		owned.set(path, {
-			content,
+			content: entry.content,
 			version: existing ? existing.version + 1 : 1,
-			snapshot: ts.ScriptSnapshot.fromString(content)
+			snapshot: ts.ScriptSnapshot.fromString(entry.content),
+			scriptKind: entry.scriptKind
 		});
 		if (!tsconfigRoots.has(path)) ownedRoots.add(path);
 		return true;
@@ -328,8 +391,8 @@ export const createAnalysisLanguageService = (
 
 	// Seed initial virtuals from options. Common path for one-shot callers.
 	if (options?.virtualFiles) {
-		for (const [path, content] of options.virtualFiles) {
-			setFileInternal(path, content);
+		for (const [path, entry] of options.virtualFiles) {
+			setFileInternal(path, entry);
 		}
 	}
 
@@ -376,6 +439,9 @@ export const createAnalysisLanguageService = (
 		},
 		getCurrentDirectory: () => projectRoot,
 		getDefaultLibFileName: ts.getDefaultLibFilePath,
+		// `ScriptKind.Unknown` (0) is falsy, so `ensureScriptKind` falls back to
+		// extension inference for files without an override — the pre-hook default.
+		getScriptKind: (fileName) => owned.get(fileName)?.scriptKind ?? ts.ScriptKind.Unknown,
 		fileExists: moduleResolutionHost.fileExists,
 		readFile: moduleResolutionHost.readFile,
 		directoryExists: moduleResolutionHost.directoryExists,
@@ -383,20 +449,10 @@ export const createAnalysisLanguageService = (
 		readDirectory: ts.sys.readDirectory,
 		realpath: moduleResolutionHost.realpath,
 		useCaseSensitiveFileNames: () => ts.sys.useCaseSensitiveFileNames,
-		resolveModuleNameLiterals: (literals, containingFile, _redirected, optionsInner) => {
-			return literals.map((literal) => {
-				const resolved = resolveSvelteVirtualSpecifier(literal.text, containingFile, (p) =>
-					owned.has(p)
-				);
-				if (resolved) return { resolvedModule: resolved };
-				return ts.resolveModuleName(
-					literal.text,
-					containingFile,
-					optionsInner,
-					moduleResolutionHost
-				);
-			});
-		}
+		resolveModuleNameLiterals: createResolveModuleNameLiterals(
+			(p) => owned.has(p),
+			moduleResolutionHost
+		)
 	};
 
 	const ls = ts.createLanguageService(host, documentRegistry);
@@ -409,7 +465,7 @@ export const createAnalysisLanguageService = (
 		return program;
 	};
 
-	const setFile = (path: string, content: string): boolean => setFileInternal(path, content);
+	const setFile = (path: string, entry: VirtualFileEntry): boolean => setFileInternal(path, entry);
 
 	const deleteFile = (path: string): boolean => {
 		const removed = owned.delete(path);

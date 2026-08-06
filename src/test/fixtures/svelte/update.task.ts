@@ -37,9 +37,10 @@ export const task: Task = {
 			})
 		);
 
-		// Create a single shared program with all virtual files
+		// Create a single shared program with all virtual files. Entries carry
+		// `scriptKind` so JS-lang fixtures parse as JS (JSDoc types).
 		const allVirtualFiles = new Map(
-			fixtureData.map((d) => [d.virtualFile.virtualPath, d.virtualFile.content])
+			fixtureData.map((d) => [d.virtualFile.virtualPath, d.virtualFile])
 		);
 		const program = createAnalysisProgram({ virtualFiles: allVirtualFiles });
 		const checker = program.getTypeChecker();

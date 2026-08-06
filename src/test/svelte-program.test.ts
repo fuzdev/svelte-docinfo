@@ -157,14 +157,12 @@ let {color}: {color: Color} = $props();
 			const sourceFiles = createSourceFiles(projectRoot, files);
 
 			// Pre-transform and include in program
-			const virtualFiles = new Map<string, string>();
-			const svelteVirtuals = new Map<string, SvelteVirtualFile>();
+			const virtualFiles = new Map<string, SvelteVirtualFile>();
 			for (const sf of sourceFiles) {
 				if (sf.id.endsWith('.svelte')) {
 					const { virtual } = transformSvelteSource(sf);
 					if (!virtual) throw new Error(`transform failed for ${sf.id}`);
-					virtualFiles.set(virtual.virtualPath, virtual.content);
-					svelteVirtuals.set(sf.id, virtual);
+					virtualFiles.set(virtual.virtualPath, virtual);
 				}
 			}
 
@@ -174,9 +172,8 @@ let {color}: {color: Color} = $props();
 			});
 
 			// Verify virtual file is in the program
-			for (const [, virtual] of svelteVirtuals) {
-				const tsSource = program.getSourceFile(virtual.virtualPath);
-				assert.ok(tsSource, 'Virtual file should be in program');
+			for (const virtualPath of virtualFiles.keys()) {
+				assert.ok(program.getSourceFile(virtualPath), 'Virtual file should be in program');
 			}
 		});
 	});
