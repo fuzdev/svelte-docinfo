@@ -3,6 +3,13 @@
 		"name": "ComponentJavascript",
 		"kind": "component",
 		"lang": "js",
+		"props": [
+			{
+				"name": "prop1",
+				"type": "any"
+			}
+		],
+		"docComment": "Description.",
 		"sourceLine": 6
 	}
 ]

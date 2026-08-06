@@ -1,11 +1,15 @@
 /**
  * Shared test helpers for module analysis tests.
  *
- * Provides consistent test options and program creation for
- * source, analyze, typescript, and svelte tests.
+ * Provides consistent test options, program creation, and pipeline-level
+ * `analyze` wrappers for source, analyze, typescript, and svelte tests.
+ * Lib-coupled — pulls the analysis pipeline (svelte2tsx included) into every
+ * importer; fs/fixture/assertion helpers with no such weight live in
+ * `test-helpers.ts`.
  */
 
 import ts from 'typescript';
+import { join } from 'node:path';
 
 import {
 	createSourceOptions,
@@ -13,6 +17,31 @@ import {
 	type ModuleSourceOptions,
 	type SourceOptionsDefaults
 } from '$lib/source-config.ts';
+import { applyVirtualFiles, type VirtualFileEntry } from '$lib/typescript-program.ts';
+import { analyze } from '$lib/analyze.ts';
+import type { AnalyzeResultJson } from '$lib/analyze-core.ts';
+
+import { withTestProject } from './test-helpers.ts';
+
+/**
+ * Analyze a temporary on-disk project built from `files` (one-shot).
+ *
+ * The common shape of pipeline-level `analyze` tests: write the files, analyze
+ * them, clean up, return the result envelope. Every entry is handed to
+ * `analyze` as a source file — the default `sourceOptions` still scope module
+ * extraction to `src/lib`, so extra files (a root `package.json`, say) don't
+ * become modules.
+ */
+export const analyzeTestProject = (files: Record<string, string>): Promise<AnalyzeResultJson> =>
+	withTestProject(files, (projectRoot) =>
+		analyze({
+			sourceFiles: Object.entries(files).map(([path, content]) => ({
+				id: join(projectRoot, path),
+				content
+			})),
+			sourceOptions: createSourceOptions(projectRoot)
+		})
+	);
 
 /** Default project root for tests. */
 export const TEST_PROJECT_ROOT = '/home/user/project';
@@ -91,7 +120,7 @@ export const createVirtualSourceOptions = (
  * @param files Array of virtual files with path and content
  */
 export const createTestProgram = (files: Array<{ path: string; content: string }>): ts.Program => {
-	const fileMap = new Map(files.map((f) => [f.path, f.content]));
+	const fileMap = new Map(files.map((f) => [f.path, { content: f.content }]));
 
 	const compilerOptions: ts.CompilerOptions = {
 		target: ts.ScriptTarget.Latest,
@@ -104,11 +133,9 @@ export const createTestProgram = (files: Array<{ path: string; content: string }
 	};
 
 	const host = ts.createCompilerHost(compilerOptions);
-	const originalRead = host.readFile.bind(host);
-	host.readFile = (filename) => fileMap.get(filename) ?? originalRead(filename);
-	host.fileExists = (filename) => fileMap.has(filename) || ts.sys.fileExists(filename);
+	applyVirtualFiles(host, fileMap);
 
-	return ts.createProgram(Array.from(fileMap.keys()), compilerOptions, host);
+	return ts.createProgram([...fileMap.keys()], compilerOptions, host);
 };
 
 // Cached program for incremental compilation
@@ -125,9 +152,11 @@ let _lastProgram: ts.Program | undefined;
  * Use this in test files that create many programs with the CWD project root
  * (e.g., svelte.test.ts) to avoid paying the full cost per test.
  *
- * @param virtualFiles Optional map of virtual file paths to content
+ * @param virtualFiles Optional map of virtual file paths to entries
  */
-export const createCachedAnalysisProgram = (virtualFiles?: Map<string, string>): ts.Program => {
+export const createCachedAnalysisProgram = (
+	virtualFiles?: Map<string, VirtualFileEntry>
+): ts.Program => {
 	if (!_cachedParsedConfig) {
 		const projectRoot = process.cwd();
 		const configPath = ts.findConfigFile(projectRoot, ts.sys.fileExists, 'tsconfig.json');
@@ -142,21 +171,7 @@ export const createCachedAnalysisProgram = (virtualFiles?: Map<string, string>):
 	let host: ts.CompilerHost | undefined;
 	if (virtualFiles?.size) {
 		host = ts.createCompilerHost(options);
-		const originalGetSourceFile = host.getSourceFile;
-		const originalFileExists = host.fileExists;
-		const originalReadFile = host.readFile;
-
-		host.getSourceFile = (fileName, languageVersion, onError, shouldCreate) => {
-			const content = virtualFiles.get(fileName);
-			if (content !== undefined) {
-				return ts.createSourceFile(fileName, content, languageVersion, true);
-			}
-			return originalGetSourceFile.call(host, fileName, languageVersion, onError, shouldCreate);
-		};
-		host.fileExists = (fileName) =>
-			virtualFiles.has(fileName) || originalFileExists.call(host, fileName);
-		host.readFile = (fileName) =>
-			virtualFiles.get(fileName) ?? originalReadFile.call(host, fileName);
+		applyVirtualFiles(host, virtualFiles);
 	}
 
 	const program = ts.createProgram(rootNames, options, host, _lastProgram);

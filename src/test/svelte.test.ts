@@ -53,9 +53,7 @@ const analyzeTestComponent = (
 	diagnostics: Array<Diagnostic> = [] as Array<Diagnostic>
 ) => {
 	const virtualFile = transformOrThrow(sourceFile);
-	const program = createCachedAnalysisProgram(
-		new Map([[virtualFile.virtualPath, virtualFile.content]])
-	);
+	const program = createCachedAnalysisProgram(new Map([[virtualFile.virtualPath, virtualFile]]));
 	const testChecker = program.getTypeChecker();
 	const result = analyzeSvelteModule(
 		sourceFile,
@@ -89,9 +87,7 @@ const analyzeSvelteTestIntegration = (
 	// project layout pass `options` explicitly.
 	const opts = options ?? createTestSourceOptions(dirname(sourceFile.id));
 	const virtualFile = transformOrThrow(sourceFile);
-	const program = createCachedAnalysisProgram(
-		new Map([[virtualFile.virtualPath, virtualFile.content]])
-	);
+	const program = createCachedAnalysisProgram(new Map([[virtualFile.virtualPath, virtualFile]]));
 	const testChecker = program.getTypeChecker();
 	const result = analyzeSvelteModule(
 		sourceFile,
@@ -120,8 +116,9 @@ describe('svelte component analyzer (fixture-based)', () => {
 			return { fixture, modulePath, sourceFile, virtualFile };
 		});
 
+		// Entries carry `scriptKind` so JS-lang fixtures parse as JS (JSDoc types)
 		const allVirtualFiles = new Map(
-			fixtureData.map((d) => [d.virtualFile.virtualPath, d.virtualFile.content])
+			fixtureData.map((d) => [d.virtualFile.virtualPath, d.virtualFile])
 		);
 		const program = createAnalysisProgram({ virtualFiles: allVirtualFiles });
 		const fixtureChecker = program.getTypeChecker();
@@ -1025,9 +1022,7 @@ let {name}: MissingType = $props();
 			content: svelteContent
 		};
 		const virtualFile = transformOrThrow(sourceFile);
-		const program = createCachedAnalysisProgram(
-			new Map([[virtualFile.virtualPath, virtualFile.content]])
-		);
+		const program = createCachedAnalysisProgram(new Map([[virtualFile.virtualPath, virtualFile]]));
 		const testChecker = program.getTypeChecker();
 		const result = analyzeSvelteModule(
 			sourceFile,

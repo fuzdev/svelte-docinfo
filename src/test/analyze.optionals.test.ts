@@ -13,27 +13,16 @@
  */
 
 import { test, assert, describe } from 'vitest';
-import { join } from 'node:path';
 
-import { analyze } from '$lib/analyze.ts';
-import { createSourceOptions } from '$lib/source-config.ts';
 import type { ComponentPropJson, MemberJson, ModuleJson } from '$lib/types.ts';
 
-import { withTestProject } from './test-helpers.ts';
+import { analyzeTestProject } from './test-module-helpers.ts';
 
 /** Analyze a single-file project and return its module. */
 const analyzeFile = async (path: string, content: string): Promise<ModuleJson> => {
-	const files = { [path]: content };
-	let module: ModuleJson | undefined;
-	await withTestProject(files, async (projectRoot) => {
-		const { modules } = await analyze({
-			sourceFiles: [{ id: join(projectRoot, path), content }],
-			sourceOptions: createSourceOptions(projectRoot)
-		});
-		module = modules[0];
-	});
-	assert.ok(module, `expected a module for ${path}`);
-	return module;
+	const { modules } = await analyzeTestProject({ [path]: content });
+	assert.ok(modules[0], `expected a module for ${path}`);
+	return modules[0];
 };
 
 const typeSignatures = (members: Array<MemberJson>): Record<string, string | undefined> =>

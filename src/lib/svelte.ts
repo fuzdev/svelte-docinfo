@@ -34,7 +34,12 @@ import type {
 	DeclarationAnalysis,
 	ModuleAnalysis
 } from './declaration-build.ts';
-import { parseComment, applyToDeclaration, type TsdocParsedComment } from './tsdoc.ts';
+import {
+	parseComment,
+	applyToDeclaration,
+	hasDocContent,
+	type TsdocParsedComment
+} from './tsdoc.ts';
 import { type IsExternalFile, createIsExternalFile } from './typescript-program.ts';
 import {
 	parseGenericParam,
@@ -68,8 +73,15 @@ export interface SvelteVirtualFile {
 	content: string;
 	/** Source map for position mapping back to the original `.svelte` file. */
 	sourceMap: SourceMap | null;
-	/** Script language. `undefined` means TypeScript (default), `'js'` for JavaScript-only components. */
-	lang: 'js' | undefined;
+	/**
+	 * Parser treatment for the virtual: `ts.ScriptKind.JS` for JS-only
+	 * components (no `lang="ts"`), so the checker reads their JSDoc types —
+	 * the parse tolerates the TS-only statements svelte2tsx emits (a grammar
+	 * diagnostic, never surfaced) — else `ts.ScriptKind.TS`. The single
+	 * encoding of the script language: `ComponentDeclarationJson.lang` is
+	 * derived from it at output.
+	 */
+	scriptKind: ts.ScriptKind;
 }
 
 /**
@@ -154,7 +166,7 @@ export const transformSvelteSource = (sourceFile: SourceFileInfo): TransformResu
 			virtualPath,
 			content: tsResult.code,
 			sourceMap,
-			lang: isTsFile ? undefined : 'js'
+			scriptKind: isTsFile ? ts.ScriptKind.TS : ts.ScriptKind.JS
 		},
 		diagnostics
 	};
@@ -478,7 +490,11 @@ const isPropsDeclaration = (statement: ts.Statement): boolean =>
  * Search `root` recursively for the first JSDoc-bearing variable declaration.
  *
  * Prop-level JSDoc rides `PropertySignature` nodes, so those are skipped;
- * `parseComment` filters module-level `@module` blocks.
+ * `parseComment` filters module-level `@module` blocks. Type machinery is
+ * gated by `hasDocContent` — a JS component's `/** @type {Props} *\/`
+ * annotation (or the one svelte2tsx synthesizes for untyped `$props()`)
+ * parses to an empty result and would otherwise claim the doc slot, masking
+ * the HTML `@component` fallback.
  */
 const findComponentTsdoc = (
 	root: ts.Node,
@@ -494,7 +510,7 @@ const findComponentTsdoc = (
 
 		if (ts.isVariableStatement(node) || ts.isVariableDeclaration(node)) {
 			const tsdoc = parseComment(node, sourceFile);
-			if (tsdoc) {
+			if (tsdoc && hasDocContent(tsdoc)) {
 				foundTsdoc = tsdoc;
 				return;
 			}
@@ -535,12 +551,10 @@ const assemblePropInfo = (
 	typeString: string,
 	optional: boolean,
 	propDecl: ts.Node | undefined,
-	propSourceFile: ts.SourceFile | undefined,
-	propsDefaults: Map<string, string>,
-	bindableProps: Set<string>,
+	metadata: PropsMetadata,
 	parameters?: Array<ParameterJsonInput>
 ): ComponentPropJsonInput => {
-	const tsdoc = propDecl && propSourceFile ? parseComment(propDecl, propSourceFile) : undefined;
+	const tsdoc = propDecl ? parseComment(propDecl) : undefined;
 
 	const result: ComponentPropJsonInput = {
 		name: propName,
@@ -548,8 +562,8 @@ const assemblePropInfo = (
 		optional,
 		description: tsdoc?.text || undefined,
 		// Default value: AST first (source of truth), then @default tag (fallback)
-		defaultValue: propsDefaults.get(propName) ?? tsdoc?.defaultValue,
-		bindable: bindableProps.has(propName),
+		defaultValue: metadata.propsDefaults.get(propName) ?? tsdoc?.defaultValue,
+		bindable: metadata.bindableProps.has(propName),
 		examples: tsdoc?.examples,
 		deprecatedMessage: tsdoc?.deprecatedMessage,
 		seeAlso: tsdoc?.seeAlso,
@@ -572,17 +586,15 @@ interface PropsMetadata {
 	bindableProps: Set<string>;
 	/** Default values from destructuring pattern. */
 	propsDefaults: Map<string, string>;
-	/** Type/interface name referenced in `$props()` call. */
-	propsTypeName: string | undefined;
+	/** The `let {...} = $props()` declaration (first match), when present. */
+	propsDeclaration: ts.VariableDeclaration | undefined;
 }
 
 /**
- * Extract all props-related metadata in a single AST traversal.
- *
- * Combines the logic from:
- * - `svelteExtractBindableProps` — finds `__sveltets_$$bindings('prop1', ...)`
- * - `extractProps_defaults` — finds `let { prop1 = 'value' } = $props()`
- * - `svelteFindPropsTypeName` — finds `let { ... }: TypeName = $props()`
+ * Extract all props-related metadata in a single AST traversal: bindables from
+ * the `__sveltets_$$bindings(...)` call, defaults from the `$props()` binding
+ * pattern, and the `$props()` declaration itself (the anchor
+ * `extractPropsViaChecker` resolves the props type from).
  *
  * @param virtualSource - the svelte2tsx transformed TypeScript source
  * @returns combined metadata from single traversal
@@ -590,7 +602,7 @@ interface PropsMetadata {
 const extractPropsMetadata = (virtualSource: ts.SourceFile): PropsMetadata => {
 	const bindableProps: Set<string> = new Set();
 	const propsDefaults: Map<string, string> = new Map();
-	let propsTypeName: string | undefined;
+	let propsDeclaration: ts.VariableDeclaration | undefined;
 
 	function visit(node: ts.Node) {
 		// Extract bindable props from __sveltets_$$bindings call
@@ -606,15 +618,10 @@ const extractPropsMetadata = (virtualSource: ts.SourceFile): PropsMetadata => {
 			}
 		}
 
-		// Extract defaults and type name from $props() call
+		// Extract the declaration + defaults from $props() call
 		if (ts.isVariableDeclaration(node)) {
 			if (isPropsCall(node.initializer)) {
-				// Extract type annotation name
-				if (!propsTypeName && node.type && ts.isTypeReferenceNode(node.type)) {
-					if (ts.isIdentifier(node.type.typeName)) {
-						propsTypeName = node.type.typeName.text;
-					}
-				}
+				propsDeclaration ??= node;
 
 				// Extract defaults from binding pattern
 				if (ts.isObjectBindingPattern(node.name)) {
@@ -660,7 +667,7 @@ const extractPropsMetadata = (virtualSource: ts.SourceFile): PropsMetadata => {
 	}
 
 	visit(virtualSource);
-	return { bindableProps, propsDefaults, propsTypeName };
+	return { bindableProps, propsDefaults, propsDeclaration };
 };
 
 // Snippet Detection
@@ -818,7 +825,8 @@ const detectChildrenSnippet = (
 /**
  * Extract props from svelte2tsx output using the TypeScript checker.
  *
- * Uses `checker.getTypeAtLocation()` to resolve the props type,
+ * Anchors on `metadata.propsDeclaration` (located by `extractPropsMetadata`'s
+ * traversal) and uses `checker.getTypeAtLocation()` to resolve the props type,
  * including imported types that are not locally defined.
  */
 const extractPropsViaChecker = (
@@ -828,35 +836,37 @@ const extractPropsViaChecker = (
 	filePath: string,
 	sourceMap: SourceMap | null,
 	diagnostics: Array<Diagnostic>,
-	propsDefaults: Map<string, string>,
-	bindableProps: Set<string>,
+	metadata: PropsMetadata,
 	isExternalFile: IsExternalFile
 ): {
 	props: Array<ComponentPropJsonInput>;
 	externalTypes?: Array<string>;
 	acceptsChildren: boolean;
 } => {
-	// Find the $props() call and resolve its type via the checker
+	// Resolve the $props() declaration's type via the checker
 	let propsType: ts.Type | undefined;
 	let propsTypeNode: ts.Node | undefined;
 	let propsTypeName: string | undefined;
 
-	const findPropsType = (node: ts.Node) => {
-		if (propsType) return;
-		if (ts.isVariableDeclaration(node) && isPropsCall(node.initializer) && node.type) {
+	if (metadata.propsDeclaration) {
+		// JS components carry the props type as JSDoc instead of a TypeNode —
+		// the author's `@type {Props}`, or the `@type {$$ComponentProps}`
+		// typedef svelte2tsx synthesizes for untyped destructuring. The JSDoc
+		// type participates in checking because JS-lang virtuals parse with
+		// `ScriptKind.JS` (see `SvelteVirtualFile.scriptKind`).
+		const typeNode = metadata.propsDeclaration.type ?? ts.getJSDocType(metadata.propsDeclaration);
+		if (typeNode) {
 			try {
-				propsType = checker.getTypeAtLocation(node.type);
-				propsTypeNode = node.type;
-				if (ts.isTypeReferenceNode(node.type) && ts.isIdentifier(node.type.typeName)) {
-					propsTypeName = node.type.typeName.text;
+				propsType = checker.getTypeAtLocation(typeNode);
+				propsTypeNode = typeNode;
+				if (ts.isTypeReferenceNode(typeNode) && ts.isIdentifier(typeNode.typeName)) {
+					propsTypeName = typeNode.typeName.text;
 				}
 			} catch (_) {
 				// Fall through — propsType stays undefined
 			}
 		}
-		ts.forEachChild(node, findPropsType);
-	};
-	findPropsType(virtualSource);
+	}
 
 	if (!propsType || !propsTypeNode) {
 		// If $props() was used with a type name but the checker couldn't resolve it,
@@ -951,18 +961,8 @@ const extractPropsViaChecker = (
 			});
 		}
 
-		const propSourceFile = propDecl?.getSourceFile();
 		props.push(
-			assemblePropInfo(
-				prop.name,
-				typeString,
-				optional,
-				propDecl,
-				propSourceFile,
-				propsDefaults,
-				bindableProps,
-				snippetParams
-			)
+			assemblePropInfo(prop.name, typeString, optional, propDecl, metadata, snippetParams)
 		);
 	}
 
@@ -1140,14 +1140,14 @@ export const analyzeSvelteModule = (
 	};
 
 	// Propagate script language to component declaration
-	if (virtualFile.lang) {
-		componentDecl.lang = virtualFile.lang;
+	if (virtualFile.scriptKind === ts.ScriptKind.JS) {
+		componentDecl.lang = 'js';
 	}
 
 	const isExternalFile = createIsExternalFile(options);
 
 	// Extract props via checker (resolves imported types)
-	const { bindableProps, propsDefaults } = extractPropsMetadata(virtualTsSource);
+	const propsMetadata = extractPropsMetadata(virtualTsSource);
 	const {
 		props,
 		externalTypes,
@@ -1159,8 +1159,7 @@ export const analyzeSvelteModule = (
 		modulePath,
 		virtualFile.sourceMap,
 		diagnostics,
-		propsDefaults,
-		bindableProps,
+		propsMetadata,
 		isExternalFile
 	);
 	if (props.length > 0) {
