@@ -320,6 +320,7 @@ Fixtures with exported snippets:
 - [x] Exported snippets (basic, typed, parameterless, untyped, with function, with props)
 - [x] `acceptsChildren` detection (explicit, inherited, no-children)
 - [x] JS components (JSDoc `@type`/`@typedef` props with descriptions/defaults/bindable/snippets in `props/jsdoc-type`, untyped inference + HTML `@component` doc in `component/javascript`)
+- [x] Legacy `export let` components (zero props + HTML `@component` fallback instead of doc leak, in `component/legacy-export-let`; the `legacy_props` diagnostic is covered by `analyze.legacy-components.test.ts`, and `svelte.test.ts` locks it on this fixture's exact input — the fixture harness itself discards diagnostics)
 
 ### TypeScript Module Fixtures
 

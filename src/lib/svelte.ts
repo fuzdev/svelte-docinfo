@@ -304,7 +304,7 @@ const extractComponentSourceLine = (
  * @returns the script tag content, or undefined if no matching script tag is found
  */
 export const extractScriptContent = (svelteSource: string): string | undefined =>
-	findScriptContent(svelteSource, false);
+	findScript(svelteSource, false)?.content;
 
 /**
  * Extract the content of the module `<script>` tag from Svelte source.
@@ -316,23 +316,124 @@ export const extractScriptContent = (svelteSource: string): string | undefined =
  * @returns the module script tag content, or undefined if no module script is found
  */
 export const extractModuleScriptContent = (svelteSource: string): string | undefined =>
-	findScriptContent(svelteSource, true);
+	findScript(svelteSource, true)?.content;
+
+/** A located script tag: its content plus where that content starts in the source. */
+interface ScriptContent {
+	content: string;
+	/** Offset of `content` within the full Svelte source. */
+	start: number;
+}
 
 /**
  * Shared scan behind `extractScriptContent`/`extractModuleScriptContent`.
  *
  * A script tag is a module script when its attributes contain the word
  * `module` — covers Svelte 5 `<script module>` (with any `lang`) and
- * Svelte 4 `<script context="module">`.
+ * Svelte 4 `<script context="module">`. The content's `start` offset lets
+ * callers map positions inside the script back to original-source lines
+ * (the legacy-prop scan needs this).
  */
-const findScriptContent = (svelteSource: string, wantModule: boolean): string | undefined => {
-	const scriptRegex = /<script(\s+[^>]*)?>([^]*?)<\/script>/gi;
+const findScript = (svelteSource: string, wantModule: boolean): ScriptContent | undefined => {
+	const scriptRegex = /<script(\s+[^>]*)?>([^]*?)<\/script>/dgi;
 	let match;
 	while ((match = scriptRegex.exec(svelteSource)) !== null) {
 		const attrs = match[1] ?? '';
-		if (/\bmodule\b/.test(attrs) === wantModule) return match[2];
+		if (/\bmodule\b/.test(attrs) === wantModule) {
+			return { content: match[2]!, start: match.indices![2]![0] };
+		}
 	}
 	return undefined;
+};
+
+/**
+ * Parse script-tag content as standalone TypeScript for syntactic scans.
+ *
+ * TS is a syntactic superset of both script langs, so the parse serves JS
+ * scripts too. Parents are set so consumers can call `getStart()` freely.
+ * Shared by `extractSvelteModuleComment` and the legacy-prop scan —
+ * `analyzeSvelteModule` parses the instance script once and hands the result
+ * to both.
+ */
+const parseScriptContent = (scriptContent: string): ts.SourceFile =>
+	ts.createSourceFile('script.ts', scriptContent, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
+
+/** 1-based line number of `offset` within `text`. */
+const lineOfOffset = (text: string, offset: number): number => {
+	let line = 1;
+	for (let i = 0; i < offset; i++) {
+		if (text.charCodeAt(i) === 10 /* \n */) line++;
+	}
+	return line;
+};
+
+/** A legacy prop found by `detectLegacyProps`. */
+interface LegacyProp {
+	/** Exported prop name (the rename in `export {a as b}` form). */
+	name: string;
+	/** Offset within the script content — the caller owns line mapping. */
+	pos: number;
+}
+
+/**
+ * Detect legacy `export let` props in an instance script.
+ *
+ * Runes-less components declare props by exporting mutable bindings —
+ * `export let a` / `export var a` directly, or `let a; export {a as b}` for
+ * renames (the reserved-word workaround). Presence of either form is a
+ * reliable legacy signal without classifying the component's mode: `export
+ * let` is a compile error in runes mode, so no valid component mixes it with
+ * `$props()`. `export const` / `export function` are accessors, not props,
+ * and type-only exports aren't runtime bindings — both stay out. The scan
+ * reads the *original* instance script (via `parseScriptContent`) because
+ * svelte2tsx rewrites the `export` modifier away inside `$$render`; a purely
+ * syntactic walk over top-level statements is all it needs.
+ *
+ * @param scriptSource - parsed instance `<script>` content from the original source
+ * @returns detected props in source order; empty when the component isn't legacy
+ */
+const detectLegacyProps = (scriptSource: ts.SourceFile): Array<LegacyProp> => {
+	// top-level non-const bindings, for the export-clause rename form
+	const mutableBindings: Set<string> = new Set();
+	const found: Array<LegacyProp> = [];
+
+	for (const statement of scriptSource.statements) {
+		if (!ts.isVariableStatement(statement)) continue;
+		// const/using/await-using bindings aren't reassignable — accessors, not props
+		if (statement.declarationList.flags & (ts.NodeFlags.Const | ts.NodeFlags.Using)) continue;
+		const exported =
+			statement.modifiers?.some((m) => m.kind === ts.SyntaxKind.ExportKeyword) ?? false;
+		for (const declaration of statement.declarationList.declarations) {
+			// legacy props are simple identifiers; skip destructuring defensively
+			if (!ts.isIdentifier(declaration.name)) continue;
+			// a directly-exported binding can still be renamed by a clause —
+			// `export let a; export {a as b}` declares props `a` and `b`
+			mutableBindings.add(declaration.name.text);
+			if (exported) {
+				found.push({ name: declaration.name.text, pos: declaration.name.getStart(scriptSource) });
+			}
+		}
+	}
+
+	// separate pass — an export clause may precede the binding it re-exports
+	for (const statement of scriptSource.statements) {
+		if (
+			!ts.isExportDeclaration(statement) ||
+			statement.isTypeOnly ||
+			statement.moduleSpecifier !== undefined ||
+			statement.exportClause === undefined ||
+			!ts.isNamedExports(statement.exportClause)
+		) {
+			continue;
+		}
+		for (const spec of statement.exportClause.elements) {
+			if (spec.isTypeOnly) continue;
+			if (!mutableBindings.has((spec.propertyName ?? spec.name).text)) continue;
+			found.push({ name: spec.name.text, pos: spec.getStart(scriptSource) });
+		}
+	}
+
+	return found.sort((a, b) => a.pos - b.pos);
 };
 
 /**
@@ -384,17 +485,8 @@ export const extractHtmlModuleComment = (svelteSource: string): string | undefin
  * @param scriptContent - the content of a `<script>` or `<script module>` tag
  * @returns the cleaned module comment text, or undefined if none found
  */
-export const extractSvelteModuleComment = (scriptContent: string): string | undefined => {
-	// Parse the script content as TypeScript and reuse the shared extraction logic
-	const sourceFile = ts.createSourceFile(
-		'script.ts',
-		scriptContent,
-		ts.ScriptTarget.Latest,
-		true,
-		ts.ScriptKind.TS
-	);
-	return extractModuleComment(sourceFile);
-};
+export const extractSvelteModuleComment = (scriptContent: string): string | undefined =>
+	extractModuleComment(parseScriptContent(scriptContent));
 
 /**
  * Check if the original Svelte source contains an HTML `@component` comment.
@@ -455,19 +547,24 @@ const extractComponentTsdoc = (
  * Find the in-script component JSDoc: the first one at or above the `$props()`
  * declaration.
  *
- * Scanning stops there so a documented local below it — a JSDoc'd `$state`
- * declaration, say — can't pass itself off as the component's own docs. A
- * component with no `$props()` call has no such boundary, so its whole body is
- * in scope.
+ * The anchor is located first and bounds the search, encoding both halves of
+ * the precedence rule: a documented local below it — a JSDoc'd `$state`
+ * declaration, say — can't pass itself off as the component's own docs, and
+ * with no anchor at all the in-script doc slot doesn't exist (the first
+ * documented statement in a propless runes component or a legacy `export let`
+ * component is some local's doc, not the component's). The HTML `@component`
+ * comment is the authoring path for anchorless components.
  */
 const findInstanceTsdoc = (
 	renderBody: ts.Block,
 	sourceFile: ts.SourceFile
 ): TsdocParsedComment | undefined => {
-	for (const statement of renderBody.statements) {
-		const tsdoc = findComponentTsdoc(statement, sourceFile);
+	const { statements } = renderBody;
+	const anchorIndex = statements.findIndex(isPropsDeclaration);
+	if (anchorIndex === -1) return undefined;
+	for (let i = 0; i <= anchorIndex; i++) {
+		const tsdoc = findComponentTsdoc(statements[i]!, sourceFile);
 		if (tsdoc) return tsdoc;
-		if (isPropsDeclaration(statement)) return undefined;
 	}
 	return undefined;
 };
@@ -1151,6 +1248,13 @@ export const analyzeSvelteModule = (
 
 	const isExternalFile = createIsExternalFile(options);
 
+	// Locate and parse the instance script once — the legacy-prop scan below
+	// and the module comment extraction in step 4 both read the parsed source
+	const instanceScript = findScript(sourceFile.content, false);
+	const instanceScriptSource = instanceScript
+		? parseScriptContent(instanceScript.content)
+		: undefined;
+
 	// Extract props via checker (resolves imported types)
 	const propsMetadata = extractPropsMetadata(virtualTsSource);
 	const {
@@ -1170,8 +1274,30 @@ export const analyzeSvelteModule = (
 	if (props.length > 0) {
 		componentDecl.props = props;
 	}
+
 	if (externalTypes?.length) {
 		componentDecl.intersects = externalTypes;
+	}
+
+	// Legacy (runes-less) components declare props with `export let`, which
+	// has no `$props()` anchor — nothing was extracted above. Detect the
+	// syntax in the original instance script so the empty `props` carries a
+	// diagnostic instead of silence.
+	if (!propsMetadata.propsDeclaration && instanceScript && instanceScriptSource) {
+		const legacyProps = detectLegacyProps(instanceScriptSource);
+		if (legacyProps.length > 0) {
+			const propNames = legacyProps.map((p) => p.name);
+			diagnostics.push({
+				kind: 'legacy_props',
+				file: modulePath,
+				// the first legacy export's line in the original source
+				line: lineOfOffset(sourceFile.content, instanceScript.start + legacyProps[0]!.pos),
+				message: `Component "${componentName}" declares props with legacy export let syntax (${propNames.join(', ')}). Legacy props are not extracted — migrate to $props().`,
+				severity: 'warning',
+				componentName,
+				propNames
+			});
+		}
 	}
 
 	// Determine acceptsChildren via two paths:
@@ -1207,9 +1333,6 @@ export const analyzeSvelteModule = (
 		virtualFile.sourceMap
 	);
 
-	// Extract script content once for the module comment extraction in step 4.
-	const scriptContent = extractScriptContent(sourceFile.content);
-
 	// Warn if both HTML @component and script JSDoc provide docComment
 	if (
 		componentDecl.docComment &&
@@ -1228,8 +1351,8 @@ export const analyzeSvelteModule = (
 
 	// 4. Extract module comment from original Svelte source (not virtual)
 	// Priority: instance <script> @module > <script module> @module > HTML <!-- @module -->
-	const instanceModuleComment = scriptContent
-		? extractSvelteModuleComment(scriptContent)
+	const instanceModuleComment = instanceScriptSource
+		? extractModuleComment(instanceScriptSource)
 		: undefined;
 	const moduleScriptContent = extractModuleScriptContent(sourceFile.content);
 	const scriptModuleComment = moduleScriptContent

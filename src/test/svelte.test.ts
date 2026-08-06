@@ -10,7 +10,7 @@ import {
 	extractHtmlModuleComment
 } from '$lib/svelte.ts';
 import { createAnalysisProgram } from '$lib/typescript-program.ts';
-import { type Diagnostic, hasErrors, hasWarnings, warningsOf } from '$lib/diagnostics.ts';
+import { type Diagnostic, byKind, hasErrors, hasWarnings, warningsOf } from '$lib/diagnostics.ts';
 import type { ModuleAnalysis } from '$lib/declaration-build.ts';
 import type { SourceFileInfo } from '$lib/source.ts';
 import type { ModuleSourceOptions } from '$lib/source-config.ts';
@@ -217,6 +217,29 @@ describe('svelte component analysis', () => {
 		assert.strictEqual(declaration.kind, 'component');
 		// Props should be undefined or empty
 		assert.ok(!declaration.props || declaration.props.length === 0);
+	});
+
+	test('legacy-export-let fixture emits legacy_props naming its exact props', () => {
+		const filePath = join(FIXTURES_SVELTE_DIR, 'component/legacy-export-let/input.svelte');
+		const modulePath = 'ComponentLegacyExportLet.svelte';
+
+		const diagnostics: Array<Diagnostic> = [];
+		const declaration = analyzeTestComponent(
+			{ id: filePath, content: readFixture(filePath) },
+			modulePath,
+			diagnostics
+		);
+
+		// the fixture's expected.json locks declarations only (the harness
+		// discards diagnostics), so the diagnostic on this exact input is
+		// locked here — a fixture edit can't drift detection silently
+		assert.ok(!declaration.props || declaration.props.length === 0);
+		const legacy = byKind(diagnostics, 'legacy_props');
+		assert.strictEqual(legacy.length, 1);
+		assert.strictEqual(legacy[0]!.componentName, 'ComponentLegacyExportLet');
+		assert.deepStrictEqual(legacy[0]!.propNames, ['prop1', 'prop2', 'prop3']);
+		// `export let prop1` sits on line 16 of input.svelte
+		assert.strictEqual(legacy[0]!.line, 16);
 	});
 
 	test('extracts prop descriptions', () => {
