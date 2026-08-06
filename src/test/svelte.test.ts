@@ -1,11 +1,13 @@
 import { test, assert, describe, beforeAll } from 'vitest';
 import { join, dirname } from 'node:path';
 import { readFileSync } from 'node:fs';
+import ts from 'typescript';
 
 import {
 	analyzeSvelteModule,
 	transformSvelteSource,
 	extractScriptContent,
+	extractModuleScriptContent,
 	extractSvelteModuleComment,
 	extractHtmlModuleComment
 } from '$lib/svelte.ts';
@@ -520,6 +522,296 @@ describe('extractScriptContent', () => {
 		const result = extractScriptContent(svelteSource);
 		assert.ok(result, 'Should match <script> regardless of attribute order');
 		assert.include(result, 'items');
+	});
+
+	test('extracts full content when generics contains an arrow type', () => {
+		const svelteSource = `<script lang="ts" generics="T extends () => void">
+	let {callback}: {callback: T} = $props();
+</script>
+<p>Content</p>`;
+
+		const result = extractScriptContent(svelteSource);
+		// exact equality — the old regex ended the opening tag at the arrow's
+		// `>`, prefixing the content with the tag remainder (` void">`)
+		assert.strictEqual(result, '\n\tlet {callback}: {callback: T} = $props();\n');
+	});
+
+	test('extracts full content when generics contains a generic type argument', () => {
+		const svelteSource = `<script lang="ts" generics="T extends Record<string, unknown>">
+	let {items}: {items: T[]} = $props();
+</script>
+<p>Content</p>`;
+
+		const result = extractScriptContent(svelteSource);
+		assert.strictEqual(result, '\n\tlet {items}: {items: T[]} = $props();\n');
+	});
+
+	test('extracts full content with single-quoted generics containing an arrow type', () => {
+		const svelteSource = `<script lang="ts" generics='T extends () => void'>
+	let {callback}: {callback: T} = $props();
+</script>
+<p>Content</p>`;
+
+		const result = extractScriptContent(svelteSource);
+		assert.strictEqual(result, '\n\tlet {callback}: {callback: T} = $props();\n');
+	});
+
+	test('does not treat the word module inside an attribute value as a module script', () => {
+		const svelteSource = `<script lang="ts" generics="T extends import('./module.js').Item">
+	let {items}: {items: T[]} = $props();
+</script>
+<p>Content</p>`;
+
+		const result = extractScriptContent(svelteSource);
+		assert.ok(result, 'instance script misclassified as module script');
+		assert.include(result, 'items');
+	});
+
+	test('skips commented-out script tags', () => {
+		const svelteSource = `<!--
+<script>
+	const commented = 'out';
+</script>
+-->
+<script lang="ts">
+	const foo = 'bar';
+</script>
+<p>Content</p>`;
+
+		const result = extractScriptContent(svelteSource);
+		assert.ok(result);
+		assert.include(result, "const foo = 'bar'");
+		assert.notInclude(result, 'commented');
+	});
+
+	test('matches a closing tag with trailing whitespace', () => {
+		const svelteSource = `<script>
+	const foo = 'bar';
+</script >
+<p>Content</p>`;
+
+		const result = extractScriptContent(svelteSource);
+		assert.ok(result, "Svelte's parser accepts </script >");
+		assert.include(result, "const foo = 'bar'");
+	});
+
+	test('ignores self-closing script tags', () => {
+		const svelteSource = `<script />
+<script>
+	const foo = 'bar';
+</script>
+<p>Content</p>`;
+
+		const result = extractScriptContent(svelteSource);
+		assert.ok(result);
+		assert.include(result, "const foo = 'bar'");
+	});
+
+	test('does not match capitalized component tags', () => {
+		const svelteSource = `<Script>
+	not a script element
+</Script>
+<p>Content</p>`;
+
+		const result = extractScriptContent(svelteSource);
+		assert.isUndefined(result, '<Script> is a component, not a script element');
+	});
+
+	test('handles a multiline opening tag', () => {
+		const svelteSource = `<script
+	lang="ts"
+	generics="T extends () => void"
+>
+	let {callback}: {callback: T} = $props();
+</script>
+<p>Content</p>`;
+
+		const result = extractScriptContent(svelteSource);
+		assert.ok(result);
+		assert.include(result, 'callback');
+		assert.notInclude(result, 'generics');
+	});
+
+	test('does not match a script code sample inside an @component comment', () => {
+		const svelteSource = `<!--
+	@component
+	Usage: \`<script lang="ts">import Comp from './Comp.svelte';</script>\`
+-->
+<p>Content</p>`;
+
+		const result = extractScriptContent(svelteSource);
+		assert.isUndefined(result, 'code sample inside a comment is not a script element');
+	});
+});
+
+describe('extractModuleScriptContent', () => {
+	test('extracts module script content', () => {
+		const svelteSource = `<script module>
+	export const shared = 'value';
+</script>
+<script lang="ts">
+	const foo = 'bar';
+</script>
+<p>Content</p>`;
+
+		const result = extractModuleScriptContent(svelteSource);
+		assert.ok(result);
+		assert.include(result, 'shared');
+		assert.notInclude(result, 'foo');
+	});
+
+	test('extracts Svelte 4 context="module" script content', () => {
+		const svelteSource = `<script context="module">
+	export const shared = 'value';
+</script>
+<p>Content</p>`;
+
+		const result = extractModuleScriptContent(svelteSource);
+		assert.ok(result);
+		assert.include(result, 'shared');
+	});
+
+	test('skips commented-out module scripts', () => {
+		const svelteSource = `<!--
+<script module>
+	export const commented = 'out';
+</script>
+-->
+<script module>
+	export const real = 'value';
+</script>
+<p>Content</p>`;
+
+		const result = extractModuleScriptContent(svelteSource);
+		assert.ok(result);
+		assert.include(result, 'real');
+		assert.notInclude(result, 'commented');
+	});
+
+	test('returns undefined when only a commented-out module script exists', () => {
+		const svelteSource = `<!--
+<script module>
+	export const commented = 'out';
+</script>
+-->
+<p>Content</p>`;
+
+		const result = extractModuleScriptContent(svelteSource);
+		assert.isUndefined(result);
+	});
+
+	test('finds the real module script past an instance script with module in an attribute value', () => {
+		const svelteSource = `<script lang="ts" generics="T extends import('./module.js').Item">
+	let {items}: {items: T[]} = $props();
+</script>
+<script module>
+	export const shared = 'value';
+</script>
+<p>Content</p>`;
+
+		const result = extractModuleScriptContent(svelteSource);
+		assert.ok(result, 'real module script shadowed by attribute-value false positive');
+		assert.include(result, 'shared');
+		assert.notInclude(result, 'items');
+	});
+
+	test('does not match context with a non-module value', () => {
+		const svelteSource = `<script context="other">
+	const foo = 'bar';
+</script>
+<p>Content</p>`;
+
+		const result = extractModuleScriptContent(svelteSource);
+		assert.isUndefined(result);
+	});
+
+	test('matches module combined with other attributes', () => {
+		const svelteSource = `<script module lang="ts">
+	export const shared = 'value';
+</script>
+<p>Content</p>`;
+
+		const result = extractModuleScriptContent(svelteSource);
+		assert.ok(result);
+		assert.include(result, 'shared');
+	});
+});
+
+describe('transformSvelteSource script-kind detection', () => {
+	const scriptKindOf = (content: string): ts.ScriptKind => {
+		const result = transformSvelteSource({ id: '/project/src/lib/Comp.svelte', content });
+		assert.ok(result.virtual);
+		return result.virtual.scriptKind;
+	};
+
+	test('lang="ts" parses as TS', () => {
+		const kind = scriptKindOf(`<script lang="ts">
+	let {a}: {a: string} = $props();
+</script>
+<div>{a}</div>`);
+		assert.strictEqual(kind, ts.ScriptKind.TS);
+	});
+
+	test('no lang parses as JS', () => {
+		const kind = scriptKindOf(`<script>
+	let {a} = $props();
+</script>
+<div>{a}</div>`);
+		assert.strictEqual(kind, ts.ScriptKind.JS);
+	});
+
+	test('lang="typescript" parses as JS — Svelte core accepts only ts', () => {
+		// svelte2tsx's fallback detection takes ts|typescript; the compiler
+		// doesn't, and it decides whether the component compiles at all
+		const kind = scriptKindOf(`<script lang="typescript">
+	let {a} = $props();
+</script>
+<div>{a}</div>`);
+		assert.strictEqual(kind, ts.ScriptKind.JS);
+	});
+
+	test('the first valued lang attribute decides the whole file', () => {
+		// the compiler's ts flag is parser-wide, so this instance lang="ts"
+		// can't flip a file the module script already declared js
+		const kind = scriptKindOf(`<script module lang="js">
+	export const shared = 'value';
+</script>
+<script lang="ts">
+	let {a} = $props();
+</script>
+<div>{a}</div>`);
+		assert.strictEqual(kind, ts.ScriptKind.JS);
+	});
+
+	test('whitespace around the lang = sign is a Svelte parse error', () => {
+		// requiring a literal `lang=` costs nothing — Svelte's parser rejects
+		// the spaced spelling, so svelte2tsx throws before kind could matter
+		const result = transformSvelteSource({
+			id: '/project/src/lib/Comp.svelte',
+			content: `<script lang = "ts">
+	let {a} = $props();
+</script>
+<div>{a}</div>`
+		});
+		assert.isUndefined(result.virtual);
+		assert.strictEqual(result.diagnostics[0]?.kind, 'transform_failed');
+	});
+
+	test('lang="ts" in template text does not flip a JS component to TS', () => {
+		const kind = scriptKindOf(`<script>
+	let {a} = $props();
+</script>
+<pre>{'<script lang="ts">'}</pre>
+<div>{a}</div>`);
+		assert.strictEqual(kind, ts.ScriptKind.JS);
+	});
+
+	test('lang="ts" on the module script counts', () => {
+		const kind = scriptKindOf(`<script module lang="ts">
+	export const shared: string = 'value';
+</script>
+<div>hi</div>`);
+		assert.strictEqual(kind, ts.ScriptKind.TS);
 	});
 });
 
