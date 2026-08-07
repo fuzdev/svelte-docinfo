@@ -6,7 +6,22 @@
 		{
 			"name": "a",
 			"kind": "variable",
-			"typeSignature": "keyof C"
+			"typeSignature": "keyof C",
+			"typeInfo": {
+				"kind": "union",
+				"members": [
+					{
+						"kind": "literal",
+						"value": "a",
+						"text": "\"a\""
+					},
+					{
+						"kind": "literal",
+						"value": "b",
+						"text": "\"b\""
+					}
+				]
+			}
 		},
 		{
 			"name": "b",

@@ -19,6 +19,7 @@ import type { DeclarationJsonBuild, MemberJsonBuild } from './declaration-build.
 import { type Diagnostic } from './diagnostics.ts';
 import { to_error_message } from './error.ts';
 import { parseComment, applyToDeclaration } from './tsdoc.ts';
+import { resolveTypeInfo } from './typescript-extract-type-json.ts';
 import {
 	detectReactivity,
 	extractModifiers,
@@ -136,7 +137,10 @@ export const extractClassInfo = (
 						const memberSymbol = checker.getSymbolAtLocation(member.name);
 						if (memberSymbol) {
 							const t = checker.getTypeOfSymbolAtLocation(memberSymbol, member);
+							// no optional strip on either output, mirroring the flat string
 							memberDeclaration.typeSignature = checker.typeToString(t);
+							const typeInfo = resolveTypeInfo(t, checker, false);
+							if (typeInfo) memberDeclaration.typeInfo = typeInfo;
 						}
 					}
 				} else if (ts.isMethodDeclaration(member) || ts.isConstructorDeclaration(member)) {
@@ -265,6 +269,8 @@ export const extractClassInfo = (
 				if (getterSymbol) {
 					const getterType = checker.getTypeOfSymbolAtLocation(getterSymbol, getter);
 					accessorDeclaration.typeSignature = checker.typeToString(getterType);
+					const typeInfo = resolveTypeInfo(getterType, checker, false);
+					if (typeInfo) accessorDeclaration.typeInfo = typeInfo;
 				}
 			} else if (setter?.parameters.length) {
 				// Fall back to setter's parameter type if no getter

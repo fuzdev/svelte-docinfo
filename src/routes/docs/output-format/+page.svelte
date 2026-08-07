@@ -129,6 +129,20 @@
 				</li>
 				<li><code>docComment</code>: JSDoc comment text</li>
 				<li><code>typeSignature</code>: full type as a string</li>
+				<li>
+					<code>typeInfo</code>: structured <DeclarationLink name="TypeJson" /> tree beside the flat string
+					— on variable and type-alias declarations (plus type-alias property and checker-backed class
+					members, component props, and parameters). Absent when the flat string is the whole story; present
+					when the tree carries structure the string can't: union/intersection <code>members</code>
+					(alias name kept; enum members as <code>{`{value, text}`}</code> pairs with the qualified
+					name as <code>text</code>), reference <code>name</code> + <code>typeArgs</code>, array
+					<code>element</code>. Object literals and function types stay terminal
+					<code>text</code>. The headline case: a union alias's <code>typeSignature</code> prints as
+					just its own name, and <code>typeInfo</code> carries the enumerable members — which is
+					also why type aliases relax the absence rule: their flat string is always just the alias
+					name, so the tree is emitted whatever its shape, except for object and function roots that
+					<code>members</code> already covers
+				</li>
 				<li><code>sourceLine</code>: line number in the source file</li>
 				<li>
 					<code>modifiers</code>: e.g., <code>"readonly"</code>, <code>"static"</code>,
@@ -240,8 +254,10 @@
 				</li>
 				<li>
 					<code>"variable"</code>: properties, accessors, and index signatures. Adds optional
-					<code>defaultValue</code> (from <code>@default</code>), plus <code>reactivity</code> for class
-					fields initialized with a Svelte rune
+					<code>defaultValue</code> (from <code>@default</code>), plus <code>reactivity</code> for
+					class fields initialized with a Svelte rune, plus <code>typeInfo</code> on checker-backed member
+					paths — type-alias properties and index signatures, inferred class properties, getter-backed
+					accessors (annotated interface and class properties report written text only)
 				</li>
 			</ul>
 			<p>
@@ -262,10 +278,14 @@
 			<TomeSectionHeader text="ComponentPropJson" />
 			<p>
 				Component declarations have a <code>props</code> array of
-				<DeclarationLink name="ComponentPropJson" /> entries:
+				<DeclarationLink name="ComponentPropJson" /> entries, in source order:
 			</p>
 			<ul>
 				<li><code>name</code>, <code>type</code>: prop name and TypeScript type</li>
+				<li>
+					<code>typeInfo</code>: structured <DeclarationLink name="TypeJson" /> tree when the type carries
+					structure the flat string can't (see the declaration shared fields above)
+				</li>
 				<li><code>optional</code>: whether the prop is optional</li>
 				<li><code>description</code>: from JSDoc on the prop</li>
 				<li><code>defaultValue</code>: default value as a string, if present</li>
@@ -309,6 +329,10 @@
 					<code>name</code>: parameter name (e.g., <code>"options"</code>, <code>"...args"</code>)
 				</li>
 				<li><code>type</code>: resolved TypeScript type as a string</li>
+				<li>
+					<code>typeInfo</code>: structured <DeclarationLink name="TypeJson" /> tree when the type carries
+					structure the flat string can't (see the declaration shared fields above)
+				</li>
 				<li><code>optional</code>: whether the parameter has a <code>?</code> token</li>
 				<li><code>rest</code>: whether the parameter uses rest syntax (<code>...args</code>)</li>
 				<li><code>description</code>: from <code>@param</code> JSDoc</li>

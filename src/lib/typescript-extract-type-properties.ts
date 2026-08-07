@@ -22,6 +22,7 @@ import type { DeclarationJsonBuild, MemberJsonBuild } from './declaration-build.
 import { type Diagnostic } from './diagnostics.ts';
 import { to_error_message } from './error.ts';
 import { parseComment, applyToDeclaration, type TsdocParsedComment } from './tsdoc.ts';
+import { resolveTypeInfo } from './typescript-extract-type-json.ts';
 import { type IsExternalFile } from './typescript-program.ts';
 import {
 	emitCallOrConstructSignature,
@@ -139,11 +140,15 @@ const emitLocalIndexSignature = (
 			indexKind
 		);
 		if (indexType) {
-			(declaration.members ??= []).push({
+			const member: MemberJsonBuild = {
 				name: `[key: ${kind}]`,
 				kind: 'variable',
+				// no optional strip on either output — `optional` is N/A for index signatures
 				typeSignature: checker.typeToString(indexType)
-			});
+			};
+			const typeInfo = resolveTypeInfo(indexType, checker, false);
+			if (typeInfo) member.typeInfo = typeInfo;
+			(declaration.members ??= []).push(member);
 		}
 	} catch (err) {
 		declaration.partial = true;
@@ -291,6 +296,8 @@ export const extractTypeAliasProperties = (
 			);
 		} else {
 			member.typeSignature = getTypeSignature(propType, checker, optional);
+			const typeInfo = resolveTypeInfo(propType, checker, optional);
+			if (typeInfo) member.typeInfo = typeInfo;
 		}
 
 		(declaration.members ??= []).push(member);

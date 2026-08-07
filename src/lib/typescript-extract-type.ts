@@ -33,6 +33,7 @@ import {
 	parseGenericParam,
 	populateCallableMember
 } from './typescript-extract-shared.ts';
+import { resolveTypeInfo } from './typescript-extract-type-json.ts';
 import { extractTypeAliasProperties } from './typescript-extract-type-properties.ts';
 
 /**
@@ -58,6 +59,12 @@ export const extractTypeInfo = (
 	try {
 		nodeType = checker.getTypeAtLocation(node);
 		declaration.typeSignature = checker.typeToString(nodeType);
+		// structured type on type aliases only — an interface is an object shape,
+		// terminal by the `TypeJson` absence contract, and its variant has no field
+		if (ts.isTypeAliasDeclaration(node)) {
+			const typeInfo = resolveTypeInfo(nodeType, checker, false, node.name.text);
+			if (typeInfo) declaration.typeInfo = typeInfo;
+		}
 	} catch (err) {
 		declaration.partial = true;
 		const loc = getNodeLocation(node);

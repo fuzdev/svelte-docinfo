@@ -12,7 +12,21 @@
 				"name": "prop2",
 				"type": "Record<string, unknown>",
 				"optional": true,
-				"description": "Description 2"
+				"description": "Description 2",
+				"typeInfo": {
+					"kind": "reference",
+					"name": "Record",
+					"typeArgs": [
+						{
+							"kind": "intrinsic",
+							"text": "string"
+						},
+						{
+							"kind": "intrinsic",
+							"text": "unknown"
+						}
+					]
+				}
 			}
 		],
 		"intersects": [

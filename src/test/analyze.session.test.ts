@@ -100,6 +100,54 @@ describe('createAnalysisSession', { timeout: 30_000 }, () => {
 		);
 	});
 
+	test('getProgram is reference-stable until an ingest bumps state', async () => {
+		await withTestProject(
+			{
+				'src/lib/math.ts': MATH_V1
+			},
+			async (projectRoot) => {
+				const session = createAnalysisSession({
+					sourceOptions: createSourceOptions(projectRoot)
+				});
+				try {
+					await session.setFile({ id: TS_FILE(projectRoot), content: MATH_V1 });
+					session.query();
+					const p1 = session.getProgram();
+					assert.strictEqual(session.getProgram(), p1);
+					session.query();
+					assert.strictEqual(session.getProgram(), p1);
+
+					// cache-hit re-ingest bumps no version — still the same program
+					await session.setFile({ id: TS_FILE(projectRoot), content: MATH_V1 });
+					assert.strictEqual(session.getProgram(), p1);
+
+					// content change bumps the version — fresh program
+					await session.setFile({ id: TS_FILE(projectRoot), content: MATH_V2 });
+					assert.notStrictEqual(session.getProgram(), p1);
+				} finally {
+					session.dispose();
+				}
+			}
+		);
+	});
+
+	test('getProgram is invalid after dispose', async () => {
+		await withTestProject(
+			{
+				'src/lib/math.ts': MATH_V1
+			},
+			async (projectRoot) => {
+				const session = createAnalysisSession({
+					sourceOptions: createSourceOptions(projectRoot)
+				});
+				await session.setFile({ id: TS_FILE(projectRoot), content: MATH_V1 });
+				session.dispose();
+				// the method TSDoc promises this; the message is a TS internal
+				assert.throws(() => session.getProgram());
+			}
+		);
+	});
+
 	test('TS mutation reflects in next query', async () => {
 		await withTestProject(
 			{

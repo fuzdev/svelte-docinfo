@@ -8,7 +8,22 @@
 				"type": "\"a\" | \"b\"",
 				"optional": true,
 				"description": "Description 1",
-				"defaultValue": "'a'"
+				"defaultValue": "'a'",
+				"typeInfo": {
+					"kind": "union",
+					"members": [
+						{
+							"kind": "literal",
+							"value": "a",
+							"text": "\"a\""
+						},
+						{
+							"kind": "literal",
+							"value": "b",
+							"text": "\"b\""
+						}
+					]
+				}
 			},
 			{
 				"name": "prop2",

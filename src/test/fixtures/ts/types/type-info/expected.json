@@ -1,0 +1,178 @@
+{
+	"name": "O",
+	"kind": "type",
+	"typeSignature": "O",
+	"members": [
+		{
+			"name": "a",
+			"kind": "variable",
+			"typeSignature": "A",
+			"optional": true,
+			"typeInfo": {
+				"kind": "union",
+				"alias": "A",
+				"members": [
+					{
+						"kind": "literal",
+						"value": "a",
+						"text": "\"a\""
+					},
+					{
+						"kind": "literal",
+						"value": "b",
+						"text": "\"b\""
+					},
+					{
+						"kind": "literal",
+						"value": "c",
+						"text": "\"c\""
+					}
+				]
+			}
+		},
+		{
+			"name": "b",
+			"kind": "variable",
+			"typeSignature": "E | null",
+			"optional": true,
+			"typeInfo": {
+				"kind": "union",
+				"members": [
+					{
+						"kind": "union",
+						"alias": "E",
+						"members": [
+							{
+								"kind": "literal",
+								"value": "a",
+								"text": "E.A"
+							},
+							{
+								"kind": "literal",
+								"value": "b",
+								"text": "E.B"
+							}
+						]
+					},
+					{
+						"kind": "intrinsic",
+						"text": "null"
+					}
+				]
+			}
+		},
+		{
+			"name": "c",
+			"kind": "variable",
+			"typeSignature": "\"a\" | \"b\"",
+			"typeInfo": {
+				"kind": "union",
+				"members": [
+					{
+						"kind": "literal",
+						"value": "a",
+						"text": "\"a\""
+					},
+					{
+						"kind": "literal",
+						"value": "b",
+						"text": "\"b\""
+					}
+				]
+			}
+		},
+		{
+			"name": "d",
+			"kind": "variable",
+			"typeSignature": "boolean",
+			"optional": true
+		},
+		{
+			"name": "e",
+			"kind": "variable",
+			"typeSignature": "M<string, B>",
+			"typeInfo": {
+				"kind": "reference",
+				"name": "M",
+				"typeArgs": [
+					{
+						"kind": "intrinsic",
+						"text": "string"
+					},
+					{
+						"kind": "reference",
+						"name": "B"
+					}
+				]
+			}
+		},
+		{
+			"name": "f",
+			"kind": "variable",
+			"typeSignature": "B",
+			"optional": true
+		},
+		{
+			"name": "g",
+			"kind": "variable",
+			"typeSignature": "(() => void) | null",
+			"optional": true,
+			"typeInfo": {
+				"kind": "union",
+				"members": [
+					{
+						"kind": "function",
+						"text": "() => void"
+					},
+					{
+						"kind": "intrinsic",
+						"text": "null"
+					}
+				]
+			}
+		},
+		{
+			"name": "h",
+			"kind": "variable",
+			"typeSignature": "string"
+		},
+		{
+			"name": "i",
+			"kind": "variable",
+			"typeSignature": "boolean | null",
+			"optional": true,
+			"typeInfo": {
+				"kind": "union",
+				"members": [
+					{
+						"kind": "intrinsic",
+						"text": "boolean"
+					},
+					{
+						"kind": "intrinsic",
+						"text": "null"
+					}
+				]
+			}
+		},
+		{
+			"name": "j",
+			"kind": "variable",
+			"typeSignature": "boolean | \"x\"",
+			"typeInfo": {
+				"kind": "union",
+				"members": [
+					{
+						"kind": "intrinsic",
+						"text": "boolean"
+					},
+					{
+						"kind": "literal",
+						"value": "x",
+						"text": "\"x\""
+					}
+				]
+			}
+		}
+	]
+}

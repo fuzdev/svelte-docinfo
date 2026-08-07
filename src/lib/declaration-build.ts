@@ -25,7 +25,8 @@ import type {
 	ComponentPropJsonInput,
 	Reactivity,
 	ReExportJsonInput,
-	ExternalReExportJsonInput
+	ExternalReExportJsonInput,
+	TypeJson
 } from './types.ts';
 
 /**
@@ -63,6 +64,8 @@ export interface MemberJsonBuild {
 	optional?: boolean;
 	/** Default value documented via `@default`. Variable members only. */
 	defaultValue?: string;
+	/** Structured type. Variable members only; see `TypeJson`. */
+	typeInfo?: TypeJson;
 }
 
 /**
@@ -105,6 +108,8 @@ export interface DeclarationJsonBuild {
 	module?: string;
 	/** Default value documented via `@default`. Variable declarations only. */
 	defaultValue?: string;
+	/** Structured type. Variable and type-alias declarations only; see `TypeJson`. */
+	typeInfo?: TypeJson;
 }
 
 /**

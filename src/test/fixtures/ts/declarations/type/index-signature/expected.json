@@ -13,7 +13,20 @@
 		{
 			"name": "[key: string]",
 			"kind": "variable",
-			"typeSignature": "string | number"
+			"typeSignature": "string | number",
+			"typeInfo": {
+				"kind": "union",
+				"members": [
+					{
+						"kind": "intrinsic",
+						"text": "string"
+					},
+					{
+						"kind": "intrinsic",
+						"text": "number"
+					}
+				]
+			}
 		}
 	]
 }

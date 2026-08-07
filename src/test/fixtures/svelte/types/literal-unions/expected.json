@@ -6,17 +6,76 @@
 			{
 				"name": "prop1",
 				"type": "1 | 2 | 3",
-				"description": "Description 1"
+				"description": "Description 1",
+				"typeInfo": {
+					"kind": "union",
+					"members": [
+						{
+							"kind": "literal",
+							"value": 1,
+							"text": "1"
+						},
+						{
+							"kind": "literal",
+							"value": 2,
+							"text": "2"
+						},
+						{
+							"kind": "literal",
+							"value": 3,
+							"text": "3"
+						}
+					]
+				}
 			},
 			{
 				"name": "prop2",
 				"type": "\"prefix-a\" | \"prefix-b\"",
-				"description": "Description 2"
+				"description": "Description 2",
+				"typeInfo": {
+					"kind": "union",
+					"members": [
+						{
+							"kind": "literal",
+							"value": "prefix-a",
+							"text": "\"prefix-a\""
+						},
+						{
+							"kind": "literal",
+							"value": "prefix-b",
+							"text": "\"prefix-b\""
+						}
+					]
+				}
 			},
 			{
 				"name": "prop3",
 				"type": "true | \"value\" | 1 | null",
-				"description": "Description 3"
+				"description": "Description 3",
+				"typeInfo": {
+					"kind": "union",
+					"members": [
+						{
+							"kind": "literal",
+							"value": true,
+							"text": "true"
+						},
+						{
+							"kind": "literal",
+							"value": "value",
+							"text": "\"value\""
+						},
+						{
+							"kind": "literal",
+							"value": 1,
+							"text": "1"
+						},
+						{
+							"kind": "intrinsic",
+							"text": "null"
+						}
+					]
+				}
 			}
 		],
 		"sourceLine": 1

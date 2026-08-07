@@ -28,7 +28,12 @@ import { VERSION } from 'svelte/compiler';
 import { svelte2tsx } from 'svelte2tsx';
 import ts from 'typescript';
 
-import type { ComponentPropJsonInput, GenericParamJson, ParameterJsonInput } from './types.ts';
+import type {
+	ComponentPropJsonInput,
+	GenericParamJson,
+	ParameterJsonInput,
+	TypeJson
+} from './types.ts';
 import type {
 	DeclarationJsonBuild,
 	DeclarationAnalysis,
@@ -46,6 +51,7 @@ import {
 	filterExternalProperties,
 	getTypeSignature
 } from './typescript-extract-shared.ts';
+import { resolveTypeInfo } from './typescript-extract-type-json.ts';
 import {
 	extractModuleComment,
 	analyzeExports,
@@ -53,6 +59,7 @@ import {
 } from './typescript-exports.ts';
 import { type SourceFileInfo, getComponentName, SVELTE_VIRTUAL_SUFFIX } from './source.ts';
 import { type ModuleSourceOptions, extractDependencies } from './source-config.ts';
+import { compareStrings } from './postprocess.ts';
 import { type Diagnostic } from './diagnostics.ts';
 import { to_error_message } from './error.ts';
 import { toPosixPath } from './paths.ts';
@@ -684,6 +691,7 @@ const mapVirtualPosition = (
 const assemblePropInfo = (
 	propName: string,
 	typeString: string,
+	typeInfo: TypeJson | undefined,
 	optional: boolean,
 	propDecl: ts.Node | undefined,
 	metadata: PropsMetadata,
@@ -705,6 +713,7 @@ const assemblePropInfo = (
 		throws: tsdoc?.throws,
 		since: tsdoc?.since
 	};
+	if (typeInfo) result.typeInfo = typeInfo;
 	// Only set parameters when there are actual params to expose.
 	// Bare Snippet/Snippet<[]> doesn't set this — consumers use the type string for detection.
 	if (parameters && parameters.length > 0) {
@@ -859,7 +868,10 @@ export const extractSnippetParameters = (
 		// an optional tuple element is widened to include `undefined` like an
 		// optional property — strip it so `optional: true` carries it alone
 		const type = getTypeSignature(elementType, checker, optional);
-		params.push({ name, type, optional, rest: false });
+		const typeInfo = resolveTypeInfo(elementType, checker, optional);
+		const param: ParameterJsonInput = { name, type, optional, rest: false };
+		if (typeInfo) param.typeInfo = typeInfo;
+		params.push(param);
 	}
 	return params;
 };
@@ -1049,9 +1061,32 @@ const extractPropsViaChecker = (
 		isExternalFile
 	);
 
+	// Emit props in source order — `getPropertiesOfType` returns the binder's
+	// order, which visibly interleaves the authored declaration order, and
+	// consumers can't recover source order client-side. Total order: (file,
+	// position); symbols without declarations sort last by name so the result
+	// stays deterministic. Cross-file grouping is by path, not "the component's
+	// own file first" — a prop inherited from a project-local base interface
+	// lands before or after the local ones depending on how the two paths
+	// compare. String ordering goes through `compareStrings` like every other
+	// output ordering, for environment-independent results.
+	const sortedProperties = [...properties].sort((a, b) => {
+		const declA = a.valueDeclaration ?? a.declarations?.[0];
+		const declB = b.valueDeclaration ?? b.declarations?.[0];
+		if (declA && declB) {
+			const fileA = declA.getSourceFile().fileName;
+			const fileB = declB.getSourceFile().fileName;
+			if (fileA !== fileB) return compareStrings(fileA, fileB);
+			return declA.getStart() - declB.getStart();
+		}
+		if (declA) return -1;
+		if (declB) return 1;
+		return compareStrings(a.name, b.name);
+	});
+
 	const props: Array<ComponentPropJsonInput> = [];
 
-	for (const prop of properties) {
+	for (const prop of sortedProperties) {
 		const propDecl = prop.valueDeclaration || prop.declarations?.[0];
 
 		// Check optionality via symbol flags (computed before type resolution
@@ -1060,12 +1095,14 @@ const extractPropsViaChecker = (
 
 		// Get type string via checker
 		let typeString = 'any';
+		let typeInfo: TypeJson | undefined;
 		let snippetParams: Array<ParameterJsonInput> | undefined;
 		try {
 			const propType = checker.getTypeOfSymbolAtLocation(prop, propsTypeNode);
 			// For optional properties, the checker includes `undefined` in the union.
 			// Strip it to match the declared type (e.g., `number` not `number | undefined`).
 			typeString = getTypeSignature(propType, checker, optional);
+			typeInfo = resolveTypeInfo(propType, checker, optional);
 
 			// Detect Snippet type via type string, then extract structured parameters.
 			// Stripped unconditionally so the extraction sees the `Snippet<...>`
@@ -1102,7 +1139,7 @@ const extractPropsViaChecker = (
 		}
 
 		props.push(
-			assemblePropInfo(prop.name, typeString, optional, propDecl, metadata, snippetParams)
+			assemblePropInfo(prop.name, typeString, typeInfo, optional, propDecl, metadata, snippetParams)
 		);
 	}
 
