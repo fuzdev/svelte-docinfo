@@ -6,12 +6,51 @@
 			{
 				"name": "prop1",
 				"type": "A",
-				"description": "Description 1"
+				"description": "Description 1",
+				"typeInfo": {
+					"kind": "union",
+					"alias": "A",
+					"members": [
+						{
+							"kind": "literal",
+							"value": "a",
+							"text": "\"a\""
+						},
+						{
+							"kind": "literal",
+							"value": "b",
+							"text": "\"b\""
+						},
+						{
+							"kind": "literal",
+							"value": "c",
+							"text": "\"c\""
+						},
+						{
+							"kind": "literal",
+							"value": "d",
+							"text": "\"d\""
+						}
+					]
+				}
 			},
 			{
 				"name": "prop2",
 				"type": "B | null",
-				"description": "Description 2"
+				"description": "Description 2",
+				"typeInfo": {
+					"kind": "union",
+					"members": [
+						{
+							"kind": "reference",
+							"name": "B"
+						},
+						{
+							"kind": "intrinsic",
+							"text": "null"
+						}
+					]
+				}
 			},
 			{
 				"name": "prop3",

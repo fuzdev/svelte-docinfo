@@ -8,13 +8,41 @@
 				"type": "A",
 				"optional": true,
 				"description": "Description 1",
-				"defaultValue": "null"
+				"defaultValue": "null",
+				"typeInfo": {
+					"kind": "union",
+					"alias": "A",
+					"members": [
+						{
+							"kind": "object",
+							"text": "{ a: string; }"
+						},
+						{
+							"kind": "intrinsic",
+							"text": "null"
+						}
+					]
+				}
 			},
 			{
 				"name": "prop2",
 				"type": "A",
 				"optional": true,
-				"description": "Description 2"
+				"description": "Description 2",
+				"typeInfo": {
+					"kind": "union",
+					"alias": "A",
+					"members": [
+						{
+							"kind": "object",
+							"text": "{ a: string; }"
+						},
+						{
+							"kind": "intrinsic",
+							"text": "null"
+						}
+					]
+				}
 			}
 		],
 		"sourceLine": 1

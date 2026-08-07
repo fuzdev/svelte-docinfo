@@ -14,13 +14,39 @@
 			"name": "b",
 			"kind": "variable",
 			"typeSignature": "string | null",
-			"optional": true
+			"optional": true,
+			"typeInfo": {
+				"kind": "union",
+				"members": [
+					{
+						"kind": "intrinsic",
+						"text": "string"
+					},
+					{
+						"kind": "intrinsic",
+						"text": "null"
+					}
+				]
+			}
 		},
 		{
 			"name": "c",
 			"kind": "variable",
 			"typeSignature": "(() => void) | null",
-			"optional": true
+			"optional": true,
+			"typeInfo": {
+				"kind": "union",
+				"members": [
+					{
+						"kind": "function",
+						"text": "() => void"
+					},
+					{
+						"kind": "intrinsic",
+						"text": "null"
+					}
+				]
+			}
 		},
 		{
 			"name": "d",
@@ -44,7 +70,20 @@
 		{
 			"name": "g",
 			"kind": "variable",
-			"typeSignature": "string | null"
+			"typeSignature": "string | null",
+			"typeInfo": {
+				"kind": "union",
+				"members": [
+					{
+						"kind": "intrinsic",
+						"text": "string"
+					},
+					{
+						"kind": "intrinsic",
+						"text": "null"
+					}
+				]
+			}
 		},
 		{
 			"name": "h",

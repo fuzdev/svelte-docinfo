@@ -15,7 +15,21 @@
 				"type": "Record<string, never>",
 				"optional": true,
 				"description": "Description 2",
-				"defaultValue": "{}"
+				"defaultValue": "{}",
+				"typeInfo": {
+					"kind": "reference",
+					"name": "Record",
+					"typeArgs": [
+						{
+							"kind": "intrinsic",
+							"text": "string"
+						},
+						{
+							"kind": "intrinsic",
+							"text": "never"
+						}
+					]
+				}
 			},
 			{
 				"name": "prop3",
@@ -44,7 +58,20 @@
 				"optional": true,
 				"description": "Description 6",
 				"defaultValue": "null",
-				"bindable": true
+				"bindable": true,
+				"typeInfo": {
+					"kind": "union",
+					"members": [
+						{
+							"kind": "intrinsic",
+							"text": "string"
+						},
+						{
+							"kind": "intrinsic",
+							"text": "null"
+						}
+					]
+				}
 			}
 		],
 		"sourceLine": 1

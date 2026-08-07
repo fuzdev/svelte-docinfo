@@ -13,13 +13,39 @@
 				"name": "prop2",
 				"type": "string | null",
 				"optional": true,
-				"description": "Description 2"
+				"description": "Description 2",
+				"typeInfo": {
+					"kind": "union",
+					"members": [
+						{
+							"kind": "intrinsic",
+							"text": "string"
+						},
+						{
+							"kind": "intrinsic",
+							"text": "null"
+						}
+					]
+				}
 			},
 			{
 				"name": "prop3",
 				"type": "(() => void) | null",
 				"optional": true,
-				"description": "Description 3"
+				"description": "Description 3",
+				"typeInfo": {
+					"kind": "union",
+					"members": [
+						{
+							"kind": "function",
+							"text": "() => void"
+						},
+						{
+							"kind": "intrinsic",
+							"text": "null"
+						}
+					]
+				}
 			},
 			{
 				"name": "prop4",

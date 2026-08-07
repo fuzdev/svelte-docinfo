@@ -22,12 +22,14 @@ import type {
 	MemberKind,
 	ParameterJson,
 	OverloadJsonInput,
-	Reactivity
+	Reactivity,
+	TypeJson
 } from './types.ts';
 import type { DeclarationJsonBuild, MemberJsonBuild } from './declaration-build.ts';
 import { type Diagnostic, type MisplacedTagDiagnostic } from './diagnostics.ts';
 import { to_error_message } from './error.ts';
 import { applyToDeclaration, parseComment, type TsdocParsedComment } from './tsdoc.ts';
+import { hasNullMember, resolveTypeInfo } from './typescript-extract-type-json.ts';
 import { type IsExternalFile } from './typescript-program.ts';
 
 /**
@@ -78,12 +80,6 @@ export const inferDeclarationKind = (symbol: ts.Symbol, node: ts.Node): Declarat
 
 /** Separator the TypeScript printer emits before a top-level `undefined` union member. */
 const UNDEFINED_UNION_SUFFIX = ' | undefined';
-
-/** Whether the type is `null` or a union with a `null` member. */
-const hasNullMember = (type: ts.Type): boolean =>
-	type.isUnion()
-		? type.types.some((t) => !!(t.flags & ts.TypeFlags.Null))
-		: !!(type.flags & ts.TypeFlags.Null);
 
 /**
  * Type signature of a declaration — for an optional one, with the implicit
@@ -185,12 +181,15 @@ export const extractSignatureParameters = (
 		// property, and is stripped the same way so `optional` carries it alone.
 		// `exactOptionalPropertyTypes` governs properties only, so it never applies here.
 		let typeString = 'unknown';
+		let typeInfo: TypeJson | undefined;
 		if (paramDecl) {
 			const paramType = checker.getTypeOfSymbolAtLocation(param, paramDecl);
 			typeString = getTypeSignature(paramType, checker, optional);
+			typeInfo = resolveTypeInfo(paramType, checker, optional);
 		} else {
 			const paramType = checker.getDeclaredTypeOfSymbol(param);
 			typeString = checker.typeToString(paramType);
+			typeInfo = resolveTypeInfo(paramType, checker, false);
 		}
 
 		// Get TSDoc description for this parameter
@@ -220,7 +219,7 @@ export const extractSignatureParameters = (
 
 		const rest = !!(paramDecl && ts.isParameter(paramDecl) && paramDecl.dotDotDotToken);
 
-		return {
+		const parameter: ParameterJson = {
 			name: param.name,
 			type: typeString,
 			optional,
@@ -229,6 +228,8 @@ export const extractSignatureParameters = (
 			defaultValue,
 			propertyDescriptions
 		};
+		if (typeInfo) parameter.typeInfo = typeInfo;
+		return parameter;
 	});
 };
 

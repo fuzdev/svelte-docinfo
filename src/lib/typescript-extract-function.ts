@@ -18,6 +18,7 @@ import type { DeclarationJsonBuild } from './declaration-build.ts';
 import { type Diagnostic } from './diagnostics.ts';
 import { to_error_message } from './error.ts';
 import type { TsdocParsedComment } from './tsdoc.ts';
+import { resolveTypeInfo } from './typescript-extract-type-json.ts';
 import {
 	detectReactivity,
 	getNodeLocation,
@@ -110,6 +111,8 @@ export const extractVariableInfo = (
 	try {
 		const type = checker.getTypeOfSymbolAtLocation(symbol, node);
 		declaration.typeSignature = checker.typeToString(type);
+		const typeInfo = resolveTypeInfo(type, checker, false);
+		if (typeInfo) declaration.typeInfo = typeInfo;
 	} catch (err) {
 		declaration.partial = true;
 		const loc = getNodeLocation(node);

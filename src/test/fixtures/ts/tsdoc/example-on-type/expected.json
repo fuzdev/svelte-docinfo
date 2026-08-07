@@ -6,5 +6,26 @@
 	"examples": [
 		"const a: A = 'a';",
 		"const b: A = 'b';"
-	]
+	],
+	"typeInfo": {
+		"kind": "union",
+		"alias": "A",
+		"members": [
+			{
+				"kind": "literal",
+				"value": "a",
+				"text": "\"a\""
+			},
+			{
+				"kind": "literal",
+				"value": "b",
+				"text": "\"b\""
+			},
+			{
+				"kind": "literal",
+				"value": "c",
+				"text": "\"c\""
+			}
+		]
+	}
 }

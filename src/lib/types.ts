@@ -122,6 +122,131 @@ export const GenericParamJson = z.strictObject({
 export type GenericParamJson = z.infer<typeof GenericParamJson>;
 
 /**
+ * Structured type information — the machine-readable counterpart to the flat
+ * type strings (`ParameterJson.type`, `ComponentPropJson.type`, and the
+ * `typeSignature` fields that carry a `typeInfo` sibling).
+ *
+ * **Absence contract**: the field holding a `TypeJson` is absent when the flat
+ * string is the whole story — the type is terminal at the root (an intrinsic,
+ * a plain object literal, a function type, a bare named reference). Present
+ * only when the node carries structure the string can't: union/intersection
+ * members, reference type arguments, enumerable literals. Nested nodes inside
+ * a present tree are always populated (they have no flat-string sibling).
+ *
+ * One exception, on `TypeDeclarationJson` for type aliases: the checker prints
+ * an aliased type as its bare alias name, so `type StrArr = string[]` has
+ * `typeSignature: "StrArr"` — no flat sibling to defer to. There the tree is
+ * emitted whatever its shape, except for object and function roots, whose
+ * content the declaration's own `members` already carries. Interned types
+ * (intrinsics, literals) don't carry an alias symbol and print structurally,
+ * so `type Str = string` is still absent.
+ *
+ * **Expansion policy**: unions and intersections recurse into `members`; named
+ * references keep `name` plus recursive `typeArgs`; arrays carry their
+ * `element`. Everything else is terminal: object literals, function types, and
+ * unclassified types (type parameters, tuples, conditional types) carry only
+ * `text`. Object property maps are deliberately not expanded. Recursion is
+ * depth-capped; nodes past the cap degrade to `{kind: 'other', text}`.
+ *
+ * **Alias policy**: `alias` is emitted whenever the checker reports an alias
+ * symbol, root or nested — for a root node it may duplicate the flat string
+ * (`type: "ColorScheme"` beside `alias: "ColorScheme"`), which is accepted for
+ * uniformity: nested nodes have no flat sibling, and consumers get one lookup
+ * key (`alias` on composites, `name` on references) at any depth. This covers
+ * the composite kinds only. An aliased object type becomes a `reference` under
+ * its alias name, and callables — including callable *interfaces* like
+ * `Snippet` — are classified `function` before the alias branch is reached, so
+ * their name survives only inside `text` (`type Handler = (e: Event) => void`
+ * nested in a union is `{kind: 'function', text: 'Handler'}`, which a
+ * whole-string type-link lookup still resolves, but a structural walk can't
+ * distinguish from a printed signature).
+ *
+ * **Normalization**: mirrors the flat strings — the optional-widening
+ * `undefined` member is dropped from a root union (`optional: true` carries
+ * it), and a `true | false` literal pair collapses to the `boolean` intrinsic
+ * (the checker expands `boolean` inside unions). A union reduced to one member
+ * by either rule becomes that member directly, never a 1-member union.
+ *
+ * Terminal `text` fields are printed with `NoTruncation` — unlike the flat
+ * strings, which keep the checker's default ~160-char truncation (they are the
+ * checker's canonical rendering; see `getTypeSignature`).
+ *
+ * **Member order and nested aliases**: union members follow the flat string's
+ * printed order — `null`/`undefined` sink last, and the checker's `origin`
+ * (the same internal field the flat strings are printed from) lists plain
+ * members before named sub-unions, so written `ColorScheme | number` reads
+ * `number | ColorScheme` in both — and a member written as a named sub-union
+ * survives as its own alias-carrying `union` node (`ColorScheme` stays nested,
+ * not flattened literals). When no usable `origin` exists the walk degrades,
+ * bounded, to the checker's normalized list: flattened members in
+ * checker-internal order (nullish still sunk last), written sub-aliases lost.
+ */
+export type TypeJson =
+	/** A built-in type: `string`, `number`, `boolean`, `null`, `undefined`, `void`, `any`, `unknown`, `never`, `symbol`, `bigint`, `object`. */
+	| { kind: 'intrinsic'; text: string }
+	/**
+	 * A literal type. `value` is the runtime value; `text` is the printed form —
+	 * quoted for plain literals (`"'a'"` prints as `"a"`), the qualified member
+	 * name for enum literals (`MyEnum.FOO`), so `{value, text}` doubles as a
+	 * `{value, label}` pair for enum-aware consumers.
+	 */
+	| { kind: 'literal'; value: string | number | boolean; text: string }
+	/**
+	 * A named type reference: an interface, class, aliased object type, or
+	 * generic instantiation. `typeArgs` is present only for generic
+	 * instantiations (`Map<string, Tome>`); a bare reference carries `name` alone.
+	 */
+	| { kind: 'reference'; name: string; typeArgs?: Array<TypeJson> }
+	/** An array type (`Tome[]`, `Array<Tome>`). */
+	| { kind: 'array'; element: TypeJson }
+	/** A union; `alias` when written through a named alias (or an enum's name). */
+	| { kind: 'union'; alias?: string; members: Array<TypeJson> }
+	/** An intersection; `alias` when written through a named alias. */
+	| { kind: 'intersection'; alias?: string; members: Array<TypeJson> }
+	/**
+	 * A function type, terminal: `text` only, no parameter structure. Covers
+	 * anything with a call signature, callable interfaces included — so
+	 * `Snippet<[a: string]>` lands here rather than as a `reference` with
+	 * `typeArgs`. `text` is whatever the checker prints, which is the alias or
+	 * interface name when the type has one (see the alias policy above).
+	 */
+	| { kind: 'function'; text: string }
+	/** An anonymous object type, terminal: `text` only, no property structure. */
+	| { kind: 'object'; text: string }
+	/** Anything unclassified (type parameters, tuples, conditional types) or past the depth cap. */
+	| { kind: 'other'; text: string };
+
+export const TypeJson: z.ZodType<TypeJson> = z.lazy(() =>
+	z.discriminatedUnion('kind', [
+		z.strictObject({ kind: z.literal('intrinsic'), text: z.string() }),
+		z.strictObject({
+			kind: z.literal('literal'),
+			value: z.union([z.string(), z.number(), z.boolean()]),
+			text: z.string()
+		}),
+		z.strictObject({
+			kind: z.literal('reference'),
+			name: z.string(),
+			typeArgs: z.array(TypeJson).optional()
+		}),
+		z.strictObject({ kind: z.literal('array'), element: TypeJson }),
+		z.strictObject({
+			kind: z.literal('union'),
+			alias: z.string().optional(),
+			members: z.array(TypeJson)
+		}),
+		z.strictObject({
+			kind: z.literal('intersection'),
+			alias: z.string().optional(),
+			members: z.array(TypeJson)
+		}),
+		z.strictObject({ kind: z.literal('function'), text: z.string() }),
+		z.strictObject({ kind: z.literal('object'), text: z.string() }),
+		z.strictObject({ kind: z.literal('other'), text: z.string() })
+	])
+);
+
+/**
  * Parameter information for functions and methods.
  *
  * Kept distinct from `ComponentPropJson` despite structural similarity.
@@ -134,6 +259,8 @@ export const ParameterJson = z.strictObject({
 	name: z.string(),
 	/** Resolved TypeScript type string (e.g., `string`, `Record<string, unknown>`). */
 	type: z.string(),
+	/** Structured type; absent when `type` is the whole story (see `TypeJson`). */
+	typeInfo: TypeJson.optional(),
 	/** Whether the parameter has a `?` token. */
 	optional: z.boolean().default(false),
 	/** Whether the parameter uses rest syntax (`...args`). */
@@ -196,6 +323,8 @@ export const ComponentPropJson = z.strictObject({
 	name: z.string(),
 	/** Resolved TypeScript type string. */
 	type: z.string(),
+	/** Structured type; absent when `type` is the whole story (see `TypeJson`). */
+	typeInfo: TypeJson.optional(),
 	/** Whether the prop is optional in the component's props type. */
 	optional: z.boolean().default(false),
 	/** Description from JSDoc on the prop's type declaration. */
@@ -375,7 +504,15 @@ export const VariableMemberJson = z.strictObject({
 	/** Rune flavor when this field is initialized with a value-producing reactivity rune. */
 	reactivity: Reactivity.optional(),
 	/** Default value documented via `@default`. Authoritative initializer (when human-readable) is in `typeSignature`. */
-	defaultValue: z.string().optional()
+	defaultValue: z.string().optional(),
+	/**
+	 * Structured type; absent when `typeSignature` is the whole story (see
+	 * `TypeJson`). Populated on checker-backed member paths — type-alias
+	 * properties, inferred (unannotated) class properties, getter-backed
+	 * accessors. AST-backed members (annotated interface and class properties,
+	 * setter-only accessors) report written text without it.
+	 */
+	typeInfo: TypeJson.optional()
 });
 export type VariableMemberJson = z.infer<typeof VariableMemberJson>;
 
@@ -531,6 +668,15 @@ export const TypeDeclarationJson = z.strictObject({
 	 */
 	intersects: z.array(z.string()).default([]),
 	/**
+	 * Structured type; absent when `typeSignature` is the whole story (see
+	 * `TypeJson`). The headline case: a union alias's `typeSignature` prints as
+	 * its own name (`ColorScheme`), and this field carries the enumerable
+	 * members. Type aliases print as their own name for every non-interned
+	 * type, so the tree is emitted there whatever its shape — the exception is
+	 * object and function roots, whose content `members` already carries.
+	 */
+	typeInfo: TypeJson.optional(),
+	/**
 	 * Type members: property signatures, method signatures, index signatures,
 	 * call/construct signatures.
 	 */
@@ -549,7 +695,9 @@ export const VariableDeclarationJson = z.strictObject({
 	/** Rune flavor when this variable is initialized with a value-producing reactivity rune. */
 	reactivity: Reactivity.optional(),
 	/** Default value documented via `@default`. Useful when the AST initializer is opaque (a call expression, computed value) and the author wants to document the conceptual default. */
-	defaultValue: z.string().optional()
+	defaultValue: z.string().optional(),
+	/** Structured type; absent when `typeSignature` is the whole story (see `TypeJson`). */
+	typeInfo: TypeJson.optional()
 });
 export type VariableDeclarationJson = z.infer<typeof VariableDeclarationJson>;
 

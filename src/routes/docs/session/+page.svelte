@@ -111,6 +111,14 @@ const session = createAnalysisSession({
 					<td>Cumulative ingest-time diagnostics across every owned entry</td>
 				</tr>
 				<tr>
+					<td class="white-space:nowrap"><code>getProgram()</code></td>
+					<td>
+						The LS-backed <code>ts.Program</code>, for consumers doing their own checker work.
+						Reference-stable while no file version bumps, so a retained reference goes stale after
+						any ingest — re-call after mutating
+					</td>
+				</tr>
+				<tr>
 					<td class="white-space:nowrap"><code>dispose()</code></td>
 					<td>Release LS resources and clear the owned set. Session must not be used after</td>
 				</tr>

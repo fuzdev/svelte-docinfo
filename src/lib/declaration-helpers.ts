@@ -21,6 +21,12 @@ import type { DeclarationJson, MemberJson, DeclarationKind, MemberKind } from '.
  * Assumes all boolean fields in the schema default to `false` — a `true`-defaulted
  * boolean would need its `false` values preserved, breaking the round-trip.
  *
+ * One keyed exemption: `value` is never stripped. `TypeJson`'s literal nodes
+ * carry data there (`{kind: 'literal', value: false}` is the literal type
+ * `false`, required by the schema), not a defaulted flag — no other output
+ * field is named `value`, and any future one must not be a `false`-defaulted
+ * boolean.
+ *
  * **Root-value caveat**: `JSON.stringify([], compactReplacer)` returns the JS
  * `undefined` (not the string `'[]'`), and `JSON.stringify(false, compactReplacer)`
  * returns the JS `undefined` too. Object-rooted callers (`AnalyzeResultJson`
@@ -47,8 +53,10 @@ import type { DeclarationJson, MemberJson, DeclarationKind, MemberKind } from '.
  * const restored = AnalyzeResultJson.parse(JSON.parse(json));
  * ```
  */
-export const compactReplacer = (_key: string, value: unknown): unknown =>
-	(Array.isArray(value) && value.length === 0) || value === false ? undefined : value;
+export const compactReplacer = (key: string, value: unknown): unknown =>
+	(Array.isArray(value) && value.length === 0) || (value === false && key !== 'value')
+		? undefined
+		: value;
 
 // Display Helpers
 

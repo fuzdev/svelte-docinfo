@@ -22,6 +22,7 @@ import type { DeclarationJsonBuild, MemberJsonBuild } from './declaration-build.
 import { type Diagnostic } from './diagnostics.ts';
 import { to_error_message } from './error.ts';
 import { parseComment, applyToDeclaration, type TsdocParsedComment } from './tsdoc.ts';
+import { resolveTypeInfo } from './typescript-extract-type-json.ts';
 import { type IsExternalFile } from './typescript-program.ts';
 import {
 	emitCallOrConstructSignature,
@@ -291,6 +292,8 @@ export const extractTypeAliasProperties = (
 			);
 		} else {
 			member.typeSignature = getTypeSignature(propType, checker, optional);
+			const typeInfo = resolveTypeInfo(propType, checker, optional);
+			if (typeInfo) member.typeInfo = typeInfo;
 		}
 
 		(declaration.members ??= []).push(member);

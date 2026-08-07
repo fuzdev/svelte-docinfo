@@ -310,6 +310,7 @@ See the [API docs](https://svelte-docinfo.fuz.dev/docs/api) for the full referen
 ## Features
 
 - **Full type resolution**: infers complex types without manual annotations, including generics, imported types, and inferred return types
+- **Structured types**: an optional `typeInfo` tree (`TypeJson`) beside the flat type strings on props, parameters, type members, and variable/type declarations — union and intersection members (alias names kept, enum members as `{value, text}` pairs), reference type arguments, and array elements, so a union alias documents more than its own name
 - **TSDoc/JSDoc parsing**: standard tags (`@param`, `@returns`, `@throws`, `@example`, `@deprecated`, `@see`, `@since`, `@default`) plus `@nodocs`, `@mutates`, and `@module` for file-level comments
 - **Svelte 5 component props**: extracts prop types, descriptions, defaults, and bindability via svelte2tsx
 - **Svelte 5 snippets**: `kind: 'snippet'` for template snippets (with structured parameters), `acceptsChildren` on components

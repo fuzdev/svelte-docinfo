@@ -29,6 +29,8 @@
  * @module
  */
 
+import type ts from 'typescript';
+
 import {
 	createAnalysisLanguageService,
 	loadTsconfig,
@@ -200,6 +202,19 @@ export interface AnalysisSession {
 	 * the owned map.
 	 */
 	allIngestDiagnostics(): Array<Diagnostic>;
+	/**
+	 * The LS-backed `ts.Program`, for incremental consumers doing their own
+	 * checker work over analyzed declarations (e.g., a docgen provider
+	 * converting `ts.Type`s into its own structured model).
+	 *
+	 * Freshness caveat: returns whatever the most recent ingest produced —
+	 * the same reference as the prior call when no file version bumped, else
+	 * a fresh program reusing unchanged ASTs via the document registry. A
+	 * retained reference goes stale after any `setFile` / `setFiles` /
+	 * `deleteFile`; re-call after mutating. Subject to the session's
+	 * concurrency contract above; invalid after `dispose()`.
+	 */
+	getProgram(): ts.Program;
 	/**
 	 * Release LS resources and clear the owned set. The session must not be
 	 * used after disposal.
@@ -840,5 +855,15 @@ export const createAnalysisSession = (options: AnalysisSessionOptions): Analysis
 		owned.clear();
 	};
 
-	return { setFile, setFiles, deleteFile, has, list, query, allIngestDiagnostics, dispose };
+	return {
+		setFile,
+		setFiles,
+		deleteFile,
+		has,
+		list,
+		query,
+		allIngestDiagnostics,
+		getProgram: () => ls.getProgram(),
+		dispose
+	};
 };

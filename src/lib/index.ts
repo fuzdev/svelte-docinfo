@@ -35,6 +35,7 @@ export {
 	MemberKind,
 	Reactivity,
 	GenericParamJson,
+	TypeJson,
 	ParameterJson,
 	ComponentPropJson,
 	OverloadJson,

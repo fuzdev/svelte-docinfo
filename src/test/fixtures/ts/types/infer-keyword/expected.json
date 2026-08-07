@@ -7,5 +7,9 @@
 		{
 			"name": "T"
 		}
-	]
+	],
+	"typeInfo": {
+		"kind": "other",
+		"text": "T extends Array<infer U> ? U : never"
+	}
 }

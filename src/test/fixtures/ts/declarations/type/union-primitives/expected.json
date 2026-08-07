@@ -2,5 +2,19 @@
 	"name": "A",
 	"kind": "type",
 	"docComment": "Test kind inference for type aliases.",
-	"typeSignature": "A"
+	"typeSignature": "A",
+	"typeInfo": {
+		"kind": "union",
+		"alias": "A",
+		"members": [
+			{
+				"kind": "intrinsic",
+				"text": "string"
+			},
+			{
+				"kind": "intrinsic",
+				"text": "number"
+			}
+		]
+	}
 }

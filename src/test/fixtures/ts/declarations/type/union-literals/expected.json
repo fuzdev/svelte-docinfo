@@ -2,5 +2,31 @@
 	"name": "A",
 	"kind": "type",
 	"docComment": "A simple type alias.",
-	"typeSignature": "A"
+	"typeSignature": "A",
+	"typeInfo": {
+		"kind": "union",
+		"alias": "A",
+		"members": [
+			{
+				"kind": "literal",
+				"value": "a",
+				"text": "\"a\""
+			},
+			{
+				"kind": "literal",
+				"value": "b",
+				"text": "\"b\""
+			},
+			{
+				"kind": "literal",
+				"value": "c",
+				"text": "\"c\""
+			},
+			{
+				"kind": "literal",
+				"value": "d",
+				"text": "\"d\""
+			}
+		]
+	}
 }
