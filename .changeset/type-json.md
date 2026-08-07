@@ -8,9 +8,9 @@ Flat `checker.typeToString()` output can't carry union members, enum values,
 or the named types inside generics — `type A = 'a' | 'b'` surfaced as just
 `"A"`. A new optional `typeInfo` field (`TypeJson`, a recursive Zod schema)
 sits beside the flat strings on `ComponentPropJson`, `ParameterJson` (snippet
-tuple elements included), type-alias property members, checker-backed class
-members (inferred properties, getter-backed accessors), and
-variable/type-alias declarations:
+tuple elements included), type-alias property members (index signatures
+included), checker-backed class members (inferred properties, getter-backed
+accessors), and variable/type-alias declarations:
 
 - unions and intersections recurse into `members`, keeping the alias name;
   union members mirror the flat string's printed order (nullish last), and a

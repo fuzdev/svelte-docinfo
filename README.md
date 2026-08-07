@@ -139,6 +139,13 @@ All three produce the same JSON shape:
 						{
 							"name": "mode",
 							"type": "\"add\" | \"multiply\"",
+							"typeInfo": {
+								"kind": "union",
+								"members": [
+									{ "kind": "literal", "value": "add", "text": "\"add\"" },
+									{ "kind": "literal", "value": "multiply", "text": "\"multiply\"" }
+								]
+							},
 							"optional": true,
 							"description": "Operation mode.",
 							"defaultValue": "'add'"

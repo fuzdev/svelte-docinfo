@@ -140,11 +140,15 @@ const emitLocalIndexSignature = (
 			indexKind
 		);
 		if (indexType) {
-			(declaration.members ??= []).push({
+			const member: MemberJsonBuild = {
 				name: `[key: ${kind}]`,
 				kind: 'variable',
+				// no optional strip on either output — `optional` is N/A for index signatures
 				typeSignature: checker.typeToString(indexType)
-			});
+			};
+			const typeInfo = resolveTypeInfo(indexType, checker, false);
+			if (typeInfo) member.typeInfo = typeInfo;
+			(declaration.members ??= []).push(member);
 		}
 	} catch (err) {
 		declaration.partial = true;

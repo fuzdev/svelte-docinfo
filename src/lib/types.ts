@@ -508,9 +508,9 @@ export const VariableMemberJson = z.strictObject({
 	/**
 	 * Structured type; absent when `typeSignature` is the whole story (see
 	 * `TypeJson`). Populated on checker-backed member paths — type-alias
-	 * properties, inferred (unannotated) class properties, getter-backed
-	 * accessors. AST-backed members (annotated interface and class properties,
-	 * setter-only accessors) report written text without it.
+	 * properties and index signatures, inferred (unannotated) class properties,
+	 * getter-backed accessors. AST-backed members (annotated interface and
+	 * class properties, setter-only accessors) report written text without it.
 	 */
 	typeInfo: TypeJson.optional()
 });

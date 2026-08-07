@@ -347,6 +347,24 @@ export class C {
 		assert.deepStrictEqual(accessor.typeInfo, expected);
 	});
 
+	test('index signature members carry typeInfo', async () => {
+		const module = await analyzeFile(
+			'src/lib/a.ts',
+			`export type O = { [key: string]: 'a' | 'b' };`
+		);
+		const declaration = module.declarations[0];
+		assert(declaration?.kind === 'type', 'expected a type declaration');
+		const member = declaration.members.find((m) => m.name === '[key: string]');
+		assert(member?.kind === 'variable', 'expected a variable member');
+		assert.deepStrictEqual(member.typeInfo, {
+			kind: 'union',
+			members: [
+				{ kind: 'literal', value: 'a', text: '"a"' },
+				{ kind: 'literal', value: 'b', text: '"b"' }
+			]
+		});
+	});
+
 	test('the depth cap terminates a recursive alias', async () => {
 		const module = await analyzeFile('src/lib/a.ts', `export type J = string | Array<J>;`);
 		const declaration = module.declarations[0];

@@ -256,8 +256,8 @@
 					<code>"variable"</code>: properties, accessors, and index signatures. Adds optional
 					<code>defaultValue</code> (from <code>@default</code>), plus <code>reactivity</code> for
 					class fields initialized with a Svelte rune, plus <code>typeInfo</code> on checker-backed member
-					paths — type-alias properties, inferred class properties, getter-backed accessors (annotated
-					interface and class properties report written text only)
+					paths — type-alias properties and index signatures, inferred class properties, getter-backed
+					accessors (annotated interface and class properties report written text only)
 				</li>
 			</ul>
 			<p>
