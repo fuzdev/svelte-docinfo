@@ -189,9 +189,15 @@ export type GenericParamJson = z.infer<typeof GenericParamJson>;
  * (the checker expands `boolean` inside unions). A union reduced to one member
  * by either rule becomes that member directly, never a 1-member union.
  *
- * Terminal `text` fields are printed with `NoTruncation` — unlike the flat
- * strings, which keep the checker's default ~160-char truncation (they are the
- * checker's canonical rendering; see `getTypeSignature`).
+ * Terminal `text` fields are printed with `NoTruncation` up to a 1000-char
+ * budget, past which the checker's own elided rendering is used — so `text` is
+ * always a well-formed type string, and one node can't grow without bound the
+ * way the depth cap prevents for the tree. The flat strings keep the checker's
+ * default ~160-char truncation throughout (they are the checker's canonical
+ * rendering; see `getTypeSignature`). The budget bites only on types whose
+ * alias TypeScript dropped — an alias over an indexed access or conditional
+ * (`z.infer<typeof S>`, valibot's `InferOutput`) carries no alias symbol, so
+ * the checker expands its whole structure at every use.
  *
  * **Member order and nested aliases**: union members follow the flat string's
  * printed order — `null`/`undefined` sink last, and the checker's `origin`

@@ -33,24 +33,55 @@ import type { TupleElementJson, TypeJson } from './types.ts';
 const MAX_TYPE_JSON_DEPTH = 5;
 
 /**
- * Terminal `text` fields are load-bearing (the node has no other content), so
- * they opt out of the checker's default ~160-char truncation. The flat type
- * strings deliberately keep it — they are the checker's canonical rendering.
+ * Size budget for a terminal node's `text`, the companion bound to
+ * `MAX_TYPE_JSON_DEPTH`. Depth bounds how *far* a tree walks; this bounds how
+ * *wide* one node gets — and a terminal node routes around the depth cap
+ * entirely, since its whole payload is one string.
+ *
+ * The budget exists because a type whose alias TypeScript dropped prints its
+ * full structure: an alias whose right-hand side is an indexed access or
+ * conditional (`z.infer<typeof S>`, valibot's `InferOutput`) carries no
+ * `aliasSymbol`, so the checker expands it everywhere. Measured on this repo's
+ * own Zod-typed source, 23 such nodes held 60% of all terminal text, one of
+ * them 25,699 chars — against a 320-char flat sibling. Nodes under the budget
+ * are unaffected, which is the great majority: the band this preserves
+ * (160–1000 chars) is what opting out of the checker's ~160-char default was
+ * for in the first place.
  */
-const printType = (type: ts.Type, checker: ts.TypeChecker): string =>
-	checker.typeToString(type, undefined, ts.TypeFormatFlags.NoTruncation);
+const MAX_TERMINAL_TEXT = 1000;
+
+/**
+ * Terminal `text` fields are load-bearing (the node has no other content), so
+ * they opt out of the checker's default ~160-char truncation — up to
+ * `MAX_TERMINAL_TEXT`. Past it the checker's own elided rendering is used, so
+ * `text` is always a well-formed type string rather than a hand-sliced prefix
+ * (the printer offers no middle setting — the flag swaps a 160-char budget for
+ * an effectively unlimited one, so the fallback is a step down to 160, not to
+ * the budget). The flat type strings keep the default throughout — they are
+ * the checker's canonical rendering.
+ */
+const printType = (type: ts.Type, checker: ts.TypeChecker): string => {
+	const full = checker.typeToString(type, undefined, ts.TypeFormatFlags.NoTruncation);
+	return full.length <= MAX_TERMINAL_TEXT ? full : checker.typeToString(type);
+};
 
 /**
  * `printType` for a type standing at its own alias's declaration, where the
  * default rendering is the alias name itself. `InTypeAlias` is the printer flag
- * for exactly this position — it writes what the alias expands to.
+ * for exactly this position — it writes what the alias expands to. Budgeted
+ * like `printType`; the fallback keeps `InTypeAlias` so an over-budget alias
+ * root still expands rather than printing its own name.
  */
-const printAliasedType = (type: ts.Type, checker: ts.TypeChecker): string =>
-	checker.typeToString(
+const printAliasedType = (type: ts.Type, checker: ts.TypeChecker): string => {
+	const full = checker.typeToString(
 		type,
 		undefined,
 		ts.TypeFormatFlags.NoTruncation | ts.TypeFormatFlags.InTypeAlias
 	);
+	return full.length <= MAX_TERMINAL_TEXT
+		? full
+		: checker.typeToString(type, undefined, ts.TypeFormatFlags.InTypeAlias);
+};
 
 /** Whether the type is `null` or a union with a `null` member. */
 const hasNullMember = (type: ts.Type): boolean =>

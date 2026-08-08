@@ -29,7 +29,10 @@ beside `returnType` on function declarations/members and per overload:
   array form); arrays and tuples mark `readonly` — the one place it
   survives at an alias root, whose flat string is just the alias name
 - object literals and function types stay terminal `text`, printed with
-  `NoTruncation` (the flat strings keep the checker's canonical rendering).
+  `NoTruncation` up to a 1000-char budget — past it the checker's own elided
+  rendering is used, so `text` stays a well-formed type string and one node
+  can't grow without bound the way the depth cap prevents for the tree (the
+  flat strings keep the checker's canonical rendering)
   Anything with a call signature is a function node — except *named generic
   instantiations* (checker `Reference`-flagged, symbol-named,
   argument-carrying), which classify as references, so `Snippet<[a: string]>`

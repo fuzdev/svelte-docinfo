@@ -8,7 +8,8 @@
  * order with nullish last, written sub-aliases as nested union nodes, the
  * null-bearing optional alias surviving), enum `{value, text}` pairs,
  * reference/array linkability, the boolean collapse, checker-backed class
- * members, the depth cap on recursive aliases, and the `compactReplacer`
+ * members, the depth cap on recursive aliases, the terminal-text size budget,
+ * and the `compactReplacer`
  * round-trip for a literal `false` value (the one data-bearing `false` on the
  * wire). Round-2 shape: callable classification (named generic instantiations
  * as references, bare/aliased signatures and hybrids staying `function`),
@@ -383,6 +384,32 @@ export class C {
 			depth++;
 			assert.ok(depth < 20, 'expected the walk to terminate');
 		}
+	});
+
+	test('the text budget bounds one terminal node, without hand-slicing it', async () => {
+		// the width bound companion to the depth cap: a terminal node's whole
+		// payload is one string, so depth can't contain it. This is the shape a
+		// schema-inferred alias produces — TypeScript drops the alias symbol for
+		// an indexed-access/conditional right-hand side (`z.infer<typeof S>`), so
+		// the checker expands the full structure at every use site
+		const properties = Array.from({ length: 60 }, (_, i) => `propertyNumber${i}: string`).join(
+			'; '
+		);
+		const module = await analyzeFile(
+			'src/lib/a.ts',
+			`export type O = { big: { ${properties} } | null };`
+		);
+		const declaration = module.declarations[0];
+		assert(declaration?.kind === 'type', 'expected a type declaration');
+		const member = declaration.members[0];
+		assert(member?.kind === 'variable', 'expected a variable member');
+		assert(member.typeInfo?.kind === 'union', 'expected a union typeInfo');
+		const object = member.typeInfo.members[0];
+		assert(object?.kind === 'object', 'expected an object node');
+		// well under budget, and the checker's own elision rather than a prefix —
+		// `text` stays a parseable type string
+		assert.ok(object.text.length < 1000, `expected the elided form, got ${object.text.length}`);
+		assert.match(object.text, /^\{ .* \.\.\. \d+ more \.\.\.; .* \}$/);
 	});
 
 	test('a literal false value survives the compact wire round-trip', async () => {
