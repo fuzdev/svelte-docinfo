@@ -49,9 +49,8 @@ import type { Diagnostic } from './diagnostics.ts';
 import type { AnalysisLog } from './log.ts';
 import { compactReplacer } from './declaration-helpers.ts';
 import {
-	createSourceOptions,
+	createSourceOptionsWithInclude,
 	isSource,
-	widenSourcePathsForInclude,
 	type ModuleSourceOptions,
 	type SourceOptionsDefaults
 } from './source-config.ts';
@@ -82,7 +81,9 @@ export interface VitePluginSvelteDocinfoOptions {
 	 * Explicit patterns also widen the source scope: their static bases join
 	 * `sourceOptions.sourcePaths` (see `widenSourcePathsForInclude`), so
 	 * include-discovered files outside the configured source paths still emit
-	 * modules — and the watcher tracks their changes.
+	 * modules — and the watcher tracks their changes. A pattern with no static
+	 * base (`'**\/*.ts'`, a literal root file) scopes the whole project root
+	 * as source and logs an info line; an out-of-root base throws.
 	 *
 	 * When omitted, the glob fallback derives an include from
 	 * `sourceOptions.sourcePaths` via `deriveIncludePatterns`, so custom
@@ -370,24 +371,24 @@ const svelteDocinfo = (options: VitePluginSvelteDocinfoOptions = {}): Plugin => 
 
 		configResolved(config) {
 			projectRoot = options.projectRoot ?? config.root;
+			// Assign the logger before widening — `createSourceOptionsWithInclude`
+			// logs when an include pattern scopes the whole project root.
+			logger = config.logger;
+			isDev = config.command === 'serve';
 			// `exclude` shortcut overrides `sourceOptions.exclude` (same precedence
 			// as `analyzeFromFiles`).
 			const mergedSourceOptions =
 				exclude !== undefined ? { ...sourceOptions, exclude } : sourceOptions;
-			resolvedSourceOptions = createSourceOptions(projectRoot, mergedSourceOptions);
 			// Explicit include patterns widen the source scope (same as
 			// `analyzeFromFiles`) — also fixes the watcher, whose `isWatchedFile`
 			// gate reads `sourcePaths` and would otherwise ignore changes to
 			// include-discovered files outside them.
-			if (include?.length) {
-				const widened = widenSourcePathsForInclude(resolvedSourceOptions.sourcePaths, include);
-				if (widened !== resolvedSourceOptions.sourcePaths) {
-					resolvedSourceOptions = createSourceOptions(projectRoot, {
-						...mergedSourceOptions,
-						sourcePaths: [...widened]
-					});
-				}
-			}
+			resolvedSourceOptions = createSourceOptionsWithInclude(
+				projectRoot,
+				mergedSourceOptions,
+				include,
+				logger
+			);
 			// Reject contradictory discovery config upfront so failures are at
 			// config-load time rather than first analysis.
 			if (discovery === 'exports' && include) {
@@ -396,8 +397,6 @@ const svelteDocinfo = (options: VitePluginSvelteDocinfoOptions = {}): Plugin => 
 						"Use discovery: 'glob' (with include) or remove include for strict exports mode."
 				);
 			}
-			logger = config.logger;
-			isDev = config.command === 'serve';
 		},
 
 		async buildStart() {

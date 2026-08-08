@@ -108,7 +108,10 @@ export interface DiscoverSourceFilesResult {
  * - `'glob'` — glob only; `include` parameterizes the search.
  *
  * Exclusion globs come from `sourceOptions.exclude` (the single source of
- * truth, also applied at analysis time by `isSource()`).
+ * truth, also applied at analysis time by `isSource()`). Beneath it, the
+ * always-on baseline (`node_modules` + dot-directories, see
+ * `hasBaselineExcludedSegment` in `source-config.ts`) applies at both stages
+ * and is not affected by `exclude` overrides.
  *
  * @param options - discovery configuration
  * @returns discovered files (content loaded) and any diagnostics from the exports step

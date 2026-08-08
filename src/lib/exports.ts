@@ -20,6 +20,7 @@ import type { Diagnostic } from './diagnostics.ts';
 import { to_error_message } from './error.ts';
 import { toPosixPath } from './paths.ts';
 import { MAX_FILE_CONCURRENCY, map_concurrent } from './concurrency.ts';
+import { baselineExcludesForBase, hasBaselineExcludedSegment } from './source-config.ts';
 
 // Types
 
@@ -324,7 +325,10 @@ export const discoverFromExports = async (
  * Applies `excludeMatcher` to the mapped source path — the wildcard path gets
  * exclusion through the glob's `ignore`, and skipping it here would let a
  * concrete entry (a root `.` export mapping to `src/lib/index.ts`) bypass
- * `exclude` at the discovery stage.
+ * `exclude` at the discovery stage. The always-on baseline applies the same
+ * way: matched relative to the source dir (like the wildcard path's anchored
+ * glob ignore), so a concrete entry mapping into `node_modules` or a
+ * dot-directory below it is never discovered.
  */
 const resolveConcreteExport = async (
 	distPath: string,
@@ -336,6 +340,12 @@ const resolveConcreteExport = async (
 ): Promise<void> => {
 	const sourcePath = mapDistToSource(distPath, condition, mappingOptions);
 	if (!sourcePath) return;
+	// `mapDistToSource` prefixes `sourceDir/`, so the slice is the base-relative
+	// remainder; the `.js` fallback below differs only in the final segment,
+	// which the baseline never checks, so one check covers both.
+	const { sourceDir } = mappingOptions;
+	const baseRelative = sourceDir ? sourcePath.slice(sourceDir.length + 1) : sourcePath;
+	if (hasBaselineExcludedSegment(baseRelative)) return;
 	if (excludeMatcher?.(sourcePath)) return;
 
 	const absPath = toPosixPath(resolve(projectRoot, sourcePath));
@@ -415,7 +425,9 @@ const expandWildcardExport = async (
 
 	const filePaths = await glob(patterns, {
 		cwd: projectRoot,
-		ignore: exclude,
+		// user exclude + the always-on baseline anchored below the source dir —
+		// anchoring preserves an explicit dot-dir source dir (`.hidden/src`)
+		ignore: [...(exclude ?? []), ...baselineExcludesForBase(mappingOptions.sourceDir)],
 		absolute: true
 	});
 

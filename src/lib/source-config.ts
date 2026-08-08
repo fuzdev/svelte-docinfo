@@ -17,6 +17,7 @@ import picomatch from 'picomatch';
 import { type AnalyzerType, type SourceFileInfo, getDefaultAnalyzer } from './source.ts';
 import { toPosixPath } from './paths.ts';
 import { compareStrings } from './postprocess.ts';
+import type { AnalysisLog } from './log.ts';
 
 /**
  * Configuration for module source detection and path extraction.
@@ -54,8 +55,12 @@ export interface ModuleSourceOptions {
 	/**
 	 * Source directory paths to include, relative to `projectRoot`.
 	 *
-	 * Normalized (leading/trailing slashes stripped) by `normalizeSourceOptions`,
-	 * which returns a new options object.
+	 * Absolute entries are accepted when they resolve inside `projectRoot` and
+	 * are stored root-relative; an entry resolving outside it throws (a
+	 * root-anchored `'/src/lib'` is taken as filesystem-absolute, not
+	 * shorthand — the error hints to drop the slash). Normalized (`.`/`..`
+	 * segments collapsed, trailing slashes stripped) by
+	 * `normalizeSourceOptions`, which returns a new options object.
 	 *
 	 * @example
 	 * ```ts
@@ -70,8 +75,10 @@ export interface ModuleSourceOptions {
 	/**
 	 * Source root for extracting relative module paths, relative to `projectRoot`.
 	 *
-	 * Normalized (leading/trailing slashes stripped; `'.'` collapsed to `''`)
-	 * by `normalizeSourceOptions`, which returns a new options object.
+	 * Normalized like `sourcePaths` entries (absolute-inside-root accepted and
+	 * stored root-relative, `.`/`..` collapsed — so `'.'` becomes `''`,
+	 * trailing slashes stripped, out-of-root throws) by
+	 * `normalizeSourceOptions`, which returns a new options object.
 	 *
 	 * When omitted:
 	 * - Single `sourcePath`: defaults to that path
@@ -228,13 +235,18 @@ export const createSourceOptions = (
  * Normalization:
  * - `projectRoot` resolved to absolute via `path.resolve` (relative paths resolve against cwd)
  * - Trailing slash stripped from `projectRoot`
- * - Leading/trailing slashes stripped from `sourcePaths` entries
- * - Leading/trailing slashes stripped from `sourceRoot` (if provided)
- * - `sourceRoot` of `'.'` is normalized to `''` (project root sentinel)
+ * - `sourcePaths` entries and `sourceRoot` resolved against `projectRoot` and
+ *   stored root-relative: `.`/`..` segments collapse (`src/../lib` → `lib`,
+ *   `.` → `''`), trailing slashes drop, and absolute entries inside the root
+ *   relativize (matching `loadFile`'s treatment of path inputs)
  *
  * Validation (after normalization):
- * 1. `sourcePaths` has at least one entry
- * 2. `sourceRoot` (if provided and non-empty) is a prefix of all `sourcePaths`
+ * 1. No `sourcePaths` entry or `sourceRoot` resolves outside `projectRoot`
+ *    (out-of-root modules are unrepresentable — module paths and diagnostics
+ *    are project-root-relative; widened include bases funnel through here
+ *    too; absolute out-of-root entries get a drop-the-leading-slash hint)
+ * 2. `sourcePaths` has at least one entry
+ * 3. `sourceRoot` (if provided and non-empty) is a prefix of all `sourcePaths`
  *
  * When `sourceRoot` is omitted and multiple `sourcePaths` are provided,
  * `sourceRoot` is auto-derived as their longest common path prefix. If the
@@ -251,8 +263,8 @@ export const createSourceOptions = (
  *
  * @example
  * ```ts
- * // Normalization: slashes stripped, relative projectRoot resolved
- * const normalized = normalizeSourceOptions({projectRoot: '.', sourcePaths: ['/src/lib/'], ...});
+ * // Normalization: trailing slash and dot segments collapse, relative projectRoot resolves
+ * const normalized = normalizeSourceOptions({projectRoot: '.', sourcePaths: ['src/../src/lib/'], ...});
  * // normalized.projectRoot is now absolute, normalized.sourcePaths is ['src/lib']
  * ```
  */
@@ -265,9 +277,29 @@ export const normalizeSourceOptions = (options: ModuleSourceOptions): ModuleSour
 		projectRoot = projectRoot.slice(0, -1);
 	}
 
-	// Normalize sourcePaths: posixify (in case a Windows user supplies
-	// `'src\\lib'`), then strip leading/trailing slashes.
-	const sourcePaths = options.sourcePaths.map((p) => stripSlashes(toPosixPath(p)));
+	// Normalize sourcePaths through resolve+relative: posixify (in case a
+	// Windows user supplies `'src\\lib'`), collapse `.`/`..` segments so the
+	// textual prefix checks in `isSource`/`extractPath` see canonical entries
+	// (`src/../lib` → `lib`, `.` → `''`), and accept absolute entries that
+	// resolve inside the project root by storing them root-relative (matching
+	// `loadFile`'s treatment of path inputs). An entry that resolves outside
+	// the project root throws: out-of-root modules are unrepresentable
+	// (`ModuleJson.path` and `Diagnostic.file` are project-root-relative by
+	// contract), so the config would be silently dead — discovery finds the
+	// files, ingest accepts them, the query-time source gate drops every one
+	// with no trace beyond its info log. Include-pattern widening re-runs
+	// `createSourceOptions`, so an out-of-root include base fails here too.
+	const sourcePaths = options.sourcePaths.map((p) =>
+		toRootRelativePath(
+			p,
+			projectRoot,
+			'sourcePaths entry',
+			'Out-of-root files cannot be analyzed — module paths and diagnostics are ' +
+				'project-root-relative. Point projectRoot at a common ancestor of all source ' +
+				'directories instead. (Explicit include patterns contribute their base ' +
+				'directories to sourcePaths, so an out-of-root include fails here too.)'
+		)
+	);
 
 	// Validate sourcePaths non-empty
 	if (sourcePaths.length === 0) {
@@ -277,14 +309,20 @@ export const normalizeSourceOptions = (options: ModuleSourceOptions): ModuleSour
 		);
 	}
 
-	// Normalize sourceRoot: posixify, strip leading/trailing slashes.
-	// `.` is treated as the project root sentinel — equivalent to an empty string,
+	// Normalize sourceRoot the same way. `.` (the ergonomic CLI form) and `''`
+	// (the shell-quoting form) both resolve to the project-root sentinel `''`,
 	// which `extractPath` interprets as "strip projectRoot only" (module paths
-	// stay project-relative). `.` is the ergonomic CLI form; `''` is the
-	// shell-quoting form. Both reach the same effective state.
+	// stay project-relative).
 	let sourceRoot =
-		options.sourceRoot === undefined ? undefined : stripSlashes(toPosixPath(options.sourceRoot));
-	if (sourceRoot === '.') sourceRoot = '';
+		options.sourceRoot === undefined
+			? undefined
+			: toRootRelativePath(
+					options.sourceRoot,
+					projectRoot,
+					'sourceRoot',
+					'Module paths are extracted relative to projectRoot/sourceRoot, so sourceRoot ' +
+						'must stay inside the project root.'
+				);
 
 	// Auto-derive sourceRoot for multiple sourcePaths when not explicitly provided.
 	// Empty common prefix is a valid result — `extractPath` will produce
@@ -318,6 +356,60 @@ const stripSlashes = (p: string): string => {
 };
 
 /**
+ * Normalize a projectRoot-relative path option to canonical root-relative form.
+ *
+ * Accepts relative entries (anchored at `projectRoot`) and absolute entries
+ * that resolve inside it — matching `loadFile`'s treatment of path inputs —
+ * and collapses `.`/`..` segments so downstream textual prefix checks see
+ * canonical paths. Throws when the entry resolves outside `projectRoot`, with
+ * a drop-the-leading-slash hint for absolute entries (`'/src/lib'` is taken
+ * as a filesystem-absolute path, not root-anchored shorthand).
+ */
+const toRootRelativePath = (
+	value: string,
+	projectRoot: string,
+	label: string,
+	detail: string
+): string => {
+	const posix = toPosixPath(value);
+	const rel = toPosixPath(relative(projectRoot, resolve(projectRoot, posix)));
+	if (rel === '..' || rel.startsWith('../')) {
+		const absoluteHint = posix.startsWith('/')
+			? ' Absolute paths are accepted when they resolve inside projectRoot; for a ' +
+				`project-root-relative path drop the leading slash ("${stripSlashes(posix)}").`
+			: '';
+		throw new Error(
+			`${label} "${posix}" escapes projectRoot "${projectRoot}". ${detail}${absoluteHint}`
+		);
+	}
+	return rel;
+};
+
+/**
+ * Static base directory of a discovery include pattern.
+ *
+ * `picomatch.scan().base` for glob patterns (`'src/other/**\/*.ts'` →
+ * `'src/other'`); a literal non-glob pattern names a file, so it contributes
+ * its directory (`'src/foo.ts'` → `'src'`, a root file → `''`); a negated
+ * pattern has no base (`null`). Shared by `widenSourcePathsForInclude`
+ * (scope widening), `globFiles` (anchoring the baseline exclusions), and
+ * `createSourceOptionsWithInclude` (detecting root-scoping patterns to log).
+ */
+export const includePatternBase = (pattern: string): string | null => {
+	const scanned = picomatch.scan(pattern);
+	if (scanned.negated) return null;
+	// TODO: an absolute include pattern (tinyglobby treats it as absolute) gets
+	// its base mangled by this leading-slash strip — decide whether to
+	// relativize in-root ones like `normalizeSourceOptions` does for
+	// sourcePaths, which also needs a story for the anchored glob ignores
+	let base = stripSlashes(toPosixPath(scanned.base));
+	if (!scanned.isGlob) {
+		base = base.includes('/') ? base.slice(0, base.lastIndexOf('/')) : '';
+	}
+	return base;
+};
+
+/**
  * Union `sourcePaths` with the static base directories of explicit include
  * patterns, so include-discovered files count as source at analysis time.
  *
@@ -325,17 +417,17 @@ const stripSlashes = (p: string): string => {
  * 'src/other/**'` under the default `['src/lib']`); without widening, the
  * query-time source gate would drop those modules, and `extractPath` would
  * have no root to relativize their paths against (its fallback is the
- * absolute path). Each pattern contributes its static prefix
- * (`picomatch.scan().base` — `'src/other/**\/*.ts'` → `'src/other'`); a
- * literal non-glob pattern names a file, so it contributes its directory; a
- * negated pattern contributes nothing. A root-crossing pattern (`'**\/*.ts'`)
- * contributes `''`, which scopes the whole project root as source.
+ * absolute path). Each pattern contributes its static base (see
+ * `includePatternBase`). A root-crossing pattern (`'**\/*.ts'`) contributes
+ * `''`, which scopes the whole project root as source.
  *
  * Pure path-set logic — callers re-run `createSourceOptions` on the widened
  * list so sourceRoot derivation and validation see the final set (an
  * *explicit* sourceRoot that doesn't prefix a widened path fails that
- * validation loudly rather than emitting absolute module paths). Returns the
- * input array identity when nothing widens.
+ * validation loudly rather than emitting absolute module paths; an
+ * out-of-root base hits the projectRoot-escape throw). Returns the input
+ * array identity when nothing widens. `createSourceOptionsWithInclude` wraps
+ * both steps for the common call shape.
  */
 export const widenSourcePathsForInclude = (
 	sourcePaths: ReadonlyArray<string>,
@@ -344,18 +436,65 @@ export const widenSourcePathsForInclude = (
 	const seen = new Set(sourcePaths);
 	const widened = [...sourcePaths];
 	for (const pattern of include) {
-		const scanned = picomatch.scan(pattern);
-		if (scanned.negated) continue;
-		let base = stripSlashes(toPosixPath(scanned.base));
-		if (!scanned.isGlob) {
-			base = base.includes('/') ? base.slice(0, base.lastIndexOf('/')) : '';
-		}
-		if (!seen.has(base)) {
-			seen.add(base);
-			widened.push(base);
-		}
+		const base = includePatternBase(pattern);
+		if (base === null || seen.has(base)) continue;
+		seen.add(base);
+		widened.push(base);
 	}
 	return widened.length === sourcePaths.length ? sourcePaths : widened;
+};
+
+/**
+ * Create source options with include-pattern widening applied.
+ *
+ * The include-aware form of `createSourceOptions`, used by the discovery
+ * entry points (`analyzeFromFiles`, the Vite plugin): builds options from
+ * `overrides`, then unions each include pattern's static base into
+ * `sourcePaths` via `widenSourcePathsForInclude` so include-discovered files
+ * pass the query-time source gate. When the set widens, options are rebuilt
+ * from the original `overrides` so sourceRoot derivation and validation
+ * (including the projectRoot-escape throw) see the final set — re-normalizing
+ * the first result would bake a derived `sourceRoot` in as if explicit and
+ * fail validation against the widened bases. Owning both steps here keeps
+ * that original-overrides requirement an implementation detail instead of a
+ * caller contract.
+ *
+ * Logs when a pattern contributes the `''` base: a root-crossing glob
+ * (`'**\/*.ts'`) or a literal root file (`'vite.config.ts'`) scopes the whole
+ * project root as source — the baseline exclusions (node_modules,
+ * dot-directories) shrink that cliff but don't remove it, so the widening
+ * leaves a trace instead of happening silently.
+ *
+ * @param projectRoot - path to project root (typically `process.cwd()`); resolved to absolute
+ * @param overrides - optional overrides for default options
+ * @param include - explicit include patterns (absent or empty means plain `createSourceOptions`)
+ * @param log - receives the root-scoping info line
+ * @throws Error if validation fails, including a widened base escaping the project root
+ */
+export const createSourceOptionsWithInclude = (
+	projectRoot: string,
+	overrides: Partial<SourceOptionsDefaults> | undefined,
+	include: ReadonlyArray<string> | undefined,
+	log?: AnalysisLog
+): ModuleSourceOptions => {
+	const options = createSourceOptions(projectRoot, overrides);
+	if (!include?.length) return options;
+	const widened = widenSourcePathsForInclude(options.sourcePaths, include);
+	if (widened === options.sourcePaths) return options;
+	if (widened.includes('') && !options.sourcePaths.includes('')) {
+		const rootPatterns = include.filter((p) => includePatternBase(p) === '');
+		log?.info(
+			`Include ${rootPatterns.length === 1 ? 'pattern' : 'patterns'} ` +
+				`${rootPatterns.map((p) => `"${p}"`).join(', ')} ` +
+				`${rootPatterns.length === 1 ? 'has' : 'have'} no base directory — scoping the whole ` +
+				'project root as source (module paths become project-root-relative; node_modules and ' +
+				'dot-directories stay excluded)'
+		);
+	}
+	return createSourceOptions(options.projectRoot, {
+		...overrides,
+		sourcePaths: [...widened]
+	});
 };
 
 /**
@@ -442,6 +581,53 @@ export const extractPath = (sourceId: string, options: ModuleSourceOptions): str
 };
 
 /**
+ * Whether a base-relative path contains an always-excluded directory segment.
+ *
+ * The always-on baseline: `node_modules` directories and dot-directories
+ * (`.svelte-kit`, `.git`, `.cache`, …) are never source. Matched against the
+ * path *relative to the matched source path*, not the project root — so an
+ * explicit dot-dir source path (`sourcePaths: ['.hidden/src']`) still works:
+ * the dot segment sits in the base, not the remainder. That relativity is the
+ * opt-out; there is no flag. Deliberately only these two families —
+ * `dist`/`build`/`coverage` are ordinary names a project can legitimately
+ * keep source in, and over-excluding fails silently.
+ *
+ * Only directory segments are checked; the final segment (the file itself)
+ * is not, so a dotfile like `.config.ts` inside a source dir passes.
+ *
+ * Deliberately NOT part of `DEFAULT_SOURCE_OPTIONS.exclude`: user `exclude`
+ * replaces the defaults wholesale and would silently strip the baseline.
+ * `baselineExcludesForBase` is the discovery-time glob form.
+ *
+ * @param relPath - POSIX path relative to a matched source path / discovery base
+ */
+export const hasBaselineExcludedSegment = (relPath: string): boolean => {
+	let start = 0;
+	for (;;) {
+		const slash = relPath.indexOf('/', start);
+		if (slash === -1) return false; // final segment is the file, not a directory
+		const segment = relPath.slice(start, slash);
+		if (segment === 'node_modules' || segment.startsWith('.')) return true;
+		start = slash + 1;
+	}
+};
+
+/** Glob-ignore form of the always-on baseline (see `hasBaselineExcludedSegment`). */
+const BASELINE_EXCLUDE_GLOBS: ReadonlyArray<string> = ['**/node_modules/**', '**/.*/**'];
+
+/**
+ * Anchor the baseline exclusion globs below a discovery base directory.
+ *
+ * Anchoring is what preserves the escape hatch at discovery time: the ignores
+ * for base `.hidden/src` are `.hidden/src/**\/node_modules/**` etc., which
+ * don't match the base's own dot segment. `''` anchors at the project root.
+ * Used as glob `ignore` by `globFiles` (per include-pattern base) and
+ * `discoverFromExports` (below the source dir).
+ */
+export const baselineExcludesForBase = (base: string): Array<string> =>
+	BASELINE_EXCLUDE_GLOBS.map((g) => (base ? `${base}/${g}` : g));
+
+/**
  * Compiled glob-matcher cache for `options.exclude`, keyed by options object identity.
  *
  * Picomatch compilation is non-trivial; caching avoids re-parsing the same patterns
@@ -466,9 +652,11 @@ const getExcludeMatcher = (options: ModuleSourceOptions): ((relPath: string) => 
 /**
  * Check if a path is an analyzable source file.
  *
- * Combines all filtering: source directory paths, exclude globs, and analyzer
- * availability. This is the single check for whether a file should be
- * included in library analysis.
+ * Combines all filtering: source directory paths, the always-on baseline
+ * (`node_modules` + dot-directories below the matched source path — see
+ * `hasBaselineExcludedSegment`), exclude globs, and analyzer availability.
+ * This is the single check for whether a file should be included in library
+ * analysis.
  *
  * Uses proper path semantics with `startsWith` matching against
  * `projectRoot/sourcePath/`. No heuristics needed — nested directories are
@@ -508,7 +696,12 @@ export const isSource = (path: string, options: ModuleSourceOptions): boolean =>
 		// see `widenSourcePathsForInclude`)
 		const fullPrefix =
 			sourcePath === '' ? options.projectRoot + '/' : options.projectRoot + '/' + sourcePath + '/';
-		return posixPath.startsWith(fullPrefix);
+		if (!posixPath.startsWith(fullPrefix)) return false;
+		// Always-on baseline, relative to the matched sourcePath: node_modules
+		// and dot-directory segments below it are never source. Per-sourcePath
+		// so a broader scope (a widened `''`) can't veto a specific opt-in
+		// (`.hidden/src`) — see `hasBaselineExcludedSegment`.
+		return !hasBaselineExcludedSegment(posixPath.slice(fullPrefix.length));
 	});
 	if (!inSourceDir) return false;
 

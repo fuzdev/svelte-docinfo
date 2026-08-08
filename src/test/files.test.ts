@@ -251,6 +251,72 @@ describe('globFiles', () => {
 	});
 });
 
+describe('globFiles baseline exclusions', () => {
+	test('a root-crossing include ignores node_modules but keeps build', async () => {
+		await withTestProject(
+			{
+				'src/lib/a.ts': 'export const a = 1;',
+				'node_modules/pkg/x.ts': 'export const x = 1;',
+				'build/b.ts': 'export const b = 1;'
+			},
+			async (projectRoot) => {
+				const files = await globFiles({ projectRoot, include: ['**/*.ts'] });
+				const rels = files.map((f) => f.id.slice(projectRoot.length + 1)).sort();
+				assert.deepStrictEqual(rels, ['build/b.ts', 'src/lib/a.ts']);
+			}
+		);
+	});
+
+	test('node_modules below an include base is ignored', async () => {
+		await withTestProject(
+			{
+				'src/lib/a.ts': 'export const a = 1;',
+				'src/lib/node_modules/x.ts': 'export const x = 1;'
+			},
+			async (projectRoot) => {
+				const files = await globFiles({ projectRoot, include: ['src/lib/**/*.ts'] });
+				assert.strictEqual(files.length, 1);
+				assert.ok(files[0]!.id.endsWith('src/lib/a.ts'));
+			}
+		);
+	});
+
+	test('a dot-dir include base still matches — ignores anchor below the base', async () => {
+		await withTestProject(
+			{
+				'.hidden/src/h.ts': 'export const h = 1;',
+				'.hidden/src/.cache/c.ts': 'export const c = 1;',
+				'.hidden/src/node_modules/n.ts': 'export const n = 1;'
+			},
+			async (projectRoot) => {
+				const files = await globFiles({ projectRoot, include: ['.hidden/src/**/*.ts'] });
+				assert.strictEqual(files.length, 1);
+				assert.ok(files[0]!.id.endsWith('.hidden/src/h.ts'));
+			}
+		);
+	});
+
+	test('mixed bases: a root-crossing pattern does not veto a dot-dir base', async () => {
+		// per-base grouping is load-bearing here — a single global `**/.*/**`
+		// ignore from the '' base would kill the dot-base group's matches
+		await withTestProject(
+			{
+				'src/lib/a.ts': 'export const a = 1;',
+				'.hidden/src/h.ts': 'export const h = 1;',
+				'node_modules/pkg/x.ts': 'export const x = 1;'
+			},
+			async (projectRoot) => {
+				const files = await globFiles({
+					projectRoot,
+					include: ['**/*.ts', '.hidden/src/**/*.ts']
+				});
+				const rels = files.map((f) => f.id.slice(projectRoot.length + 1)).sort();
+				assert.deepStrictEqual(rels, ['.hidden/src/h.ts', 'src/lib/a.ts']);
+			}
+		);
+	});
+});
+
 describe('deriveIncludePatterns', () => {
 	test('builds one glob per source path', () => {
 		assert.deepStrictEqual(deriveIncludePatterns(['packages/foo']), [
@@ -264,5 +330,12 @@ describe('deriveIncludePatterns', () => {
 
 	test('returns an empty array for an empty input', () => {
 		assert.deepStrictEqual(deriveIncludePatterns([]), []);
+	});
+
+	test("the '' source path derives a relative root glob, not a leading-slash pattern", () => {
+		// a leading slash would make tinyglobby treat the pattern as absolute
+		// from the filesystem root — `sourcePaths: ['']` (or a normalized `'.'`)
+		// must glob the project root instead
+		assert.deepStrictEqual(deriveIncludePatterns(['']), ['**/*.{ts,js,svelte,css,json}']);
 	});
 });

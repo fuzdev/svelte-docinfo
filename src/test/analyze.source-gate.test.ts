@@ -14,6 +14,11 @@
  * full owned set; and `query()` logs the gated count as info (the gate
  * emits no diagnostics, so the log is the only trace of a misconfigured
  * `sourcePaths`).
+ *
+ * Also locks the source-scope hardening around the gate: the always-on
+ * baseline (`node_modules` + dot-directories, matched relative to the
+ * matched sourcePath), the out-of-root config throw, and the info log when
+ * an include pattern scopes the whole project root.
  */
 
 import { join } from 'node:path';
@@ -174,6 +179,81 @@ export const m: Mode = 'x';`
 		);
 		const b = result.modules.find((m) => m.path === 'other/b.ts');
 		assert.deepStrictEqual(b?.dependencies, ['other/c.ts']);
+	});
+
+	test('node_modules and dot-directory inputs below sourcePaths emit no module', async () => {
+		const files: Record<string, string> = {
+			'src/lib/a.ts': `export const a = 1;`,
+			'src/lib/node_modules/leak.ts': `export const leaked_dep = 2;`,
+			'src/lib/.generated/leak.ts': `export const leaked_gen = 3;`
+		};
+		const result = await withTestProject(files, (projectRoot) =>
+			analyze({
+				sourceFiles: Object.entries(files).map(([path, content]) => ({
+					id: join(projectRoot, path),
+					content
+				})),
+				sourceOptions: createSourceOptions(projectRoot)
+			})
+		);
+		assert.deepStrictEqual(
+			result.modules.map((m) => m.path),
+			['a.ts'],
+			'the baseline gates node_modules and dot-directories'
+		);
+	});
+
+	test('a root-crossing include scopes the root, logs, and the baseline still holds', async () => {
+		// the empirical failure mode the baseline closes: `--include '**/*.ts'`
+		// used to emit node_modules files as clean-looking relative modules with
+		// zero diagnostics; build/ is deliberately not baseline and stays in
+		const infos: Array<string> = [];
+		const result = await withTestProject(
+			{
+				'src/lib/a.ts': `export const a = 1;`,
+				'build/generated.ts': `export const generated = 2;`,
+				'node_modules/pkg/index.ts': `export const dep = 3;`,
+				'.svelte-kit/generated/route.ts': `export const route = 4;`
+			},
+			(projectRoot) =>
+				analyzeFromFiles({
+					projectRoot,
+					include: ['**/*.ts'],
+					log: { info: (msg) => infos.push(msg), warn: () => {}, error: () => {} }
+				})
+		);
+		assert.deepStrictEqual(
+			result.modules.map((m) => m.path),
+			['build/generated.ts', 'src/lib/a.ts']
+		);
+		assert.ok(
+			infos.some((msg) => msg.includes('whole project root')),
+			'the root-scoping include logs as info'
+		);
+	});
+
+	test('an out-of-root include pattern fails loudly instead of emitting nothing', async () => {
+		// pre-hardening: tinyglobby matched `..` patterns, the files ingested,
+		// and the gate silently dropped every one — modules: [], zero diagnostics
+		await withTestProject({ 'src/lib/a.ts': `export const a = 1;` }, async (projectRoot) => {
+			let err: unknown;
+			try {
+				await analyzeFromFiles({ projectRoot, include: ['../other/**/*.ts'] });
+			} catch (e) {
+				err = e;
+			}
+			assert(err instanceof Error, 'expected analyzeFromFiles to throw');
+			assert.match(err.message, /escapes projectRoot/);
+		});
+	});
+
+	test('out-of-root sourcePaths throw at options creation', async () => {
+		await withTestProject({ 'src/lib/a.ts': `export const a = 1;` }, async (projectRoot) => {
+			assert.throws(
+				() => createSourceOptions(projectRoot, { sourcePaths: ['../other'] }),
+				/escapes projectRoot/
+			);
+		});
 	});
 
 	test('session.list() reports the full owned set; query emits the gated one', async () => {

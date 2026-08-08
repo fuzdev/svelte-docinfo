@@ -20,9 +20,14 @@ import {
 	getSourceRoot,
 	createSourceOptions,
 	widenSourcePathsForInclude,
+	createSourceOptionsWithInclude,
+	includePatternBase,
+	hasBaselineExcludedSegment,
+	baselineExcludesForBase,
 	DEFAULT_SOURCE_OPTIONS,
 	type ModuleSourceOptions
 } from '$lib/source-config.ts';
+import type { AnalysisLog } from '$lib/log.ts';
 
 import { testMockOptions } from './test-module-helpers.ts';
 import { TEST_PATHS, TEST_FILES } from './test-constants.ts';
@@ -301,6 +306,101 @@ describe('isSource', () => {
 			assert.isFalse(isSource('/home/user/project/anywhere/foo.test.ts', options));
 		});
 	});
+
+	describe('always-on baseline (node_modules + dot-directories)', () => {
+		test('excludes node_modules below a sourcePath', () => {
+			assert.isFalse(
+				isSource('/home/user/project/src/lib/node_modules/pkg/index.js', testMockOptions())
+			);
+		});
+
+		test('excludes dot-directories below a sourcePath', () => {
+			assert.isFalse(isSource('/home/user/project/src/lib/.cache/foo.ts', testMockOptions()));
+		});
+
+		test("'' scope excludes node_modules and dot-dirs but not dist/build/coverage", () => {
+			const options = createSourceOptions('/home/user/project', { sourcePaths: [''] });
+			assert.isFalse(isSource('/home/user/project/node_modules/svelte/index.js', options));
+			assert.isFalse(isSource('/home/user/project/.svelte-kit/generated/root.js', options));
+			// deliberately not baseline — ordinary names, over-excluding fails silently
+			assert.isTrue(isSource('/home/user/project/dist/index.js', options));
+			assert.isTrue(isSource('/home/user/project/build/out.ts', options));
+			assert.isTrue(isSource('/home/user/project/coverage/summary.json', options));
+		});
+
+		test('an explicit dot-dir sourcePath is the opt-out — relativity, not a flag', () => {
+			const options = createSourceOptions('/home/user/project', { sourcePaths: ['.hidden/src'] });
+			assert.isTrue(isSource('/home/user/project/.hidden/src/foo.ts', options));
+			// nested baseline dirs below the base stay excluded
+			assert.isFalse(isSource('/home/user/project/.hidden/src/.cache/foo.ts', options));
+			assert.isFalse(isSource('/home/user/project/.hidden/src/node_modules/pkg/index.js', options));
+		});
+
+		test('a broader sourcePath does not veto a specific opt-in', () => {
+			const options = createSourceOptions('/home/user/project', {
+				sourcePaths: ['', '.hidden/src']
+			});
+			// matched via '.hidden/src' (clean remainder), not '' (dot-dir remainder)
+			assert.isTrue(isSource('/home/user/project/.hidden/src/foo.ts', options));
+		});
+
+		test('only directory segments count — dotfiles pass', () => {
+			assert.isTrue(isSource('/home/user/project/src/lib/.config.ts', testMockOptions()));
+		});
+	});
+});
+
+describe('hasBaselineExcludedSegment', () => {
+	test('flags node_modules directory segments', () => {
+		assert.isTrue(hasBaselineExcludedSegment('node_modules/pkg/index.js'));
+		assert.isTrue(hasBaselineExcludedSegment('a/node_modules/b.ts'));
+	});
+
+	test('flags dot-directory segments', () => {
+		assert.isTrue(hasBaselineExcludedSegment('.svelte-kit/generated/root.js'));
+		assert.isTrue(hasBaselineExcludedSegment('a/.cache/b.ts'));
+	});
+
+	test('does not flag the final segment (the file itself)', () => {
+		assert.isFalse(hasBaselineExcludedSegment('.eslintrc.js'));
+		assert.isFalse(hasBaselineExcludedSegment('a/.dotfile.ts'));
+	});
+
+	test('does not flag dist/build/coverage or near-miss names', () => {
+		assert.isFalse(hasBaselineExcludedSegment('dist/a.js'));
+		assert.isFalse(hasBaselineExcludedSegment('build/a.ts'));
+		assert.isFalse(hasBaselineExcludedSegment('coverage/a.json'));
+		assert.isFalse(hasBaselineExcludedSegment('node_modules_backup/a.ts'));
+	});
+});
+
+describe('baselineExcludesForBase', () => {
+	test('anchors the globs below a base', () => {
+		assert.deepStrictEqual(baselineExcludesForBase('.hidden/src'), [
+			'.hidden/src/**/node_modules/**',
+			'.hidden/src/**/.*/**'
+		]);
+	});
+
+	test("'' anchors at the project root", () => {
+		assert.deepStrictEqual(baselineExcludesForBase(''), ['**/node_modules/**', '**/.*/**']);
+	});
+});
+
+describe('includePatternBase', () => {
+	test('glob patterns yield their static base', () => {
+		assert.strictEqual(includePatternBase('src/other/**/*.ts'), 'src/other');
+		assert.strictEqual(includePatternBase('**/*.ts'), '');
+	});
+
+	test('literal patterns yield their directory', () => {
+		assert.strictEqual(includePatternBase('src/foo.ts'), 'src');
+		assert.strictEqual(includePatternBase('vite.config.ts'), '');
+	});
+
+	test('negated patterns yield null', () => {
+		assert.isNull(includePatternBase('!**/*.test.ts'));
+	});
 });
 
 describe('widenSourcePathsForInclude', () => {
@@ -331,6 +431,63 @@ describe('widenSourcePathsForInclude', () => {
 	test('already-covered bases keep the input identity', () => {
 		const input = ['src/lib'];
 		assert.strictEqual(widenSourcePathsForInclude(input, ['src/lib/**/*.ts']), input);
+	});
+});
+
+describe('createSourceOptionsWithInclude', () => {
+	const ROOT = '/home/user/project';
+	const collectingLog = (): { infos: Array<string>; log: AnalysisLog } => {
+		const infos: Array<string> = [];
+		return { infos, log: { info: (msg) => infos.push(msg), warn: () => {}, error: () => {} } };
+	};
+
+	test('matches plain createSourceOptions when nothing widens', () => {
+		const plain = createSourceOptions(ROOT);
+		for (const include of [undefined, [], ['src/lib/**/*.ts']]) {
+			const result = createSourceOptionsWithInclude(ROOT, undefined, include);
+			assert.deepStrictEqual(result.sourcePaths, plain.sourcePaths);
+			assert.strictEqual(result.sourceRoot, plain.sourceRoot);
+		}
+	});
+
+	test('widens and re-derives sourceRoot from the final set', () => {
+		const widened = createSourceOptionsWithInclude(ROOT, undefined, ['src/other/**/*.ts']);
+		assert.deepStrictEqual(widened.sourcePaths, ['src/lib', 'src/other']);
+		assert.strictEqual(widened.sourceRoot, 'src');
+	});
+
+	test("logs info when a root-crossing pattern contributes the '' base", () => {
+		const { infos, log } = collectingLog();
+		createSourceOptionsWithInclude(ROOT, undefined, ['**/*.ts'], log);
+		assert.ok(
+			infos.some((msg) => msg.includes('"**/*.ts"') && msg.includes('whole project root')),
+			'the root-scoping pattern is named in the info log'
+		);
+	});
+
+	test('a literal root-file include logs too', () => {
+		const { infos, log } = collectingLog();
+		createSourceOptionsWithInclude(ROOT, undefined, ['vite.config.ts'], log);
+		assert.ok(infos.some((msg) => msg.includes('"vite.config.ts"')));
+	});
+
+	test('no log for patterns with a real base', () => {
+		const { infos, log } = collectingLog();
+		createSourceOptionsWithInclude(ROOT, undefined, ['src/other/**/*.ts'], log);
+		assert.deepStrictEqual(infos, []);
+	});
+
+	test("no log when '' was already scoped explicitly", () => {
+		const { infos, log } = collectingLog();
+		createSourceOptionsWithInclude(ROOT, { sourcePaths: [''] }, ['**/*.ts'], log);
+		assert.deepStrictEqual(infos, []);
+	});
+
+	test('an out-of-root include base throws via the re-run validation', () => {
+		assert.throws(
+			() => createSourceOptionsWithInclude(ROOT, undefined, ['../other/**/*.ts']),
+			/escapes projectRoot/
+		);
 	});
 });
 
@@ -559,7 +716,19 @@ describe('normalizeSourceOptions', () => {
 			'sourcePath not under sourceRoot',
 			{ sourcePaths: ['packages/core'], sourceRoot: 'src' },
 			/sourcePaths entry "packages\/core" must start with sourceRoot "src"/
-		]
+		],
+		[
+			'out-of-root sourcePath',
+			{ sourcePaths: ['../other'] },
+			/sourcePaths entry "\.\.\/other" escapes projectRoot/
+		],
+		['parent-dir sourcePath', { sourcePaths: ['..'] }, /escapes projectRoot/],
+		[
+			'escape through an in-root prefix',
+			{ sourcePaths: ['src/../../other'] },
+			/escapes projectRoot/
+		],
+		['absolute out-of-root sourcePath', { sourcePaths: ['/elsewhere/src'] }, /escapes projectRoot/]
 	];
 
 	describe('validation errors', () => {
@@ -593,9 +762,19 @@ describe('normalizeSourceOptions', () => {
 			assert.strictEqual(result.projectRoot, '/home/user/project');
 		});
 
-		test('strips leading slash from sourcePaths', () => {
-			const result = normalizeSourceOptions(invalidOptions({ sourcePaths: ['/src/lib'] }));
+		test('accepts absolute sourcePaths inside projectRoot, stored root-relative', () => {
+			const result = normalizeSourceOptions(
+				invalidOptions({ sourcePaths: ['/home/user/project/src/lib'] })
+			);
 			assert.deepStrictEqual(result.sourcePaths, ['src/lib']);
+		});
+
+		test('a root-anchored sourcePath is absolute, not shorthand — throws with a hint', () => {
+			// previously '/src/lib' was silently reinterpreted as 'src/lib'
+			assert.throws(
+				() => normalizeSourceOptions(invalidOptions({ sourcePaths: ['/src/lib'] })),
+				/drop the leading slash \("src\/lib"\)/
+			);
 		});
 
 		test('strips trailing slash from sourcePaths', () => {
@@ -603,9 +782,18 @@ describe('normalizeSourceOptions', () => {
 			assert.deepStrictEqual(result.sourcePaths, ['src/lib']);
 		});
 
-		test('strips leading slash from sourceRoot', () => {
-			const result = normalizeSourceOptions(invalidOptions({ sourceRoot: '/src' }));
+		test('accepts an absolute sourceRoot inside projectRoot', () => {
+			const result = normalizeSourceOptions(
+				invalidOptions({ sourceRoot: '/home/user/project/src' })
+			);
 			assert.strictEqual(result.sourceRoot, 'src');
+		});
+
+		test('a root-anchored sourceRoot throws with a hint', () => {
+			assert.throws(
+				() => normalizeSourceOptions(invalidOptions({ sourceRoot: '/src' })),
+				/sourceRoot "\/src" escapes projectRoot/
+			);
 		});
 
 		test('strips trailing slash from sourceRoot', () => {
@@ -620,11 +808,23 @@ describe('normalizeSourceOptions', () => {
 			assert.strictEqual(result.sourceRoot, 'src');
 		});
 
+		test('collapses in-root `..` segments in sourcePaths', () => {
+			// pre-hardening these survived textually and could never match
+			// isSource's prefix check — silently dead config
+			const result = normalizeSourceOptions(invalidOptions({ sourcePaths: ['src/../src/lib'] }));
+			assert.deepStrictEqual(result.sourcePaths, ['src/lib']);
+		});
+
+		test("normalizes a '.' sourcePath to '' (project root)", () => {
+			const result = normalizeSourceOptions(invalidOptions({ sourcePaths: ['.'] }));
+			assert.deepStrictEqual(result.sourcePaths, ['']);
+		});
+
 		test('does not mutate the input', () => {
 			const options = invalidOptions({
 				projectRoot: 'relative/path/',
-				sourcePaths: ['/src/lib/'],
-				sourceRoot: '/src/'
+				sourcePaths: ['src/lib/'],
+				sourceRoot: 'src/'
 			});
 			const before = {
 				projectRoot: options.projectRoot,
@@ -648,8 +848,8 @@ describe('normalizeSourceOptions', () => {
 			const first = normalizeSourceOptions(
 				invalidOptions({
 					projectRoot: 'relative/path/',
-					sourcePaths: ['/src/lib/'],
-					sourceRoot: '/src/'
+					sourcePaths: ['src/lib/'],
+					sourceRoot: 'src/'
 				})
 			);
 			const second = normalizeSourceOptions(first);
