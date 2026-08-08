@@ -19,6 +19,7 @@ import {
 	normalizeSourceOptions,
 	getSourceRoot,
 	createSourceOptions,
+	widenSourcePathsForInclude,
 	DEFAULT_SOURCE_OPTIONS,
 	type ModuleSourceOptions
 } from '$lib/source-config.ts';
@@ -288,6 +289,48 @@ describe('isSource', () => {
 			assert.isTrue(isSource('/home/user/project/packages/core/lib/foo.ts', options));
 			assert.isFalse(isSource('/home/user/project/packages/other/lib/foo.ts', options));
 		});
+	});
+
+	describe('empty sourcePath (root-crossing include base)', () => {
+		test("'' scopes the whole project root", () => {
+			const options = createSourceOptions('/home/user/project', { sourcePaths: [''] });
+			assert.isTrue(isSource('/home/user/project/anywhere/foo.ts', options));
+			assert.isTrue(isSource('/home/user/project/root.ts', options));
+			assert.isFalse(isSource('/home/user/elsewhere/foo.ts', options));
+			// exclude still applies
+			assert.isFalse(isSource('/home/user/project/anywhere/foo.test.ts', options));
+		});
+	});
+});
+
+describe('widenSourcePathsForInclude', () => {
+	test('glob patterns contribute their static base', () => {
+		assert.deepStrictEqual(widenSourcePathsForInclude(['src/lib'], ['src/other/**/*.ts']), [
+			'src/lib',
+			'src/other'
+		]);
+	});
+
+	test('a literal non-glob pattern contributes its directory', () => {
+		assert.deepStrictEqual(widenSourcePathsForInclude(['src/lib'], ['src/foo.ts']), [
+			'src/lib',
+			'src'
+		]);
+		assert.deepStrictEqual(widenSourcePathsForInclude(['src/lib'], ['root.ts']), ['src/lib', '']);
+	});
+
+	test("a root-crossing pattern contributes ''", () => {
+		assert.deepStrictEqual(widenSourcePathsForInclude(['src/lib'], ['**/*.ts']), ['src/lib', '']);
+	});
+
+	test('negated patterns contribute nothing', () => {
+		const input = ['src/lib'];
+		assert.strictEqual(widenSourcePathsForInclude(input, ['!**/*.test.ts']), input);
+	});
+
+	test('already-covered bases keep the input identity', () => {
+		const input = ['src/lib'];
+		assert.strictEqual(widenSourcePathsForInclude(input, ['src/lib/**/*.ts']), input);
 	});
 });
 

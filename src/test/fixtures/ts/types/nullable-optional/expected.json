@@ -96,6 +96,19 @@
 			"kind": "function",
 			"typeSignature": "(): number | void",
 			"returnType": "number | void",
+			"returnTypeInfo": {
+				"kind": "union",
+				"members": [
+					{
+						"kind": "intrinsic",
+						"text": "number"
+					},
+					{
+						"kind": "intrinsic",
+						"text": "void"
+					}
+				]
+			},
 			"optional": true
 		}
 	]

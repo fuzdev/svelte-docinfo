@@ -7,6 +7,32 @@
 				"name": "content",
 				"type": "Snippet<[a: string, b?: number | undefined]>",
 				"description": "Description 1",
+				"typeInfo": {
+					"kind": "reference",
+					"name": "Snippet",
+					"typeArgs": [
+						{
+							"kind": "tuple",
+							"elements": [
+								{
+									"name": "a",
+									"type": {
+										"kind": "intrinsic",
+										"text": "string"
+									}
+								},
+								{
+									"name": "b",
+									"type": {
+										"kind": "intrinsic",
+										"text": "number"
+									},
+									"optional": true
+								}
+							]
+						}
+					]
+				},
 				"parameters": [
 					{
 						"name": "a",

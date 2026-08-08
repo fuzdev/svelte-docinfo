@@ -12,6 +12,24 @@
 				"name": "row",
 				"type": "Snippet<[d: T]>",
 				"description": "Description 2",
+				"typeInfo": {
+					"kind": "reference",
+					"name": "Snippet",
+					"typeArgs": [
+						{
+							"kind": "tuple",
+							"elements": [
+								{
+									"name": "d",
+									"type": {
+										"kind": "other",
+										"text": "T"
+									}
+								}
+							]
+						}
+					]
+				},
 				"parameters": [
 					{
 						"name": "d",

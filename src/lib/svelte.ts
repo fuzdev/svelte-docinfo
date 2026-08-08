@@ -16,6 +16,7 @@
  *
  * @see `typescript-exports.ts` for `analyzeExports`, `extractModuleComment`
  * @see `typescript-extract-shared.ts` for `parseGenericParam`, `filterExternalProperties`
+ * @see `typescript-extract-type-json.ts` for `resolveTypeInfo`, `referenceSymbolName`, `tupleElements`, `restElementForms`
  * @see `typescript-program.ts` for `IsExternalFile`, `createIsExternalFile`
  * @see `tsdoc.ts` for `parseComment`, `applyToDeclaration`
  * @see `source.ts` for `SourceFileInfo`, `getComponentName`
@@ -51,7 +52,13 @@ import {
 	filterExternalProperties,
 	getTypeSignature
 } from './typescript-extract-shared.ts';
-import { resolveTypeInfo } from './typescript-extract-type-json.ts';
+import {
+	referenceSymbolName,
+	resolveTypeInfo,
+	restElementForms,
+	tupleElementName,
+	tupleElements
+} from './typescript-extract-type-json.ts';
 import {
 	extractModuleComment,
 	analyzeExports,
@@ -817,15 +824,17 @@ const extractPropsMetadata = (virtualSource: ts.SourceFile): PropsMetadata => {
 // Snippet Detection
 
 /**
- * Check if a type string represents a `Snippet` type.
+ * Whether a checker type is a `Snippet` instantiation, structurally: a named
+ * generic instantiation (`referenceSymbolName`) named `Snippet` that carries a
+ * call signature — by construction the same shape the `TypeJson` builder
+ * classifies as a `Snippet` reference.
  *
- * Uses the already-resolved type string (from `checker.typeToString`) for reliable
- * detection. `Snippet` is an interface (not a type alias), so `aliasSymbol` is
- * not available — type string matching is the reliable detection path.
+ * Callers pass the bare type — a union wrapping the `Snippet` reference
+ * (optional widening, `| null`) doesn't match, and neither does an
+ * intersection (`Snippet<[]> & {...}`); strip or walk members first.
  */
-export const isSnippetTypeString = (typeString: string): boolean => {
-	return typeString === 'Snippet<[]>' || typeString.startsWith('Snippet<[');
-};
+export const isSnippetType = (type: ts.Type, checker: ts.TypeChecker): boolean =>
+	referenceSymbolName(type, checker) === 'Snippet' && type.getCallSignatures().length > 0;
 
 /**
  * Extract structured parameters from a `Snippet<[...]>` type.
@@ -838,42 +847,53 @@ export const isSnippetTypeString = (typeString: string): boolean => {
  * for runtime consistency with `extractSignatureParameters` in `typescript-extract-shared.ts`.
  * Optional tuple elements are widened to include `undefined` like optional properties;
  * the element type is stripped via `getTypeSignature` so `optional: true`
- * carries it alone. Callers pass the bare `Snippet<...>` TypeReference — a union
+ * carries it alone. Rest elements report like rest signature parameters —
+ * `rest: true` with the printed array form (`...rest: B[]` carries `B[]`) —
+ * and a variadic spread (`...T`) carries the spread type itself, mirroring
+ * the structured `typeInfo` tuple (`buildTuple`). Callers pass
+ * the bare `Snippet<...>` TypeReference — a union
  * wrapping it (optional widening, `| null`) reports no type arguments.
  *
+ * @param writtenNode - the written annotation the snippet type came from, when
+ *   one exists — feeds `typeInfo` name recovery, the same node the caller
+ *   hands the prop-level tree so the two projections can't disagree
  * @returns array of parameter info for the snippet's tuple type arguments,
  *   or `[]` for bare `Snippet` / `Snippet<[]>`
  */
 export const extractSnippetParameters = (
 	snippetType: ts.Type,
-	checker: ts.TypeChecker
+	checker: ts.TypeChecker,
+	writtenNode?: ts.TypeNode
 ): Array<ParameterJsonInput> => {
-	// Snippet<T> is an interface — type args accessed via TypeReference, not aliasTypeArguments
+	// Snippet<T> is an interface — type args accessed via TypeReference, not aliasTypeArguments.
+	// The params tuple is the *last* tuple-typed argument, not positionally [0]: a
+	// scope-captured Snippet-shaped interface (structural detection accepts those)
+	// carries its outer type parameters before its own, so searching from the end
+	// finds the declared one even when a captured parameter is itself a tuple.
 	const typeArgs = checker.getTypeArguments(snippetType as ts.TypeReference);
-	const tupleType = typeArgs[0];
-	if (!tupleType || !checker.isTupleType(tupleType)) return [];
+	const tupleType = typeArgs.findLast((t) => checker.isTupleType(t));
+	if (!tupleType) return [];
 
-	const tupleRef = tupleType as ts.TypeReference;
-	const elementTypes = checker.getTypeArguments(tupleRef);
-	if (elementTypes.length === 0) return [];
-
-	const target = (tupleRef as unknown as { target: ts.TupleType }).target;
-
-	const params: Array<ParameterJsonInput> = [];
-	for (let i = 0; i < elementTypes.length; i++) {
-		const elementType = elementTypes[i]!;
-		const label = target.labeledElementDeclarations?.[i];
-		const name = label && ts.isNamedTupleMember(label) ? label.name.text : `arg${i}`;
-		const optional = !!(target.elementFlags[i]! & ts.ElementFlags.Optional);
-		// an optional tuple element is widened to include `undefined` like an
-		// optional property — strip it so `optional: true` carries it alone
-		const type = getTypeSignature(elementType, checker, optional);
-		const typeInfo = resolveTypeInfo(elementType, checker, optional);
-		const param: ParameterJsonInput = { name, type, optional, rest: false };
+	return tupleElements(tupleType as ts.TypeReference, checker).map((el, i) => {
+		// `arg${i}` keeps unnamed elements addressable in docs
+		const name = tupleElementName(el) ?? `arg${i}`;
+		// a rest element reports as the array it collects, flat string and tree
+		// together (`restElementForms`); everything else takes the widening strip
+		const { type, typeInfo } = el.rest
+			? restElementForms(el.type, checker, writtenNode)
+			: {
+					type: getTypeSignature(el.type, checker, el.optional),
+					typeInfo: resolveTypeInfo(el.type, checker, el.optional, { writtenNode })
+				};
+		const param: ParameterJsonInput = {
+			name,
+			type,
+			optional: el.optional,
+			rest: el.rest || el.variadic
+		};
 		if (typeInfo) param.typeInfo = typeInfo;
-		params.push(param);
-	}
-	return params;
+		return param;
+	});
 };
 
 /**
@@ -900,10 +920,16 @@ export const isSnippetReturnType = (returnType: string): boolean => {
  * Used for `kind: 'snippet'` declarations where the raw svelte2tsx type
  * is implementation noise. Renders the normalized form — an optional parameter
  * as `b?: number`, matching the structured parameter fields rather than the
- * checker's widened `b?: number | undefined`.
+ * checker's widened `b?: number | undefined`, and a rest parameter with its
+ * `...` marker (Svelte compile-errors rest parameters in `{#snippet}`, but
+ * analysis never runs that check — svelte2tsx passes them through, so the
+ * invalid-but-parseable case renders faithfully rather than dropping the
+ * marker).
  */
 export const synthesizeSnippetTypeSignature = (parameters: Array<ParameterJsonInput>): string => {
-	const inner = parameters.map((p) => `${p.name}${p.optional ? '?' : ''}: ${p.type}`).join(', ');
+	const inner = parameters
+		.map((p) => `${p.rest ? '...' : ''}${p.name}${p.optional ? '?' : ''}: ${p.type}`)
+		.join(', ');
 	return `Snippet<[${inner}]>`;
 };
 
@@ -929,8 +955,9 @@ const isSvelte2tsxInternal = (name: string): boolean => {
  *
  * Resolves the `children` symbol on the (unfiltered) props type, strips
  * `null`/`undefined` (unconditionally, matching the prop-extraction path), and
- * checks the resulting type — including each branch of a union — against
- * `isSnippetTypeString`. Returns `false` for non-Snippet `children` (e.g.
+ * checks the resulting type — including each branch of a union, and
+ * intersection branches (`Snippet<[]> & X`) inside or outside one — against
+ * `isSnippetType`. Returns `false` for non-Snippet `children` (e.g.
  * `string`) and emits a `svelte_prop_failed` warning when type resolution
  * throws so the false negative is observable.
  */
@@ -951,11 +978,12 @@ const detectChildrenSnippet = (
 		const childrenType = checker.getNonNullableType(
 			checker.getTypeOfSymbolAtLocation(childrenSym, propsTypeNode)
 		);
-		if (isSnippetTypeString(checker.typeToString(childrenType))) return true;
-		if (childrenType.isUnion()) {
-			return childrenType.types.some((t) => isSnippetTypeString(checker.typeToString(t)));
-		}
-		return false;
+		// an intersection wrapping a `Snippet` still accepts children — walk its
+		// branches, since `isSnippetType` deliberately checks the bare shape
+		const matches = (t: ts.Type): boolean =>
+			isSnippetType(t, checker) ||
+			(t.isIntersection() && t.types.some((m) => isSnippetType(m, checker)));
+		return childrenType.isUnion() ? childrenType.types.some(matches) : matches(childrenType);
 	} catch (err) {
 		diagnostics.push({
 			kind: 'svelte_prop_failed',
@@ -1102,15 +1130,22 @@ const extractPropsViaChecker = (
 			// For optional properties, the checker includes `undefined` in the union.
 			// Strip it to match the declared type (e.g., `number` not `number | undefined`).
 			typeString = getTypeSignature(propType, checker, optional);
-			typeInfo = resolveTypeInfo(propType, checker, optional);
+			// the written annotation (in the svelte2tsx virtual or an imported
+			// props type) feeds name recovery; only symbols are resolved from it,
+			// so source-position remapping is not implicated
+			const annotation = propDecl && ts.isPropertySignature(propDecl) ? propDecl.type : undefined;
+			typeInfo = resolveTypeInfo(propType, checker, optional, { writtenNode: annotation });
 
-			// Detect Snippet type via type string, then extract structured parameters.
-			// Stripped unconditionally so the extraction sees the `Snippet<...>`
-			// TypeReference rather than a union wrapping it — the optional widening
-			// and a written `| null` both hide the type arguments otherwise
-			// (`getTypeArguments` on a union returns nothing).
-			if (isSnippetTypeString(typeString)) {
-				snippetParams = extractSnippetParameters(checker.getNonNullableType(propType), checker);
+			// Detect Snippet-typed props structurally, then extract structured
+			// parameters. Stripped unconditionally so detection and extraction see
+			// the `Snippet<...>` TypeReference rather than a union wrapping it — the
+			// optional widening and a written `| null` both hide the type arguments
+			// otherwise (`getTypeArguments` on a union returns nothing).
+			const strippedPropType = checker.getNonNullableType(propType);
+			if (isSnippetType(strippedPropType, checker)) {
+				// the same annotation feeds both trees, so a recovered name in the
+				// prop's tuple typeArg and in `parameters[i].typeInfo` can't disagree
+				snippetParams = extractSnippetParameters(strippedPropType, checker, annotation);
 			}
 		} catch (err) {
 			// Map position if possible
@@ -1223,6 +1258,7 @@ export const analyzeSvelteModule = (
 				d.declaration.typeSignature = synthesizeSnippetTypeSignature(params);
 				// Snippets don't have meaningful return types or overloads
 				delete d.declaration.returnType;
+				delete d.declaration.returnTypeInfo;
 				delete d.declaration.returnDescription;
 				delete d.declaration.overloads;
 			}

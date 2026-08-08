@@ -9,7 +9,8 @@ import {
 	extractScriptContent,
 	extractModuleScriptContent,
 	extractSvelteModuleComment,
-	extractHtmlModuleComment
+	extractHtmlModuleComment,
+	synthesizeSnippetTypeSignature
 } from '$lib/svelte.ts';
 import { createAnalysisProgram } from '$lib/typescript-program.ts';
 import { type Diagnostic, byKind, hasErrors, hasWarnings, warningsOf } from '$lib/diagnostics.ts';
@@ -2167,6 +2168,22 @@ describe('svelte exported snippet declarations', () => {
 	});
 });
 
+describe('synthesizeSnippetTypeSignature', () => {
+	test('renders optional and rest markers', () => {
+		// the rest branch is unreachable from valid components (Svelte
+		// compile-errors rest params in `{#snippet}`), so the pure function is
+		// the only place to cover it
+		assert.strictEqual(
+			synthesizeSnippetTypeSignature([
+				{ name: 'a', type: 'string', optional: false, rest: false },
+				{ name: 'b', type: 'number', optional: true, rest: false },
+				{ name: 'rest', type: 'boolean[]', optional: false, rest: true }
+			]),
+			'Snippet<[a: string, b?: number, ...rest: boolean[]]>'
+		);
+	});
+});
+
 describe('svelte acceptsChildren detection', () => {
 	test('Path B: template children usage without $props() declaration', () => {
 		// Template-only component using {@render children?.()} without declaring children in $props().
@@ -2195,5 +2212,25 @@ describe('svelte acceptsChildren detection', () => {
 			virtualFile.content.includes('__sveltets_2_ensureSnippet(children'),
 			'Expected virtual source to contain children snippet pattern'
 		);
+	});
+
+	test('Path A: intersection-wrapped children snippet sets acceptsChildren', () => {
+		// `Snippet<[]> & {...}` — the intersection-branch walk in
+		// `detectChildrenSnippet`; `children` is never rendered, so Path B
+		// can't rescue a false negative here
+		const svelteContent = `<script lang="ts">
+	interface Snippet<T extends Array<unknown>> {(...args: T): void}
+
+	let { children }: { children?: Snippet<[]> & { key: string } } = $props();
+</script>
+
+<div></div>`;
+
+		const result = analyzeTestComponent(
+			{ id: '/fake/path/Test.svelte', content: svelteContent },
+			'Test.svelte'
+		);
+
+		assert.strictEqual(result.acceptsChildren, true);
 	});
 });

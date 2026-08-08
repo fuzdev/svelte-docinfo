@@ -10,7 +10,8 @@ or the named types inside generics — `type A = 'a' | 'b'` surfaced as just
 sits beside the flat strings on `ComponentPropJson`, `ParameterJson` (snippet
 tuple elements included), type-alias property members (index signatures
 included), checker-backed class members (inferred properties, getter-backed
-accessors), and variable/type-alias declarations:
+accessors), and variable/type-alias declarations, plus `returnTypeInfo`
+beside `returnType` on function declarations/members and per overload:
 
 - unions and intersections recurse into `members`, keeping the alias name;
   union members mirror the flat string's printed order (nullish last), and a
@@ -21,25 +22,125 @@ accessors), and variable/type-alias declarations:
 - enum members carry the runtime `value` with the qualified name as `text`
   (`value: 'a'`, `text: 'E.A'`) — a ready-made `{value, label}` pair
 - named references keep `name` plus recursive `typeArgs` (`Map<string, B>`
-  exposes `B` as a linkable node); arrays carry `element`
+  exposes `B` as a linkable node); arrays carry `element`; tuples carry
+  structured `elements` (`TupleElementJson`: label, `?`/`...` markers,
+  recursive type — an optional element strips the widening `undefined` so
+  `optional: true` carries it alone, a rest element carries the printed
+  array form); arrays and tuples mark `readonly` — the one place it
+  survives at an alias root, whose flat string is just the alias name
 - object literals and function types stay terminal `text`, printed with
-  `NoTruncation` (the flat strings keep the checker's canonical rendering).
-  Anything with a call signature is a function node, callable interfaces
-  included, so `Snippet<[...]>` is terminal text rather than a reference
+  `NoTruncation` up to a 1000-char budget — past it the checker's own elided
+  rendering is used, so `text` stays a well-formed type string and one node
+  can't grow without bound the way the depth cap prevents for the tree (the
+  flat strings keep the checker's canonical rendering)
+- an alias TypeScript dropped (an indexed-access or conditional right-hand
+  side — `z.infer<typeof S>`, valibot's `InferOutput`) is recovered from the
+  written annotation where one exists: return types (per overload included),
+  parameters, variables, type-alias declarations and their properties, index
+  signatures, getter-backed accessors, component props, and snippet
+  parameters resolve each bare written type
+  reference by checker type identity and emit `{kind: 'reference', name}`
+  where the checker would print the whole structure, alias-lost unions
+  included — `(): Promise<AnalyzeResultJson>` documents as a `Promise`
+  reference over an `AnalyzeResultJson` reference instead of a
+  multi-thousand-char dump. The name resolves through import aliases to the
+  importable one; a name the checker has is never overridden; `typeof x`,
+  `import('…').X`, inline type literals, and argument-carrying annotations
+  (`Extract<D, {kind: K}>`) never recover. A recovered bare reference is
+  emitted even at the root — the flat string carries the anonymous expansion
+  there, so the name exists only in the tree. The flat strings stay the
+  checker's rendering throughout
+  Anything with a call signature is a function node — except *named generic
+  instantiations* (checker `Reference`-flagged, symbol-named,
+  argument-carrying), which classify as references, so `Snippet<[a: string]>`
+  is a reference whose tuple typeArg carries real elements; bare signatures,
+  aliased function types (`Handler`), and anonymous/hybrid callables —
+  non-generic callable interfaces included — stay `function` — callability is
+  the load-bearing renderer signal
 
 `typeInfo` is absent when the flat string is the whole story (intrinsics,
-bare references, object/function types at the root). Type aliases are the
-exception: the checker prints an aliased type as its bare alias name, so
-`type A = string[]` has `typeSignature: "A"` and nothing else — there the
-tree is emitted whatever its shape, with terminal roots reprinted via
-`InTypeAlias` (`type A = [string, number]` carries the tuple text, not
-`"A"`). Object and function roots stay absent, since `members` already
-carries their content.
+bare references, object/function types at the root; arrays and tuples
+qualify when an element does, and a reference qualifies on any type argument
+that says something — so an instantiation over the empty tuple, `Snippet<[]>`
+or bare `Snippet`, stays absent while `Snippet<[a: string]>` doesn't). Type
+aliases are the exception: the checker
+prints an aliased type as its bare alias name, so `type A = string[]` has
+`typeSignature: "A"` and nothing else — there the tree is emitted whatever
+its shape, with terminal roots reprinted via `InTypeAlias` (a conditional
+alias carries its conditional text, not its own name). Object and function
+roots stay absent, since `members` already carries their content.
+
+Also fixes the optional-widening strip for types that absorb `undefined`
+rather than unioning with it: `a?: unknown` reported `type: "{}"` (via
+`checker.getNonNullableType`, which answers `{}` for `unknown`) and now
+reports `"unknown"`. Properties and parameters both; `a?: any` was already
+correct by coincidence. The strip now runs only on unions, where the widening
+is a member there is something to remove.
 
 Normalization matches the flat strings: the optional-widening `undefined` is
 dropped and `true | false` collapses back to `boolean`; recursion is
-depth-capped, degrading to `{kind: 'other', text}`. Checker-backed paths
-only — AST-backed members (annotated interface and class properties,
-setter-only accessors) report written text without it. `compactReplacer` now
+depth-capped, degrading to `{kind: 'other', text}` — except where the written
+annotation recovers a name, which still applies at the cap (a capped
+alias-lost type emits its `{kind: 'reference', name}` instead of elided
+text). `compactReplacer` now
 exempts the `value` key from `false`-stripping, since a literal `false` node
 is data, not a defaulted flag.
+
+Member types are checker-backed everywhere now — the previously AST-backed
+sites (annotated interface and class properties, interface index signatures,
+setter-only accessors) resolve through the checker like every other property
+site, so adding an annotation no longer *removes* structured data:
+
+- interface property members, interface index signatures, annotated class
+  properties, and setter-only accessors gain `typeInfo` (with written-name
+  recovery through their annotations) beside checker-rendered flat strings
+- `typeSignature` on those members is now the checker's canonical rendering,
+  not raw source text: `Array<Foo>` prints `Foo[]`, import renames and
+  namespace qualifiers resolve to the importable name (`ts.ScriptKind` →
+  `ScriptKind`), comments and newlines never leak, and the optional-widening
+  strip applies (`a?: string | undefined` reports `"string"` with
+  `optional: true`, keeping any `null`). The one casualty: a written
+  alias-lost name (`diagnostics: Array<Diagnostic>` where `Diagnostic` is
+  `z.infer`-typed) expands in the flat string like every checker-backed site
+  — the tree recovers it as `{kind: 'array', element: {kind: 'reference',
+  name: 'Diagnostic'}}`
+- a callable interface property signature (`fn: (a: string) => number`) now
+  classifies as a `kind: 'function'` member with `parameters`, `returnType`,
+  and `returnTypeInfo`, exactly like the same shape on a type alias — the
+  two structural container kinds share one projection. Class fields keep
+  `kind: 'variable'` (a field holding a function is still a field)
+- `@default` on a property that classifies callable is dropped with a
+  `misplaced_tag` warning instead of crashing `ModuleJson.parse`
+  (`defaultValue` is schema-allowed on variable members only; the drop is
+  surfaced like symbol-scope tags on non-primary overloads)
+- an optional property or parameter typed by a bare unconstrained type
+  parameter reports `"E"` again — the widening strip previously answered
+  `getNonNullableType`'s `E & {}` when the position was checker-backed
+- string- and numeric-literal member names document unquoted on every
+  container kind (`'data-foo': string` → `data-foo`, matching the symbol
+  paths' `prop.getName()`); interface property signatures with literal names
+  were previously skipped entirely, and class/method-signature paths kept
+  the quotes
+- `readonly` index signatures carry the `readonly` modifier on both
+  container kinds (previously lost on both)
+- a generic callable property (`fn: <X>(x: X) => X`) carries `genericParams`
+  like a method signature does
+
+Breaking: `isSnippetTypeString(typeString)` (on the `svelte.js` subpath) is
+replaced by the structural `isSnippetType(type, checker)` — snippet detection
+now reads the resolved checker type (a callable `Snippet`-named `Reference`
+instantiation) wherever one exists; `isSnippetReturnType` remains the
+string-based detector for the svelte2tsx return brand. Detection semantics
+shift with the shape check: `isSnippetType` checks the bare shape
+(`acceptsChildren` walks union and intersection branches itself, so
+intersection-wrapped `children` still count) and is looser on naming (an
+alias over a `Snippet` instantiation now matches, so aliased snippet props
+gain `parameters` — their `typeInfo` stays a bare-reference absence per the
+alias policy, so don't key snippet rendering off `typeInfo` presence).
+Snippet `parameters` also now
+take tuple labels from parameter-derived elements (`Snippet<Parameters<F>>`),
+matching the `typeInfo` tree instead of falling back to `arg0`/`arg1`, and
+report rest elements faithfully — `rest: true` with the printed array form
+(`...rest: B[]` carries `B[]` and an array `typeInfo` node) where they
+previously carried `rest: false` and the bare element type;
+`synthesizeSnippetTypeSignature` renders the `...` marker.

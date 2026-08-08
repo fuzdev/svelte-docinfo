@@ -28,9 +28,10 @@ import { withTestProject } from './test-helpers.ts';
  *
  * The common shape of pipeline-level `analyze` tests: write the files, analyze
  * them, clean up, return the result envelope. Every entry is handed to
- * `analyze` as a source file — the default `sourceOptions` still scope module
- * extraction to `src/lib`, so extra files (a root `package.json`, say) don't
- * become modules.
+ * `analyze` as a source file — the query-time source gate scopes module
+ * emission to `src/lib` (default `sourcePaths`) minus `exclude`, so extra
+ * files (a root `package.json`, say) feed the checker but don't become
+ * modules. See `analyze.source-gate.test.ts`.
  */
 export const analyzeTestProject = (files: Record<string, string>): Promise<AnalyzeResultJson> =>
 	withTestProject(files, (projectRoot) =>

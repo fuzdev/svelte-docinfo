@@ -22,5 +22,18 @@
 		}
 	],
 	"returnType": "T | undefined",
+	"returnTypeInfo": {
+		"kind": "union",
+		"members": [
+			{
+				"kind": "other",
+				"text": "T"
+			},
+			{
+				"kind": "intrinsic",
+				"text": "undefined"
+			}
+		]
+	},
 	"returnDescription": "Description 3"
 }

@@ -29,7 +29,7 @@ import type { DeclarationJsonBuild, MemberJsonBuild } from './declaration-build.
 import { type Diagnostic, type MisplacedTagDiagnostic } from './diagnostics.ts';
 import { to_error_message } from './error.ts';
 import { applyToDeclaration, parseComment, type TsdocParsedComment } from './tsdoc.ts';
-import { hasNullMember, resolveTypeInfo } from './typescript-extract-type-json.ts';
+import { optionalWideningTarget, resolveTypeInfo } from './typescript-extract-type-json.ts';
 import { type IsExternalFile } from './typescript-program.ts';
 
 /**
@@ -84,7 +84,9 @@ const UNDEFINED_UNION_SUFFIX = ' | undefined';
 /**
  * Type signature of a declaration — for an optional one, with the implicit
  * `| undefined` widening removed. The single chokepoint pairing `optional` with the
- * strip, so a call site can't apply one without the other.
+ * strip, so a call site can't apply one without the other. The target selection
+ * itself lives in `optionalWideningTarget` (in `typescript-extract-type-json.ts`),
+ * shared with the `TypeJson` builder so the flat string and the tree can't drift.
  *
  * The checker widens every optional property and parameter to include `undefined`,
  * which is redundant with `optional: true` in the output. Removing it with
@@ -93,9 +95,9 @@ const UNDEFINED_UNION_SUFFIX = ' | undefined';
  * out of `type.types` and rejoining the members is no better: it loses the alias name,
  * the printer's member order, and the parens that keep function members legal.
  *
- * So `null`-bearing types are trimmed on the printed union instead, where TypeScript
+ * So `null`-bearing unions are trimmed on the printed union instead, where TypeScript
  * always emits a top-level `undefined` last — truncated unions
- * (`'a' | ... 11 more ... | undefined`) included. Everything else keeps taking
+ * (`'a' | ... 11 more ... | undefined`) included. Every other union keeps taking
  * `getNonNullableType`, which prints an optional function type without the union parens
  * the trim would leave behind (`() => void`, not `(() => void)`).
  *
@@ -103,9 +105,11 @@ const UNDEFINED_UNION_SUFFIX = ' | undefined';
  * `checker.signatureToString`, which has no flag to omit the widening, so it renders
  * optional parameters as the checker does — `(a?: number | undefined): void`.
  *
- * `x?: undefined` is kept as `"undefined"` — there the written type and the widening
- * coincide, and stripping would leave `never` (the same silent-wrong shape as the
- * `null` cases above).
+ * A non-union optional is printed as written, since there's no widening member to
+ * remove: `x?: undefined` stays `"undefined"` (stripping would leave `never`, the same
+ * silent-wrong shape as the `null` cases above), and `x?: unknown` stays `"unknown"`
+ * (`getNonNullableType` would answer `{}`). See `optionalWideningTarget` for the full
+ * case split.
  *
  * Known limitation: under `exactOptionalPropertyTypes` the checker doesn't widen
  * optional properties at all, so a written `x?: T | undefined` (a distinct type from
@@ -120,16 +124,10 @@ export const getTypeSignature = (
 	checker: ts.TypeChecker,
 	optional: boolean
 ): string => {
-	if (!optional) return checker.typeToString(type);
-
-	// `x?: undefined` — the whole type is the widening; stripping would leave `never`
-	if (!type.isUnion() && type.flags & ts.TypeFlags.Undefined) return checker.typeToString(type);
-
-	if (!hasNullMember(type)) return checker.typeToString(checker.getNonNullableType(type));
-
-	const printed = checker.typeToString(type);
+	const { target, dropUndefined } = optionalWideningTarget(type, checker, optional);
+	const printed = checker.typeToString(target);
 	// no `undefined` member to trim when `strictNullChecks` is off
-	return printed.endsWith(UNDEFINED_UNION_SUFFIX)
+	return dropUndefined && printed.endsWith(UNDEFINED_UNION_SUFFIX)
 		? printed.slice(0, -UNDEFINED_UNION_SUFFIX.length)
 		: printed;
 };
@@ -150,11 +148,13 @@ export const getTypeSignature = (
  * (`fn?: (() => void) | (() => number)`) keeps its combined call signature. A
  * `null`-bearing union is returned unchanged: `null` poisons callability regardless,
  * so there's nothing to recover by stripping `undefined` from it.
+ *
+ * The selection itself is `optionalWideningTarget`'s — the same owner
+ * `getTypeSignature` and the `TypeJson` builder select through, so the
+ * structural queries can't drift from the printed and structured outputs.
  */
-export const getNonOptionalType = (type: ts.Type, checker: ts.TypeChecker): ts.Type => {
-	if (!type.isUnion()) return type;
-	return hasNullMember(type) ? type : checker.getNonNullableType(type);
-};
+export const getNonOptionalType = (type: ts.Type, checker: ts.TypeChecker): ts.Type =>
+	optionalWideningTarget(type, checker, true).target;
 
 /**
  * Extract parameters from a TypeScript signature with TSDoc descriptions and default values.
@@ -185,7 +185,8 @@ export const extractSignatureParameters = (
 		if (paramDecl) {
 			const paramType = checker.getTypeOfSymbolAtLocation(param, paramDecl);
 			typeString = getTypeSignature(paramType, checker, optional);
-			typeInfo = resolveTypeInfo(paramType, checker, optional);
+			const annotation = ts.isParameter(paramDecl) ? paramDecl.type : undefined;
+			typeInfo = resolveTypeInfo(paramType, checker, optional, { writtenNode: annotation });
 		} else {
 			const paramType = checker.getDeclaredTypeOfSymbol(param);
 			typeString = checker.typeToString(paramType);
@@ -297,6 +298,27 @@ const collectSymbolScopeTags = (
 };
 
 /**
+ * Set `returnType` + `returnTypeInfo` on a build target from a signature's
+ * return type — the one projection of the flat/structured return pair, so the
+ * two fields always print from the same `ts.Type` (returns are never
+ * `optional`, hence the constant `false`). The written return annotation, when
+ * one exists, feeds the tree's name recovery for aliases TypeScript dropped.
+ */
+const applyReturnType = (
+	target: { returnType?: string; returnTypeInfo?: TypeJson },
+	sig: ts.Signature,
+	checker: ts.TypeChecker
+): void => {
+	const returnType = checker.getReturnTypeOfSignature(sig);
+	target.returnType = checker.typeToString(returnType);
+	// a JSDoc signature's `type` is a return *tag*, not a TypeNode
+	const decl = sig.declaration;
+	const returnNode = decl && !ts.isJSDocSignature(decl) ? decl.type : undefined;
+	const returnTypeInfo = resolveTypeInfo(returnType, checker, false, { writtenNode: returnNode });
+	if (returnTypeInfo) target.returnTypeInfo = returnTypeInfo;
+};
+
+/**
  * Extract all public overload signatures for a function.
  *
  * Each overload gets its own typeSignature, parameters, returnType, and
@@ -337,12 +359,12 @@ const extractOverloads = (
 		const tsdoc = parseComment(decl, sourceFile);
 
 		const typeSignature = checker.signatureToString(sig);
-		const returnType = checker.typeToString(checker.getReturnTypeOfSignature(sig));
 		const parameters = extractSignatureParameters(sig, checker, tsdoc?.params);
 
 		validateParamKeys(tsdoc?.params, parameters, decl, parentName, diagnostics);
 
-		const overload: OverloadJsonInput = { typeSignature, parameters, returnType };
+		const overload: OverloadJsonInput = { typeSignature, parameters };
+		applyReturnType(overload, sig, checker);
 
 		if (tsdoc?.text) {
 			overload.docComment = tsdoc.text;
@@ -392,7 +414,7 @@ const extractOverloads = (
 /**
  * Populate the callable fields of a declaration or member from its call/construct
  * signatures: `typeSignature`, `parameters`, `overloads`, and (unless
- * `includeReturn` is false) `returnType` / `returnDescription`.
+ * `includeReturn` is false) `returnType` / `returnTypeInfo` / `returnDescription`.
  *
  * The shared core of every named-callable extractor — standalone functions,
  * interface methods, class methods/constructors, and type-alias function
@@ -408,7 +430,7 @@ const extractOverloads = (
  * @param paramValidationNode - node `validateParamKeys` reports `unknown_param` against
  * @param name - target name, for diagnostic messages
  * @param includeReturn - set `false` for constructors (no return type/description)
- * @mutates target - sets typeSignature, parameters, overloads, returnType, returnDescription
+ * @mutates target - sets typeSignature, parameters, overloads, returnType, returnTypeInfo, returnDescription
  * @mutates diagnostics - via `validateParamKeys` / `extractOverloads`
  */
 export const populateCallableMember = (
@@ -427,7 +449,7 @@ export const populateCallableMember = (
 	target.typeSignature = checker.signatureToString(sig);
 
 	if (includeReturn) {
-		target.returnType = checker.typeToString(checker.getReturnTypeOfSignature(sig));
+		applyReturnType(target, sig, checker);
 		if (tsdoc?.returns) target.returnDescription = tsdoc.returns;
 	}
 
@@ -437,6 +459,97 @@ export const populateCallableMember = (
 	if (signatures.length > 1) {
 		target.overloads = extractOverloads(signatures, checker, tsdoc, name, diagnostics);
 	}
+};
+
+/**
+ * The output name for a member's property-name node: the unquoted text of an
+ * identifier or string/numeric literal (matching the symbol-based paths,
+ * where `prop.getName()` yields `data-foo` for a written `'data-foo'`), or
+ * `undefined` for computed names (runtime-dependent; the symbol paths skip
+ * their `__@`-prefixed forms too).
+ */
+export const memberNameText = (name: ts.PropertyName): string | undefined =>
+	ts.isIdentifier(name) || ts.isStringLiteral(name) || ts.isNumericLiteral(name)
+		? name.text
+		: undefined;
+
+/**
+ * Populate a property-shaped member from its checker type: a callable property
+ * becomes `kind: 'function'` with the full signature field set (generic
+ * signatures carry `genericParams` like method signatures do), everything
+ * else gets the flat/structured pair (`typeSignature` + `typeInfo`) with the
+ * optional-widening strip paired to `optional` like every checker-backed site.
+ * TSDoc applies here, after the kind settles — `applyToDeclaration` gates
+ * `@default` on `kind === 'variable'`, and a `@default` dropped by the
+ * callable classification surfaces as a `misplaced_tag` warning.
+ *
+ * The one projection shared by the structural property sites — type-alias
+ * properties and interface property signatures — so the same written shape
+ * can't extract differently across the two container kinds. Class fields
+ * deliberately don't route here: a field holding a function is still a field
+ * (`kind: 'variable'`), while on the structural containers callability is the
+ * member's classification.
+ *
+ * @param annotation - the written type annotation, when one exists (feeds `typeInfo` name recovery)
+ * @mutates member - sets kind, doc fields, and either the callable field set or typeSignature/typeInfo
+ * @mutates diagnostics - via `populateCallableMember`, plus `misplaced_tag` for a dropped `@default`
+ */
+export const populatePropertyMember = (
+	member: MemberJsonBuild,
+	propType: ts.Type,
+	checker: ts.TypeChecker,
+	optional: boolean,
+	tsdoc: TsdocParsedComment | undefined,
+	paramValidationNode: ts.Node,
+	name: string,
+	diagnostics: Array<Diagnostic>,
+	annotation: ts.TypeNode | undefined
+): void => {
+	// an optional property resolves to a union with `undefined`, which reports no
+	// call signatures — strip it so `fn?: () => void` still reads as a function
+	const callableType = optional ? getNonOptionalType(propType, checker) : propType;
+	const callSigs = callableType.getCallSignatures();
+	if (callSigs.length > 0) {
+		member.kind = 'function';
+		populateCallableMember(
+			member,
+			callSigs,
+			checker,
+			tsdoc,
+			paramValidationNode,
+			name,
+			diagnostics
+		);
+		// generic signatures carry genericParams like method signatures and
+		// (call) members do — read from the primary signature's declaration
+		const sigDecl = callSigs[0]!.getDeclaration();
+		if (ts.isFunctionLike(sigDecl) && sigDecl.typeParameters?.length) {
+			member.genericParams = sigDecl.typeParameters.map(parseGenericParam);
+		}
+		if (tsdoc?.defaultValue !== undefined) {
+			// `@default` is schema-allowed on variable members only — surface the
+			// drop like symbol-scope tags on non-primary overloads, not silently
+			const loc = getNodeLocation(paramValidationNode);
+			diagnostics.push({
+				kind: 'misplaced_tag',
+				file: loc.file,
+				line: loc.line,
+				column: loc.column,
+				message: `@default on callable property "${name}" — a function member carries no defaultValue; document the default in the description instead`,
+				severity: 'warning',
+				tagName: 'default',
+				functionName: name
+			});
+		}
+	} else {
+		member.typeSignature = getTypeSignature(propType, checker, optional);
+		const typeInfo = resolveTypeInfo(propType, checker, optional, { writtenNode: annotation });
+		if (typeInfo) member.typeInfo = typeInfo;
+	}
+	// after the kind settles — `applyToDeclaration` gates `@default` on
+	// `kind === 'variable'`. Owning the apply here removes the call-site
+	// ordering footgun outright.
+	applyToDeclaration(member, tsdoc);
 };
 
 /**
@@ -747,9 +860,7 @@ export const emitCallOrConstructSignature = (
 
 		const sig = signatures[0]!;
 		member.typeSignature = checker.signatureToString(sig);
-		if (signatureKind === 'call') {
-			member.returnType = checker.typeToString(checker.getReturnTypeOfSignature(sig));
-		}
+		if (signatureKind === 'call') applyReturnType(member, sig, checker);
 
 		const tsdocNode = resolveTsdocNode(sig);
 		const tsdoc = tsdocNode ? parseComment(tsdocNode, tsdocNode.getSourceFile()) : undefined;

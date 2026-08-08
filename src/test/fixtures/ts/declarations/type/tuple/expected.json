@@ -4,7 +4,26 @@
 	"docComment": "A tuple type.",
 	"typeSignature": "A",
 	"typeInfo": {
-		"kind": "other",
-		"text": "[string, number, boolean]"
+		"kind": "tuple",
+		"elements": [
+			{
+				"type": {
+					"kind": "intrinsic",
+					"text": "string"
+				}
+			},
+			{
+				"type": {
+					"kind": "intrinsic",
+					"text": "number"
+				}
+			},
+			{
+				"type": {
+					"kind": "intrinsic",
+					"text": "boolean"
+				}
+			}
+		]
 	}
 }

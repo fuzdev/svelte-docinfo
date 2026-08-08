@@ -111,7 +111,8 @@ export const extractVariableInfo = (
 	try {
 		const type = checker.getTypeOfSymbolAtLocation(symbol, node);
 		declaration.typeSignature = checker.typeToString(type);
-		const typeInfo = resolveTypeInfo(type, checker, false);
+		const annotation = ts.isVariableDeclaration(node) ? node.type : undefined;
+		const typeInfo = resolveTypeInfo(type, checker, false, { writtenNode: annotation });
 		if (typeInfo) declaration.typeInfo = typeInfo;
 	} catch (err) {
 		declaration.partial = true;

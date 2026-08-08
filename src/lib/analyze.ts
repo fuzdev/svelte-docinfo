@@ -22,6 +22,7 @@ import type { AnalysisLog } from './log.ts';
 import { createAnalysisSession, type AnalysisSession } from './session.ts';
 import {
 	createSourceOptions,
+	widenSourcePathsForInclude,
 	type ModuleSourceOptions,
 	type SourceOptionsDefaults
 } from './source-config.ts';
@@ -44,7 +45,13 @@ import type { SourceFileInfo } from './source.ts';
  * for incremental use.
  */
 export interface AnalyzeOptions {
-	/** Source files to analyze (must have content loaded). */
+	/**
+	 * Source files to analyze (must have content loaded). Files outside
+	 * `sourceOptions.sourcePaths` or matching `exclude` emit no module — they
+	 * still feed the checker as in-memory content, so passing extra files
+	 * (unsaved buffers, virtual-only helpers) shapes type resolution without
+	 * polluting the output.
+	 */
 	sourceFiles: ReadonlyArray<SourceFileInfo>;
 	/** Module source options for path extraction and source filtering. */
 	sourceOptions: ModuleSourceOptions;
@@ -117,6 +124,11 @@ export interface AnalyzeFromFilesOptions {
 	 * Filters glob-based discovery. Providing `include` under the default
 	 * `discovery: 'auto'` collapses the chain to glob immediately; combining
 	 * with `discovery: 'exports'` throws.
+	 *
+	 * Explicit patterns also widen the source scope: their static bases join
+	 * `sourceOptions.sourcePaths` (see `widenSourcePathsForInclude`), so
+	 * include-discovered files outside the configured source paths still emit
+	 * modules, with paths relative to the widened set's common root.
 	 *
 	 * When omitted, the glob fallback derives an include from
 	 * `sourceOptions.sourcePaths` via `deriveIncludePatterns`, so custom
@@ -202,7 +214,20 @@ export const analyzeFromFiles = async (
 	// `createSourceOptions` so the normalized options carry a single source
 	// of truth.
 	const mergedSourceOptions = exclude !== undefined ? { ...sourceOptions, exclude } : sourceOptions;
-	const resolvedSourceOptions = createSourceOptions(projectRoot, mergedSourceOptions);
+	let resolvedSourceOptions = createSourceOptions(projectRoot, mergedSourceOptions);
+	// Explicit include patterns widen the source scope — their static bases
+	// join `sourcePaths` so include-discovered files pass the query-time source
+	// gate and get proper relative module paths. Re-run `createSourceOptions`
+	// so sourceRoot derivation/validation sees the widened list.
+	if (include?.length) {
+		const widened = widenSourcePathsForInclude(resolvedSourceOptions.sourcePaths, include);
+		if (widened !== resolvedSourceOptions.sourcePaths) {
+			resolvedSourceOptions = createSourceOptions(projectRoot, {
+				...mergedSourceOptions,
+				sourcePaths: [...widened]
+			});
+		}
+	}
 	const normalizedProjectRoot = resolvedSourceOptions.projectRoot;
 
 	// Step 1: discover files.

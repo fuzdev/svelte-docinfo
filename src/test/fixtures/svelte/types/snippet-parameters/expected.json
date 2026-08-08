@@ -7,6 +7,31 @@
 				"name": "content",
 				"type": "Snippet<[text: string, index: number]>",
 				"description": "Description 1",
+				"typeInfo": {
+					"kind": "reference",
+					"name": "Snippet",
+					"typeArgs": [
+						{
+							"kind": "tuple",
+							"elements": [
+								{
+									"name": "text",
+									"type": {
+										"kind": "intrinsic",
+										"text": "string"
+									}
+								},
+								{
+									"name": "index",
+									"type": {
+										"kind": "intrinsic",
+										"text": "number"
+									}
+								}
+							]
+						}
+					]
+				},
 				"parameters": [
 					{
 						"name": "text",
@@ -23,6 +48,24 @@
 				"type": "Snippet<[title: string]>",
 				"optional": true,
 				"description": "Description 2",
+				"typeInfo": {
+					"kind": "reference",
+					"name": "Snippet",
+					"typeArgs": [
+						{
+							"kind": "tuple",
+							"elements": [
+								{
+									"name": "title",
+									"type": {
+										"kind": "intrinsic",
+										"text": "string"
+									}
+								}
+							]
+						}
+					]
+				},
 				"parameters": [
 					{
 						"name": "title",
