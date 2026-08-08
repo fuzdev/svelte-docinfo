@@ -612,7 +612,7 @@ class PrivateClass {}`
 				const denormalized = await analyze({
 					sourceFiles,
 					sourceOptions: createSourceOptions(projectRoot + '/', {
-						sourcePaths: ['/src/lib/']
+						sourcePaths: ['src/../src/lib/']
 					})
 				});
 

@@ -111,10 +111,12 @@ describe('normalizeSourceOptions — Windows-shaped inputs', () => {
 		assert.strictEqual(normalized.sourceRoot, 'src/lib');
 	});
 
-	test('strips both leading/trailing forward slashes and posixifies in one pass', () => {
+	test('strips trailing slashes and posixifies in one pass', () => {
+		// a leading slash is no longer stripped — it marks a filesystem-absolute
+		// entry (accepted in-root, thrown out-of-root); see source-config.test.ts
 		const normalized = normalizeSourceOptions({
 			projectRoot: PROJECT_ROOT_POSIX,
-			sourcePaths: ['/src\\lib/'],
+			sourcePaths: ['src\\lib/'],
 			exclude: [],
 			getAnalyzerType: () => 'typescript'
 		});

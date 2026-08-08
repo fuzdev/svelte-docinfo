@@ -20,6 +20,7 @@ import { glob } from 'tinyglobby';
 import type { SourceFileInfo } from './source.ts';
 import { toPosixPath } from './paths.ts';
 import { MAX_FILE_CONCURRENCY, map_concurrent } from './concurrency.ts';
+import { baselineExcludesForBase, includePatternBase } from './source-config.ts';
 
 /**
  * Load a single source file from disk.
@@ -63,6 +64,11 @@ const SOURCE_FILE_EXTENSIONS = 'ts,js,svelte,css,json';
  * the glob fallback consistent with custom `sourcePaths` instead of silently
  * defaulting to `src/lib`.
  *
+ * The `''` source path (the whole project root — an explicit `''`, a
+ * normalized `'.'`, or a root-crossing include base) derives a bare
+ * `**\/*.{...}` glob: prefixing it would produce a leading-slash pattern,
+ * which tinyglobby treats as absolute from the filesystem root.
+ *
  * @example
  * ```ts
  * deriveIncludePatterns(['packages/foo', 'packages/bar'])
@@ -70,7 +76,9 @@ const SOURCE_FILE_EXTENSIONS = 'ts,js,svelte,css,json';
  * ```
  */
 export const deriveIncludePatterns = (sourcePaths: ReadonlyArray<string>): Array<string> =>
-	sourcePaths.map((p) => `${p}/**/*.{${SOURCE_FILE_EXTENSIONS}}`);
+	sourcePaths.map((p) =>
+		p ? `${p}/**/*.{${SOURCE_FILE_EXTENSIONS}}` : `**/*.{${SOURCE_FILE_EXTENSIONS}}`
+	);
 
 /**
  * Options for `globFiles`.
@@ -87,9 +95,16 @@ export interface GlobFilesOptions {
 /**
  * Discover source files via glob patterns.
  *
+ * The always-on baseline exclusions (`node_modules` + dot-directories, see
+ * `baselineExcludesForBase`) apply as glob ignores anchored below each
+ * pattern's static base — so a root-crossing include (`'**\/*.ts'`) can't
+ * rake in `node_modules`, while an include rooted in a dot directory
+ * (`'.hidden/src/**'`) still matches, mirroring `isSource`'s
+ * matched-sourcePath relativity.
+ *
  * @param options - glob configuration
  * @returns array of source files with content loaded
- * @throws Error if any matched file cannot be read — `Promise.all` rejects on the first read failure
+ * @throws Error if any matched file cannot be read — the pool rejects on the first read failure
  *
  * @example
  * ```ts
@@ -103,11 +118,40 @@ export interface GlobFilesOptions {
 export const globFiles = async (options: GlobFilesOptions): Promise<Array<SourceFileInfo>> => {
 	const { projectRoot, include, exclude } = options;
 
-	const filePaths = await glob(include, {
-		cwd: projectRoot,
-		ignore: exclude,
-		absolute: true
-	});
+	// Group positive patterns by their static base so the baseline ignores
+	// anchor below each base. Negated patterns are subtractive across the
+	// whole set, so they join every group.
+	const negated: Array<string> = [];
+	const groups: Map<string, Array<string>> = new Map();
+	for (const pattern of include) {
+		const base = includePatternBase(pattern);
+		if (base === null) {
+			negated.push(pattern);
+			continue;
+		}
+		let group = groups.get(base);
+		if (!group) {
+			group = [];
+			groups.set(base, group);
+		}
+		group.push(pattern);
+	}
+
+	const seen: Set<string> = new Set();
+	const filePaths: Array<string> = [];
+	for (const [base, patterns] of groups) {
+		const matched = await glob([...patterns, ...negated], {
+			cwd: projectRoot,
+			ignore: [...(exclude ?? []), ...baselineExcludesForBase(base)],
+			absolute: true
+		});
+		for (const path of matched) {
+			if (!seen.has(path)) {
+				seen.add(path);
+				filePaths.push(path);
+			}
+		}
+	}
 
 	// Bounded concurrency to keep FD pressure under the typical ulimit on
 	// large projects. See `concurrency.ts`.

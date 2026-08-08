@@ -390,6 +390,69 @@ describe('discoverFromExports', () => {
 		});
 	});
 
+	test('baseline: a concrete export mapping into node_modules or a dot-dir is skipped', async () => {
+		await withTestDir(async (dir) => {
+			await mkdir(join(dir, 'src/lib/node_modules'), { recursive: true });
+			await mkdir(join(dir, 'src/lib/.gen'), { recursive: true });
+			await writeFile(join(dir, 'src/lib/index.ts'), 'export const a = 1;');
+			await writeFile(join(dir, 'src/lib/node_modules/x.ts'), 'export const x = 1;');
+			await writeFile(join(dir, 'src/lib/.gen/y.ts'), 'export const y = 1;');
+			await writeFile(
+				join(dir, 'package.json'),
+				JSON.stringify({
+					exports: {
+						'.': { default: './dist/index.js' },
+						'./x': { default: './dist/node_modules/x.js' },
+						'./y': { default: './dist/.gen/y.js' }
+					}
+				})
+			);
+
+			const { files } = await discoverFromExports({ projectRoot: dir });
+			assert.ok(files);
+			assert.strictEqual(files.length, 1);
+			assert.ok(files[0]!.id.endsWith('src/lib/index.ts'));
+		});
+	});
+
+	test('baseline: wildcard expansion skips node_modules inside the source dir', async () => {
+		await withTestDir(async (dir) => {
+			await mkdir(join(dir, 'src/lib/node_modules'), { recursive: true });
+			await writeFile(join(dir, 'src/lib/a.ts'), 'export const a = 1;');
+			await writeFile(join(dir, 'src/lib/node_modules/x.ts'), 'export const x = 1;');
+			await writeFile(
+				join(dir, 'package.json'),
+				JSON.stringify({
+					exports: { './*.js': { default: './dist/*.js' } }
+				})
+			);
+
+			const { files } = await discoverFromExports({ projectRoot: dir });
+			assert.ok(files);
+			assert.strictEqual(files.length, 1);
+			assert.ok(files[0]!.id.endsWith('src/lib/a.ts'));
+		});
+	});
+
+	test('baseline: a dot-dir sourceDir still discovers — ignores anchor below it', async () => {
+		await withTestDir(async (dir) => {
+			await mkdir(join(dir, '.hidden/src/node_modules'), { recursive: true });
+			await writeFile(join(dir, '.hidden/src/h.ts'), 'export const h = 1;');
+			await writeFile(join(dir, '.hidden/src/node_modules/n.ts'), 'export const n = 1;');
+			await writeFile(
+				join(dir, 'package.json'),
+				JSON.stringify({
+					exports: { './*.js': { default: './dist/*.js' } }
+				})
+			);
+
+			const { files } = await discoverFromExports({ projectRoot: dir, sourceDir: '.hidden/src' });
+			assert.ok(files);
+			assert.strictEqual(files.length, 1);
+			assert.ok(files[0]!.id.endsWith('.hidden/src/h.ts'));
+		});
+	});
+
 	test('honors exclude for nested wildcard matches', async () => {
 		// Recursive wildcard expansion means `exclude` now governs nested files
 		// that a non-recursive `src/lib/*.ts` glob never reached. A co-located
