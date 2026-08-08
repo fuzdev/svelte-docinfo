@@ -124,8 +124,7 @@ export const getTypeSignature = (
 	checker: ts.TypeChecker,
 	optional: boolean
 ): string => {
-	if (!optional) return checker.typeToString(type);
-	const { target, dropUndefined } = optionalWideningTarget(type, checker);
+	const { target, dropUndefined } = optionalWideningTarget(type, checker, optional);
 	const printed = checker.typeToString(target);
 	// no `undefined` member to trim when `strictNullChecks` is off
 	return dropUndefined && printed.endsWith(UNDEFINED_UNION_SUFFIX)
@@ -155,7 +154,7 @@ export const getTypeSignature = (
  * structural queries can't drift from the printed and structured outputs.
  */
 export const getNonOptionalType = (type: ts.Type, checker: ts.TypeChecker): ts.Type =>
-	optionalWideningTarget(type, checker).target;
+	optionalWideningTarget(type, checker, true).target;
 
 /**
  * Extract parameters from a TypeScript signature with TSDoc descriptions and default values.

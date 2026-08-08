@@ -16,7 +16,7 @@
  *
  * @see `typescript-exports.ts` for `analyzeExports`, `extractModuleComment`
  * @see `typescript-extract-shared.ts` for `parseGenericParam`, `filterExternalProperties`
- * @see `typescript-extract-type-json.ts` for `resolveTypeInfo`, `referenceSymbolName`, `tupleElements`
+ * @see `typescript-extract-type-json.ts` for `resolveTypeInfo`, `referenceSymbolName`, `tupleElements`, `restElementForms`
  * @see `typescript-program.ts` for `IsExternalFile`, `createIsExternalFile`
  * @see `tsdoc.ts` for `parseComment`, `applyToDeclaration`
  * @see `source.ts` for `SourceFileInfo`, `getComponentName`
@@ -53,10 +53,9 @@ import {
 	getTypeSignature
 } from './typescript-extract-shared.ts';
 import {
-	printRestElementType,
 	referenceSymbolName,
-	resolveRestTypeInfo,
 	resolveTypeInfo,
+	restElementForms,
 	tupleElementName,
 	tupleElements
 } from './typescript-extract-type-json.ts';
@@ -874,12 +873,14 @@ export const extractSnippetParameters = (
 	return tupleElements(tupleType as ts.TypeReference, checker).map((el, i) => {
 		// `arg${i}` keeps unnamed elements addressable in docs
 		const name = tupleElementName(el) ?? `arg${i}`;
-		const type = el.rest
-			? printRestElementType(el.type, checker)
-			: getTypeSignature(el.type, checker, el.optional);
-		const typeInfo = el.rest
-			? resolveRestTypeInfo(el.type, checker)
-			: resolveTypeInfo(el.type, checker, el.optional);
+		// a rest element reports as the array it collects, flat string and tree
+		// together (`restElementForms`); everything else takes the widening strip
+		const { type, typeInfo } = el.rest
+			? restElementForms(el.type, checker)
+			: {
+					type: getTypeSignature(el.type, checker, el.optional),
+					typeInfo: resolveTypeInfo(el.type, checker, el.optional)
+				};
 		const param: ParameterJsonInput = {
 			name,
 			type,

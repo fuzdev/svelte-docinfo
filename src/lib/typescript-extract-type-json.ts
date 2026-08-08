@@ -7,8 +7,9 @@
  * `typescript-extract-shared.ts` select through it, so the flat string, the
  * tree, and the structural queries can't drift), `referenceSymbolName` (the
  * named-generic-instantiation predicate, shared with `isSnippetType` in
- * `svelte.ts`), and `tupleElements`/`tupleElementName` (the one tuple-element
- * walk, shared with `extractSnippetParameters`). `resolveTypeInfo` builds the
+ * `svelte.ts`), and `tupleElements`/`tupleElementName`/`restElementForms` (the
+ * one tuple-element walk, naming rule, and rest-element projection, shared
+ * with `extractSnippetParameters`). `resolveTypeInfo` builds the
  * tree and applies the `TypeJson` absence contract — returning `undefined`
  * when the node carries no structure beyond the flat string. Expansion,
  * alias, and normalization policy live on the `TypeJson` schema doc in
@@ -52,7 +53,7 @@ const printAliasedType = (type: ts.Type, checker: ts.TypeChecker): string =>
 	);
 
 /** Whether the type is `null` or a union with a `null` member. */
-export const hasNullMember = (type: ts.Type): boolean =>
+const hasNullMember = (type: ts.Type): boolean =>
 	type.isUnion()
 		? type.types.some((t) => !!(t.flags & ts.TypeFlags.Null))
 		: !!(type.flags & ts.TypeFlags.Null);
@@ -61,8 +62,10 @@ export const hasNullMember = (type: ts.Type): boolean =>
  * The single owner of the optional-widening strip, shared with
  * `getTypeSignature` and `getNonOptionalType` (in
  * `typescript-extract-shared.ts`) so the flat string, the tree, and the
- * structural queries can't drift. For a type at an `optional`-flagged position
- * (a `?`-marked declaration or tuple element):
+ * structural queries can't drift. Owns the `optional` gate too — a
+ * non-`optional` position passes through, so call sites hand over the flag
+ * rather than branching around the call. For a type at an `optional`-flagged
+ * position (a `?`-marked declaration or tuple element):
  *
  * - a non-union carries no separate widening member to strip, so it passes
  *   through. Three shapes land here: `x?: undefined` (the written type and the
@@ -79,9 +82,10 @@ export const hasNullMember = (type: ts.Type): boolean =>
  */
 export const optionalWideningTarget = (
 	type: ts.Type,
-	checker: ts.TypeChecker
+	checker: ts.TypeChecker,
+	optional: boolean
 ): { target: ts.Type; dropUndefined: boolean } => {
-	if (!type.isUnion()) return { target: type, dropUndefined: false };
+	if (!optional || !type.isUnion()) return { target: type, dropUndefined: false };
 	if (hasNullMember(type)) return { target: type, dropUndefined: true };
 	return { target: checker.getNonNullableType(type), dropUndefined: false };
 };
@@ -333,19 +337,8 @@ interface CheckerWithCreateArrayType extends ts.TypeChecker {
 	createArrayType?(elementType: ts.Type): ts.Type;
 }
 
-/**
- * The printed array form of a rest tuple element (`...rest: B[]` carries
- * `B[]`) — the flat-string counterpart of `buildTuple`'s array rewrap, for
- * `extractSnippetParameters`' rest parameters. Prints through the checker's
- * internal `createArrayType` so parenthesization is the printer's own —
- * hand rules get the edges wrong (`boolean` is a checker union, a
- * `readonly B[]` element *must* parenthesize or `readonly B[][]` denotes a
- * different type, a `unique symbol` prints as a `typeof` query). If the
- * internal factory disappears, the fallback parenthesizes everything but
- * bare identifier paths — sometimes over-parenthesized, never a different
- * type.
- */
-export const printRestElementType = (elementType: ts.Type, checker: ts.TypeChecker): string => {
+/** The printed array form of a rest element's type — see `restElementForms`. */
+const printRestElementType = (elementType: ts.Type, checker: ts.TypeChecker): string => {
 	const { createArrayType } = checker as CheckerWithCreateArrayType;
 	if (createArrayType) return checker.typeToString(createArrayType.call(checker, elementType));
 	const text = checker.typeToString(elementType);
@@ -353,19 +346,35 @@ export const printRestElementType = (elementType: ts.Type, checker: ts.TypeCheck
 };
 
 /**
- * The structured type for a rest element's array form — `buildTuple`'s array
- * rewrap exposed for `extractSnippetParameters`, presence-gated like any
- * array node (present when the element is a reference or carries structure).
+ * Both output forms of a rest tuple element, which present it as the array it
+ * collects (`...rest: B[]` carries `"B[]"` and an array node) — the
+ * flat/structured counterpart of `buildTuple`'s array rewrap, for
+ * `extractSnippetParameters`. Paired in one function so the two can't be half
+ * applied: a printed array beside a non-array tree would describe two
+ * different types.
+ *
+ * The string prints through the checker's internal `createArrayType` so
+ * parenthesization is the printer's own — hand rules get the edges wrong (a
+ * `readonly B[]` element *must* parenthesize or `readonly B[][]` denotes a
+ * different type, a bare union needs parens, a `unique symbol` prints as a
+ * `typeof` query). If the internal factory disappears, the fallback
+ * parenthesizes everything but bare identifier paths — sometimes
+ * over-parenthesized, never a different type. The tree is presence-gated like
+ * any array node (present when the element is a reference or carries
+ * structure).
  */
-export const resolveRestTypeInfo = (
+export const restElementForms = (
 	elementType: ts.Type,
 	checker: ts.TypeChecker
-): TypeJson | undefined => {
+): { type: string; typeInfo: TypeJson | undefined } => {
 	// depth 1: the element sits under the implicit array root, matching what a
 	// signature-path `B[]` parameter would build (one level shallower than the
 	// same element inside the prop-level tree, so the depth caps differ by one)
 	const node: TypeJson = { kind: 'array', element: buildTypeJson(elementType, checker, 1) };
-	return hasTypeStructure(node) ? node : undefined;
+	return {
+		type: printRestElementType(elementType, checker),
+		typeInfo: hasTypeStructure(node) ? node : undefined
+	};
 };
 
 /**
@@ -384,9 +393,7 @@ const buildTuple = (type: ts.TypeReference, checker: ts.TypeChecker, depth: numb
 		return isReadonly ? { kind: 'tuple', readonly: true } : { kind: 'tuple' };
 	}
 	const elements = walked.map((el): TupleElementJson => {
-		const { target, dropUndefined } = el.optional
-			? optionalWideningTarget(el.type, checker)
-			: { target: el.type, dropUndefined: false };
+		const { target, dropUndefined } = optionalWideningTarget(el.type, checker, el.optional);
 		const built = buildTypeJson(target, checker, depth + 1, { dropUndefined });
 		const node: TypeJson = el.rest ? { kind: 'array', element: built } : built;
 		// `name` leads the literal so the wire keys read name-first
@@ -572,9 +579,7 @@ export const resolveTypeInfo = (
 	optional: boolean,
 	ownAliasName?: string
 ): TypeJson | undefined => {
-	const { target, dropUndefined } = optional
-		? optionalWideningTarget(type, checker)
-		: { target: type, dropUndefined: false };
+	const { target, dropUndefined } = optionalWideningTarget(type, checker, optional);
 	const node = buildTypeJson(target, checker, 0, { dropUndefined, skipAliasName: ownAliasName });
 	if (hasTypeStructure(node)) return node;
 	// the flat string is the bare alias name, so absence would say nothing
