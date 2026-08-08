@@ -36,6 +36,7 @@ export {
 	Reactivity,
 	GenericParamJson,
 	TypeJson,
+	TupleElementJson,
 	ParameterJson,
 	ComponentPropJson,
 	OverloadJson,

@@ -6,8 +6,10 @@
  * signature-building code strips that back off. Stripping it with
  * `checker.getNonNullableType` also drops `null` — `a?: string | null` printed as
  * `"string"`, `a?: null` as `"never"` — so `getTypeSignature` removes only
- * the `undefined` member (and keeps `a?: undefined` as `"undefined"`, where
- * stripping would leave `never` too). These exercise the whole `analyze` pipeline;
+ * the `undefined` member, and only from a union: `a?: undefined` stays
+ * `"undefined"` (stripping would leave `never` too) and `a?: unknown` stays
+ * `"unknown"` (`unknown` absorbs the widening; stripping would leave `{}`).
+ * These exercise the whole `analyze` pipeline;
  * the extractors are covered directly by the `ts/types/nullable-optional` and
  * `svelte/props/nullable` fixtures.
  */
@@ -45,6 +47,8 @@ describe('optional type normalization', () => {
 	g: string | null;
 	h?: undefined;
 	i?: (() => void) | (() => number);
+	j?: unknown;
+	k?: any;
 };`
 		);
 
@@ -66,8 +70,25 @@ describe('optional type normalization', () => {
 			h: 'undefined',
 			// a union of callables is itself callable; `getNonNullableType` rebuilds
 			// the union so the combined call signature survives
-			i: '(): number | void'
+			i: '(): number | void',
+			// `unknown` absorbs the widening rather than unioning with it, so there's
+			// no member to strip — and `getNonNullableType` would answer `{}`
+			j: 'unknown',
+			k: 'any'
 		});
+	});
+
+	test('keeps a non-union optional parameter as written', async () => {
+		// the same absorption on the parameter path, which has no
+		// `exactOptionalPropertyTypes` escape hatch
+		const module = await analyzeFile('src/lib/a.ts', `export const f = (a?: unknown): void => {};`);
+
+		const declaration = module.declarations[0];
+		assert(declaration?.kind === 'function', 'expected a function declaration');
+		assert.deepStrictEqual(
+			declaration.parameters.map((p) => [p.name, p.type, p.optional]),
+			[['a', 'unknown', true]]
+		);
 	});
 
 	test('keeps call signatures on an optional method', async () => {

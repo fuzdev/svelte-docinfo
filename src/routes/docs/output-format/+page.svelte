@@ -94,7 +94,7 @@
 			<ul>
 				<li>
 					<code>"function"</code>: adds <code>parameters</code>, <code>returnType</code>,
-					<code>returnDescription</code>, <code>overloads</code>
+					<code>returnTypeInfo</code>, <code>returnDescription</code>, <code>overloads</code>
 				</li>
 				<li>
 					<code>"variable"</code>: adds optional <code>defaultValue</code> (from
@@ -132,15 +132,24 @@
 				<li>
 					<code>typeInfo</code>: structured <DeclarationLink name="TypeJson" /> tree beside the flat string
 					— on variable and type-alias declarations (plus type-alias property and checker-backed class
-					members, component props, and parameters). Absent when the flat string is the whole story; present
-					when the tree carries structure the string can't: union/intersection <code>members</code>
+					members, component props, parameters, and return types via <code>returnTypeInfo</code>).
+					Absent when the flat string is the whole story; present when the tree carries structure
+					the string can't: union/intersection <code>members</code>
 					(alias name kept; enum members as <code>{`{value, text}`}</code> pairs with the qualified
 					name as <code>text</code>), reference <code>name</code> + <code>typeArgs</code>, array
-					<code>element</code>. Object literals and function types stay terminal
-					<code>text</code>. The headline case: a union alias's <code>typeSignature</code> prints as
-					just its own name, and <code>typeInfo</code> carries the enumerable members — which is
-					also why type aliases relax the absence rule: their flat string is always just the alias
-					name, so the tree is emitted whatever its shape, except for object and function roots that
+					<code>element</code>, tuple <code>elements</code> (label, <code>?</code>/<code>...</code>
+					markers, recursive type; arrays and tuples mark <code>readonly</code>). Object literals
+					and function types stay terminal
+					<code>text</code> — callability is the load-bearing renderer signal — with one narrow
+					exception: a named generic instantiation classifies as a <code>reference</code> even when
+					callable, so <code>Snippet&lt;[a: string]&gt;</code> is a reference whose tuple typeArg
+					carries real elements (an instantiation over the <em>empty</em> tuple —
+					<code>Snippet&lt;[]&gt;</code> — says nothing the string doesn't, so it stays absent). The
+					headline case: a union alias's <code>typeSignature</code>
+					prints as just its own name, and <code>typeInfo</code> carries the enumerable members —
+					which is also why type aliases relax the absence rule: their flat string is always just
+					the alias name, so the tree is emitted whatever its shape, except for object and function
+					roots that
 					<code>members</code> already covers
 				</li>
 				<li><code>sourceLine</code>: line number in the source file</li>
@@ -246,7 +255,8 @@
 			<ul>
 				<li>
 					<code>"function"</code>: methods and call signatures. Adds <code>parameters</code>,
-					<code>returnType</code>, <code>returnDescription</code>, <code>overloads</code>
+					<code>returnType</code>, <code>returnTypeInfo</code>, <code>returnDescription</code>,
+					<code>overloads</code>
 				</li>
 				<li>
 					<code>"constructor"</code>: class constructors and construct signatures. Adds
@@ -326,7 +336,8 @@
 			</p>
 			<ul>
 				<li>
-					<code>name</code>: parameter name (e.g., <code>"options"</code>, <code>"...args"</code>)
+					<code>name</code>: parameter name (e.g., <code>"options"</code>, <code>"args"</code> — a
+					rest parameter's dots live in <code>rest</code>, never in the name)
 				</li>
 				<li><code>type</code>: resolved TypeScript type as a string</li>
 				<li>
@@ -359,6 +370,10 @@
 					<code>@param</code> descriptions
 				</li>
 				<li><code>returnType</code>: return type for this overload (functions only)</li>
+				<li>
+					<code>returnTypeInfo</code>: structured <DeclarationLink name="TypeJson" /> tree for this overload's
+					return type, when it carries structure the string can't
+				</li>
 				<li><code>genericParams</code>: type parameters for this overload</li>
 				<li><code>docComment</code>: per-overload JSDoc text, if present</li>
 				<li><code>returnDescription</code>: from <code>@returns</code> on this overload</li>
@@ -545,6 +560,18 @@ export const clamp = (value: number, min: number, max: number): number =>
               "type": "Snippet<[title: string]>",
               "optional": true,
               "description": "Custom header rendering.",
+              "typeInfo": {
+                "kind": "reference",
+                "name": "Snippet",
+                "typeArgs": [
+                  {
+                    "kind": "tuple",
+                    "elements": [
+                      {"name": "title", "type": {"kind": "intrinsic", "text": "string"}}
+                    ]
+                  }
+                ]
+              },
               "parameters": [
                 {"name": "title", "type": "string"}
               ]

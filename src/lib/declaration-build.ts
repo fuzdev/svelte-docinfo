@@ -50,6 +50,7 @@ export interface MemberJsonBuild {
 	genericParams?: Array<GenericParamJson>;
 	parameters?: Array<z.input<typeof ParameterJson>>;
 	returnType?: string;
+	returnTypeInfo?: TypeJson;
 	returnDescription?: string;
 	overloads?: Array<OverloadJsonInput>;
 	examples?: Array<string>;
@@ -84,6 +85,7 @@ export interface DeclarationJsonBuild {
 	sourceLine?: number;
 	parameters?: Array<z.input<typeof ParameterJson>>;
 	returnType?: string;
+	returnTypeInfo?: TypeJson;
 	returnDescription?: string;
 	genericParams?: Array<GenericParamJson>;
 	overloads?: Array<OverloadJsonInput>;
