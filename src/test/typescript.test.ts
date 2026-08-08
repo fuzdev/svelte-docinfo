@@ -52,15 +52,12 @@ describe('TypeScript helpers (fixture-based)', () => {
 			// Skip moduleComment category (returns string, not DeclarationJson)
 			if (fixture.category === 'moduleComment') continue;
 
-			// Skip error category (may return null or degraded results)
-			if (fixture.category === 'error') continue;
-
-			// Validate that null only appears in module/comment/*, errors/*, or tsdoc/nodocs-filtering fixtures
+			// Validate that null only appears in module/comment/* or tsdoc/nodocs-filtering fixtures
 			if (fixture.expected === null) {
 				// Allow null for @nodocs test case
 				if (fixture.name !== 'tsdoc/nodocs-filtering') {
 					throw new Error(
-						`Unexpected null in fixture ${fixture.name} - only module/comment/*, errors/*, and tsdoc/nodocs-filtering should return null. ` +
+						`Unexpected null in fixture ${fixture.name} - only module/comment/* and tsdoc/nodocs-filtering should return null. ` +
 							`This likely indicates a fixture that doesn't test anything useful and should be removed.`
 					);
 				}

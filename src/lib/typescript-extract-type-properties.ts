@@ -21,7 +21,7 @@ import type { DeclarationModifier } from './types.ts';
 import type { DeclarationJsonBuild, MemberJsonBuild } from './declaration-build.ts';
 import { type Diagnostic } from './diagnostics.ts';
 import { to_error_message } from './error.ts';
-import { parseComment, applyToDeclaration } from './tsdoc.ts';
+import { parseComment } from './tsdoc.ts';
 import { resolveTypeInfo } from './typescript-extract-type-json.ts';
 import { type IsExternalFile } from './typescript-program.ts';
 import {
@@ -147,6 +147,8 @@ const emitLocalIndexSignature = (
 				// no optional strip on either output — `optional` is N/A for index signatures
 				typeSignature: checker.typeToString(indexInfo.type)
 			};
+			// `readonly [key: string]: T` carries the modifier like a property
+			if (indexInfo.isReadonly) member.modifiers = ['readonly'];
 			const typeInfo = resolveTypeInfo(indexInfo.type, checker, false, {
 				writtenNode: indexInfo.declaration?.type
 			});
@@ -280,6 +282,7 @@ export const extractTypeAliasProperties = (
 			propDecl && (ts.isPropertySignature(propDecl) || ts.isPropertyDeclaration(propDecl))
 				? propDecl.type
 				: undefined;
+		// owns the TSDoc application too — `@default` gates on the settled kind
 		populatePropertyMember(
 			member,
 			propType,
@@ -291,10 +294,6 @@ export const extractTypeAliasProperties = (
 			diagnostics,
 			annotation
 		);
-
-		// after `populatePropertyMember` so the kind is settled — `@default` is
-		// schema-allowed on variable members only and the apply gate reads `kind`
-		applyToDeclaration(member, propTsdoc);
 
 		(declaration.members ??= []).push(member);
 	}

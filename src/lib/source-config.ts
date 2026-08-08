@@ -318,6 +318,47 @@ const stripSlashes = (p: string): string => {
 };
 
 /**
+ * Union `sourcePaths` with the static base directories of explicit include
+ * patterns, so include-discovered files count as source at analysis time.
+ *
+ * Discovery `include` globs can reach outside `sourcePaths` (`--include
+ * 'src/other/**'` under the default `['src/lib']`); without widening, the
+ * query-time source gate would drop those modules, and `extractPath` would
+ * have no root to relativize their paths against (its fallback is the
+ * absolute path). Each pattern contributes its static prefix
+ * (`picomatch.scan().base` — `'src/other/**\/*.ts'` → `'src/other'`); a
+ * literal non-glob pattern names a file, so it contributes its directory; a
+ * negated pattern contributes nothing. A root-crossing pattern (`'**\/*.ts'`)
+ * contributes `''`, which scopes the whole project root as source.
+ *
+ * Pure path-set logic — callers re-run `createSourceOptions` on the widened
+ * list so sourceRoot derivation and validation see the final set (an
+ * *explicit* sourceRoot that doesn't prefix a widened path fails that
+ * validation loudly rather than emitting absolute module paths). Returns the
+ * input array identity when nothing widens.
+ */
+export const widenSourcePathsForInclude = (
+	sourcePaths: ReadonlyArray<string>,
+	include: ReadonlyArray<string>
+): ReadonlyArray<string> => {
+	const seen = new Set(sourcePaths);
+	const widened = [...sourcePaths];
+	for (const pattern of include) {
+		const scanned = picomatch.scan(pattern);
+		if (scanned.negated) continue;
+		let base = stripSlashes(toPosixPath(scanned.base));
+		if (!scanned.isGlob) {
+			base = base.includes('/') ? base.slice(0, base.lastIndexOf('/')) : '';
+		}
+		if (!seen.has(base)) {
+			seen.add(base);
+			widened.push(base);
+		}
+	}
+	return widened.length === sourcePaths.length ? sourcePaths : widened;
+};
+
+/**
  * Derive the longest common directory prefix from an array of paths.
  *
  * @returns common prefix (e.g., `['src/lib', 'src/routes']` → `'src'`),
@@ -463,7 +504,10 @@ export const isSource = (path: string, options: ModuleSourceOptions): boolean =>
 	// before we relativize for glob matching. Out-of-root files (which can't be
 	// sources anyway) short-circuit here without reaching the matcher.
 	const inSourceDir = options.sourcePaths.some((sourcePath) => {
-		const fullPrefix = options.projectRoot + '/' + sourcePath + '/';
+		// '' scopes to the whole project root (a root-crossing include base —
+		// see `widenSourcePathsForInclude`)
+		const fullPrefix =
+			sourcePath === '' ? options.projectRoot + '/' : options.projectRoot + '/' + sourcePath + '/';
 		return posixPath.startsWith(fullPrefix);
 	});
 	if (!inSourceDir) return false;

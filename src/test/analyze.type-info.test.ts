@@ -444,29 +444,6 @@ export class C {
 		assert.strictEqual(ifaceMember.returnType, aliasMember.returnType);
 	});
 
-	test('`@default` on a property that classifies callable is dropped, not emitted', async () => {
-		// `defaultValue` is schema-allowed on variable members only; a callable
-		// property flips to a function member after TSDoc parsing, so the apply
-		// gate must run against the settled kind or `ModuleJson.parse` throws
-		const module = await analyzeFile(
-			'src/lib/a.ts',
-			`export interface I {
-	/**
-	 * A callable option.
-	 *
-	 * @default noop
-	 */
-	fn: () => void;
-}`
-		);
-		const declaration = module.declarations[0];
-		assert(declaration?.kind === 'interface', 'expected an interface declaration');
-		const member = declaration.members.find((m) => m.name === 'fn');
-		assert(member?.kind === 'function', 'expected a function member');
-		assert.strictEqual(member.docComment, 'A callable option.');
-		assert.ok(!('defaultValue' in member), 'expected no defaultValue on a function member');
-	});
-
 	test('interface index signatures are checker-backed with typeInfo', async () => {
 		const module = await analyzeFile(
 			'src/lib/a.ts',

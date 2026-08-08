@@ -12,6 +12,7 @@
 
 import { readFile, access } from 'node:fs/promises';
 import { join, relative, resolve } from 'node:path';
+import picomatch from 'picomatch';
 import { glob } from 'tinyglobby';
 
 import type { SourceFileInfo } from './source.ts';
@@ -257,6 +258,7 @@ export const discoverFromExports = async (
 
 	const mappingOptions = { distDir, sourceDir };
 	const discovered: Map<string, string> = new Map(); // absolute path → relative source path
+	const excludeMatcher = exclude?.length ? picomatch(exclude) : undefined;
 
 	for (const entry of parsed.entries) {
 		const selected = selectCondition(entry.conditions);
@@ -276,7 +278,14 @@ export const discoverFromExports = async (
 			);
 		} else {
 			// Concrete: map directly
-			await resolveConcreteExport(distPath, condition, mappingOptions, projectRoot, discovered);
+			await resolveConcreteExport(
+				distPath,
+				condition,
+				mappingOptions,
+				projectRoot,
+				excludeMatcher,
+				discovered
+			);
 		}
 	}
 
@@ -311,16 +320,23 @@ export const discoverFromExports = async (
 
 /**
  * Resolve a concrete (non-wildcard) export entry to a source file.
+ *
+ * Applies `excludeMatcher` to the mapped source path — the wildcard path gets
+ * exclusion through the glob's `ignore`, and skipping it here would let a
+ * concrete entry (a root `.` export mapping to `src/lib/index.ts`) bypass
+ * `exclude` at the discovery stage.
  */
 const resolveConcreteExport = async (
 	distPath: string,
 	condition: string,
 	mappingOptions: { distDir: string; sourceDir: string },
 	projectRoot: string,
+	excludeMatcher: ((relPath: string) => boolean) | undefined,
 	discovered: Map<string, string>
 ): Promise<void> => {
 	const sourcePath = mapDistToSource(distPath, condition, mappingOptions);
 	if (!sourcePath) return;
+	if (excludeMatcher?.(sourcePath)) return;
 
 	const absPath = toPosixPath(resolve(projectRoot, sourcePath));
 	if (discovered.has(absPath)) return;
@@ -330,6 +346,7 @@ const resolveConcreteExport = async (
 		discovered.set(absPath, sourcePath);
 	} else if (sourcePath.endsWith('.ts')) {
 		const jsPath = sourcePath.replace(/\.ts$/, '.js');
+		if (excludeMatcher?.(jsPath)) return;
 		const absJs = toPosixPath(resolve(projectRoot, jsPath));
 		if (await fileExists(absJs)) {
 			discovered.set(absJs, jsPath);

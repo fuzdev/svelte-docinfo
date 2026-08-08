@@ -30,6 +30,7 @@ import {
 	extractModifiers,
 	getNodeLocation,
 	getNonOptionalType,
+	memberNameText,
 	parseGenericParam,
 	populateCallableMember,
 	populatePropertyMember
@@ -106,8 +107,12 @@ export const extractTypeInfo = (
 		const processedMethods: Set<string> = new Set();
 
 		for (const member of node.members) {
-			if (ts.isPropertySignature(member) && ts.isIdentifier(member.name)) {
-				const propName = member.name.text;
+			if (ts.isPropertySignature(member)) {
+				// `memberNameText` covers identifier and string/numeric-literal names
+				// (`'data-foo': string`, `42: boolean`) like the symbol-based type-alias
+				// path; computed names stay skipped (runtime-dependent)
+				const propName = memberNameText(member.name);
+				if (propName === undefined) continue;
 				const propDeclaration: MemberJsonBuild = {
 					name: propName,
 					kind: 'variable'
@@ -128,7 +133,10 @@ export const extractTypeInfo = (
 
 				// Resolve the type through the checker like the type-alias property
 				// path — discovery stays on `node.members` (own members only), typing
-				// doesn't; the written annotation feeds `typeInfo` name recovery
+				// doesn't; the written annotation feeds `typeInfo` name recovery.
+				// `populatePropertyMember` owns the TSDoc application (the `@default`
+				// gate reads the settled kind), so the paths where it never ran
+				// apply the docs themselves.
 				try {
 					const propSymbol = checker.getSymbolAtLocation(member.name);
 					if (propSymbol) {
@@ -144,9 +152,12 @@ export const extractTypeInfo = (
 							diagnostics,
 							member.type
 						);
+					} else {
+						applyToDeclaration(propDeclaration, propTsdoc);
 					}
 				} catch (err) {
 					propDeclaration.partial = true;
+					applyToDeclaration(propDeclaration, propTsdoc);
 					const loc = getNodeLocation(member);
 					diagnostics.push({
 						kind: 'type_extraction_failed',
@@ -159,13 +170,11 @@ export const extractTypeInfo = (
 					});
 				}
 
-				// after `populatePropertyMember` so the kind is settled — `@default` is
-				// schema-allowed on variable members only and the apply gate reads `kind`
-				applyToDeclaration(propDeclaration, propTsdoc);
-
 				(declaration.members ??= []).push(propDeclaration);
 			} else if (ts.isMethodSignature(member) && member.name) {
-				const methodName = ts.isIdentifier(member.name) ? member.name.text : member.name.getText();
+				// literal names unquoted like the property path; computed names keep
+				// their written text (`[Symbol.iterator]`)
+				const methodName = memberNameText(member.name) ?? member.name.getText();
 				if (!methodName || processedMethods.has(methodName)) continue;
 				processedMethods.add(methodName);
 
@@ -234,6 +243,12 @@ export const extractTypeInfo = (
 					const keyType = param.type.getText();
 					const name = `[${param.name.text}: ${keyType}]`;
 					const indexDeclaration: MemberJsonBuild = { name, kind: 'variable' };
+
+					// `readonly [key: string]: T` carries the modifier like a property
+					const indexModifiers = extractModifiers(ts.getModifiers(member));
+					if (indexModifiers.length > 0) {
+						indexDeclaration.modifiers = indexModifiers;
+					}
 
 					if (member.type) {
 						// checker-render the value type from the own-member node (the

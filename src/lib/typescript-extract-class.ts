@@ -25,6 +25,7 @@ import {
 	extractModifiers,
 	getNodeLocation,
 	getTypeSignature,
+	memberNameText,
 	parseGenericParam,
 	populateCallableMember
 } from './typescript-extract-shared.ts';
@@ -77,11 +78,11 @@ export const extractClassInfo = (
 			ts.isConstructorDeclaration(member)
 		) {
 			const isConstructor = ts.isConstructorDeclaration(member);
+			// literal names unquoted like the structural paths; computed names keep
+			// their written text (`[Symbol.iterator]`)
 			const memberName = isConstructor
 				? 'constructor'
-				: ts.isIdentifier(member.name)
-					? member.name.text
-					: member.name.getText();
+				: (memberNameText(member.name) ?? member.name.getText());
 			if (!memberName) continue;
 
 			// Skip private fields (those starting with #)
@@ -217,7 +218,7 @@ export const extractClassInfo = (
 
 	for (const member of node.members) {
 		if (ts.isGetAccessor(member) || ts.isSetAccessor(member)) {
-			const accessorName = ts.isIdentifier(member.name) ? member.name.text : member.name.getText();
+			const accessorName = memberNameText(member.name) ?? member.name.getText();
 			if (!accessorName) continue;
 
 			// Skip private accessors - protected are part of the extension API

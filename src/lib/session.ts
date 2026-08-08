@@ -163,6 +163,15 @@ export interface QueryOptions {
  * **Promise resolution**: `setFile` / `setFiles` resolve only after the
  * serial LS push (phase 3) completes for every file in the batch. Awaiting
  * the returned promise is sufficient — no separate flush step.
+ *
+ * **Owned ⊇ emitted**: ingest is additive and ungated — any file can be
+ * pushed, and owned entries are served to the checker from memory before the
+ * disk fallback, so non-source files (unsaved buffers, virtual-only helpers,
+ * configs) can shape type resolution in the modules that import them.
+ * `query()` gates the *module set* through `isSource`: only owned files under
+ * `sourceOptions.sourcePaths` and not matching `exclude` emit a `ModuleJson`.
+ * The gate emits no diagnostics — `query()` logs the gated count as info, and
+ * `list()` reports the full owned set for introspection.
  */
 export interface AnalysisSession {
 	/**
@@ -184,7 +193,10 @@ export interface AnalysisSession {
 	/** Snapshot of currently-owned file IDs (sort order is insertion order). */
 	list(): ReadonlyArray<string>;
 	/**
-	 * Run a two-phase analysis pass against the current owned set.
+	 * Run a two-phase analysis pass against the current owned set, gated by
+	 * `isSource` — owned files outside `sourcePaths` (or matching `exclude`)
+	 * provide checker context but emit no module (see "Owned ⊇ emitted"
+	 * above).
 	 *
 	 * @returns analyzed modules and analysis-pass diagnostics. Ingest
 	 *   diagnostics from prior `setFile`/`setFiles` calls are NOT included
@@ -815,15 +827,37 @@ export const createAnalysisSession = (options: AnalysisSessionOptions): Analysis
 	};
 
 	const query = (opts?: QueryOptions): AnalyzeResultJson => {
-		// Build query inputs from owned entries. Filter unfilteredDeps to the
-		// current owned set per cache strategy A.
-		const ownedIds = new Set(owned.keys());
+		// Build query inputs from owned entries — gated by `isSource`, per cache
+		// strategy A (store unfiltered, filter at query). Owned files outside
+		// `sourcePaths` or matching `exclude` emit no module: they exist to give
+		// the checker in-memory content (unsaved buffers, virtual files — the LS
+		// host serves owned entries before falling back to disk), and gating at
+		// query rather than ingest keeps that context intact while duplicates,
+		// re-export resolution, and dependents all see only the emitted set.
+		// Dependency edges were already `isSource`-filtered at ingest; filtering
+		// against the emitted set here makes the invariant local — output never
+		// references a module it doesn't contain.
+		const log = opts?.log ?? options.log;
+		const emittedIds = new Set<string>();
+		for (const id of owned.keys()) {
+			if (isSource(id, sourceOptions)) emittedIds.add(id);
+		}
+		// the gate is silent in diagnostics (context files are a supported use,
+		// not a problem) — but a misconfigured sourcePaths yields an empty
+		// result with zero signal, so surface the count as info
+		const gatedCount = owned.size - emittedIds.size;
+		if (gatedCount > 0) {
+			log?.info(
+				`Source gate: ${gatedCount} of ${owned.size} owned files emit no module (outside sourcePaths or matching exclude)`
+			);
+		}
 		const sourceFiles: Array<SourceFileInfo> = [];
 		const svelteVirtualFiles = new Map<string, SvelteVirtualFile>();
 		const transformFailedIds = new Set<string>();
 
 		for (const [id, entry] of owned) {
-			const filteredDeps = entry.unfilteredDeps.filter((d) => ownedIds.has(d));
+			if (!emittedIds.has(id)) continue;
+			const filteredDeps = entry.unfilteredDeps.filter((d) => emittedIds.has(d));
 			sourceFiles.push({ id, content: entry.content, dependencies: filteredDeps });
 			if (entry.virtual) svelteVirtualFiles.set(id, entry.virtual);
 			if (entry.transformFailed) transformFailedIds.add(id);
@@ -844,7 +878,7 @@ export const createAnalysisSession = (options: AnalysisSessionOptions): Analysis
 			svelteVirtualFiles,
 			transformFailedIds,
 			onDuplicates: opts?.onDuplicates,
-			log: opts?.log ?? options.log
+			log
 		});
 
 		return result;

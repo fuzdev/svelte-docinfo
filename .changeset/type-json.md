@@ -109,12 +109,22 @@ site, so adding an annotation no longer *removes* structured data:
   and `returnTypeInfo`, exactly like the same shape on a type alias — the
   two structural container kinds share one projection. Class fields keep
   `kind: 'variable'` (a field holding a function is still a field)
-- `@default` on a property that classifies callable is dropped instead of
-  crashing `ModuleJson.parse` (`defaultValue` is schema-allowed on variable
-  members only)
+- `@default` on a property that classifies callable is dropped with a
+  `misplaced_tag` warning instead of crashing `ModuleJson.parse`
+  (`defaultValue` is schema-allowed on variable members only; the drop is
+  surfaced like symbol-scope tags on non-primary overloads)
 - an optional property or parameter typed by a bare unconstrained type
   parameter reports `"E"` again — the widening strip previously answered
   `getNonNullableType`'s `E & {}` when the position was checker-backed
+- string- and numeric-literal member names document unquoted on every
+  container kind (`'data-foo': string` → `data-foo`, matching the symbol
+  paths' `prop.getName()`); interface property signatures with literal names
+  were previously skipped entirely, and class/method-signature paths kept
+  the quotes
+- `readonly` index signatures carry the `readonly` modifier on both
+  container kinds (previously lost on both)
+- a generic callable property (`fn: <X>(x: X) => X`) carries `genericParams`
+  like a method signature does
 
 Breaking: `isSnippetTypeString(typeString)` (on the `svelte.js` subpath) is
 replaced by the structural `isSnippetType(type, checker)` — snippet detection

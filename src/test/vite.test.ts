@@ -137,9 +137,15 @@ describe('svelteDocinfo', () => {
 					path: string;
 					dependencies?: Array<string>;
 				}>;
-				const a = modules.find((m) => m.path === 'a.ts');
-				assert.ok(a, 'expected a.ts module');
-				assert.deepEqual(a.dependencies, ['b.ts'], 'relative edge a → b resolved via TS default');
+				// `include: ['src/**/*.ts']` widens the source scope to `src`, so
+				// module paths are relative to it (see `widenSourcePathsForInclude`)
+				const a = modules.find((m) => m.path === 'lib/a.ts');
+				assert.ok(a, 'expected lib/a.ts module');
+				assert.deepEqual(
+					a.dependencies,
+					['lib/b.ts'],
+					'relative edge a → b resolved via TS default'
+				);
 			}
 		);
 	});

@@ -13,7 +13,7 @@ import type { Diagnostic } from '$lib/diagnostics.ts';
 import { loadFixturesGeneric } from '../../test-helpers.ts';
 
 export type TsFixtureCategory =
-	'function' | 'class' | 'type' | 'variable' | 'enum' | 'moduleComment' | 'error' | 'inferKind';
+	'function' | 'class' | 'type' | 'variable' | 'enum' | 'moduleComment' | 'inferKind';
 
 export interface TsFixture {
 	name: string;
@@ -333,7 +333,6 @@ export const extractDeclarationFromSource = (
  * - members/interface-* → type
  * - generics/* → type
  * - module/comment/* → moduleComment
- * - errors/* → error
  * - tsdoc/comprehensive → function
  * - tsdoc/deprecated-class → class
  * - tsdoc/see-on-interface → type
@@ -356,7 +355,6 @@ export const inferCategoryFromName = (name: string): TsFixtureCategory => {
 		if (name.startsWith('members/interface-')) return 'type';
 		if (name.startsWith('generics/')) return 'type';
 		if (name.startsWith('module/comment/')) return 'moduleComment';
-		if (name.startsWith('errors/')) return 'error';
 		// TSDoc fixtures - map by specific fixture name to declaration type
 		if (name === 'tsdoc/comprehensive') return 'function';
 		if (name === 'tsdoc/deprecated-bare') return 'function';

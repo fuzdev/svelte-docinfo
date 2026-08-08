@@ -51,6 +51,7 @@ import { compactReplacer } from './declaration-helpers.ts';
 import {
 	createSourceOptions,
 	isSource,
+	widenSourcePathsForInclude,
 	type ModuleSourceOptions,
 	type SourceOptionsDefaults
 } from './source-config.ts';
@@ -77,6 +78,11 @@ export interface VitePluginSvelteDocinfoOptions {
 	 * to glob (exports discovery is skipped). Combining `include` with
 	 * `discovery: 'exports'` throws at config-resolve time — `exports` mode
 	 * has no concept of include patterns.
+	 *
+	 * Explicit patterns also widen the source scope: their static bases join
+	 * `sourceOptions.sourcePaths` (see `widenSourcePathsForInclude`), so
+	 * include-discovered files outside the configured source paths still emit
+	 * modules — and the watcher tracks their changes.
 	 *
 	 * When omitted, the glob fallback derives an include from
 	 * `sourceOptions.sourcePaths` via `deriveIncludePatterns`, so custom
@@ -369,6 +375,19 @@ const svelteDocinfo = (options: VitePluginSvelteDocinfoOptions = {}): Plugin => 
 			const mergedSourceOptions =
 				exclude !== undefined ? { ...sourceOptions, exclude } : sourceOptions;
 			resolvedSourceOptions = createSourceOptions(projectRoot, mergedSourceOptions);
+			// Explicit include patterns widen the source scope (same as
+			// `analyzeFromFiles`) — also fixes the watcher, whose `isWatchedFile`
+			// gate reads `sourcePaths` and would otherwise ignore changes to
+			// include-discovered files outside them.
+			if (include?.length) {
+				const widened = widenSourcePathsForInclude(resolvedSourceOptions.sourcePaths, include);
+				if (widened !== resolvedSourceOptions.sourcePaths) {
+					resolvedSourceOptions = createSourceOptions(projectRoot, {
+						...mergedSourceOptions,
+						sourcePaths: [...widened]
+					});
+				}
+			}
 			// Reject contradictory discovery config upfront so failures are at
 			// config-load time rather than first analysis.
 			if (discovery === 'exports' && include) {
