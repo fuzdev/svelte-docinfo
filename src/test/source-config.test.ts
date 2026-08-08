@@ -3,8 +3,11 @@
  *
  * These tests cover:
  * - Path extraction and normalization (extractPath)
- * - Source detection (isSource)
+ * - Source detection (isSource) and the always-on baseline exclusions
+ *   (hasBaselineExcludedSegment, baselineExcludesForBase)
  * - Source options validation and creation (normalizeSourceOptions, createSourceOptions, getSourceRoot)
+ * - Include widening and pattern normalization (includePatternBase,
+ *   widenSourcePathsForInclude, createSourceOptionsWithInclude, normalizeIncludePatterns)
  * - Default source options (DEFAULT_SOURCE_OPTIONS)
  * - Dependency extraction from SourceFileInfo (extractDependencies)
  */
@@ -22,15 +25,16 @@ import {
 	widenSourcePathsForInclude,
 	createSourceOptionsWithInclude,
 	includePatternBase,
+	normalizeIncludePatterns,
 	hasBaselineExcludedSegment,
 	baselineExcludesForBase,
 	DEFAULT_SOURCE_OPTIONS,
 	type ModuleSourceOptions
 } from '$lib/source-config.ts';
-import type { AnalysisLog } from '$lib/log.ts';
 
 import { testMockOptions } from './test-module-helpers.ts';
 import { TEST_PATHS, TEST_FILES } from './test-constants.ts';
+import { collectingLog } from './test-helpers.ts';
 
 describe('extractPath', () => {
 	test('extracts path from absolute source ID', () => {
@@ -436,10 +440,6 @@ describe('widenSourcePathsForInclude', () => {
 
 describe('createSourceOptionsWithInclude', () => {
 	const ROOT = '/home/user/project';
-	const collectingLog = (): { infos: Array<string>; log: AnalysisLog } => {
-		const infos: Array<string> = [];
-		return { infos, log: { info: (msg) => infos.push(msg), warn: () => {}, error: () => {} } };
-	};
 
 	test('matches plain createSourceOptions when nothing widens', () => {
 		const plain = createSourceOptions(ROOT);
@@ -487,6 +487,54 @@ describe('createSourceOptionsWithInclude', () => {
 		assert.throws(
 			() => createSourceOptionsWithInclude(ROOT, undefined, ['../other/**/*.ts']),
 			/escapes projectRoot/
+		);
+	});
+
+	test('an in-root absolute include pattern widens like its relative form', () => {
+		const widened = createSourceOptionsWithInclude(ROOT, undefined, [`${ROOT}/src/other/**/*.ts`]);
+		assert.deepStrictEqual(widened.sourcePaths, ['src/lib', 'src/other']);
+		assert.strictEqual(widened.sourceRoot, 'src');
+	});
+});
+
+describe('normalizeIncludePatterns', () => {
+	const ROOT = '/home/user/project';
+
+	test('relative patterns pass through untouched', () => {
+		const include = ['src/**/*.ts', '!src/**/*.test.ts'];
+		assert.deepStrictEqual(normalizeIncludePatterns(include, ROOT), include);
+	});
+
+	test('an in-root absolute pattern relativizes', () => {
+		assert.deepStrictEqual(normalizeIncludePatterns([`${ROOT}/src/other/**/*.ts`], ROOT), [
+			'src/other/**/*.ts'
+		]);
+	});
+
+	test('negation marks survive the strip', () => {
+		assert.deepStrictEqual(normalizeIncludePatterns([`!${ROOT}/src/gen/**`], ROOT), [
+			'!src/gen/**'
+		]);
+	});
+
+	test('an out-of-root absolute pattern throws', () => {
+		assert.throws(
+			() => normalizeIncludePatterns(['/elsewhere/src/**'], ROOT),
+			/escapes projectRoot/
+		);
+	});
+
+	test('a root-anchored pattern is absolute, not shorthand — throws with a hint', () => {
+		assert.throws(
+			() => normalizeIncludePatterns(['/src/lib/**/*.ts'], ROOT),
+			/drop the leading slash \("src\/lib\/\*\*\/\*\.ts"\)/
+		);
+	});
+
+	test('mixed absolute and relative patterns normalize element-wise', () => {
+		assert.deepStrictEqual(
+			normalizeIncludePatterns(['src/lib/**/*.ts', `${ROOT}/src/other/**`], ROOT),
+			['src/lib/**/*.ts', 'src/other/**']
 		);
 	});
 });
@@ -799,6 +847,28 @@ describe('normalizeSourceOptions', () => {
 		test('strips trailing slash from sourceRoot', () => {
 			const result = normalizeSourceOptions(invalidOptions({ sourceRoot: 'src/' }));
 			assert.strictEqual(result.sourceRoot, 'src');
+		});
+
+		test('relativizes an absolute in-root exclude glob', () => {
+			// pre-normalization the two stages disagreed: tinyglobby's ignore
+			// honored the absolute pattern at discovery while isSource matched
+			// against the root-relative path and silently never excluded
+			const result = normalizeSourceOptions(
+				invalidOptions({ exclude: ['/home/user/project/src/lib/gen/**'] })
+			);
+			assert.deepStrictEqual(result.exclude, ['src/lib/gen/**']);
+		});
+
+		test('an out-of-root absolute exclude glob throws', () => {
+			assert.throws(
+				() => normalizeSourceOptions(invalidOptions({ exclude: ['/elsewhere/**'] })),
+				/exclude glob "\/elsewhere\/\*\*" is absolute and escapes projectRoot/
+			);
+		});
+
+		test('relative exclude globs pass through untouched', () => {
+			const result = normalizeSourceOptions(invalidOptions({ exclude: ['**/*.test.ts'] }));
+			assert.deepStrictEqual(result.exclude, ['**/*.test.ts']);
 		});
 
 		test('auto-derives sourceRoot for multiple sourcePaths', () => {

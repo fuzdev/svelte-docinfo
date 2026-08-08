@@ -71,7 +71,9 @@ export interface VitePluginSvelteDocinfoOptions {
 	 */
 	projectRoot?: string;
 	/**
-	 * Glob patterns to include (relative to `projectRoot`).
+	 * Glob patterns to include (relative to `projectRoot`; an absolute pattern
+	 * inside the root relativizes, an out-of-root one throws — see
+	 * `normalizeIncludePatterns`).
 	 *
 	 * When provided under the default `discovery: 'auto'`, collapses the chain
 	 * to glob (exports discovery is skipped). Combining `include` with
@@ -96,7 +98,9 @@ export interface VitePluginSvelteDocinfoOptions {
 	 *
 	 * When provided, **fully replaces** `sourceOptions.exclude` (no array
 	 * merge) — the default test and spec filters are dropped unless
-	 * re-included explicitly.
+	 * re-included explicitly. The always-on baseline (`node_modules` +
+	 * dot-directories below a matched source path) applies beneath it and is
+	 * unaffected by overrides.
 	 */
 	exclude?: Array<string>;
 	/**

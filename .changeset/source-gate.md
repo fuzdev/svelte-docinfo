@@ -21,6 +21,10 @@ Scope changes landing with the gate:
   dependency edges. The Vite plugin widens identically, which also fixes its
   watcher for those files. A pattern with no base (`'**/*.ts'`, a literal
   root file) scopes the whole project root and logs an info line naming it.
+  Absolute include patterns follow the same rule as absolute path entries:
+  inside the root they relativize (previously the base scan
+  leading-slash-stripped them into silent dead config), outside it they
+  throw with the drop-the-slash hint.
 - **Always-on baseline exclusions.** `node_modules` and dot-directories below
   a source path are never source — applied by `isSource` (gate, watcher,
   dependency edges) and as anchored glob ignores at discovery. Matched
@@ -37,4 +41,10 @@ Scope changes landing with the gate:
 - **Exclude and glob fixes.** Concrete package.json export entries now
   respect `exclude` at discovery (previously only wildcards did), and
   `deriveIncludePatterns` derives a relative root glob for the `''` source
-  path — the old `/**` shape globbed from the filesystem root.
+  path — the old `/**` shape globbed from the filesystem root. Absolute
+  exclude globs normalize like the other absolute inputs — in-root
+  relativizes, out-of-root throws — closing a stage disagreement where the
+  glob `ignore` honored an absolute exclude at discovery while `isSource`
+  and the concrete-export check matched root-relative paths and silently
+  never excluded (so `analyze()`/session consumers leaked the file into
+  output).

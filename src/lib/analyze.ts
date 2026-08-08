@@ -118,7 +118,9 @@ export interface AnalyzeFromFilesOptions {
 	/** Optional logger for status and diagnostic messages. */
 	log?: AnalysisLog;
 	/**
-	 * Glob patterns to include (relative to `projectRoot`).
+	 * Glob patterns to include (relative to `projectRoot`; an absolute pattern
+	 * inside the root relativizes, an out-of-root one throws — see
+	 * `normalizeIncludePatterns`).
 	 *
 	 * Filters glob-based discovery. Providing `include` under the default
 	 * `discovery: 'auto'` collapses the chain to glob immediately; combining
@@ -138,7 +140,11 @@ export interface AnalyzeFromFilesOptions {
 	 * silently defaulting to `src/lib`.
 	 */
 	include?: Array<string>;
-	/** Glob patterns to exclude — fully replaces `sourceOptions.exclude` (no merge). */
+	/**
+	 * Glob patterns to exclude — fully replaces `sourceOptions.exclude` (no
+	 * merge). The always-on baseline (`node_modules` + dot-directories below a
+	 * matched source path) applies beneath it and is unaffected by overrides.
+	 */
 	exclude?: Array<string>;
 	/**
 	 * Whether to resolve import dependencies (default `true`).

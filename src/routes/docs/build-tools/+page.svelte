@@ -286,9 +286,23 @@ const customOpts = createSourceOptions(process.cwd(), {
 		<p>
 			<code>sourceRoot</code> controls module-path stripping in <code>ModuleJson.path</code>: pass
 			<code>'.'</code>
-			for project-relative paths. <code>exclude</code> is the single source of truth, applied at both
-			discovery and analysis time, so a file dropped here never shows up in the output regardless of how
-			it was discovered.
+			for project-relative paths. <code>exclude</code> is the single source of truth for user
+			exclusions, applied at both discovery and analysis time, so a file dropped here never shows up
+			in the output regardless of how it was discovered. Beneath it sits an always-on baseline that
+			<code>exclude</code> overrides can't strip: <code>node_modules</code> and dot-directories
+			below a matched source path are never source. The baseline matches relative to the matched
+			source path, so an explicit dot-directory source path (<code
+				>sourcePaths: ['.hidden/src']</code
+			>) still works — that relativity is the opt-out.
+		</p>
+		<p>
+			<code>sourcePaths</code> entries and <code>sourceRoot</code> are projectRoot-relative;
+			absolute entries inside the root are accepted and stored root-relative, while an entry
+			resolving outside the root throws at options creation — out-of-root modules are
+			unrepresentable, since module paths and diagnostics are project-root-relative. The same
+			accept-or-throw rule covers absolute
+			<code>exclude</code> globs (and <code>include</code> patterns at the discovery entry points), so
+			discovery and analysis always see the same relative pattern.
 		</p>
 	</TomeSection>
 

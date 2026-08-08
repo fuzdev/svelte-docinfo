@@ -17,8 +17,9 @@
  *
  * Also locks the source-scope hardening around the gate: the always-on
  * baseline (`node_modules` + dot-directories, matched relative to the
- * matched sourcePath), the out-of-root config throw, and the info log when
- * an include pattern scopes the whole project root.
+ * matched sourcePath), the out-of-root config throw, the info log when
+ * an include pattern scopes the whole project root, and absolute in-root
+ * include/exclude patterns relativizing so both pipeline stages agree.
  */
 
 import { join } from 'node:path';
@@ -28,7 +29,7 @@ import { analyze, analyzeFromFiles } from '$lib/analyze.ts';
 import { createAnalysisSession } from '$lib/session.ts';
 import { createSourceOptions } from '$lib/source-config.ts';
 
-import { withTestProject } from './test-helpers.ts';
+import { withTestProject, collectingLog } from './test-helpers.ts';
 
 describe('query-time source gate', () => {
 	test('non-source inputs emit no module', async () => {
@@ -207,7 +208,7 @@ export const m: Mode = 'x';`
 		// the empirical failure mode the baseline closes: `--include '**/*.ts'`
 		// used to emit node_modules files as clean-looking relative modules with
 		// zero diagnostics; build/ is deliberately not baseline and stays in
-		const infos: Array<string> = [];
+		const { infos, log } = collectingLog();
 		const result = await withTestProject(
 			{
 				'src/lib/a.ts': `export const a = 1;`,
@@ -219,7 +220,7 @@ export const m: Mode = 'x';`
 				analyzeFromFiles({
 					projectRoot,
 					include: ['**/*.ts'],
-					log: { info: (msg) => infos.push(msg), warn: () => {}, error: () => {} }
+					log
 				})
 		);
 		assert.deepStrictEqual(
@@ -229,6 +230,72 @@ export const m: Mode = 'x';`
 		assert.ok(
 			infos.some((msg) => msg.includes('whole project root')),
 			'the root-scoping include logs as info'
+		);
+	});
+
+	test('an absolute in-root include pattern works like its relative form', async () => {
+		// pre-normalization: the base scan leading-slash-stripped the absolute
+		// pattern into a bogus relative base — silent dead config
+		const files: Record<string, string> = {
+			'src/lib/a.ts': `export const a = 1;`,
+			'src/other/b.ts': `export const b = 2;`
+		};
+		const result = await withTestProject(files, (projectRoot) =>
+			analyzeFromFiles({
+				projectRoot,
+				include: [join(projectRoot, 'src/other/**/*.ts')]
+			})
+		);
+		assert.deepStrictEqual(
+			result.modules.map((m) => m.path),
+			['other/b.ts'],
+			'the absolute pattern relativizes, widens the scope, and discovers the file'
+		);
+	});
+
+	test('an absolute in-root exclude glob gates at analysis, not just discovery', async () => {
+		// the previously-broken half of the stage disagreement: direct analyze()
+		// never runs discovery, so only isSource's matcher can apply the exclude —
+		// and it matches root-relative paths, which an absolute pattern never hit
+		const files: Record<string, string> = {
+			'src/lib/a.ts': `export const a = 1;`,
+			'src/lib/gen.ts': `export const gen = 2;`
+		};
+		const result = await withTestProject(files, (projectRoot) =>
+			analyze({
+				sourceFiles: Object.entries(files).map(([path, content]) => ({
+					id: join(projectRoot, path),
+					content
+				})),
+				sourceOptions: createSourceOptions(projectRoot, {
+					exclude: [join(projectRoot, 'src/lib/gen.ts')]
+				})
+			})
+		);
+		assert.deepStrictEqual(
+			result.modules.map((m) => m.path),
+			['a.ts'],
+			'the absolute exclude relativizes and gates the module'
+		);
+	});
+
+	test('an absolute in-root exclude glob still excludes at discovery', async () => {
+		// the other consumer of the relativized pattern: analyzeFromFiles routes
+		// exclude through the glob's `ignore` (which happened to honor absolute
+		// patterns pre-normalization — lock that relativizing didn't break it)
+		const files: Record<string, string> = {
+			'src/lib/a.ts': `export const a = 1;`,
+			'src/lib/gen.ts': `export const gen = 2;`
+		};
+		const result = await withTestProject(files, (projectRoot) =>
+			analyzeFromFiles({
+				projectRoot,
+				exclude: [join(projectRoot, 'src/lib/gen.ts')]
+			})
+		);
+		assert.deepStrictEqual(
+			result.modules.map((m) => m.path),
+			['a.ts']
 		);
 	});
 
@@ -273,10 +340,8 @@ export const m: Mode = 'x';`
 					}))
 				);
 				assert.strictEqual(session.list().length, 2, 'both files are owned');
-				const infos: Array<string> = [];
-				const { modules } = session.query({
-					log: { info: (msg) => infos.push(msg), warn: () => {}, error: () => {} }
-				});
+				const { infos, log } = collectingLog();
+				const { modules } = session.query({ log });
 				assert.deepStrictEqual(
 					modules.map((m) => m.path),
 					['a.ts'],
