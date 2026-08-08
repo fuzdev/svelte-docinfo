@@ -87,7 +87,7 @@ export interface GlobFilesOptions {
 	/** Absolute path to project root. */
 	projectRoot: string;
 	/** Glob patterns to include (relative to `projectRoot`). */
-	include: Array<string>;
+	include: ReadonlyArray<string>;
 	/** Optional glob patterns to exclude. */
 	exclude?: Array<string>;
 }

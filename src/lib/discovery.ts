@@ -12,7 +12,11 @@
  */
 
 import type { SourceFileInfo } from './source.ts';
-import { type ModuleSourceOptions, getSourceRoot } from './source-config.ts';
+import {
+	type ModuleSourceOptions,
+	getSourceRoot,
+	normalizeIncludePatterns
+} from './source-config.ts';
 import type { Diagnostic } from './diagnostics.ts';
 import type { AnalysisLog } from './log.ts';
 import { globFiles, deriveIncludePatterns } from './files.ts';
@@ -51,7 +55,9 @@ export interface DiscoverSourceFilesOptions {
 	sourceOptions: ModuleSourceOptions;
 
 	/**
-	 * Glob patterns to include (relative to `projectRoot`).
+	 * Glob patterns to include (relative to `projectRoot`; an absolute pattern
+	 * inside the root relativizes, an out-of-root one throws — see
+	 * `normalizeIncludePatterns`).
 	 *
 	 * Filter for glob-based discovery. When `discovery` is `'auto'` (default),
 	 * providing `include` collapses the chain to glob immediately. Combining
@@ -128,8 +134,11 @@ export interface DiscoverSourceFilesResult {
 export const discoverSourceFiles = async (
 	options: DiscoverSourceFilesOptions
 ): Promise<DiscoverSourceFilesResult> => {
-	const { sourceOptions, include, discovery = 'auto', distDir, log } = options;
+	const { sourceOptions, discovery = 'auto', distDir, log } = options;
 	const { projectRoot, exclude } = sourceOptions;
+	// In-root absolute patterns relativize (out-of-root throws) so the glob
+	// and its anchored baseline ignores see projectRoot-relative patterns.
+	const include = options.include && normalizeIncludePatterns(options.include, projectRoot);
 
 	// Reject contradictory configurations early. `include` parameterizes glob,
 	// so combining it with strict `'exports'` is a user error rather than a

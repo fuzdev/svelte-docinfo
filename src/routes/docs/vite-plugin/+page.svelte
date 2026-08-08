@@ -89,11 +89,16 @@ svelteDocinfo({
 
   // Glob patterns for file discovery. Forces glob mode under discovery: 'auto'.
   // Default: undefined (use exports discovery).
+  // Widens the source scope: each pattern's static base joins
+  // sourceOptions.sourcePaths (the watcher tracks it too); a pattern with
+  // no base scopes the whole project root and logs an info line.
   include: ['src/**/*.ts', 'src/**/*.svelte'],
 
   // Exclude globs. When provided, fully replaces the default
   // ['**/*.test.ts', '**/*.spec.ts'] — re-include those patterns
-  // explicitly if you want them filtered.
+  // explicitly if you want them filtered. node_modules and
+  // dot-directories below a source path are always excluded,
+  // independent of this option.
   exclude: ['**/*.test.ts', '**/*.spec.ts'],
 
   // Discovery strategy: 'auto' | 'exports' | 'glob'. Default: 'auto'.
@@ -129,6 +134,12 @@ svelteDocinfo({
 			<DeclarationLink name="createSourceOptions" /> before discovery; <code>hmrDebounceMs</code>
 			only affects the dev-mode watcher.
 		</p>
+		<p>
+			Paths and patterns resolve against <code>projectRoot</code>: absolute
+			<code>sourcePaths</code> / <code>sourceRoot</code> entries and
+			<code>include</code> / <code>exclude</code> patterns inside the root are accepted (stored root-relative),
+			while anything resolving outside it throws at config time instead of silently emitting nothing.
+		</p>
 	</TomeSection>
 
 	<TomeSection>
@@ -148,8 +159,9 @@ svelteDocinfo({
 		<ol>
 			<li>
 				<strong>configResolved</strong>: throws synchronously when
-				<code>discovery: 'exports'</code> is combined with <code>include</code>, so contradictory
-				configs fail at startup rather than at first analysis
+				<code>discovery: 'exports'</code> is combined with <code>include</code>, or when a source
+				path or include pattern escapes the project root, so bad configs fail at startup rather than
+				at first analysis
 			</li>
 			<li>
 				<strong>buildStart</strong>: creates a fresh

@@ -9,6 +9,18 @@ import { join, relative } from 'node:path';
 import { tmpdir } from 'node:os';
 
 import { compareStrings } from '$lib/postprocess.ts';
+import type { AnalysisLog } from '$lib/log.ts';
+
+/**
+ * Create an `AnalysisLog` that collects info messages for assertions.
+ *
+ * Warnings and errors are dropped — tests asserting on those thread their
+ * own handlers.
+ */
+export const collectingLog = (): { infos: Array<string>; log: AnalysisLog } => {
+	const infos: Array<string> = [];
+	return { infos, log: { info: (msg) => infos.push(msg), warn: () => {}, error: () => {} } };
+};
 
 /**
  * Result of creating a test project.

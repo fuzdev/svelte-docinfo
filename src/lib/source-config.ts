@@ -100,13 +100,19 @@ export interface ModuleSourceOptions {
 	 */
 	sourceRoot?: string;
 	/**
-	 * Glob patterns to exclude from analysis, relative to `projectRoot`.
+	 * Glob patterns to exclude from analysis, relative to `projectRoot`; an
+	 * absolute pattern inside the root relativizes at `normalizeSourceOptions`,
+	 * an out-of-root one throws.
 	 *
 	 * Applied at both stages of the pipeline:
 	 * - **Discovery time** by `globFiles`/`discoverFromExports`, preventing matched files from being loaded.
 	 * - **Analysis time** by `isSource()` against `relative(projectRoot, absolutePath)`,
 	 *   catching files that enter through TypeScript import resolution
 	 *   (e.g., a source file imports a test helper).
+	 *
+	 * Beneath it, the always-on baseline (`node_modules` + dot-directories
+	 * below a matched source path — see `hasBaselineExcludedSegment`) applies
+	 * independently; overriding `exclude` can't strip it.
 	 *
 	 * `analyzeFromFiles` accepts a top-level `exclude` shortcut that merges into this field.
 	 *
@@ -239,12 +245,16 @@ export const createSourceOptions = (
  *   stored root-relative: `.`/`..` segments collapse (`src/../lib` → `lib`,
  *   `.` → `''`), trailing slashes drop, and absolute entries inside the root
  *   relativize (matching `loadFile`'s treatment of path inputs)
+ * - `exclude` globs relativized when absolute inside the root (textual prefix
+ *   strip, since glob metacharacters aren't path segments), so discovery's
+ *   glob `ignore` and analysis-time `isSource` see the same relative pattern
  *
  * Validation (after normalization):
- * 1. No `sourcePaths` entry or `sourceRoot` resolves outside `projectRoot`
- *    (out-of-root modules are unrepresentable — module paths and diagnostics
- *    are project-root-relative; widened include bases funnel through here
- *    too; absolute out-of-root entries get a drop-the-leading-slash hint)
+ * 1. No `sourcePaths` entry, `sourceRoot`, or absolute `exclude` glob resolves
+ *    outside `projectRoot` (out-of-root modules are unrepresentable — module
+ *    paths and diagnostics are project-root-relative; widened include bases
+ *    funnel through here too; absolute out-of-root entries get a
+ *    drop-the-leading-slash hint)
  * 2. `sourcePaths` has at least one entry
  * 3. `sourceRoot` (if provided and non-empty) is a prefix of all `sourcePaths`
  *
@@ -344,7 +354,15 @@ export const normalizeSourceOptions = (options: ModuleSourceOptions): ModuleSour
 		}
 	}
 
-	return { ...options, projectRoot, sourcePaths, sourceRoot };
+	// Normalize exclude globs the same way include patterns normalize at the
+	// discovery seams: an in-root absolute pattern relativizes (textual prefix
+	// strip — glob metacharacters aren't path segments), an out-of-root one
+	// throws. Closes a stage disagreement: tinyglobby's glob `ignore` honored
+	// absolute excludes at discovery while `isSource` and the concrete-export
+	// check match against root-relative paths and silently never excluded.
+	const exclude = options.exclude.map((p) => normalizeGlobPattern(p, projectRoot, 'exclude glob'));
+
+	return { ...options, projectRoot, sourcePaths, sourceRoot, exclude };
 };
 
 /** Strip all leading and trailing forward slashes from a path segment. */
@@ -394,20 +412,75 @@ const toRootRelativePath = (
  * pattern has no base (`null`). Shared by `widenSourcePathsForInclude`
  * (scope widening), `globFiles` (anchoring the baseline exclusions), and
  * `createSourceOptionsWithInclude` (detecting root-scoping patterns to log).
+ *
+ * Patterns are expected projectRoot-relative — the discovery seams
+ * (`createSourceOptionsWithInclude`, `discoverSourceFiles`) run
+ * `normalizeIncludePatterns` first, which relativizes in-root absolute
+ * patterns and throws on out-of-root ones, so no absolute pattern reaches
+ * the base scan through the public entry points.
  */
 export const includePatternBase = (pattern: string): string | null => {
 	const scanned = picomatch.scan(pattern);
 	if (scanned.negated) return null;
-	// TODO: an absolute include pattern (tinyglobby treats it as absolute) gets
-	// its base mangled by this leading-slash strip — decide whether to
-	// relativize in-root ones like `normalizeSourceOptions` does for
-	// sourcePaths, which also needs a story for the anchored glob ignores
 	let base = stripSlashes(toPosixPath(scanned.base));
 	if (!scanned.isGlob) {
 		base = base.includes('/') ? base.slice(0, base.lastIndexOf('/')) : '';
 	}
 	return base;
 };
+
+/** POSIX-absolute or drive-letter-absolute pattern start (post-negation). */
+const ABSOLUTE_PATTERN_RE = /^(?:\/|[A-Za-z]:\/)/;
+
+/**
+ * Normalize a glob pattern option to projectRoot-relative form.
+ *
+ * An absolute pattern that starts with the project root relativizes by
+ * textual prefix strip — `projectRoot` is static text, so glob
+ * metacharacters in the pattern never participate (unlike `sourcePaths`,
+ * patterns can't go through resolve+relative). Leading `!` negation marks
+ * survive the strip. Any other absolute pattern throws, mirroring the
+ * `sourcePaths` treatment of absolute entries. Relative patterns pass
+ * through untouched — no posixification, since backslash is a glob escape
+ * character in a pattern, not a separator. Shared by include (the discovery
+ * seams via `normalizeIncludePatterns`) and exclude (`normalizeSourceOptions`).
+ */
+const normalizeGlobPattern = (pattern: string, projectRoot: string, label: string): string => {
+	let negation = '';
+	let rest = pattern;
+	while (rest.startsWith('!')) {
+		negation += '!';
+		rest = rest.slice(1);
+	}
+	if (!ABSOLUTE_PATTERN_RE.test(rest)) return pattern;
+	if (rest.startsWith(projectRoot + '/')) {
+		return negation + rest.slice(projectRoot.length + 1);
+	}
+	throw new Error(
+		`${label} "${pattern}" is absolute and escapes projectRoot "${projectRoot}". ` +
+			'Patterns resolve against projectRoot; absolute patterns are accepted only when ' +
+			'they start with it. For a project-root-relative pattern drop the leading slash ' +
+			`("${negation + stripSlashes(rest)}").`
+	);
+};
+
+/**
+ * Normalize discovery include patterns to projectRoot-relative form.
+ *
+ * The include-pattern counterpart of `normalizeSourceOptions`' absolute-entry
+ * handling: in-root absolute patterns relativize, out-of-root ones throw,
+ * relative ones pass through (see `normalizeGlobPattern`; `exclude` gets the
+ * same treatment inside `normalizeSourceOptions`). Applied by the discovery
+ * seams (`createSourceOptionsWithInclude`, `discoverSourceFiles`) so
+ * widening, the anchored baseline ignores, and the glob itself all see
+ * canonical relative patterns; `projectRoot` must be normalized (absolute
+ * POSIX, no trailing slash) — pass `ModuleSourceOptions.projectRoot`.
+ */
+export const normalizeIncludePatterns = (
+	include: ReadonlyArray<string>,
+	projectRoot: string
+): ReadonlyArray<string> =>
+	include.map((p) => normalizeGlobPattern(p, projectRoot, 'include pattern'));
 
 /**
  * Union `sourcePaths` with the static base directories of explicit include
@@ -467,9 +540,11 @@ export const widenSourcePathsForInclude = (
  *
  * @param projectRoot - path to project root (typically `process.cwd()`); resolved to absolute
  * @param overrides - optional overrides for default options
- * @param include - explicit include patterns (absent or empty means plain `createSourceOptions`)
+ * @param include - explicit include patterns (absent or empty means plain `createSourceOptions`);
+ *   in-root absolute patterns relativize via `normalizeIncludePatterns`
  * @param log - receives the root-scoping info line
- * @throws Error if validation fails, including a widened base escaping the project root
+ * @throws Error if validation fails, including a widened base or an absolute
+ *   include pattern escaping the project root
  */
 export const createSourceOptionsWithInclude = (
 	projectRoot: string,
@@ -479,10 +554,13 @@ export const createSourceOptionsWithInclude = (
 ): ModuleSourceOptions => {
 	const options = createSourceOptions(projectRoot, overrides);
 	if (!include?.length) return options;
-	const widened = widenSourcePathsForInclude(options.sourcePaths, include);
+	// In-root absolute patterns relativize (out-of-root throws) before the
+	// base scan, so widening sees canonical projectRoot-relative patterns.
+	const normalizedInclude = normalizeIncludePatterns(include, options.projectRoot);
+	const widened = widenSourcePathsForInclude(options.sourcePaths, normalizedInclude);
 	if (widened === options.sourcePaths) return options;
 	if (widened.includes('') && !options.sourcePaths.includes('')) {
-		const rootPatterns = include.filter((p) => includePatternBase(p) === '');
+		const rootPatterns = normalizedInclude.filter((p) => includePatternBase(p) === '');
 		log?.info(
 			`Include ${rootPatterns.length === 1 ? 'pattern' : 'patterns'} ` +
 				`${rootPatterns.map((p) => `"${p}"`).join(', ')} ` +

@@ -50,14 +50,21 @@ const isDiscoveryFlag = (value: string): value is Discovery =>
  * CLI options parsed from command line arguments.
  */
 export interface CliOptions {
-	/** File patterns to include (undefined = use exports discovery or defaults). */
+	/**
+	 * File patterns to include (undefined = use exports discovery or defaults).
+	 *
+	 * Relative to the project root; an absolute pattern inside it relativizes,
+	 * an out-of-root one throws.
+	 */
 	include?: Array<string>;
 	/**
 	 * File patterns to exclude (undefined = use defaults — test and spec files).
 	 *
 	 * When provided, **fully replaces** the defaults — no array merge. Passing
 	 * a custom `--exclude` pattern drops the default test/spec filters unless
-	 * the caller re-includes them explicitly.
+	 * the caller re-includes them explicitly. The always-on baseline
+	 * (`node_modules` + dot-directories below a source path) applies beneath
+	 * it and is unaffected by overrides.
 	 */
 	exclude?: Array<string>;
 	/** Output file path (undefined = stdout). */
@@ -77,7 +84,8 @@ export interface CliOptions {
 	/** Dist directory name for exports-based discovery (undefined = 'dist'). */
 	distDir?: string;
 	/**
-	 * Source directories relative to project root (undefined = ['src/lib']).
+	 * Source directories, relative to project root or absolute inside it
+	 * (undefined = ['src/lib']); an out-of-root entry throws.
 	 *
 	 * Repeatable. Drives the implicit include glob in the glob-discovery
 	 * fallback (via `deriveIncludePatterns` inside `discoverSourceFiles`) so
@@ -85,8 +93,8 @@ export interface CliOptions {
 	 */
 	sourceDir?: Array<string>;
 	/**
-	 * Source root for module path extraction, relative to project root
-	 * (undefined = single sourceDir or longest common prefix).
+	 * Source root for module path extraction, relative to project root or
+	 * absolute inside it (undefined = single sourceDir or longest common prefix).
 	 *
 	 * Module paths in output are stripped of `<projectRoot>/<sourceRoot>/`.
 	 * Pass `.` (or `""`) to keep module paths project-relative — useful when
@@ -157,14 +165,16 @@ export const runCli = async (argv: Array<string> = process.argv): Promise<number
 		.argument('[project-root]', 'Project root directory', process.cwd())
 		.option(
 			'-i, --include <pattern>',
-			'Include pattern (repeatable, replaces exports discovery; ' +
+			'Include pattern, relative to project root — absolute inside it accepted ' +
+				'(repeatable, replaces exports discovery, widens the source scope; ' +
 				'incompatible with --discovery exports)',
 			collect
 		)
 		.option(
 			'-e, --exclude <pattern>',
 			'Exclude glob (applied at discovery and analysis, repeatable; ' +
-				'fully replaces defaults — does not merge with **/*.test.ts, **/*.spec.ts)',
+				'fully replaces defaults — does not merge with **/*.test.ts, **/*.spec.ts; ' +
+				'node_modules and dot-directories below a source dir are always excluded regardless)',
 			collect
 		)
 		.option('-o, --output <file>', 'Output file (default: stdout; pass `-` for explicit stdout)')
@@ -179,9 +189,9 @@ export const runCli = async (argv: Array<string> = process.argv): Promise<number
 		.option('--dist-dir <dir>', 'Dist directory for exports discovery (default: dist)')
 		.option(
 			'--source-dir <dir>',
-			'Source directory relative to project root (default: src/lib). ' +
-				'Repeatable for monorepos. Drives the implicit include glob for the ' +
-				'glob-discovery fallback when no --include is provided.',
+			'Source directory, relative to project root or absolute inside it ' +
+				'(default: src/lib). Repeatable for monorepos. Drives the implicit include ' +
+				'glob for the glob-discovery fallback when no --include is provided.',
 			collect
 		)
 		.option(
