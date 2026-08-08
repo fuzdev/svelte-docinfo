@@ -79,11 +79,42 @@ is a member there is something to remove.
 
 Normalization matches the flat strings: the optional-widening `undefined` is
 dropped and `true | false` collapses back to `boolean`; recursion is
-depth-capped, degrading to `{kind: 'other', text}`. Checker-backed paths
-only — AST-backed members (annotated interface and class properties,
-setter-only accessors) report written text without it. `compactReplacer` now
+depth-capped, degrading to `{kind: 'other', text}` — except where the written
+annotation recovers a name, which still applies at the cap (a capped
+alias-lost type emits its `{kind: 'reference', name}` instead of elided
+text). `compactReplacer` now
 exempts the `value` key from `false`-stripping, since a literal `false` node
 is data, not a defaulted flag.
+
+Member types are checker-backed everywhere now — the previously AST-backed
+sites (annotated interface and class properties, interface index signatures,
+setter-only accessors) resolve through the checker like every other property
+site, so adding an annotation no longer *removes* structured data:
+
+- interface property members, interface index signatures, annotated class
+  properties, and setter-only accessors gain `typeInfo` (with written-name
+  recovery through their annotations) beside checker-rendered flat strings
+- `typeSignature` on those members is now the checker's canonical rendering,
+  not raw source text: `Array<Foo>` prints `Foo[]`, import renames and
+  namespace qualifiers resolve to the importable name (`ts.ScriptKind` →
+  `ScriptKind`), comments and newlines never leak, and the optional-widening
+  strip applies (`a?: string | undefined` reports `"string"` with
+  `optional: true`, keeping any `null`). The one casualty: a written
+  alias-lost name (`diagnostics: Array<Diagnostic>` where `Diagnostic` is
+  `z.infer`-typed) expands in the flat string like every checker-backed site
+  — the tree recovers it as `{kind: 'array', element: {kind: 'reference',
+  name: 'Diagnostic'}}`
+- a callable interface property signature (`fn: (a: string) => number`) now
+  classifies as a `kind: 'function'` member with `parameters`, `returnType`,
+  and `returnTypeInfo`, exactly like the same shape on a type alias — the
+  two structural container kinds share one projection. Class fields keep
+  `kind: 'variable'` (a field holding a function is still a field)
+- `@default` on a property that classifies callable is dropped instead of
+  crashing `ModuleJson.parse` (`defaultValue` is schema-allowed on variable
+  members only)
+- an optional property or parameter typed by a bare unconstrained type
+  parameter reports `"E"` again — the widening strip previously answered
+  `getNonNullableType`'s `E & {}` when the position was checker-backed
 
 Breaking: `isSnippetTypeString(typeString)` (on the `svelte.js` subpath) is
 replaced by the structural `isSnippetType(type, checker)` — snippet detection

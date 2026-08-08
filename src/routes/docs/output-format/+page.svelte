@@ -131,10 +131,10 @@
 				<li><code>typeSignature</code>: full type as a string</li>
 				<li>
 					<code>typeInfo</code>: structured <DeclarationLink name="TypeJson" /> tree beside the flat string
-					— on variable and type-alias declarations (plus type-alias property and checker-backed class
-					members, component props, parameters, and return types via <code>returnTypeInfo</code>).
-					Absent when the flat string is the whole story; present when the tree carries structure
-					the string can't: union/intersection <code>members</code>
+					— on variable and type-alias declarations (plus type-alias, interface, and class members, component
+					props, parameters, and return types via <code>returnTypeInfo</code>). Absent when the flat
+					string is the whole story; present when the tree carries structure the string can't:
+					union/intersection <code>members</code>
 					(alias name kept; enum members as <code>{`{value, text}`}</code> pairs with the qualified
 					name as <code>text</code>), reference <code>name</code> + <code>typeArgs</code>, array
 					<code>element</code>, tuple <code>elements</code> (label, <code>?</code>/<code>...</code>
@@ -272,9 +272,9 @@
 				<li>
 					<code>"variable"</code>: properties, accessors, and index signatures. Adds optional
 					<code>defaultValue</code> (from <code>@default</code>), plus <code>reactivity</code> for
-					class fields initialized with a Svelte rune, plus <code>typeInfo</code> on checker-backed member
-					paths — type-alias properties and index signatures, inferred class properties, getter-backed
-					accessors (annotated interface and class properties report written text only)
+					class fields initialized with a Svelte rune, plus <code>typeInfo</code> beside the
+					checker-rendered <code>typeSignature</code> — member types are checker-backed everywhere, interface
+					properties, class properties, and setter-only accessors included
 				</li>
 			</ul>
 			<p>

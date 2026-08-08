@@ -114,7 +114,7 @@
 							"name": "history",
 							"kind": "variable",
 							"docComment": "Past counts; replaced wholesale on change, so raw state.",
-							"typeSignature": "ReadonlyArray<number>",
+							"typeSignature": "readonly number[]",
 							"reactivity": "$state.raw"
 						},
 						{

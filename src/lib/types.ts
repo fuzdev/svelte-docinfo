@@ -611,10 +611,10 @@ export const VariableMemberJson = z.strictObject({
 	defaultValue: z.string().optional(),
 	/**
 	 * Structured type; absent when `typeSignature` is the whole story (see
-	 * `TypeJson`). Populated on checker-backed member paths — type-alias
-	 * properties and index signatures, inferred (unannotated) class properties,
-	 * getter-backed accessors. AST-backed members (annotated interface and
-	 * class properties, setter-only accessors) report written text without it.
+	 * `TypeJson`). Member types are checker-backed everywhere — type-alias and
+	 * interface properties and index signatures, class properties (annotated or
+	 * inferred), and accessors (getter-backed or setter-only) all resolve
+	 * through the checker, with written annotations feeding name recovery.
 	 */
 	typeInfo: TypeJson.optional()
 });

@@ -462,6 +462,56 @@ export const populateCallableMember = (
 };
 
 /**
+ * Populate a property-shaped member from its checker type: a callable property
+ * becomes `kind: 'function'` with the full signature field set, everything
+ * else gets the flat/structured pair (`typeSignature` + `typeInfo`) with the
+ * optional-widening strip paired to `optional` like every checker-backed site.
+ *
+ * The one projection shared by the structural property sites — type-alias
+ * properties and interface property signatures — so the same written shape
+ * can't extract differently across the two container kinds. Class fields
+ * deliberately don't route here: a field holding a function is still a field
+ * (`kind: 'variable'`), while on the structural containers callability is the
+ * member's classification.
+ *
+ * @param annotation - the written type annotation, when one exists (feeds `typeInfo` name recovery)
+ * @mutates member - sets kind and either the callable field set or typeSignature/typeInfo
+ * @mutates diagnostics - via `populateCallableMember`
+ */
+export const populatePropertyMember = (
+	member: MemberJsonBuild,
+	propType: ts.Type,
+	checker: ts.TypeChecker,
+	optional: boolean,
+	tsdoc: TsdocParsedComment | undefined,
+	paramValidationNode: ts.Node,
+	name: string,
+	diagnostics: Array<Diagnostic>,
+	annotation: ts.TypeNode | undefined
+): void => {
+	// an optional property resolves to a union with `undefined`, which reports no
+	// call signatures — strip it so `fn?: () => void` still reads as a function
+	const callableType = optional ? getNonOptionalType(propType, checker) : propType;
+	const callSigs = callableType.getCallSignatures();
+	if (callSigs.length > 0) {
+		member.kind = 'function';
+		populateCallableMember(
+			member,
+			callSigs,
+			checker,
+			tsdoc,
+			paramValidationNode,
+			name,
+			diagnostics
+		);
+		return;
+	}
+	member.typeSignature = getTypeSignature(propType, checker, optional);
+	const typeInfo = resolveTypeInfo(propType, checker, optional, { writtenNode: annotation });
+	if (typeInfo) member.typeInfo = typeInfo;
+};
+
+/**
  * Check whether all declarations of a property symbol are in external source files.
  * Properties with no declarations (synthesized) are considered non-external.
  */

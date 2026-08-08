@@ -352,10 +352,19 @@ export class C {
 		};
 		// inferred (unannotated) property — checker-backed, so the tree is emitted
 		assert.deepStrictEqual(inferred.typeInfo, expected);
-		// annotated property — AST-backed written text, no tree
+		// annotated property — checker-backed like the inferred one, so the
+		// alias-kept union tree is emitted (was AST-backed written text with no tree)
 		const annotated = declaration.members.find((m) => m.name === 'b');
 		assert(annotated?.kind === 'variable', 'expected a variable member');
-		assert.strictEqual(annotated.typeInfo, undefined);
+		assert.strictEqual(annotated.typeSignature, 'A');
+		assert.deepStrictEqual(annotated.typeInfo, {
+			kind: 'union',
+			alias: 'A',
+			members: [
+				{ kind: 'literal', value: 'a', text: '"a"' },
+				{ kind: 'literal', value: 'b', text: '"b"' }
+			]
+		});
 		// getter-backed accessor — checker-backed like the inferred property
 		const accessor = declaration.members.find((m) => m.name === 'c');
 		assert(accessor?.kind === 'variable', 'expected a variable member');
@@ -378,6 +387,160 @@ export class C {
 				{ kind: 'literal', value: 'b', text: '"b"' }
 			]
 		});
+	});
+
+	test('interface property members are checker-backed with typeInfo', async () => {
+		const module = await analyzeFile(
+			'src/lib/a.ts',
+			`export interface Options {
+	mode: 'a' | 'b';
+	opt?: string | null;
+}`
+		);
+		const declaration = module.declarations[0];
+		assert(declaration?.kind === 'interface', 'expected an interface declaration');
+		const mode = declaration.members.find((m) => m.name === 'mode');
+		assert(mode?.kind === 'variable', 'expected a variable member');
+		// checker rendering, not written text — double quotes are the checker's
+		assert.strictEqual(mode.typeSignature, '"a" | "b"');
+		assert.deepStrictEqual(mode.typeInfo, {
+			kind: 'union',
+			members: [
+				{ kind: 'literal', value: 'a', text: '"a"' },
+				{ kind: 'literal', value: 'b', text: '"b"' }
+			]
+		});
+		// the optional-widening strip pairs with `optional: true`, keeping `null`
+		const opt = declaration.members.find((m) => m.name === 'opt');
+		assert(opt?.kind === 'variable', 'expected a variable member');
+		assert.strictEqual(opt.optional, true);
+		assert.strictEqual(opt.typeSignature, 'string | null');
+	});
+
+	test('a callable interface property classifies as a function member, like the type-alias path', async () => {
+		const iface = await analyzeFile(
+			'src/lib/a.ts',
+			`export interface I {
+	fn: (a: string) => number;
+}`
+		);
+		const alias = await analyzeFile(
+			'src/lib/b.ts',
+			`export type I = {
+	fn: (a: string) => number;
+};`
+		);
+		const ifaceDecl = iface.declarations[0];
+		const aliasDecl = alias.declarations[0];
+		assert(ifaceDecl?.kind === 'interface', 'expected an interface declaration');
+		assert(aliasDecl?.kind === 'type', 'expected a type declaration');
+		const ifaceMember = ifaceDecl.members.find((m) => m.name === 'fn');
+		const aliasMember = aliasDecl.members.find((m) => m.name === 'fn');
+		assert(ifaceMember?.kind === 'function', 'expected a function member on the interface');
+		assert(aliasMember?.kind === 'function', 'expected a function member on the type alias');
+		// the same written shape extracts identically across the two container kinds
+		assert.strictEqual(ifaceMember.typeSignature, aliasMember.typeSignature);
+		assert.deepStrictEqual(ifaceMember.parameters, aliasMember.parameters);
+		assert.strictEqual(ifaceMember.returnType, aliasMember.returnType);
+	});
+
+	test('`@default` on a property that classifies callable is dropped, not emitted', async () => {
+		// `defaultValue` is schema-allowed on variable members only; a callable
+		// property flips to a function member after TSDoc parsing, so the apply
+		// gate must run against the settled kind or `ModuleJson.parse` throws
+		const module = await analyzeFile(
+			'src/lib/a.ts',
+			`export interface I {
+	/**
+	 * A callable option.
+	 *
+	 * @default noop
+	 */
+	fn: () => void;
+}`
+		);
+		const declaration = module.declarations[0];
+		assert(declaration?.kind === 'interface', 'expected an interface declaration');
+		const member = declaration.members.find((m) => m.name === 'fn');
+		assert(member?.kind === 'function', 'expected a function member');
+		assert.strictEqual(member.docComment, 'A callable option.');
+		assert.ok(!('defaultValue' in member), 'expected no defaultValue on a function member');
+	});
+
+	test('interface index signatures are checker-backed with typeInfo', async () => {
+		const module = await analyzeFile(
+			'src/lib/a.ts',
+			`export interface I {
+	[key: string]: 'a' | 'b';
+}`
+		);
+		const declaration = module.declarations[0];
+		assert(declaration?.kind === 'interface', 'expected an interface declaration');
+		const member = declaration.members.find((m) => m.name === '[key: string]');
+		assert(member?.kind === 'variable', 'expected a variable member');
+		assert.strictEqual(member.typeSignature, '"a" | "b"');
+		assert.deepStrictEqual(member.typeInfo, {
+			kind: 'union',
+			members: [
+				{ kind: 'literal', value: 'a', text: '"a"' },
+				{ kind: 'literal', value: 'b', text: '"b"' }
+			]
+		});
+	});
+
+	test('setter-only accessors are checker-backed with typeInfo', async () => {
+		const module = await analyzeFile(
+			'src/lib/a.ts',
+			`type A = 'a' | 'b';
+export class C {
+	#v: A | null = null;
+	set writeOnly(v: A | null) {
+		this.#v = v;
+	}
+}`
+		);
+		const declaration = module.declarations.find((d) => d.name === 'C');
+		assert(declaration?.kind === 'class', 'expected a class declaration');
+		const accessor = declaration.members.find((m) => m.name === 'writeOnly');
+		assert(accessor?.kind === 'variable', 'expected a variable member');
+		assert.deepStrictEqual(accessor.modifiers, ['setter']);
+		assert.strictEqual(accessor.typeSignature, 'A | null');
+		assert.deepStrictEqual(accessor.typeInfo, {
+			kind: 'union',
+			members: [
+				{
+					kind: 'union',
+					alias: 'A',
+					members: [
+						{ kind: 'literal', value: 'a', text: '"a"' },
+						{ kind: 'literal', value: 'b', text: '"b"' }
+					]
+				},
+				{ kind: 'intrinsic', text: 'null' }
+			]
+		});
+	});
+
+	test('an optional unconstrained type parameter keeps its bare name', async () => {
+		// the widened `E | undefined` has exactly one member after dropping
+		// `undefined`, which is taken directly — `getNonNullableType` can only
+		// answer `NonNullable<E>` for a bare type parameter and prints `E & {}`
+		const module = await analyzeFile(
+			'src/lib/a.ts',
+			`export interface I<E> {
+	c?: E;
+}
+export const f = <E,>(c?: E): void => {};`
+		);
+		const iface = module.declarations.find((d) => d.name === 'I');
+		assert(iface?.kind === 'interface', 'expected an interface declaration');
+		const c = iface.members.find((m) => m.name === 'c');
+		assert(c?.kind === 'variable', 'expected a variable member');
+		assert.strictEqual(c.typeSignature, 'E');
+		assert.strictEqual(c.optional, true);
+		const f = module.declarations.find((d) => d.name === 'f');
+		assert(f?.kind === 'function', 'expected a function declaration');
+		assert.strictEqual(f.parameters[0]?.type, 'E');
 	});
 
 	test('the depth cap terminates a recursive alias', async () => {
@@ -1212,6 +1375,22 @@ export type Holder = { field?: U };`
 		assert.deepStrictEqual(field.typeInfo, { kind: 'reference', name: 'U' });
 	});
 
+	test('a namespace-qualified annotation recovers the bare symbol name', async () => {
+		// `schemas.Inferred` resolves through the namespace import to the symbol —
+		// the qualifier is a file-local spelling like an import rename, and the
+		// bare name is the one the flat-namespace docs model can resolve
+		const { modules } = await analyzeTestProject({
+			'src/lib/dep.ts': INFERRED_SETUP,
+			'src/lib/a.ts': `import type * as schemas from './dep.js';
+
+export const f = (): schemas.Inferred => ({ a: '', b: 0 });`
+		});
+		const module = modules.find((m) => m.path === 'a.ts');
+		const f = module?.declarations.find((d) => d.name === 'f');
+		assert(f?.kind === 'function', 'expected a function declaration');
+		assert.deepStrictEqual(f.returnTypeInfo, { kind: 'reference', name: 'Inferred' });
+	});
+
 	test('typeof, import-type, and inline-literal annotations never trigger recovery', async () => {
 		const { modules } = await analyzeTestProject({
 			'src/lib/dep.ts': INFERRED_SETUP,
@@ -1382,6 +1561,59 @@ export class Holder {
 		const accessor = holder.members.find((m) => m.name === 'current');
 		assert(accessor?.kind === 'variable', 'expected an accessor member');
 		assert.deepStrictEqual(accessor.typeInfo, { kind: 'reference', name: 'Inferred' });
+	});
+
+	test('interface properties, class fields, and setter-only accessors recover through their annotations', async () => {
+		const module = await analyzeFile(
+			'src/lib/a.ts',
+			`${INFERRED_SETUP}
+export interface Holder {
+	p: Inferred;
+	[key: string]: Inferred;
+}
+
+export class Field {
+	p: Inferred = { a: '', b: 0 };
+	set writeOnly(v: Inferred) {}
+}`
+		);
+		const holder = module.declarations.find((d) => d.name === 'Holder');
+		assert(holder?.kind === 'interface', 'expected an interface declaration');
+		const prop = holder.members.find((m) => m.name === 'p');
+		assert(prop?.kind === 'variable', 'expected a variable member');
+		// the flat string stays the checker's structural rendering — recovery is tree-only
+		assert.strictEqual(prop.typeSignature, '{ a: string; b: number; }');
+		assert.deepStrictEqual(prop.typeInfo, { kind: 'reference', name: 'Inferred' });
+		const index = holder.members.find((m) => m.name === '[key: string]');
+		assert(index?.kind === 'variable', 'expected an index-signature member');
+		assert.deepStrictEqual(index.typeInfo, { kind: 'reference', name: 'Inferred' });
+		const field = module.declarations.find((d) => d.name === 'Field');
+		assert(field?.kind === 'class', 'expected a class declaration');
+		const classProp = field.members.find((m) => m.name === 'p');
+		assert(classProp?.kind === 'variable', 'expected a variable member');
+		assert.deepStrictEqual(classProp.typeInfo, { kind: 'reference', name: 'Inferred' });
+		const setter = field.members.find((m) => m.name === 'writeOnly');
+		assert(setter?.kind === 'variable', 'expected an accessor member');
+		assert.deepStrictEqual(setter.typeInfo, { kind: 'reference', name: 'Inferred' });
+	});
+
+	test('recovery fires at the depth cap, replacing elided text', async () => {
+		const module = await analyzeFile(
+			'src/lib/a.ts',
+			`${INFERRED_SETUP}
+export const f = (): Array<Array<Array<Array<Array<Inferred>>>>> => [];`
+		);
+		const f = module.declarations.find((d) => d.name === 'f');
+		assert(f?.kind === 'function', 'expected a function declaration');
+		let node = f.returnTypeInfo;
+		let depth = 0;
+		while (node?.kind === 'array') {
+			node = node.element;
+			depth++;
+		}
+		assert.strictEqual(depth, 5, 'expected the element at the depth cap');
+		// without cap-site recovery this would be `{kind: 'other', text: '{ a: string; b: number; }'}`
+		assert.deepStrictEqual(node, { kind: 'reference', name: 'Inferred' });
 	});
 
 	test('each overload recovers through its own return annotation', async () => {

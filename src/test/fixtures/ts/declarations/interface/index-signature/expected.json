@@ -14,7 +14,20 @@
 			"name": "[key: string]",
 			"kind": "variable",
 			"docComment": "Description 2",
-			"typeSignature": "string | number"
+			"typeSignature": "string | number",
+			"typeInfo": {
+				"kind": "union",
+				"members": [
+					{
+						"kind": "intrinsic",
+						"text": "string"
+					},
+					{
+						"kind": "intrinsic",
+						"text": "number"
+					}
+				]
+			}
 		},
 		{
 			"name": "[index: number]",

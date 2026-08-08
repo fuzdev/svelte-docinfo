@@ -17,21 +17,19 @@
 
 import ts from 'typescript';
 
-import type { MemberKind, DeclarationModifier } from './types.ts';
+import type { DeclarationModifier } from './types.ts';
 import type { DeclarationJsonBuild, MemberJsonBuild } from './declaration-build.ts';
 import { type Diagnostic } from './diagnostics.ts';
 import { to_error_message } from './error.ts';
-import { parseComment, applyToDeclaration, type TsdocParsedComment } from './tsdoc.ts';
+import { parseComment, applyToDeclaration } from './tsdoc.ts';
 import { resolveTypeInfo } from './typescript-extract-type-json.ts';
 import { type IsExternalFile } from './typescript-program.ts';
 import {
 	emitCallOrConstructSignature,
 	filterExternalProperties,
 	getNodeLocation,
-	getNonOptionalType,
-	getTypeSignature,
 	isExternalIntersectionBranch,
-	populateCallableMember,
+	populatePropertyMember,
 	resolveIntersectionTypeNode
 } from './typescript-extract-shared.ts';
 
@@ -254,7 +252,6 @@ export const extractTypeAliasProperties = (
 		const optional = (prop.flags & ts.SymbolFlags.Optional) !== 0;
 		const readonly = isReadonlyProperty(prop, mappedReadonly);
 
-		// Determine kind: function (has call signatures) vs variable (property)
 		let propType: ts.Type;
 		try {
 			propType = checker.getTypeOfSymbolAtLocation(prop, node);
@@ -262,15 +259,9 @@ export const extractTypeAliasProperties = (
 			continue;
 		}
 
-		// an optional property resolves to a union with `undefined`, which reports no
-		// call signatures — strip it so `fn?: () => void` still reads as a function
-		const callableType = optional ? getNonOptionalType(propType, checker) : propType;
-		const callSigs = callableType.getCallSignatures();
-		const kind: MemberKind = callSigs.length > 0 ? 'function' : 'variable';
-
 		const member: MemberJsonBuild = {
 			name: prop.getName(),
-			kind
+			kind: 'variable'
 		};
 
 		if (optional) member.optional = true;
@@ -280,35 +271,30 @@ export const extractTypeAliasProperties = (
 		if (readonly) modifiers.push('readonly');
 		if (modifiers.length > 0) member.modifiers = modifiers;
 
-		// Extract TSDoc from the property's declaration if available
+		// Parse TSDoc from the property's declaration if available
 		const decls = prop.getDeclarations();
-		let propTsdoc: TsdocParsedComment | undefined = undefined;
-		if (decls && decls.length > 0) {
-			propTsdoc = parseComment(decls[0]!, decls[0]!.getSourceFile());
-			applyToDeclaration(member, propTsdoc);
-		}
+		const propDecl = decls?.[0];
+		const propTsdoc = propDecl ? parseComment(propDecl, propDecl.getSourceFile()) : undefined;
 
-		// Type signature and function-specific fields
-		if (kind === 'function' && callSigs.length > 0) {
-			populateCallableMember(
-				member,
-				callSigs,
-				checker,
-				propTsdoc,
-				decls?.[0] ?? node,
-				prop.getName(),
-				diagnostics
-			);
-		} else {
-			member.typeSignature = getTypeSignature(propType, checker, optional);
-			const propDecl = decls?.[0];
-			const annotation =
-				propDecl && (ts.isPropertySignature(propDecl) || ts.isPropertyDeclaration(propDecl))
-					? propDecl.type
-					: undefined;
-			const typeInfo = resolveTypeInfo(propType, checker, optional, { writtenNode: annotation });
-			if (typeInfo) member.typeInfo = typeInfo;
-		}
+		const annotation =
+			propDecl && (ts.isPropertySignature(propDecl) || ts.isPropertyDeclaration(propDecl))
+				? propDecl.type
+				: undefined;
+		populatePropertyMember(
+			member,
+			propType,
+			checker,
+			optional,
+			propTsdoc,
+			propDecl ?? node,
+			prop.getName(),
+			diagnostics,
+			annotation
+		);
+
+		// after `populatePropertyMember` so the kind is settled — `@default` is
+		// schema-allowed on variable members only and the apply gate reads `kind`
+		applyToDeclaration(member, propTsdoc);
 
 		(declaration.members ??= []).push(member);
 	}

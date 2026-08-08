@@ -112,6 +112,10 @@ const hasNullMember = (type: ts.Type): boolean =>
  * - a `null`-bearing union keeps its shape and reports `dropUndefined` — the
  *   walk drops only the widening member (so the alias survives) and the
  *   printer trims the printed suffix
+ * - a union left with exactly one member after dropping `undefined` takes that
+ *   member directly — it *is* the annotated type. Matters for a bare
+ *   unconstrained type parameter (`c?: E`), where `getNonNullableType` can
+ *   only answer `NonNullable<E>` and would print `E & {}`
  * - every other union takes `getNonNullableType`, which rebuilds the union
  *   rather than picking a member (so a union of callables keeps its combined
  *   call signature) and preserves the alias symbol
@@ -123,6 +127,8 @@ export const optionalWideningTarget = (
 ): { target: ts.Type; dropUndefined: boolean } => {
 	if (!optional || !type.isUnion()) return { target: type, dropUndefined: false };
 	if (hasNullMember(type)) return { target: type, dropUndefined: true };
+	const nonUndefined = type.types.filter((t) => !(t.flags & ts.TypeFlags.Undefined));
+	if (nonUndefined.length === 1) return { target: nonUndefined[0]!, dropUndefined: false };
 	return { target: checker.getNonNullableType(type), dropUndefined: false };
 };
 
@@ -564,7 +570,12 @@ const buildTypeJson = (
 	lookup: WrittenNameLookup | undefined,
 	options: BuildTypeJsonOptions = NO_OPTIONS
 ): TypeJson => {
-	if (depth >= MAX_TYPE_JSON_DEPTH) return { kind: 'other', text: printType(type, checker) };
+	// recovery still applies at the cap — a ~40 B reference beats elided text,
+	// and the map can't misfire here: it excludes interned types (intrinsics,
+	// literals, type parameters) at build, and lookup is by type identity
+	if (depth >= MAX_TYPE_JSON_DEPTH) {
+		return recoveredReference(type, lookup) ?? { kind: 'other', text: printType(type, checker) };
+	}
 
 	if (type.flags & INTRINSIC_FLAGS) return { kind: 'intrinsic', text: printType(type, checker) };
 
