@@ -199,6 +199,24 @@ export type GenericParamJson = z.infer<typeof GenericParamJson>;
  * (`z.infer<typeof S>`, valibot's `InferOutput`) carries no alias symbol, so
  * the checker expands its whole structure at every use.
  *
+ * **Written-name recovery**: where a written annotation exists (return types —
+ * per overload included — parameters, variables, type-alias declarations and
+ * their properties, index signatures, getter-backed accessors, component
+ * props, snippet parameters), each bare
+ * type reference in it is resolved by checker type identity, and a type the
+ * checker has no name for — the alias-dropped shapes above — emits
+ * `{kind: 'reference', name}` instead of expanding, alias-lost unions and
+ * intersections included. The name resolves through import aliases to the
+ * importable one (`import {Original as Renamed}` recovers `Original`); a name
+ * the checker has is never overridden; `typeof` queries, import types, inline
+ * type literals, and argument-carrying references (`z.infer<typeof S>` itself,
+ * `Extract<D, {kind: K}>` — whose bare symbol name would misrepresent the
+ * instantiation) never recover. A recovered bare reference is emitted even at
+ * the root, relaxing the absence contract the way alias roots do: a
+ * checker-named bare reference defers to a flat sibling printing the same
+ * name, while a recovered one stands against the anonymous expansion, so the
+ * name exists only in the tree.
+ *
  * **Member order and nested aliases**: union members follow the flat string's
  * printed order — `null`/`undefined` sink last, and the checker's `origin`
  * (the same internal field the flat strings are printed from) lists plain

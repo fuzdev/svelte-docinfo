@@ -1,0 +1,39 @@
+{
+	"name": "combine",
+	"kind": "function",
+	"docComment": "Return and parameter recovery: the alias-lost object as a return-union\nmember and a parameter, the alias-lost union as an optional parameter\n(recovery composes with the optional-widening strip). Lib-referencing\nshapes (`Promise<Inferred>`) are unit-tested instead — this harness runs\n`noResolve` with no lib, so lib generics don't instantiate here.",
+	"typeSignature": "(base: { a: string; b: number; }, extra?: \"x\" | { y: number; } | undefined): { a: string; b: number; } | undefined",
+	"parameters": [
+		{
+			"name": "base",
+			"type": "{ a: string; b: number; }",
+			"typeInfo": {
+				"kind": "reference",
+				"name": "Inferred"
+			}
+		},
+		{
+			"name": "extra",
+			"type": "\"x\" | { y: number; }",
+			"typeInfo": {
+				"kind": "reference",
+				"name": "LostUnion"
+			},
+			"optional": true
+		}
+	],
+	"returnType": "{ a: string; b: number; } | undefined",
+	"returnTypeInfo": {
+		"kind": "union",
+		"members": [
+			{
+				"kind": "reference",
+				"name": "Inferred"
+			},
+			{
+				"kind": "intrinsic",
+				"text": "undefined"
+			}
+		]
+	}
+}

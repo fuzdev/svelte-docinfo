@@ -60,9 +60,14 @@ export const extractTypeInfo = (
 		nodeType = checker.getTypeAtLocation(node);
 		declaration.typeSignature = checker.typeToString(nodeType);
 		// structured type on type aliases only — an interface is an object shape,
-		// terminal by the `TypeJson` absence contract, and its variant has no field
+		// terminal by the `TypeJson` absence contract, and its variant has no field.
+		// The right-hand side is the written node: an alias *over* an alias-lost
+		// name recovers it (`type B = Inferred` references `Inferred`)
 		if (ts.isTypeAliasDeclaration(node)) {
-			const typeInfo = resolveTypeInfo(nodeType, checker, false, node.name.text);
+			const typeInfo = resolveTypeInfo(nodeType, checker, false, {
+				ownAliasName: node.name.text,
+				writtenNode: node.type
+			});
 			if (typeInfo) declaration.typeInfo = typeInfo;
 		}
 	} catch (err) {

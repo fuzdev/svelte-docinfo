@@ -150,7 +150,14 @@
 					which is also why type aliases relax the absence rule: their flat string is always just
 					the alias name, so the tree is emitted whatever its shape, except for object and function
 					roots that
-					<code>members</code> already covers
+					<code>members</code> already covers. An alias TypeScript dropped (an indexed-access or
+					conditional right-hand side — <code>z.infer&lt;typeof S&gt;</code>, valibot's
+					<code>InferOutput</code> — loses its alias symbol, so the checker expands the structure
+					everywhere) is recovered from the written annotation where one exists: each bare written
+					type reference resolves by checker type identity, and a nameless type it matches emits
+					<code>{`{kind: "reference", name}`}</code> instead of expanding — including at the root, where
+					the flat string carries the anonymous expansion, not the name. Names the checker has are never
+					overridden, and import renames recover the importable name
 				</li>
 				<li><code>sourceLine</code>: line number in the source file</li>
 				<li>

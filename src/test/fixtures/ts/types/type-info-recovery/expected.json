@@ -1,0 +1,46 @@
+{
+	"name": "Registry",
+	"kind": "type",
+	"typeSignature": "Registry",
+	"members": [
+		{
+			"name": "first",
+			"kind": "variable",
+			"docComment": "Recovers the alias-lost object by its written name.",
+			"typeSignature": "{ a: string; b: number; }",
+			"typeInfo": {
+				"kind": "reference",
+				"name": "Inferred"
+			}
+		},
+		{
+			"name": "maybe",
+			"kind": "variable",
+			"docComment": "Recovery composes with the optional-widening strip.",
+			"typeSignature": "{ a: string; b: number; }",
+			"optional": true,
+			"typeInfo": {
+				"kind": "reference",
+				"name": "Inferred"
+			}
+		},
+		{
+			"name": "[key: string]",
+			"kind": "variable",
+			"typeSignature": "{ a: string; b: number; } | undefined",
+			"typeInfo": {
+				"kind": "union",
+				"members": [
+					{
+						"kind": "reference",
+						"name": "Inferred"
+					},
+					{
+						"kind": "intrinsic",
+						"text": "undefined"
+					}
+				]
+			}
+		}
+	]
+}

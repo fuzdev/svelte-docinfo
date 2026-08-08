@@ -67,14 +67,17 @@ const hasExtractableProperties = (type: ts.Type): boolean => {
 };
 
 /**
- * Get the index type for a type, filtering out external branches in intersections.
+ * Get the index info for a type, filtering out external branches in intersections.
  *
- * For non-intersection types, this delegates to `checker.getIndexTypeOfType`.
- * For intersections, it walks each branch and returns the index type from the
+ * For non-intersection types, this delegates to `checker.getIndexInfoOfType`.
+ * For intersections, it walks each branch and returns the index info from the
  * first local branch (skipping branches whose declarations are all in external
- * files). Without this filtering, `getIndexTypeOfType` on the merged type would
+ * files). Without this filtering, `getIndexInfoOfType` on the merged type would
  * surface index signatures contributed only by external branches like
  * `HTMLAttributes<HTMLDivElement>`, which is wrong for a library's own type.
+ *
+ * The info carries the signature's `declaration` beside its type, so the
+ * emitter can feed the written annotation to `typeInfo` name recovery.
  *
  * The "first local branch" simplification is conservative: multiple local
  * branches contributing index signatures of the same kind would normally be
@@ -82,29 +85,29 @@ const hasExtractableProperties = (type: ts.Type): boolean => {
  * contributions through inheritance — so we prefer the simpler local path. This
  * case is exceedingly rare in practice.
  */
-const extractLocalIndexType = (
+const extractLocalIndexInfo = (
 	nodeType: ts.Type,
 	typeNode: ts.Node,
 	checker: ts.TypeChecker,
 	isExternalFile: IsExternalFile,
 	indexKind: ts.IndexKind
-): ts.Type | undefined => {
+): ts.IndexInfo | undefined => {
 	if (!nodeType.isIntersection()) {
-		return checker.getIndexTypeOfType(nodeType, indexKind);
+		return checker.getIndexInfoOfType(nodeType, indexKind);
 	}
 
 	const intersectionNode = resolveIntersectionTypeNode(nodeType, typeNode);
 	if (!intersectionNode) {
 		// Cannot determine branches — fall back to merged type. Conservative:
 		// preserves prior behavior for the rare synthesized-intersection case.
-		return checker.getIndexTypeOfType(nodeType, indexKind);
+		return checker.getIndexInfoOfType(nodeType, indexKind);
 	}
 
 	for (const branch of intersectionNode.types) {
 		if (isExternalIntersectionBranch(branch, checker, isExternalFile)) continue;
 		const branchType = checker.getTypeAtLocation(branch);
-		const branchIndex = checker.getIndexTypeOfType(branchType, indexKind);
-		if (branchIndex) return branchIndex;
+		const branchInfo = checker.getIndexInfoOfType(branchType, indexKind);
+		if (branchInfo) return branchInfo;
 	}
 	return undefined;
 };
@@ -132,21 +135,23 @@ const emitLocalIndexSignature = (
 ): void => {
 	const indexKind = kind === 'string' ? ts.IndexKind.String : ts.IndexKind.Number;
 	try {
-		const indexType = extractLocalIndexType(
+		const indexInfo = extractLocalIndexInfo(
 			nodeType,
 			node.type,
 			checker,
 			isExternalFile,
 			indexKind
 		);
-		if (indexType) {
+		if (indexInfo) {
 			const member: MemberJsonBuild = {
 				name: `[key: ${kind}]`,
 				kind: 'variable',
 				// no optional strip on either output — `optional` is N/A for index signatures
-				typeSignature: checker.typeToString(indexType)
+				typeSignature: checker.typeToString(indexInfo.type)
 			};
-			const typeInfo = resolveTypeInfo(indexType, checker, false);
+			const typeInfo = resolveTypeInfo(indexInfo.type, checker, false, {
+				writtenNode: indexInfo.declaration?.type
+			});
 			if (typeInfo) member.typeInfo = typeInfo;
 			(declaration.members ??= []).push(member);
 		}
@@ -296,7 +301,12 @@ export const extractTypeAliasProperties = (
 			);
 		} else {
 			member.typeSignature = getTypeSignature(propType, checker, optional);
-			const typeInfo = resolveTypeInfo(propType, checker, optional);
+			const propDecl = decls?.[0];
+			const annotation =
+				propDecl && (ts.isPropertySignature(propDecl) || ts.isPropertyDeclaration(propDecl))
+					? propDecl.type
+					: undefined;
+			const typeInfo = resolveTypeInfo(propType, checker, optional, { writtenNode: annotation });
 			if (typeInfo) member.typeInfo = typeInfo;
 		}
 

@@ -33,6 +33,23 @@ beside `returnType` on function declarations/members and per overload:
   rendering is used, so `text` stays a well-formed type string and one node
   can't grow without bound the way the depth cap prevents for the tree (the
   flat strings keep the checker's canonical rendering)
+- an alias TypeScript dropped (an indexed-access or conditional right-hand
+  side — `z.infer<typeof S>`, valibot's `InferOutput`) is recovered from the
+  written annotation where one exists: return types (per overload included),
+  parameters, variables, type-alias declarations and their properties, index
+  signatures, getter-backed accessors, component props, and snippet
+  parameters resolve each bare written type
+  reference by checker type identity and emit `{kind: 'reference', name}`
+  where the checker would print the whole structure, alias-lost unions
+  included — `(): Promise<AnalyzeResultJson>` documents as a `Promise`
+  reference over an `AnalyzeResultJson` reference instead of a
+  multi-thousand-char dump. The name resolves through import aliases to the
+  importable one; a name the checker has is never overridden; `typeof x`,
+  `import('…').X`, inline type literals, and argument-carrying annotations
+  (`Extract<D, {kind: K}>`) never recover. A recovered bare reference is
+  emitted even at the root — the flat string carries the anonymous expansion
+  there, so the name exists only in the tree. The flat strings stay the
+  checker's rendering throughout
   Anything with a call signature is a function node — except *named generic
   instantiations* (checker `Reference`-flagged, symbol-named,
   argument-carrying), which classify as references, so `Snippet<[a: string]>`

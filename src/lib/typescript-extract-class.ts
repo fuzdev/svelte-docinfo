@@ -269,7 +269,9 @@ export const extractClassInfo = (
 				if (getterSymbol) {
 					const getterType = checker.getTypeOfSymbolAtLocation(getterSymbol, getter);
 					accessorDeclaration.typeSignature = checker.typeToString(getterType);
-					const typeInfo = resolveTypeInfo(getterType, checker, false);
+					const typeInfo = resolveTypeInfo(getterType, checker, false, {
+						writtenNode: getter.type
+					});
 					if (typeInfo) accessorDeclaration.typeInfo = typeInfo;
 				}
 			} else if (setter?.parameters.length) {

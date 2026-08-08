@@ -854,12 +854,16 @@ export const isSnippetType = (type: ts.Type, checker: ts.TypeChecker): boolean =
  * the bare `Snippet<...>` TypeReference — a union
  * wrapping it (optional widening, `| null`) reports no type arguments.
  *
+ * @param writtenNode - the written annotation the snippet type came from, when
+ *   one exists — feeds `typeInfo` name recovery, the same node the caller
+ *   hands the prop-level tree so the two projections can't disagree
  * @returns array of parameter info for the snippet's tuple type arguments,
  *   or `[]` for bare `Snippet` / `Snippet<[]>`
  */
 export const extractSnippetParameters = (
 	snippetType: ts.Type,
-	checker: ts.TypeChecker
+	checker: ts.TypeChecker,
+	writtenNode?: ts.TypeNode
 ): Array<ParameterJsonInput> => {
 	// Snippet<T> is an interface — type args accessed via TypeReference, not aliasTypeArguments.
 	// The params tuple is the *last* tuple-typed argument, not positionally [0]: a
@@ -876,10 +880,10 @@ export const extractSnippetParameters = (
 		// a rest element reports as the array it collects, flat string and tree
 		// together (`restElementForms`); everything else takes the widening strip
 		const { type, typeInfo } = el.rest
-			? restElementForms(el.type, checker)
+			? restElementForms(el.type, checker, writtenNode)
 			: {
 					type: getTypeSignature(el.type, checker, el.optional),
-					typeInfo: resolveTypeInfo(el.type, checker, el.optional)
+					typeInfo: resolveTypeInfo(el.type, checker, el.optional, { writtenNode })
 				};
 		const param: ParameterJsonInput = {
 			name,
@@ -1126,7 +1130,11 @@ const extractPropsViaChecker = (
 			// For optional properties, the checker includes `undefined` in the union.
 			// Strip it to match the declared type (e.g., `number` not `number | undefined`).
 			typeString = getTypeSignature(propType, checker, optional);
-			typeInfo = resolveTypeInfo(propType, checker, optional);
+			// the written annotation (in the svelte2tsx virtual or an imported
+			// props type) feeds name recovery; only symbols are resolved from it,
+			// so source-position remapping is not implicated
+			const annotation = propDecl && ts.isPropertySignature(propDecl) ? propDecl.type : undefined;
+			typeInfo = resolveTypeInfo(propType, checker, optional, { writtenNode: annotation });
 
 			// Detect Snippet-typed props structurally, then extract structured
 			// parameters. Stripped unconditionally so detection and extraction see
@@ -1135,7 +1143,9 @@ const extractPropsViaChecker = (
 			// otherwise (`getTypeArguments` on a union returns nothing).
 			const strippedPropType = checker.getNonNullableType(propType);
 			if (isSnippetType(strippedPropType, checker)) {
-				snippetParams = extractSnippetParameters(strippedPropType, checker);
+				// the same annotation feeds both trees, so a recovered name in the
+				// prop's tuple typeArg and in `parameters[i].typeInfo` can't disagree
+				snippetParams = extractSnippetParameters(strippedPropType, checker, annotation);
 			}
 		} catch (err) {
 			// Map position if possible

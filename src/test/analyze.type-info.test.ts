@@ -14,8 +14,18 @@
  * wire). Round-2 shape: callable classification (named generic instantiations
  * as references, bare/aliased signatures and hybrids staying `function`),
  * structured tuple elements (the empty-tuple carve-out included), and
- * `returnTypeInfo` on functions, members, and overloads. Fixture lock-ins:
- * `ts/types/type-info` and `svelte/props/type-info`.
+ * `returnTypeInfo` on functions, members, and overloads. Round-3 shape:
+ * written-name recovery — an alias TypeScript dropped (indexed-access or
+ * conditional right-hand side) re-emerges from the written annotation as a
+ * `{kind: 'reference', name}` node, in both directions: recovery at every
+ * wired site (returns, parameters, variables, type-alias properties, component
+ * props) and the non-triggers (checker names never overridden, import renames
+ * resolving to the importable name, `typeof`/import-type/inline-literal and
+ * argument-carrying annotations excluded, type parameters inert). Fixture
+ * lock-ins: `ts/types/type-info` and `svelte/props/type-info`, plus the
+ * recovery cases `ts/types/type-info-recovery`,
+ * `ts/declarations/{function,variable}/type-info-recovery`, and
+ * `svelte/props/type-info-recovery`.
  */
 
 import { test, assert, describe } from 'vitest';
@@ -1078,6 +1088,389 @@ export type B = (a: string) => void;`
 		// intrinsics carry no alias symbol, so `typeSignature` is the real type
 		assert.strictEqual(declaration.typeSignature, 'string');
 		assert.strictEqual(declaration.typeInfo, undefined);
+	});
+});
+
+describe('written-name recovery', () => {
+	// an indexed-access right-hand side loses `aliasSymbol`, so the checker
+	// prints `Inferred` structurally everywhere — the same mechanism as
+	// `z.infer<typeof S>` without the zod dependency
+	const INFERRED_SETUP = `interface Box {
+	out: { a: string; b: number };
+}
+export type Inferred = Box['out'];
+`;
+
+	test('a written return annotation recovers an alias TypeScript dropped', async () => {
+		const module = await analyzeFile(
+			'src/lib/a.ts',
+			`${INFERRED_SETUP}
+export const f = (): Promise<Inferred> => Promise.resolve({ a: '', b: 0 });`
+		);
+		const f = module.declarations.find((d) => d.name === 'f');
+		assert(f?.kind === 'function', 'expected a function declaration');
+		// the flat string stays the checker's structural rendering — recovery is tree-only
+		assert.strictEqual(f.returnType, 'Promise<{ a: string; b: number; }>');
+		assert.deepStrictEqual(f.returnTypeInfo, {
+			kind: 'reference',
+			name: 'Promise',
+			typeArgs: [{ kind: 'reference', name: 'Inferred' }]
+		});
+	});
+
+	test('an import rename recovers the importable name, never the local one', async () => {
+		const { modules } = await analyzeTestProject({
+			'src/lib/dep.ts': INFERRED_SETUP,
+			'src/lib/a.ts': `import type { Inferred as Renamed } from './dep.js';
+
+export const f = (): Promise<Renamed> => Promise.resolve({ a: '', b: 0 });`
+		});
+		const module = modules.find((m) => m.path === 'a.ts');
+		const f = module?.declarations.find((d) => d.name === 'f');
+		assert(f?.kind === 'function', 'expected a function declaration');
+		assert.deepStrictEqual(f.returnTypeInfo, {
+			kind: 'reference',
+			name: 'Promise',
+			typeArgs: [{ kind: 'reference', name: 'Inferred' }]
+		});
+	});
+
+	test('recovery holds at depth through checker rewrites', async () => {
+		// the checker collapses `Array<Inferred>` to `{...}[]`; identity lookup
+		// still finds the element two levels down
+		const module = await analyzeFile(
+			'src/lib/a.ts',
+			`${INFERRED_SETUP}
+export const f = (): Map<string, Array<Inferred>> => new Map();`
+		);
+		const f = module.declarations.find((d) => d.name === 'f');
+		assert(f?.kind === 'function', 'expected a function declaration');
+		assert.deepStrictEqual(f.returnTypeInfo, {
+			kind: 'reference',
+			name: 'Map',
+			typeArgs: [
+				{ kind: 'intrinsic', text: 'string' },
+				{ kind: 'array', element: { kind: 'reference', name: 'Inferred' } }
+			]
+		});
+	});
+
+	test('union member recovery is position-independent', async () => {
+		// written `null | Inferred` prints nullish-sunk, so the member recovers at
+		// a different position than it was written at — identity, not position
+		const module = await analyzeFile(
+			'src/lib/a.ts',
+			`${INFERRED_SETUP}
+export const f = (): null | Inferred => null;
+export const g = (): Inferred | undefined => undefined;`
+		);
+		const f = module.declarations.find((d) => d.name === 'f');
+		assert(f?.kind === 'function', 'expected a function declaration');
+		assert.deepStrictEqual(f.returnTypeInfo, {
+			kind: 'union',
+			members: [
+				{ kind: 'reference', name: 'Inferred' },
+				{ kind: 'intrinsic', text: 'null' }
+			]
+		});
+		const g = module.declarations.find((d) => d.name === 'g');
+		assert(g?.kind === 'function', 'expected a function declaration');
+		assert.deepStrictEqual(g.returnTypeInfo, {
+			kind: 'union',
+			members: [
+				{ kind: 'reference', name: 'Inferred' },
+				{ kind: 'intrinsic', text: 'undefined' }
+			]
+		});
+	});
+
+	test('an alias-lost union recovers as a reference instead of expanding', async () => {
+		// the union analog of the object case (`z.infer` over a discriminated
+		// union): no alias symbol to label members with, so a written name
+		// replaces the expansion — including through the optional-widening strip,
+		// where `getNonNullableType` rebuilds to the same interned union
+		const module = await analyzeFile(
+			'src/lib/a.ts',
+			`interface UBox {
+	u: 'a' | { x: number };
+}
+export type U = UBox['u'];
+
+export const f = (): Array<U> => [];
+export type Holder = { field?: U };`
+		);
+		const f = module.declarations.find((d) => d.name === 'f');
+		assert(f?.kind === 'function', 'expected a function declaration');
+		assert.deepStrictEqual(f.returnTypeInfo, {
+			kind: 'array',
+			element: { kind: 'reference', name: 'U' }
+		});
+		const holder = module.declarations.find((d) => d.name === 'Holder');
+		assert(holder?.kind === 'type', 'expected a type declaration');
+		const field = holder.members[0];
+		assert(field?.kind === 'variable', 'expected a variable member');
+		assert.deepStrictEqual(field.typeInfo, { kind: 'reference', name: 'U' });
+	});
+
+	test('typeof, import-type, and inline-literal annotations never trigger recovery', async () => {
+		const { modules } = await analyzeTestProject({
+			'src/lib/dep.ts': INFERRED_SETUP,
+			'src/lib/a.ts': `const value = { a: '', b: 0 };
+
+export const viaTypeof = (): typeof value => value;
+export const viaImportType = (): import('./dep.js').Inferred => ({ a: '', b: 0 });
+export const viaLiteral = (): Promise<{ a: string }> => Promise.resolve({ a: '' });`
+		});
+		const module = modules.find((m) => m.path === 'a.ts');
+		for (const name of ['viaTypeof', 'viaImportType']) {
+			const decl = module?.declarations.find((d) => d.name === name);
+			assert(decl?.kind === 'function', `expected a function declaration for ${name}`);
+			// an anonymous object at the root with nothing recovered stays absent
+			assert.strictEqual(decl.returnTypeInfo, undefined, `expected no recovery for ${name}`);
+		}
+		const viaLiteral = module?.declarations.find((d) => d.name === 'viaLiteral');
+		assert(viaLiteral?.kind === 'function', 'expected a function declaration');
+		assert.deepStrictEqual(viaLiteral.returnTypeInfo, {
+			kind: 'reference',
+			name: 'Promise',
+			typeArgs: [{ kind: 'object', text: '{ a: string; }' }]
+		});
+	});
+
+	test('an argument-carrying written annotation never recovers by its bare name', async () => {
+		// `Get<Box>` loses its alias like `z.infer<typeof S>`, and like it the
+		// bare symbol name misrepresents the instantiation — excluded by design
+		const module = await analyzeFile(
+			'src/lib/a.ts',
+			`${INFERRED_SETUP}
+type Get<T extends Box> = T['out'];
+
+export const f = (): Promise<Get<Box>> => Promise.resolve({ a: '', b: 0 });`
+		);
+		const f = module.declarations.find((d) => d.name === 'f');
+		assert(f?.kind === 'function', 'expected a function declaration');
+		assert(f.returnTypeInfo?.kind === 'reference', 'expected the Promise reference');
+		assert.deepStrictEqual(f.returnTypeInfo.typeArgs?.[0], {
+			kind: 'object',
+			text: '{ a: string; b: number; }'
+		});
+	});
+
+	test('a name the checker already has is never overridden', async () => {
+		const { modules } = await analyzeTestProject({
+			'src/lib/dep.ts': `export interface Original {
+	a: string;
+}`,
+			'src/lib/a.ts': `import type { Original as Renamed } from './dep.js';
+
+export const f = (): Promise<Renamed> => Promise.resolve({ a: '' });`
+		});
+		const module = modules.find((m) => m.path === 'a.ts');
+		const f = module?.declarations.find((d) => d.name === 'f');
+		assert(f?.kind === 'function', 'expected a function declaration');
+		// the interface's own symbol names the node; the written `Renamed` is inert
+		assert.deepStrictEqual(f.returnTypeInfo, {
+			kind: 'reference',
+			name: 'Promise',
+			typeArgs: [{ kind: 'reference', name: 'Original' }]
+		});
+	});
+
+	test('a recovered bare reference is emitted at the root', async () => {
+		// a checker-named bare reference defers to the flat string printing the
+		// same name; a recovered one stands against the anonymous expansion, so
+		// the contract relaxes — while the checker-named case stays absent
+		const module = await analyzeFile(
+			'src/lib/a.ts',
+			`${INFERRED_SETUP}
+export const recovered = (): Inferred => ({ a: '', b: 0 });
+export const checkerNamed = (): Box => ({ out: { a: '', b: 0 } });`
+		);
+		const recovered = module.declarations.find((d) => d.name === 'recovered');
+		assert(recovered?.kind === 'function', 'expected a function declaration');
+		assert.strictEqual(recovered.returnType, '{ a: string; b: number; }');
+		assert.deepStrictEqual(recovered.returnTypeInfo, { kind: 'reference', name: 'Inferred' });
+		const checkerNamed = module.declarations.find((d) => d.name === 'checkerNamed');
+		assert(checkerNamed?.kind === 'function', 'expected a function declaration');
+		assert.strictEqual(checkerNamed.returnTypeInfo, undefined);
+	});
+
+	test('parameters and variables recover through their annotations', async () => {
+		const module = await analyzeFile(
+			'src/lib/a.ts',
+			`${INFERRED_SETUP}
+export const p = (required: Inferred, optional?: Inferred): string => '';
+export const v: Inferred = { a: '', b: 0 };`
+		);
+		const p = module.declarations.find((d) => d.name === 'p');
+		assert(p?.kind === 'function', 'expected a function declaration');
+		assert.deepStrictEqual(p.parameters?.[0]?.typeInfo, { kind: 'reference', name: 'Inferred' });
+		// the optional-widening strip and recovery compose
+		assert.deepStrictEqual(p.parameters?.[1]?.typeInfo, { kind: 'reference', name: 'Inferred' });
+		const v = module.declarations.find((d) => d.name === 'v');
+		assert(v?.kind === 'variable', 'expected a variable declaration');
+		assert.deepStrictEqual(v.typeInfo, { kind: 'reference', name: 'Inferred' });
+	});
+
+	test('component props recover through the props type annotation', async () => {
+		const { modules } = await analyzeTestProject({
+			'src/lib/A.svelte': `<script lang="ts">
+	interface Box {
+		out: { a: string; b: number };
+	}
+	type Inferred = Box['out'];
+
+	let { config }: { config: Inferred } = $props();
+</script>
+
+<div>{config.a}</div>`
+		});
+		const declaration = modules[0]?.declarations[0];
+		assert(declaration?.kind === 'component', 'expected a component declaration');
+		const prop = declaration.props[0];
+		assert.ok(prop, 'expected a prop');
+		assert.strictEqual(prop.type, '{ a: string; b: number; }');
+		assert.deepStrictEqual(prop.typeInfo, { kind: 'reference', name: 'Inferred' });
+	});
+
+	test('a type-alias right-hand side recovers through its own written node', async () => {
+		const module = await analyzeFile(
+			'src/lib/a.ts',
+			`${INFERRED_SETUP}
+export type AliasOfLost = Inferred;
+export type MaybeInferred = Inferred | undefined;`
+		);
+		// a bare-reference right-hand side: the flat string prints the expansion
+		// (the alias was lost), so the recovered reference is the only name
+		const bare = module.declarations.find((d) => d.name === 'AliasOfLost');
+		assert(bare?.kind === 'type', 'expected a type declaration');
+		assert.deepStrictEqual(bare.typeInfo, { kind: 'reference', name: 'Inferred' });
+		// the outer alias survives (a union right-hand side keeps its alias
+		// symbol — only the indexed-access `Inferred` lost one) and the member
+		// recovers inside it
+		const union = module.declarations.find((d) => d.name === 'MaybeInferred');
+		assert(union?.kind === 'type', 'expected a type declaration');
+		assert.deepStrictEqual(union.typeInfo, {
+			kind: 'union',
+			alias: 'MaybeInferred',
+			members: [
+				{ kind: 'reference', name: 'Inferred' },
+				{ kind: 'intrinsic', text: 'undefined' }
+			]
+		});
+	});
+
+	test('index signatures and getter accessors recover through their annotations', async () => {
+		const module = await analyzeFile(
+			'src/lib/a.ts',
+			`${INFERRED_SETUP}
+export type Dict = { [key: string]: Inferred };
+
+export class Holder {
+	get current(): Inferred {
+		return { a: '', b: 0 };
+	}
+}`
+		);
+		const dict = module.declarations.find((d) => d.name === 'Dict');
+		assert(dict?.kind === 'type', 'expected a type declaration');
+		const index = dict.members.find((m) => m.name === '[key: string]');
+		assert(index?.kind === 'variable', 'expected an index-signature member');
+		assert.deepStrictEqual(index.typeInfo, { kind: 'reference', name: 'Inferred' });
+		const holder = module.declarations.find((d) => d.name === 'Holder');
+		assert(holder?.kind === 'class', 'expected a class declaration');
+		const accessor = holder.members.find((m) => m.name === 'current');
+		assert(accessor?.kind === 'variable', 'expected an accessor member');
+		assert.deepStrictEqual(accessor.typeInfo, { kind: 'reference', name: 'Inferred' });
+	});
+
+	test('each overload recovers through its own return annotation', async () => {
+		const module = await analyzeFile(
+			'src/lib/a.ts',
+			`${INFERRED_SETUP}
+export function pick(kind: 'inferred'): Inferred;
+export function pick(kind: 'name'): string;
+export function pick(kind: string): Inferred | string {
+	return kind === 'name' ? '' : { a: '', b: 0 };
+}`
+		);
+		const pick = module.declarations.find((d) => d.name === 'pick');
+		assert(pick?.kind === 'function', 'expected a function declaration');
+		assert.ok(pick.overloads, 'expected overloads');
+		assert.deepStrictEqual(pick.overloads[0]?.returnTypeInfo, {
+			kind: 'reference',
+			name: 'Inferred'
+		});
+		assert.strictEqual(pick.overloads[1]?.returnTypeInfo, undefined);
+	});
+
+	test('snippet parameters and the prop tree recover the same name', async () => {
+		const { modules } = await analyzeTestProject({
+			'src/lib/A.svelte': `<script lang="ts">
+	interface Snippet<T extends Array<unknown>> {(...args: T): void}
+
+	interface Box {
+		out: { a: string; b: number };
+	}
+	type Inferred = Box['out'];
+
+	let { row }: { row?: Snippet<[item: Inferred]> } = $props();
+</script>
+
+<div>{row}</div>`
+		});
+		const declaration = modules[0]?.declarations[0];
+		assert(declaration?.kind === 'component', 'expected a component declaration');
+		const prop = declaration.props[0];
+		assert.ok(prop?.parameters, 'expected snippet parameters');
+		const expected: TypeJson = { kind: 'reference', name: 'Inferred' };
+		// both projections of the same tuple element read the same annotation —
+		// a recovered name can't appear in one and not the other
+		assert.deepStrictEqual(prop.parameters[0]?.typeInfo, expected);
+		assert(prop.typeInfo?.kind === 'reference', 'expected a Snippet reference');
+		const tuple = prop.typeInfo.typeArgs?.[0];
+		assert(tuple?.kind === 'tuple', 'expected a tuple typeArg');
+		assert.deepStrictEqual(tuple.elements?.[0]?.type, expected);
+	});
+
+	test('type parameters stay inert in generic contexts', async () => {
+		const module = await analyzeFile('src/lib/a.ts', `export const id = <T>(x: T): T => x;`);
+		const id = module.declarations.find((d) => d.name === 'id');
+		assert(id?.kind === 'function', 'expected a function declaration');
+		// a written \`T\` names nothing recoverable — both fields stay absent
+		assert.strictEqual(id.parameters?.[0]?.typeInfo, undefined);
+		assert.strictEqual(id.returnTypeInfo, undefined);
+	});
+
+	test('recovered names are identifiers — no comment or newline survives', async () => {
+		const module = await analyzeFile(
+			'src/lib/a.ts',
+			`${INFERRED_SETUP}
+export const f = (): /* leading */ Inferred /* trailing */ | undefined => undefined;`
+		);
+		const f = module.declarations.find((d) => d.name === 'f');
+		assert(f?.kind === 'function', 'expected a function declaration');
+		const names: Array<string> = [];
+		const collect = (node: TypeJson | undefined): void => {
+			if (!node) return;
+			if (node.kind === 'reference') {
+				names.push(node.name);
+				node.typeArgs?.forEach(collect);
+			} else if (node.kind === 'union' || node.kind === 'intersection') {
+				node.members.forEach(collect);
+			} else if (node.kind === 'array') {
+				collect(node.element);
+			} else if (node.kind === 'tuple') {
+				node.elements?.forEach((el) => {
+					collect(el.type);
+				});
+			}
+		};
+		collect(f.returnTypeInfo);
+		assert.deepStrictEqual(names, ['Inferred']);
+		for (const name of names) {
+			assert.match(name, /^[A-Za-z_$][\w$]*$/);
+		}
 	});
 });
 

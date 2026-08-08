@@ -185,7 +185,8 @@ export const extractSignatureParameters = (
 		if (paramDecl) {
 			const paramType = checker.getTypeOfSymbolAtLocation(param, paramDecl);
 			typeString = getTypeSignature(paramType, checker, optional);
-			typeInfo = resolveTypeInfo(paramType, checker, optional);
+			const annotation = ts.isParameter(paramDecl) ? paramDecl.type : undefined;
+			typeInfo = resolveTypeInfo(paramType, checker, optional, { writtenNode: annotation });
 		} else {
 			const paramType = checker.getDeclaredTypeOfSymbol(param);
 			typeString = checker.typeToString(paramType);
@@ -300,7 +301,8 @@ const collectSymbolScopeTags = (
  * Set `returnType` + `returnTypeInfo` on a build target from a signature's
  * return type — the one projection of the flat/structured return pair, so the
  * two fields always print from the same `ts.Type` (returns are never
- * `optional`, hence the constant `false`).
+ * `optional`, hence the constant `false`). The written return annotation, when
+ * one exists, feeds the tree's name recovery for aliases TypeScript dropped.
  */
 const applyReturnType = (
 	target: { returnType?: string; returnTypeInfo?: TypeJson },
@@ -309,7 +311,10 @@ const applyReturnType = (
 ): void => {
 	const returnType = checker.getReturnTypeOfSignature(sig);
 	target.returnType = checker.typeToString(returnType);
-	const returnTypeInfo = resolveTypeInfo(returnType, checker, false);
+	// a JSDoc signature's `type` is a return *tag*, not a TypeNode
+	const decl = sig.declaration;
+	const returnNode = decl && !ts.isJSDocSignature(decl) ? decl.type : undefined;
+	const returnTypeInfo = resolveTypeInfo(returnType, checker, false, { writtenNode: returnNode });
 	if (returnTypeInfo) target.returnTypeInfo = returnTypeInfo;
 };
 
