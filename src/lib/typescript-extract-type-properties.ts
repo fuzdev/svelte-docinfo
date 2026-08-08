@@ -17,21 +17,19 @@
 
 import ts from 'typescript';
 
-import type { MemberKind, DeclarationModifier } from './types.ts';
+import type { DeclarationModifier } from './types.ts';
 import type { DeclarationJsonBuild, MemberJsonBuild } from './declaration-build.ts';
 import { type Diagnostic } from './diagnostics.ts';
 import { to_error_message } from './error.ts';
-import { parseComment, applyToDeclaration, type TsdocParsedComment } from './tsdoc.ts';
+import { parseComment, applyToDeclaration } from './tsdoc.ts';
 import { resolveTypeInfo } from './typescript-extract-type-json.ts';
 import { type IsExternalFile } from './typescript-program.ts';
 import {
 	emitCallOrConstructSignature,
 	filterExternalProperties,
 	getNodeLocation,
-	getNonOptionalType,
-	getTypeSignature,
 	isExternalIntersectionBranch,
-	populateCallableMember,
+	populatePropertyMember,
 	resolveIntersectionTypeNode
 } from './typescript-extract-shared.ts';
 
@@ -67,14 +65,17 @@ const hasExtractableProperties = (type: ts.Type): boolean => {
 };
 
 /**
- * Get the index type for a type, filtering out external branches in intersections.
+ * Get the index info for a type, filtering out external branches in intersections.
  *
- * For non-intersection types, this delegates to `checker.getIndexTypeOfType`.
- * For intersections, it walks each branch and returns the index type from the
+ * For non-intersection types, this delegates to `checker.getIndexInfoOfType`.
+ * For intersections, it walks each branch and returns the index info from the
  * first local branch (skipping branches whose declarations are all in external
- * files). Without this filtering, `getIndexTypeOfType` on the merged type would
+ * files). Without this filtering, `getIndexInfoOfType` on the merged type would
  * surface index signatures contributed only by external branches like
  * `HTMLAttributes<HTMLDivElement>`, which is wrong for a library's own type.
+ *
+ * The info carries the signature's `declaration` beside its type, so the
+ * emitter can feed the written annotation to `typeInfo` name recovery.
  *
  * The "first local branch" simplification is conservative: multiple local
  * branches contributing index signatures of the same kind would normally be
@@ -82,29 +83,29 @@ const hasExtractableProperties = (type: ts.Type): boolean => {
  * contributions through inheritance — so we prefer the simpler local path. This
  * case is exceedingly rare in practice.
  */
-const extractLocalIndexType = (
+const extractLocalIndexInfo = (
 	nodeType: ts.Type,
 	typeNode: ts.Node,
 	checker: ts.TypeChecker,
 	isExternalFile: IsExternalFile,
 	indexKind: ts.IndexKind
-): ts.Type | undefined => {
+): ts.IndexInfo | undefined => {
 	if (!nodeType.isIntersection()) {
-		return checker.getIndexTypeOfType(nodeType, indexKind);
+		return checker.getIndexInfoOfType(nodeType, indexKind);
 	}
 
 	const intersectionNode = resolveIntersectionTypeNode(nodeType, typeNode);
 	if (!intersectionNode) {
 		// Cannot determine branches — fall back to merged type. Conservative:
 		// preserves prior behavior for the rare synthesized-intersection case.
-		return checker.getIndexTypeOfType(nodeType, indexKind);
+		return checker.getIndexInfoOfType(nodeType, indexKind);
 	}
 
 	for (const branch of intersectionNode.types) {
 		if (isExternalIntersectionBranch(branch, checker, isExternalFile)) continue;
 		const branchType = checker.getTypeAtLocation(branch);
-		const branchIndex = checker.getIndexTypeOfType(branchType, indexKind);
-		if (branchIndex) return branchIndex;
+		const branchInfo = checker.getIndexInfoOfType(branchType, indexKind);
+		if (branchInfo) return branchInfo;
 	}
 	return undefined;
 };
@@ -132,21 +133,23 @@ const emitLocalIndexSignature = (
 ): void => {
 	const indexKind = kind === 'string' ? ts.IndexKind.String : ts.IndexKind.Number;
 	try {
-		const indexType = extractLocalIndexType(
+		const indexInfo = extractLocalIndexInfo(
 			nodeType,
 			node.type,
 			checker,
 			isExternalFile,
 			indexKind
 		);
-		if (indexType) {
+		if (indexInfo) {
 			const member: MemberJsonBuild = {
 				name: `[key: ${kind}]`,
 				kind: 'variable',
 				// no optional strip on either output — `optional` is N/A for index signatures
-				typeSignature: checker.typeToString(indexType)
+				typeSignature: checker.typeToString(indexInfo.type)
 			};
-			const typeInfo = resolveTypeInfo(indexType, checker, false);
+			const typeInfo = resolveTypeInfo(indexInfo.type, checker, false, {
+				writtenNode: indexInfo.declaration?.type
+			});
 			if (typeInfo) member.typeInfo = typeInfo;
 			(declaration.members ??= []).push(member);
 		}
@@ -249,7 +252,6 @@ export const extractTypeAliasProperties = (
 		const optional = (prop.flags & ts.SymbolFlags.Optional) !== 0;
 		const readonly = isReadonlyProperty(prop, mappedReadonly);
 
-		// Determine kind: function (has call signatures) vs variable (property)
 		let propType: ts.Type;
 		try {
 			propType = checker.getTypeOfSymbolAtLocation(prop, node);
@@ -257,15 +259,9 @@ export const extractTypeAliasProperties = (
 			continue;
 		}
 
-		// an optional property resolves to a union with `undefined`, which reports no
-		// call signatures — strip it so `fn?: () => void` still reads as a function
-		const callableType = optional ? getNonOptionalType(propType, checker) : propType;
-		const callSigs = callableType.getCallSignatures();
-		const kind: MemberKind = callSigs.length > 0 ? 'function' : 'variable';
-
 		const member: MemberJsonBuild = {
 			name: prop.getName(),
-			kind
+			kind: 'variable'
 		};
 
 		if (optional) member.optional = true;
@@ -275,30 +271,30 @@ export const extractTypeAliasProperties = (
 		if (readonly) modifiers.push('readonly');
 		if (modifiers.length > 0) member.modifiers = modifiers;
 
-		// Extract TSDoc from the property's declaration if available
+		// Parse TSDoc from the property's declaration if available
 		const decls = prop.getDeclarations();
-		let propTsdoc: TsdocParsedComment | undefined = undefined;
-		if (decls && decls.length > 0) {
-			propTsdoc = parseComment(decls[0]!, decls[0]!.getSourceFile());
-			applyToDeclaration(member, propTsdoc);
-		}
+		const propDecl = decls?.[0];
+		const propTsdoc = propDecl ? parseComment(propDecl, propDecl.getSourceFile()) : undefined;
 
-		// Type signature and function-specific fields
-		if (kind === 'function' && callSigs.length > 0) {
-			populateCallableMember(
-				member,
-				callSigs,
-				checker,
-				propTsdoc,
-				decls?.[0] ?? node,
-				prop.getName(),
-				diagnostics
-			);
-		} else {
-			member.typeSignature = getTypeSignature(propType, checker, optional);
-			const typeInfo = resolveTypeInfo(propType, checker, optional);
-			if (typeInfo) member.typeInfo = typeInfo;
-		}
+		const annotation =
+			propDecl && (ts.isPropertySignature(propDecl) || ts.isPropertyDeclaration(propDecl))
+				? propDecl.type
+				: undefined;
+		populatePropertyMember(
+			member,
+			propType,
+			checker,
+			optional,
+			propTsdoc,
+			propDecl ?? node,
+			prop.getName(),
+			diagnostics,
+			annotation
+		);
+
+		// after `populatePropertyMember` so the kind is settled — `@default` is
+		// schema-allowed on variable members only and the apply gate reads `kind`
+		applyToDeclaration(member, propTsdoc);
 
 		(declaration.members ??= []).push(member);
 	}

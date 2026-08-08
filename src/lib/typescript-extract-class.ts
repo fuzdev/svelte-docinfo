@@ -24,6 +24,7 @@ import {
 	detectReactivity,
 	extractModifiers,
 	getNodeLocation,
+	getTypeSignature,
 	parseGenericParam,
 	populateCallableMember
 } from './typescript-extract-shared.ts';
@@ -130,18 +131,19 @@ export const extractClassInfo = (
 			// Extract type information and parameters for methods and constructors
 			try {
 				if (ts.isPropertyDeclaration(member)) {
-					if (member.type) {
-						memberDeclaration.typeSignature = member.type.getText();
-					} else {
-						// Fall back to inferred type for unannotated fields (e.g., `count = $state(0)`).
-						const memberSymbol = checker.getSymbolAtLocation(member.name);
-						if (memberSymbol) {
-							const t = checker.getTypeOfSymbolAtLocation(memberSymbol, member);
-							// no optional strip on either output, mirroring the flat string
-							memberDeclaration.typeSignature = checker.typeToString(t);
-							const typeInfo = resolveTypeInfo(t, checker, false);
-							if (typeInfo) memberDeclaration.typeInfo = typeInfo;
-						}
+					// Checker-backed for annotated and inferred fields alike (annotated
+					// ones used to report raw source text with no `typeInfo`); the
+					// annotation feeds `typeInfo` name recovery, and the optional strip
+					// pairs the widening with `optional` like every checker-backed site.
+					const memberSymbol = checker.getSymbolAtLocation(member.name);
+					if (memberSymbol) {
+						const t = checker.getTypeOfSymbolAtLocation(memberSymbol, member);
+						const optional = !!member.questionToken;
+						memberDeclaration.typeSignature = getTypeSignature(t, checker, optional);
+						const typeInfo = resolveTypeInfo(t, checker, optional, {
+							writtenNode: member.type
+						});
+						if (typeInfo) memberDeclaration.typeInfo = typeInfo;
 					}
 				} else if (ts.isMethodDeclaration(member) || ts.isConstructorDeclaration(member)) {
 					let signatures: ReadonlyArray<ts.Signature> = [];
@@ -269,14 +271,23 @@ export const extractClassInfo = (
 				if (getterSymbol) {
 					const getterType = checker.getTypeOfSymbolAtLocation(getterSymbol, getter);
 					accessorDeclaration.typeSignature = checker.typeToString(getterType);
-					const typeInfo = resolveTypeInfo(getterType, checker, false);
+					const typeInfo = resolveTypeInfo(getterType, checker, false, {
+						writtenNode: getter.type
+					});
 					if (typeInfo) accessorDeclaration.typeInfo = typeInfo;
 				}
-			} else if (setter?.parameters.length) {
-				// Fall back to setter's parameter type if no getter
-				const param = setter.parameters[0]!;
-				if (param.type) {
-					accessorDeclaration.typeSignature = param.type.getText();
+			} else if (setter) {
+				// Setter-only: the accessor symbol's type is the setter's parameter
+				// type — checker-backed like the getter path, with the written
+				// parameter annotation feeding `typeInfo` name recovery
+				const setterSymbol = checker.getSymbolAtLocation(setter.name);
+				if (setterSymbol) {
+					const setterType = checker.getTypeOfSymbolAtLocation(setterSymbol, setter);
+					accessorDeclaration.typeSignature = checker.typeToString(setterType);
+					const typeInfo = resolveTypeInfo(setterType, checker, false, {
+						writtenNode: setter.parameters[0]?.type
+					});
+					if (typeInfo) accessorDeclaration.typeInfo = typeInfo;
 				}
 			}
 		} catch (err) {

@@ -130,7 +130,13 @@ export type GenericParamJson = z.infer<typeof GenericParamJson>;
  * string is the whole story — the type is terminal at the root (an intrinsic,
  * a plain object literal, a function type, a bare named reference). Present
  * only when the node carries structure the string can't: union/intersection
- * members, reference type arguments, enumerable literals. Nested nodes inside
+ * members, reference type arguments, enumerable literals; an array or tuple
+ * qualifies when an element does (`readonly` alone doesn't — the flat string
+ * carries it, except at alias roots where the relaxation emits the tree
+ * regardless). A reference over the *empty* tuple is the one instantiation
+ * that doesn't qualify: `Snippet<[]>` prints itself in full, so the tree would
+ * wrap nothing (`Snippet<[a: string]>` still qualifies — its tuple has
+ * elements). Nested nodes inside
  * a present tree are always populated (they have no flat-string sibling).
  *
  * One exception, on `TypeDeclarationJson` for type aliases: the checker prints
@@ -143,8 +149,11 @@ export type GenericParamJson = z.infer<typeof GenericParamJson>;
  *
  * **Expansion policy**: unions and intersections recurse into `members`; named
  * references keep `name` plus recursive `typeArgs`; arrays carry their
- * `element`. Everything else is terminal: object literals, function types, and
- * unclassified types (type parameters, tuples, conditional types) carry only
+ * `element`; tuples carry `elements` (label, `?`/`...` markers, recursive
+ * type); both mark `readonly` when written so (`readonly Tome[]`,
+ * `ReadonlyArray<Tome>`, `readonly [a, b]`). Everything else is terminal:
+ * object literals, function types, and
+ * unclassified types (type parameters, conditional types) carry only
  * `text`. Object property maps are deliberately not expanded. Recursion is
  * depth-capped; nodes past the cap degrade to `{kind: 'other', text}`.
  *
@@ -154,22 +163,59 @@ export type GenericParamJson = z.infer<typeof GenericParamJson>;
  * uniformity: nested nodes have no flat sibling, and consumers get one lookup
  * key (`alias` on composites, `name` on references) at any depth. This covers
  * the composite kinds only. An aliased object type becomes a `reference` under
- * its alias name, and callables — including callable *interfaces* like
- * `Snippet` — are classified `function` before the alias branch is reached, so
- * their name survives only inside `text` (`type Handler = (e: Event) => void`
- * nested in a union is `{kind: 'function', text: 'Handler'}`, which a
- * whole-string type-link lookup still resolves, but a structural walk can't
- * distinguish from a printed signature).
+ * its alias name.
+ *
+ * **Callable classification**: callability is the load-bearing renderer
+ * signal, so anything with a call signature is a `function` node — with one
+ * narrow exception: a *named generic instantiation* (checker
+ * `Reference`-flagged, symbol-named, carrying type arguments) classifies as a
+ * `reference` even when callable, so `Snippet<[a: string]>` is a `reference`
+ * whose tuple typeArg carries real elements, and an alias over one, nested,
+ * references by the alias name (`type MySnippet = Snippet<[string]>` in a
+ * union is `{kind: 'reference', name: 'MySnippet'}`; at its own declaration
+ * root the self-alias skip applies and the `Snippet` reference shows
+ * through). Bare signatures (`() => void`), aliased function types, and
+ * anonymous or hybrid callables — non-generic callable interfaces included —
+ * stay `function`, so their name survives only inside `text`
+ * (`type Handler = (e: Event) => void` nested in a union is
+ * `{kind: 'function', text: 'Handler'}`, which a whole-string type-link lookup
+ * still resolves, but a structural walk can't distinguish from a printed
+ * signature).
  *
  * **Normalization**: mirrors the flat strings — the optional-widening
  * `undefined` member is dropped from a root union (`optional: true` carries
- * it), and a `true | false` literal pair collapses to the `boolean` intrinsic
+ * it, and an optional tuple element strips the same widening from its type),
+ * and a `true | false` literal pair collapses to the `boolean` intrinsic
  * (the checker expands `boolean` inside unions). A union reduced to one member
  * by either rule becomes that member directly, never a 1-member union.
  *
- * Terminal `text` fields are printed with `NoTruncation` — unlike the flat
- * strings, which keep the checker's default ~160-char truncation (they are the
- * checker's canonical rendering; see `getTypeSignature`).
+ * Terminal `text` fields are printed with `NoTruncation` up to a 1000-char
+ * budget, past which the checker's own elided rendering is used — so `text` is
+ * always a well-formed type string, and one node can't grow without bound the
+ * way the depth cap prevents for the tree. The flat strings keep the checker's
+ * default ~160-char truncation throughout (they are the checker's canonical
+ * rendering; see `getTypeSignature`). The budget bites only on types whose
+ * alias TypeScript dropped — an alias over an indexed access or conditional
+ * (`z.infer<typeof S>`, valibot's `InferOutput`) carries no alias symbol, so
+ * the checker expands its whole structure at every use.
+ *
+ * **Written-name recovery**: where a written annotation exists (return types —
+ * per overload included — parameters, variables, type-alias declarations and
+ * their properties, index signatures, getter-backed accessors, component
+ * props, snippet parameters), each bare
+ * type reference in it is resolved by checker type identity, and a type the
+ * checker has no name for — the alias-dropped shapes above — emits
+ * `{kind: 'reference', name}` instead of expanding, alias-lost unions and
+ * intersections included. The name resolves through import aliases to the
+ * importable one (`import {Original as Renamed}` recovers `Original`); a name
+ * the checker has is never overridden; `typeof` queries, import types, inline
+ * type literals, and argument-carrying references (`z.infer<typeof S>` itself,
+ * `Extract<D, {kind: K}>` — whose bare symbol name would misrepresent the
+ * instantiation) never recover. A recovered bare reference is emitted even at
+ * the root, relaxing the absence contract the way alias roots do: a
+ * checker-named bare reference defers to a flat sibling printing the same
+ * name, while a recovered one stands against the anonymous expansion, so the
+ * name exists only in the tree.
  *
  * **Member order and nested aliases**: union members follow the flat string's
  * printed order — `null`/`undefined` sink last, and the checker's `origin`
@@ -193,30 +239,66 @@ export type TypeJson =
 	| { kind: 'literal'; value: string | number | boolean; text: string }
 	/**
 	 * A named type reference: an interface, class, aliased object type, or
-	 * generic instantiation. `typeArgs` is present only for generic
-	 * instantiations (`Map<string, Tome>`); a bare reference carries `name` alone.
+	 * generic instantiation — callable instantiations like `Snippet<[a: string]>`
+	 * included (see the callable-classification policy above). `typeArgs` is
+	 * present only for generic instantiations (`Map<string, Tome>`); a bare
+	 * reference carries `name` alone.
 	 */
 	| { kind: 'reference'; name: string; typeArgs?: Array<TypeJson> }
-	/** An array type (`Tome[]`, `Array<Tome>`). */
-	| { kind: 'array'; element: TypeJson }
+	/** An array type (`Tome[]`, `Array<Tome>`); `readonly` (emitted only when `true`) marks `readonly Tome[]` / `ReadonlyArray<Tome>`. */
+	| { kind: 'array'; element: TypeJson; readonly?: boolean }
+	/**
+	 * A tuple type (`[a: string, b?: number]`); `readonly` (emitted only when
+	 * `true`) marks `readonly [...]`. `elements` is absent for the empty tuple
+	 * (`[]`, e.g. bare `Snippet`'s type argument) — absent, never `[]`, which
+	 * `compactReplacer` would strip from the wire with no schema default to
+	 * restore it. An empty tuple is also the one node that says nothing, so a
+	 * reference over it doesn't qualify under the absence contract above; it
+	 * appears only nested inside a tree something else earned.
+	 */
+	| { kind: 'tuple'; elements?: Array<TupleElementJson>; readonly?: boolean }
 	/** A union; `alias` when written through a named alias (or an enum's name). */
 	| { kind: 'union'; alias?: string; members: Array<TypeJson> }
 	/** An intersection; `alias` when written through a named alias. */
 	| { kind: 'intersection'; alias?: string; members: Array<TypeJson> }
 	/**
 	 * A function type, terminal: `text` only, no parameter structure. Covers
-	 * anything with a call signature, callable interfaces included — so
-	 * `Snippet<[a: string]>` lands here rather than as a `reference` with
-	 * `typeArgs`. `text` is whatever the checker prints, which is the alias or
-	 * interface name when the type has one (see the alias policy above).
+	 * anything with a call signature except named generic instantiations, which
+	 * classify as `reference` (see the callable-classification policy above).
+	 * `text` is whatever the checker prints, which is the alias or
+	 * interface name when the type has one.
 	 */
 	| { kind: 'function'; text: string }
 	/** An anonymous object type, terminal: `text` only, no property structure. */
 	| { kind: 'object'; text: string }
-	/** Anything unclassified (type parameters, tuples, conditional types) or past the depth cap. */
+	/** Anything unclassified (type parameters, conditional types) or past the depth cap. */
 	| { kind: 'other'; text: string };
 
-export const TypeJson: z.ZodType<TypeJson> = z.lazy(() =>
+/**
+ * One element of a `{kind: 'tuple'}` node.
+ *
+ * `optional` and `rest` are emitted only when `true`, matching the tree's
+ * meaningful-absence optionality (unlike `ParameterJson`'s defaulted
+ * booleans, so the recursive schema keeps input = output).
+ */
+export interface TupleElementJson {
+	/** The written label of a named tuple member (`[a: string]`). */
+	name?: string;
+	/**
+	 * The element's type. An optional element's type has the widening
+	 * `undefined` stripped so `optional` carries it alone; a rest element's is
+	 * the array it collects (`...rest: boolean[]` carries an `array` node over
+	 * `boolean`, matching the written form), while a variadic spread of an
+	 * unresolved type (`...T`) carries the spread type itself.
+	 */
+	type: TypeJson;
+	/** The element's `?` marker; emitted only when `true`. */
+	optional?: boolean;
+	/** The element's `...` marker; emitted only when `true`. */
+	rest?: boolean;
+}
+
+export const TypeJson: z.ZodType<TypeJson, TypeJson> = z.lazy(() =>
 	z.discriminatedUnion('kind', [
 		z.strictObject({ kind: z.literal('intrinsic'), text: z.string() }),
 		z.strictObject({
@@ -229,7 +311,16 @@ export const TypeJson: z.ZodType<TypeJson> = z.lazy(() =>
 			name: z.string(),
 			typeArgs: z.array(TypeJson).optional()
 		}),
-		z.strictObject({ kind: z.literal('array'), element: TypeJson }),
+		z.strictObject({
+			kind: z.literal('array'),
+			element: TypeJson,
+			readonly: z.boolean().optional()
+		}),
+		z.strictObject({
+			kind: z.literal('tuple'),
+			elements: z.array(TupleElementJson).optional(),
+			readonly: z.boolean().optional()
+		}),
 		z.strictObject({
 			kind: z.literal('union'),
 			alias: z.string().optional(),
@@ -245,6 +336,15 @@ export const TypeJson: z.ZodType<TypeJson> = z.lazy(() =>
 		z.strictObject({ kind: z.literal('other'), text: z.string() })
 	])
 );
+
+// declared after `TypeJson` so its `type` field can reference the const
+// directly; `TypeJson`'s lazy thunk resolves this binding at first parse
+export const TupleElementJson: z.ZodType<TupleElementJson, TupleElementJson> = z.strictObject({
+	name: z.string().optional(),
+	type: TypeJson,
+	optional: z.boolean().optional(),
+	rest: z.boolean().optional()
+});
 
 /**
  * Parameter information for functions and methods.
@@ -361,6 +461,8 @@ export const OverloadJson = z.strictObject({
 	parameters: z.array(ParameterJson).default([]),
 	/** Return type for this overload. */
 	returnType: z.string().optional(),
+	/** Structured return type; absent when `returnType` is the whole story (see `TypeJson`). */
+	returnTypeInfo: TypeJson.optional(),
 	/** Generic type parameters for this overload. */
 	genericParams: z.array(GenericParamJson).default([]),
 	/** JSDoc/TSDoc comment specific to this overload. */
@@ -449,6 +551,8 @@ const callableFields = {
 const returnFields = {
 	/** Function/method return type. */
 	returnType: z.string().optional(),
+	/** Structured return type; absent when `returnType` is the whole story (see `TypeJson`). */
+	returnTypeInfo: TypeJson.optional(),
 	/** Return value description from `@returns` tag. */
 	returnDescription: z.string().optional()
 } as const;
@@ -507,10 +611,10 @@ export const VariableMemberJson = z.strictObject({
 	defaultValue: z.string().optional(),
 	/**
 	 * Structured type; absent when `typeSignature` is the whole story (see
-	 * `TypeJson`). Populated on checker-backed member paths — type-alias
-	 * properties and index signatures, inferred (unannotated) class properties,
-	 * getter-backed accessors. AST-backed members (annotated interface and
-	 * class properties, setter-only accessors) report written text without it.
+	 * `TypeJson`). Member types are checker-backed everywhere — type-alias and
+	 * interface properties and index signatures, class properties (annotated or
+	 * inferred), and accessors (getter-backed or setter-only) all resolve
+	 * through the checker, with written annotations feeding name recovery.
 	 */
 	typeInfo: TypeJson.optional()
 });

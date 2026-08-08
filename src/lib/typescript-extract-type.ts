@@ -31,7 +31,8 @@ import {
 	getNodeLocation,
 	getNonOptionalType,
 	parseGenericParam,
-	populateCallableMember
+	populateCallableMember,
+	populatePropertyMember
 } from './typescript-extract-shared.ts';
 import { resolveTypeInfo } from './typescript-extract-type-json.ts';
 import { extractTypeAliasProperties } from './typescript-extract-type-properties.ts';
@@ -60,9 +61,14 @@ export const extractTypeInfo = (
 		nodeType = checker.getTypeAtLocation(node);
 		declaration.typeSignature = checker.typeToString(nodeType);
 		// structured type on type aliases only — an interface is an object shape,
-		// terminal by the `TypeJson` absence contract, and its variant has no field
+		// terminal by the `TypeJson` absence contract, and its variant has no field.
+		// The right-hand side is the written node: an alias *over* an alias-lost
+		// name recovers it (`type B = Inferred` references `Inferred`)
 		if (ts.isTypeAliasDeclaration(node)) {
-			const typeInfo = resolveTypeInfo(nodeType, checker, false, node.name.text);
+			const typeInfo = resolveTypeInfo(nodeType, checker, false, {
+				ownAliasName: node.name.text,
+				writtenNode: node.type
+			});
 			if (typeInfo) declaration.typeInfo = typeInfo;
 		}
 	} catch (err) {
@@ -107,7 +113,8 @@ export const extractTypeInfo = (
 					kind: 'variable'
 				};
 
-				if (member.questionToken) {
+				const optional = !!member.questionToken;
+				if (optional) {
 					propDeclaration.optional = true;
 				}
 
@@ -117,13 +124,43 @@ export const extractTypeInfo = (
 					propDeclaration.modifiers = modifierFlags;
 				}
 
-				// Extract type
-				if (member.type) {
-					propDeclaration.typeSignature = member.type.getText();
+				const propTsdoc = parseComment(member, node.getSourceFile());
+
+				// Resolve the type through the checker like the type-alias property
+				// path — discovery stays on `node.members` (own members only), typing
+				// doesn't; the written annotation feeds `typeInfo` name recovery
+				try {
+					const propSymbol = checker.getSymbolAtLocation(member.name);
+					if (propSymbol) {
+						const propType = checker.getTypeOfSymbolAtLocation(propSymbol, member);
+						populatePropertyMember(
+							propDeclaration,
+							propType,
+							checker,
+							optional,
+							propTsdoc,
+							member,
+							propName,
+							diagnostics,
+							member.type
+						);
+					}
+				} catch (err) {
+					propDeclaration.partial = true;
+					const loc = getNodeLocation(member);
+					diagnostics.push({
+						kind: 'type_extraction_failed',
+						file: loc.file,
+						line: loc.line,
+						column: loc.column,
+						message: `Failed to extract type for interface property "${propName}" in "${declaration.name}": ${to_error_message(err)}`,
+						severity: 'warning',
+						symbolName: propName
+					});
 				}
 
-				// Extract TSDoc (applies docComment, examples, deprecated, seeAlso, since)
-				const propTsdoc = parseComment(member, node.getSourceFile());
+				// after `populatePropertyMember` so the kind is settled — `@default` is
+				// schema-allowed on variable members only and the apply gate reads `kind`
 				applyToDeclaration(propDeclaration, propTsdoc);
 
 				(declaration.members ??= []).push(propDeclaration);
@@ -199,7 +236,29 @@ export const extractTypeInfo = (
 					const indexDeclaration: MemberJsonBuild = { name, kind: 'variable' };
 
 					if (member.type) {
-						indexDeclaration.typeSignature = member.type.getText();
+						// checker-render the value type from the own-member node (the
+						// merged type's index info could carry inherited signatures)
+						try {
+							const indexType = checker.getTypeFromTypeNode(member.type);
+							// no optional strip on either output — `optional` is N/A for index signatures
+							indexDeclaration.typeSignature = checker.typeToString(indexType);
+							const typeInfo = resolveTypeInfo(indexType, checker, false, {
+								writtenNode: member.type
+							});
+							if (typeInfo) indexDeclaration.typeInfo = typeInfo;
+						} catch (err) {
+							indexDeclaration.partial = true;
+							const loc = getNodeLocation(member);
+							diagnostics.push({
+								kind: 'type_extraction_failed',
+								file: loc.file,
+								line: loc.line,
+								column: loc.column,
+								message: `Failed to extract type for index signature "${name}" in "${declaration.name}": ${to_error_message(err)}`,
+								severity: 'warning',
+								symbolName: name
+							});
+						}
 					}
 					const indexTsdoc = parseComment(member, node.getSourceFile());
 					applyToDeclaration(indexDeclaration, indexTsdoc);

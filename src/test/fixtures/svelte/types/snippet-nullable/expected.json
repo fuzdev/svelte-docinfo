@@ -11,8 +11,22 @@
 					"kind": "union",
 					"members": [
 						{
-							"kind": "function",
-							"text": "Snippet<[a: string]>"
+							"kind": "reference",
+							"name": "Snippet",
+							"typeArgs": [
+								{
+									"kind": "tuple",
+									"elements": [
+										{
+											"name": "a",
+											"type": {
+												"kind": "intrinsic",
+												"text": "string"
+											}
+										}
+									]
+								}
+							]
 						},
 						{
 							"kind": "intrinsic",
@@ -36,8 +50,22 @@
 					"kind": "union",
 					"members": [
 						{
-							"kind": "function",
-							"text": "Snippet<[b: string]>"
+							"kind": "reference",
+							"name": "Snippet",
+							"typeArgs": [
+								{
+									"kind": "tuple",
+									"elements": [
+										{
+											"name": "b",
+											"type": {
+												"kind": "intrinsic",
+												"text": "string"
+											}
+										}
+									]
+								}
+							]
 						},
 						{
 							"kind": "intrinsic",

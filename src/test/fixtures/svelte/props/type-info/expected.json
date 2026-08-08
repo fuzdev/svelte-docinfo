@@ -98,6 +98,31 @@
 				"name": "g",
 				"type": "Snippet<[b: B, i: number]>",
 				"optional": true,
+				"typeInfo": {
+					"kind": "reference",
+					"name": "Snippet",
+					"typeArgs": [
+						{
+							"kind": "tuple",
+							"elements": [
+								{
+									"name": "b",
+									"type": {
+										"kind": "reference",
+										"name": "B"
+									}
+								},
+								{
+									"name": "i",
+									"type": {
+										"kind": "intrinsic",
+										"text": "number"
+									}
+								}
+							]
+						}
+					]
+				},
 				"parameters": [
 					{
 						"name": "b",

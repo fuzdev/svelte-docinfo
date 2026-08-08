@@ -69,6 +69,18 @@
 						{
 							"name": "header",
 							"type": "Snippet<[title: string]>",
+							"typeInfo": {
+								"kind": "reference",
+								"name": "Snippet",
+								"typeArgs": [
+									{
+										"kind": "tuple",
+										"elements": [
+											{ "name": "title", "type": { "kind": "intrinsic", "text": "string" } }
+										]
+									}
+								]
+							},
 							"optional": true,
 							"description": "Custom header content, receives the resolved title.",
 							"parameters": [{ "name": "title", "type": "string" }]
@@ -102,7 +114,7 @@
 							"name": "history",
 							"kind": "variable",
 							"docComment": "Past counts; replaced wholesale on change, so raw state.",
-							"typeSignature": "ReadonlyArray<number>",
+							"typeSignature": "readonly number[]",
 							"reactivity": "$state.raw"
 						},
 						{
@@ -218,6 +230,18 @@
 						{
 							"name": "header",
 							"type": "Snippet<[title: string]>",
+							"typeInfo": {
+								"kind": "reference",
+								"name": "Snippet",
+								"typeArgs": [
+									{
+										"kind": "tuple",
+										"elements": [
+											{ "name": "title", "type": { "kind": "intrinsic", "text": "string" } }
+										]
+									}
+								]
+							},
 							"optional": true,
 							"description": "Custom header content, receives the resolved title.",
 							"parameters": [{ "name": "title", "type": "string" }]

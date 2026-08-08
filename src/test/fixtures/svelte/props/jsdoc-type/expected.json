@@ -35,6 +35,24 @@
 				"type": "Snippet<[a: string]>",
 				"optional": true,
 				"description": "Description 5",
+				"typeInfo": {
+					"kind": "reference",
+					"name": "Snippet",
+					"typeArgs": [
+						{
+							"kind": "tuple",
+							"elements": [
+								{
+									"name": "a",
+									"type": {
+										"kind": "intrinsic",
+										"text": "string"
+									}
+								}
+							]
+						}
+					]
+				},
 				"parameters": [
 					{
 						"name": "a",
