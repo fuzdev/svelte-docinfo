@@ -2,9 +2,6 @@ interface Box {
 	out: { a: string; b: number };
 }
 
-// an indexed-access right-hand side loses `aliasSymbol`
-type Inferred = Box['out'];
-
 declare const seed: Inferred;
 
 /**
@@ -13,3 +10,7 @@ declare const seed: Inferred;
  * `returnTypeInfo` is absent.
  */
 export const make = () => seed;
+
+// an indexed-access right-hand side loses `aliasSymbol`; exported below the
+// subject so the harness's first-exported walk still picks `make`
+export type Inferred = Box['out'];

@@ -3,7 +3,7 @@
 	"kind": "type",
 	"docComment": "A null-bearing alias-lost union at an optional position: the optional\nwidening flattens `LostNullable | undefined` into one union, so the walk\nnever sees the two-member union the written name maps — the members\nexpand instead of recovering.",
 	"typeSignature": "NullableHolder",
-	"sourceLine": 15,
+	"sourceLine": 11,
 	"members": [
 		{
 			"name": "maybe",

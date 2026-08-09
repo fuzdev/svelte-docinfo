@@ -4,6 +4,9 @@
 	/** A schema whose inferred type shares its name (the merged value+type pattern). */
 	export const Point = z.strictObject({ x: z.number(), y: z.number() });
 	export type Point = z.infer<typeof Point>;
+
+	/** An inferred (unannotated) return of the lost type. */
+	export const parsePoint = (input: unknown) => Point.parse(input);
 </script>
 
 <script lang="ts">

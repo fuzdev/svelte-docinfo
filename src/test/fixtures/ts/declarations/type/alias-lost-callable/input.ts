@@ -2,10 +2,6 @@ interface FBox {
 	f: (x: string) => { a: string };
 }
 
-// an alias-lost function type — the indexed-access right-hand side loses
-// `aliasSymbol`
-type LostFn = FBox['f'];
-
 /**
  * An alias-lost callable: a callable property projects as a function member
  * (signature fields, no `typeInfo`), and inside a union the callable branch
@@ -18,3 +14,8 @@ export type CallableHolder = {
 	/** Nullable callable — the union member stays a terminal function node. */
 	handler: LostFn | null;
 };
+
+// an alias-lost function type — the indexed-access right-hand side loses
+// `aliasSymbol`; exported below the subject so the harness's first-exported
+// walk still picks `CallableHolder`
+export type LostFn = FBox['f'];

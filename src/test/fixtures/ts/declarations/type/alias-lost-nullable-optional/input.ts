@@ -2,10 +2,6 @@ interface NBox {
 	n: { a: string } | null;
 }
 
-// an alias-lost nullable union — the indexed-access right-hand side loses
-// `aliasSymbol`
-type LostNullable = NBox['n'];
-
 /**
  * A null-bearing alias-lost union at an optional position: the optional
  * widening flattens `LostNullable | undefined` into one union, so the walk
@@ -15,3 +11,8 @@ type LostNullable = NBox['n'];
 export type NullableHolder = {
 	maybe?: LostNullable;
 };
+
+// an alias-lost nullable union — the indexed-access right-hand side loses
+// `aliasSymbol`; exported below the subject so the harness's first-exported
+// walk still picks `NullableHolder`
+export type LostNullable = NBox['n'];
