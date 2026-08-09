@@ -15,6 +15,7 @@
  * @see fn1
  * @since 1.0.0
  * @mutates b - Description 7
+ * @internal Description 8
  */
 export function fn(a: string, b: { c?: boolean }): string {
 	b.c = !!b.c;

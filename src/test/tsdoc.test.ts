@@ -4,7 +4,7 @@
  * These tests cover:
  * - Fixture-based parsing (all JSDoc tag types)
  * - Comment cleaning and normalization
- * - Tag extraction (@param, @returns, @throws, @example, @deprecated, @see, @since, @mutates, @nodocs)
+ * - Tag extraction (@param, @returns, @throws, @example, @deprecated, @internal, @see, @since, @mutates, @nodocs)
  * - Edge cases (empty comments, no comments, malformed JSDoc)
  * - Multi-line descriptions and tag content
  */
@@ -27,6 +27,18 @@ let fixtures: Array<TsdocFixture> = [];
 beforeAll(async () => {
 	fixtures = await loadFixtures();
 });
+
+/** Parse the JSDoc of `code`'s first statement. */
+const parseFirstStatement = (code: string) => {
+	const sourceFile = ts.createSourceFile(
+		'mod.ts',
+		code,
+		ts.ScriptTarget.Latest,
+		true,
+		ts.ScriptKind.TS
+	);
+	return parseComment(sourceFile.statements[0]!, sourceFile);
+};
 
 describe('tsdoc parser (fixture-based)', () => {
 	test('all fixtures parse correctly', () => {
@@ -113,17 +125,6 @@ describe('cleanComment', () => {
 });
 
 describe('parseComment module-comment filtering', () => {
-	const parseFirstStatement = (code: string) => {
-		const sourceFile = ts.createSourceFile(
-			'mod.ts',
-			code,
-			ts.ScriptTarget.Latest,
-			true,
-			ts.ScriptKind.TS
-		);
-		return parseComment(sourceFile.statements[0]!, sourceFile);
-	};
-
 	test('module comment attached to the first statement is not its own JSDoc', () => {
 		// The AST attaches a file's module comment to the first statement —
 		// parseComment must not read it (including its @nodocs) as statement docs
@@ -144,17 +145,6 @@ describe('parseComment module-comment filtering', () => {
 });
 
 describe('parseComment tag spelling synonyms', () => {
-	const parseFirstStatement = (code: string) => {
-		const sourceFile = ts.createSourceFile(
-			'mod.ts',
-			code,
-			ts.ScriptTarget.Latest,
-			true,
-			ts.ScriptKind.TS
-		);
-		return parseComment(sourceFile.statements[0]!, sourceFile);
-	};
-
 	test('`@defaultValue` (TSDoc) and `@defaultvalue` (JSDoc synonym) parse like `@default`', () => {
 		for (const spelling of ['default', 'defaultValue', 'defaultvalue']) {
 			const result = parseFirstStatement(

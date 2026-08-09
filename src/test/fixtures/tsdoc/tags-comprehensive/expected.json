@@ -19,6 +19,7 @@
 		"const a = fn('value', {c: true});"
 	],
 	"deprecatedMessage": "Description 6",
+	"internalMessage": "Description 7",
 	"seeAlso": [
 		"{@link https://fuz.dev}"
 	],

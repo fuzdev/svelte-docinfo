@@ -3,7 +3,7 @@
 	"kind": "function",
 	"docComment": "Description.\n\nAdditional description line.",
 	"typeSignature": "(a: string, b: { c?: boolean | undefined; }): string",
-	"sourceLine": 19,
+	"sourceLine": 20,
 	"examples": [
 		"const result = fn('value', {c: true});"
 	],
@@ -23,6 +23,7 @@
 		}
 	],
 	"since": "1.0.0",
+	"internalMessage": "Description 8",
 	"mutates": {
 		"b": "Description 7"
 	},

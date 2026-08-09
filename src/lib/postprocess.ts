@@ -374,6 +374,9 @@ export const resolveComponentAliases = (
 			if (canonical.deprecatedMessage !== undefined && decl.deprecatedMessage === undefined) {
 				filled.deprecatedMessage = canonical.deprecatedMessage;
 			}
+			if (canonical.internalMessage !== undefined && decl.internalMessage === undefined) {
+				filled.internalMessage = canonical.internalMessage;
+			}
 			if (canonical.since !== undefined && decl.since === undefined) {
 				filled.since = canonical.since;
 			}

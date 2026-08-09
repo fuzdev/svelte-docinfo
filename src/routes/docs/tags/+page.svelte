@@ -78,6 +78,14 @@
 						</td>
 					</tr>
 					<tr>
+						<td><code>@internal</code></td>
+						<td>
+							<code>internalMessage</code> on the parent declaration or member. A marker, not an exclusion
+							— the declaration stays documented; trailing prose is kept, and an empty body still marks
+							the symbol internal
+						</td>
+					</tr>
+					<tr>
 						<td><code>@see</code></td>
 						<td>
 							<code>seeAlso</code> array. Plain URLs, <code>{`{@link}`}</code> syntax, and module names
@@ -138,9 +146,9 @@
 				</li>
 				<li>
 					<strong>Symbol-scope</strong>: <code>@example</code>, <code>@deprecated</code>,
-					<code>@since</code>, <code>@see</code>, <code>@throws</code>, <code>@mutates</code>,
-					<code>@default</code>, <code>@nodocs</code>. These describe the symbol as a whole and live
-					on the parent declaration only.
+					<code>@internal</code>, <code>@since</code>, <code>@see</code>, <code>@throws</code>,
+					<code>@mutates</code>, <code>@default</code>, <code>@nodocs</code>. These describe the
+					symbol as a whole and live on the parent declaration only.
 				</li>
 			</ul>
 			<p>
@@ -209,6 +217,23 @@ export function double(n: number | bigint): number | bigint {
 			<p>
 				The output is a <code>Record&lt;string, string&gt;</code> mapping each key to its description.
 				Consumers decide how to render or group by key shape.
+			</p>
+		</TomeSection>
+
+		<TomeSection>
+			<TomeSectionHeader text="@internal" />
+			<p>
+				<code>@internal</code> marks a symbol as "not stable public API" per TSDoc semantics,
+				landing as <code>internalMessage</code> on declarations and members of every kind. Presence
+				means the tag was written — a bare tag yields an empty string, and trailing prose (common in
+				JSDoc corpora: <code>@internal used during development</code>) is kept as the field's value,
+				separate from <code>docComment</code>.
+			</p>
+			<p>
+				It is a <strong>marker, not an exclusion</strong>: the declaration remains fully documented,
+				so consumers can render a badge or filter as they see fit. To remove a declaration from
+				output entirely, use <code>@nodocs</code>; to omit whole modules, use
+				<code>exclude</code> patterns.
 			</p>
 		</TomeSection>
 

@@ -537,6 +537,19 @@ const declarationSharedFields = {
 	genericParams: z.array(GenericParamJson).default([]),
 	...docFields,
 	/**
+	 * Internal-API marker from the `@internal` tag. Presence means the tag was
+	 * written; an empty string is a bare tag with no trailing prose.
+	 *
+	 * A marker, not an exclusion: `@internal` means "not stable public API"
+	 * (TSDoc semantics) while the declaration stays documented — unlike
+	 * `@nodocs`, which removes it from output entirely.
+	 *
+	 * Deliberately here rather than in `docFields`: declarations and members
+	 * only, not `ComponentPropJson` (widen to props as a separate additive
+	 * change if demand appears).
+	 */
+	internalMessage: z.string().optional(),
+	/**
 	 * Mutation documentation from `@mutates` tags (non-standard), mapping keys to descriptions.
 	 *
 	 * Keys are intentionally unvalidated — typically a parameter name, but

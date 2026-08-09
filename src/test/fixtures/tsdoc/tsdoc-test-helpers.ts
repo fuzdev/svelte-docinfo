@@ -113,6 +113,10 @@ export const validateTsdocStructure = (tsdoc: TsdocParsedComment | undefined): v
 		throw new Error('Expected tsdoc.deprecatedMessage to be a string');
 	}
 
+	if (tsdoc.internalMessage !== undefined && typeof tsdoc.internalMessage !== 'string') {
+		throw new Error('Expected tsdoc.internalMessage to be a string');
+	}
+
 	if (tsdoc.seeAlso !== undefined) {
 		if (!Array.isArray(tsdoc.seeAlso)) {
 			throw new Error('Expected tsdoc.seeAlso to be an array');

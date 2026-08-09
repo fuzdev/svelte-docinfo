@@ -347,6 +347,7 @@ Fixtures with exported snippets:
 - [x] Single and multiple @throws tags (with error types)
 - [x] Single and multiple @example tags
 - [x] @deprecated tag
+- [x] @internal tag (with prose and bare)
 - [x] @see tag (bare URL, {@link}, with text)
 - [x] @see with mixed formats
 - [x] @since tag
