@@ -1045,6 +1045,60 @@ describe('typeJsonToTokens', () => {
 		);
 	});
 
+	test('a readonly array element parenthesizes inside an array', () => {
+		// `readonly string[][]` denotes a readonly array of `string[]` — a
+		// different type — so the element must parenthesize
+		assert.strictEqual(
+			typeJsonToText({
+				kind: 'array',
+				element: {
+					kind: 'array',
+					element: { kind: 'intrinsic', text: 'string' },
+					readonly: true
+				}
+			}),
+			'(readonly string[])[]'
+		);
+		assert.strictEqual(
+			typeJsonToText({
+				kind: 'array',
+				element: {
+					kind: 'tuple',
+					elements: [{ name: 'a', type: { kind: 'intrinsic', text: 'string' } }],
+					readonly: true
+				}
+			}),
+			'(readonly [a: string])[]'
+		);
+	});
+
+	test('a loose-binding terminal parenthesizes in composition', () => {
+		// `keyof T[]` is `keyof (T[])` and a conditional's false branch would
+		// swallow the `[]` — whitespace-carrying `other` text parenthesizes
+		assert.strictEqual(
+			typeJsonToText({
+				kind: 'array',
+				element: { kind: 'other', text: 'keyof T' }
+			}),
+			'(keyof T)[]'
+		);
+		assert.strictEqual(
+			typeJsonToText({
+				kind: 'union',
+				members: [
+					{ kind: 'other', text: 'T extends string ? A : B' },
+					{ kind: 'intrinsic', text: 'null' }
+				]
+			}),
+			'(T extends string ? A : B) | null'
+		);
+		// a bare type parameter stays unwrapped
+		assert.strictEqual(
+			typeJsonToText({ kind: 'array', element: { kind: 'other', text: 'T' } }),
+			'T[]'
+		);
+	});
+
 	test('intersections separate with ampersands', () => {
 		const node: TypeJson = {
 			kind: 'intersection',
@@ -1054,6 +1108,42 @@ describe('typeJsonToTokens', () => {
 			]
 		};
 		assert.strictEqual(typeJsonToText(node), 'A & B');
+	});
+
+	test('an alias-carrying intersection renders as its bare name', () => {
+		const node: TypeJson = {
+			kind: 'intersection',
+			alias: 'Merged',
+			members: [
+				{ kind: 'reference', name: 'A' },
+				{ kind: 'reference', name: 'B' }
+			]
+		};
+		assert.deepStrictEqual(typeJsonToTokens(node), [{ kind: 'name', name: 'Merged' }]);
+	});
+
+	test('a union type argument stays bare inside the angle brackets', () => {
+		const node: TypeJson = {
+			kind: 'reference',
+			name: 'Map',
+			typeArgs: [
+				{
+					kind: 'union',
+					members: [
+						{ kind: 'reference', name: 'A' },
+						{ kind: 'reference', name: 'B' }
+					]
+				},
+				{ kind: 'intrinsic', text: 'string' }
+			]
+		};
+		assert.strictEqual(typeJsonToText(node), 'Map<A | B, string>');
+	});
+
+	test('a terminal root is a single code token', () => {
+		assert.deepStrictEqual(typeJsonToTokens({ kind: 'object', text: '{ a: string; }' }), [
+			{ kind: 'code', text: '{ a: string; }' }
+		]);
 	});
 
 	test('tuples render labels, optional and rest markers', () => {
@@ -1080,8 +1170,73 @@ describe('typeJsonToTokens', () => {
 		assert.strictEqual(typeJsonToText(node), '[string?]');
 	});
 
+	test('an unnamed optional element parenthesizes non-atomic types', () => {
+		// the postfix `?` is valid only after an atomic type — `[() => void?]`
+		// and `[string | number?]` are parse errors
+		assert.strictEqual(
+			typeJsonToText({
+				kind: 'tuple',
+				elements: [{ type: { kind: 'function', text: '() => void' }, optional: true }]
+			}),
+			'[(() => void)?]'
+		);
+		assert.strictEqual(
+			typeJsonToText({
+				kind: 'tuple',
+				elements: [
+					{
+						type: {
+							kind: 'union',
+							members: [
+								{ kind: 'intrinsic', text: 'string' },
+								{ kind: 'intrinsic', text: 'number' }
+							]
+						},
+						optional: true
+					}
+				]
+			}),
+			'[(string | number)?]'
+		);
+	});
+
 	test('the empty tuple renders bare brackets', () => {
 		assert.strictEqual(typeJsonToText({ kind: 'tuple' }), '[]');
+	});
+
+	test('a readonly tuple carries the modifier at the root', () => {
+		assert.strictEqual(
+			typeJsonToText({
+				kind: 'tuple',
+				elements: [{ name: 'a', type: { kind: 'intrinsic', text: 'string' } }],
+				readonly: true
+			}),
+			'readonly [a: string]'
+		);
+	});
+
+	test('unnamed rest and variadic elements compose after the spread', () => {
+		// an unnamed rest element's type is already the collecting array
+		assert.strictEqual(
+			typeJsonToText({
+				kind: 'tuple',
+				elements: [
+					{ type: { kind: 'array', element: { kind: 'intrinsic', text: 'string' } }, rest: true }
+				]
+			}),
+			'[...string[]]'
+		);
+		// a variadic spread of an unresolved type carries the spread type itself
+		assert.strictEqual(
+			typeJsonToText({
+				kind: 'tuple',
+				elements: [
+					{ name: 'a', type: { kind: 'intrinsic', text: 'string' } },
+					{ type: { kind: 'other', text: 'T' }, rest: true }
+				]
+			}),
+			'[a: string, ...T]'
+		);
 	});
 
 	test('adjacent punctuation merges into single text tokens', () => {

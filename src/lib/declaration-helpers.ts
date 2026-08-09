@@ -187,13 +187,27 @@ export type TypeJsonToken =
 
 /**
  * Whether a node's rendering is ambiguous when composed into a surrounding
- * union, intersection, or array and needs parentheses. Alias-carrying
- * unions/intersections render as their bare alias name, so they compose
- * without parens.
+ * union, intersection, array, or optional tuple element and needs
+ * parentheses. Alias-carrying unions/intersections render as their bare
+ * alias name, so they compose without parens. A terminal `other` node whose
+ * text contains whitespace (a conditional type, `keyof T`) parenthesizes
+ * defensively — its text binds loosely in composition
+ * (`(keyof T)[]` vs `keyof T[]` are different types) and extra parens never
+ * change meaning.
  */
 const needsParens = (node: TypeJson): boolean =>
 	node.kind === 'function' ||
-	((node.kind === 'union' || node.kind === 'intersection') && node.alias === undefined);
+	((node.kind === 'union' || node.kind === 'intersection') && node.alias === undefined) ||
+	(node.kind === 'other' && node.text.includes(' '));
+
+/**
+ * The parens rule in array-element position: a `readonly` element modifier
+ * is captured by the postfix `[]` — `readonly string[][]` denotes a readonly
+ * array of `string[]`, not an array of `readonly string[]` — so readonly
+ * arrays and tuples parenthesize there too.
+ */
+const needsParensInArray = (node: TypeJson): boolean =>
+	needsParens(node) || ((node.kind === 'array' || node.kind === 'tuple') && node.readonly === true);
 
 const pushText = (tokens: Array<TypeJsonToken>, text: string): void => {
 	const last = tokens.at(-1);
@@ -204,8 +218,12 @@ const pushText = (tokens: Array<TypeJsonToken>, text: string): void => {
 	}
 };
 
-const pushParenthesized = (tokens: Array<TypeJsonToken>, node: TypeJson): void => {
-	if (needsParens(node)) {
+const pushParenthesized = (
+	tokens: Array<TypeJsonToken>,
+	node: TypeJson,
+	parens: (node: TypeJson) => boolean = needsParens
+): void => {
+	if (parens(node)) {
 		pushText(tokens, '(');
 		pushNode(tokens, node);
 		pushText(tokens, ')');
@@ -214,13 +232,32 @@ const pushParenthesized = (tokens: Array<TypeJsonToken>, node: TypeJson): void =
 	}
 };
 
+const pushSeparated = <T>(
+	tokens: Array<TypeJsonToken>,
+	items: Array<T>,
+	separator: string,
+	pushItem: (tokens: Array<TypeJsonToken>, item: T) => void
+): void => {
+	for (let i = 0; i < items.length; i++) {
+		if (i > 0) pushText(tokens, separator);
+		pushItem(tokens, items[i]!);
+	}
+};
+
 // a rest element's type is already the array it collects, so `...` composes
-// directly; an unnamed optional element takes the postfix form (`[string?]`)
+// directly; an unnamed optional element takes the postfix form (`[string?]`),
+// where the `?` is valid only after a syntactically atomic type — a bare
+// `[() => void?]` or `[string | number?]` is a parse error, so ambiguous
+// forms parenthesize (`[(() => void)?]`)
 const pushTupleElement = (tokens: Array<TypeJsonToken>, element: TupleElementJson): void => {
 	if (element.rest) pushText(tokens, '...');
 	if (element.name === undefined) {
-		pushNode(tokens, element.type);
-		if (element.optional) pushText(tokens, '?');
+		if (element.optional) {
+			pushParenthesized(tokens, element.type);
+			pushText(tokens, '?');
+		} else {
+			pushNode(tokens, element.type);
+		}
 	} else {
 		pushText(tokens, element.optional ? `${element.name}?: ` : `${element.name}: `);
 		pushNode(tokens, element.type);
@@ -234,10 +271,7 @@ const pushNode = (tokens: Array<TypeJsonToken>, node: TypeJson): void => {
 			const { typeArgs } = node;
 			if (typeArgs?.length) {
 				pushText(tokens, '<');
-				for (let i = 0; i < typeArgs.length; i++) {
-					if (i > 0) pushText(tokens, ', ');
-					pushNode(tokens, typeArgs[i]!);
-				}
+				pushSeparated(tokens, typeArgs, ', ', pushNode);
 				pushText(tokens, '>');
 			}
 			break;
@@ -251,27 +285,20 @@ const pushNode = (tokens: Array<TypeJsonToken>, node: TypeJson): void => {
 				break;
 			}
 			const separator = node.kind === 'union' ? ' | ' : ' & ';
-			for (let i = 0; i < node.members.length; i++) {
-				if (i > 0) pushText(tokens, separator);
-				pushParenthesized(tokens, node.members[i]!);
-			}
+			pushSeparated(tokens, node.members, separator, pushParenthesized);
 			break;
 		}
 		case 'array': {
 			if (node.readonly) pushText(tokens, 'readonly ');
-			pushParenthesized(tokens, node.element);
+			pushParenthesized(tokens, node.element, needsParensInArray);
 			pushText(tokens, '[]');
 			break;
 		}
 		case 'tuple': {
 			if (node.readonly) pushText(tokens, 'readonly ');
 			pushText(tokens, '[');
-			const { elements } = node;
-			if (elements) {
-				for (let i = 0; i < elements.length; i++) {
-					if (i > 0) pushText(tokens, ', ');
-					pushTupleElement(tokens, elements[i]!);
-				}
+			if (node.elements) {
+				pushSeparated(tokens, node.elements, ', ', pushTupleElement);
 			}
 			pushText(tokens, ']');
 			break;

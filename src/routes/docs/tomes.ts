@@ -117,9 +117,11 @@ export const tomes: Array<Tome> = [
 			'ParameterJson',
 			'OverloadJson',
 			'GenericParamJson',
+			'TypeJson',
 			'compactReplacer',
 			'typeJsonToTokens',
-			'typeJsonToText'
+			'typeJsonToText',
+			'TypeJsonToken'
 		]
 	},
 	{
