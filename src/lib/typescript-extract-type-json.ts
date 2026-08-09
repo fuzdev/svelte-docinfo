@@ -377,6 +377,13 @@ const createNameRecovery = (
  * `dropUndefined`) — the registry's member-set side index, which is what
  * recovers a `null`-bearing lost union that the widening flattened past
  * identity match.
+ *
+ * Registry hits carry `module` — the winning entry's declaring
+ * `ModuleJson.path`, always an emitted module since gated modules never
+ * register — so renderers can link collision-exactly. Written hits
+ * deliberately don't: the written name is whatever the author spelled at this
+ * site (possibly not the registry's winner), and resolving its module would
+ * need source-options threading the written channel doesn't have.
  */
 const recoveredReference = (
 	type: ts.Type,
@@ -391,14 +398,13 @@ const recoveredReference = (
 	const { registry } = recovery;
 	if (registry === undefined) return undefined;
 	if (depth === 0 && recovery.suppressRegistryAtRoot) return undefined;
-	const entry = registry.byType.get(type);
-	if (entry) return { kind: 'reference', name: entry.name };
-	if (memberSetEligible && type.isUnion()) {
+	let entry = registry.byType.get(type);
+	if (entry === undefined && memberSetEligible && type.isUnion()) {
 		const key = unionMemberSetKey(type);
-		const side = key === undefined ? undefined : registry.byMemberSet.get(key);
-		if (side) return { kind: 'reference', name: side.name };
+		if (key !== undefined) entry = registry.byMemberSet.get(key);
 	}
-	return undefined;
+	if (entry === undefined) return undefined;
+	return { kind: 'reference', name: entry.name, module: entry.module };
 };
 
 /**

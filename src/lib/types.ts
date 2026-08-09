@@ -217,6 +217,17 @@ export type GenericParamJson = z.infer<typeof GenericParamJson>;
  * name, while a recovered one stands against the anonymous expansion, so the
  * name exists only in the tree.
  *
+ * **Registry recovery**: behind the written channel, unannotated positions
+ * recover through the analyzed set's alias registry — any exported,
+ * non-`@nodocs`, non-generic lost alias of an emitted module, matched by
+ * checker type identity. A registry-recovered reference additionally carries
+ * `module`, the declaring module's `ModuleJson.path` — provenance for
+ * collision-exact linking, and always an emitted module (gated modules never
+ * register), so a consumer lookup by `(module, name)` can't dangle. `module`
+ * is registry-only, deliberately: a written-channel recovery names whatever
+ * the author wrote at the site (which may not be the registry's winner), and
+ * checker-named references never carry it — consumers must handle absence.
+ *
  * **Member order and nested aliases**: union members follow the flat string's
  * printed order — `null`/`undefined` sink last, and the checker's `origin`
  * (the same internal field the flat strings are printed from) lists plain
@@ -242,9 +253,11 @@ export type TypeJson =
 	 * generic instantiation — callable instantiations like `Snippet<[a: string]>`
 	 * included (see the callable-classification policy above). `typeArgs` is
 	 * present only for generic instantiations (`Map<string, Tome>`); a bare
-	 * reference carries `name` alone.
+	 * reference carries `name` alone. `module` — the declaring module's
+	 * `ModuleJson.path`, always one this output emits — is present only on
+	 * registry-recovered references (see the registry-recovery policy above).
 	 */
-	| { kind: 'reference'; name: string; typeArgs?: Array<TypeJson> }
+	| { kind: 'reference'; name: string; module?: string; typeArgs?: Array<TypeJson> }
 	/** An array type (`Tome[]`, `Array<Tome>`); `readonly` (emitted only when `true`) marks `readonly Tome[]` / `ReadonlyArray<Tome>`. */
 	| { kind: 'array'; element: TypeJson; readonly?: boolean }
 	/**
@@ -309,6 +322,7 @@ export const TypeJson: z.ZodType<TypeJson, TypeJson> = z.lazy(() =>
 		z.strictObject({
 			kind: z.literal('reference'),
 			name: z.string(),
+			module: z.string().optional(),
 			typeArgs: z.array(TypeJson).optional()
 		}),
 		z.strictObject({

@@ -180,10 +180,15 @@ const pascalCaseFromModulePath = (modulePath: string): string => {
  * unions/intersections — `code` tokens are terminal type text (intrinsics,
  * literals, anonymous objects/functions, depth-capped nodes) for a renderer
  * to syntax-highlight, and `text` tokens are structural punctuation
- * (`<`, ` | `, `[]`, tuple labels).
+ * (`<`, ` | `, `[]`, tuple labels). A `name` token carries `module` when its
+ * reference node does (registry-recovered references — the declaring
+ * `ModuleJson.path`), so a renderer can scope the link; alias-name tokens
+ * never carry it.
  */
 export type TypeJsonToken =
-	{ kind: 'text'; text: string } | { kind: 'name'; name: string } | { kind: 'code'; text: string };
+	| { kind: 'text'; text: string }
+	| { kind: 'name'; name: string; module?: string }
+	| { kind: 'code'; text: string };
 
 /**
  * Whether a node's rendering is ambiguous when composed into a surrounding
@@ -267,7 +272,11 @@ const pushTupleElement = (tokens: Array<TypeJsonToken>, element: TupleElementJso
 const pushNode = (tokens: Array<TypeJsonToken>, node: TypeJson): void => {
 	switch (node.kind) {
 		case 'reference': {
-			tokens.push({ kind: 'name', name: node.name });
+			tokens.push(
+				node.module === undefined
+					? { kind: 'name', name: node.name }
+					: { kind: 'name', name: node.name, module: node.module }
+			);
 			const { typeArgs } = node;
 			if (typeArgs?.length) {
 				pushText(tokens, '<');

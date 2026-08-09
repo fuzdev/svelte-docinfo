@@ -103,6 +103,8 @@ export const parsePoint = (input: unknown) => Point.parse(input);
 export const pointList = (input: unknown) => [Point.parse(input)];
 /** Inferred \`Promise<Lost>\` — the typeArg reference makes the absent tree appear. */
 export const pointLater = async (input: unknown) => Point.parse(input);
+/** The lost type at the depth cap — registry recovery still fires there. */
+export const pointDeep = (input: unknown) => [[[[[Point.parse(input)]]]]];
 /** Inferred literal union — interned, never recovered. */
 export const parseKind = (input: unknown) => Kind.parse(input);
 /** Inferred variable of the input-side type. */
@@ -172,7 +174,12 @@ describe('alias registry over real zod', () => {
 		// recovery here proves the gate keys on the __-prefix symbol rule
 		const decl = declOf(consumers, 'parsePoint');
 		assert(decl.kind === 'function', 'expected a function');
-		assert.deepStrictEqual(decl.returnTypeInfo, { kind: 'reference', name: 'Point' });
+		// registry hits carry `module` — the winning alias's declaring module
+		assert.deepStrictEqual(decl.returnTypeInfo, {
+			kind: 'reference',
+			name: 'Point',
+			module: 'schemas.ts'
+		});
 		// the flat string stays the checker's canonical rendering
 		assert.strictEqual(decl.returnType, '{ x: number; y: number; }');
 	});
@@ -185,15 +192,31 @@ describe('alias registry over real zod', () => {
 		assert(list.kind === 'function', 'expected a function');
 		assert.deepStrictEqual(list.returnTypeInfo, {
 			kind: 'array',
-			element: { kind: 'reference', name: 'Point' }
+			element: { kind: 'reference', name: 'Point', module: 'schemas.ts' }
 		});
 		const later = declOf(consumers, 'pointLater');
 		assert(later.kind === 'function', 'expected a function');
+		// the checker-named `Promise` reference carries no `module` — only the
+		// registry-recovered typeArg does
 		assert.deepStrictEqual(later.returnTypeInfo, {
 			kind: 'reference',
 			name: 'Promise',
-			typeArgs: [{ kind: 'reference', name: 'Point' }]
+			typeArgs: [{ kind: 'reference', name: 'Point', module: 'schemas.ts' }]
 		});
+	});
+
+	test('registry recovery fires at the depth cap, module included', () => {
+		// five array levels put the element at MAX_TYPE_JSON_DEPTH — the cap
+		// branch consults recovery before degrading to elided text, and a
+		// registry hit there carries `module` like any other
+		const decl = declOf(consumers, 'pointDeep');
+		assert(decl.kind === 'function', 'expected a function');
+		let node = decl.returnTypeInfo;
+		for (let i = 0; i < 5; i++) {
+			assert(node?.kind === 'array', `expected an array node at depth ${i}`);
+			node = node.element;
+		}
+		assert.deepStrictEqual(node, { kind: 'reference', name: 'Point', module: 'schemas.ts' });
 	});
 
 	test('z.enum outputs never register — interned literal unions expand', () => {
@@ -209,7 +232,11 @@ describe('alias registry over real zod', () => {
 	test('the z.input family registers beside the output type', () => {
 		const decl = declOf(consumers, 'derivedInput');
 		assert(decl.kind === 'variable', 'expected a variable');
-		assert.deepStrictEqual(decl.typeInfo, { kind: 'reference', name: 'WithDefaultInput' });
+		assert.deepStrictEqual(decl.typeInfo, {
+			kind: 'reference',
+			name: 'WithDefaultInput',
+			module: 'schemas.ts'
+		});
 	});
 
 	test('a cyclic lost type registers without crashing and recovers', () => {
@@ -217,7 +244,11 @@ describe('alias registry over real zod', () => {
 		// what keeps registration from overflowing
 		const decl = declOf(consumers, 'parseCategory');
 		assert(decl.kind === 'function', 'expected a function');
-		assert.deepStrictEqual(decl.returnTypeInfo, { kind: 'reference', name: 'Category' });
+		assert.deepStrictEqual(decl.returnTypeInfo, {
+			kind: 'reference',
+			name: 'Category',
+			module: 'schemas.ts'
+		});
 	});
 
 	test('own-declaration self-skip: the pair documents structurally, nested self-hits stay live', () => {
@@ -232,7 +263,7 @@ describe('alias registry over real zod', () => {
 		assert(children?.kind === 'variable', 'expected a variable member');
 		assert.deepStrictEqual(children.typeInfo, {
 			kind: 'array',
-			element: { kind: 'reference', name: 'Category' }
+			element: { kind: 'reference', name: 'Category', module: 'schemas.ts' }
 		});
 	});
 
@@ -241,7 +272,11 @@ describe('alias registry over real zod', () => {
 		// the tie-break says TwinA everywhere
 		const decl = declOf(consumers, 'parseTwin');
 		assert(decl.kind === 'function', 'expected a function');
-		assert.deepStrictEqual(decl.returnTypeInfo, { kind: 'reference', name: 'TwinA' });
+		assert.deepStrictEqual(decl.returnTypeInfo, {
+			kind: 'reference',
+			name: 'TwinA',
+			module: 'schemas.ts'
+		});
 		// same rule keeps parsePoint on 'Point' over its 'PointOutput' twin
 	});
 
@@ -254,7 +289,11 @@ describe('alias registry over real zod', () => {
 		assert(maybe?.kind === 'variable', 'expected a variable member');
 		assert.strictEqual(maybe.optional, true);
 		assert.strictEqual(maybe.typeSignature, '{ x: number; y: number; } | null');
-		assert.deepStrictEqual(maybe.typeInfo, { kind: 'reference', name: 'NullablePoint' });
+		assert.deepStrictEqual(maybe.typeInfo, {
+			kind: 'reference',
+			name: 'NullablePoint',
+			module: 'schemas.ts'
+		});
 	});
 
 	test('an array-root loss stays outside the predicate — documented v1 boundary', () => {
@@ -282,6 +321,31 @@ describe('alias registry over real zod', () => {
 		const decl = declOf(consumers, 'derivedGated');
 		assert(decl.kind === 'variable', 'expected a variable');
 		assert.strictEqual(decl.typeInfo, undefined);
+	});
+
+	test('every reference `module` in the output names an emitted module', () => {
+		// the no-dangling-links invariant: `module` is emitted only from registry
+		// entries, and only emitted modules register, so a `(module, name)`
+		// lookup always lands on a module in this output
+		const emittedPaths = new Set(result.modules.map((m) => m.path));
+		const moduleRefs: Array<string> = [];
+		const walk = (value: unknown): void => {
+			if (Array.isArray(value)) {
+				for (const entry of value) walk(entry);
+				return;
+			}
+			if (value === null || typeof value !== 'object') return;
+			const record = value as Record<string, unknown>;
+			if (record.kind === 'reference' && typeof record.module === 'string') {
+				moduleRefs.push(record.module);
+			}
+			for (const entry of Object.values(record)) walk(entry);
+		};
+		walk(result.modules);
+		assert.ok(moduleRefs.length > 0, 'expected registry-recovered references in the corpus');
+		for (const module of moduleRefs) {
+			assert.ok(emittedPaths.has(module), `expected an emitted module for ${module}`);
+		}
 	});
 });
 

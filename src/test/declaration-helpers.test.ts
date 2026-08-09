@@ -670,12 +670,20 @@ describe('compactReplacer', () => {
 						intersects: ['External'],
 						members: [{ name: 'a', kind: 'variable', typeSignature: 'string', optional: false }]
 					},
-					// VariableDeclarationJson — reactivity
+					// VariableDeclarationJson — reactivity, plus a typeInfo tree with a
+					// registry-recovered (module-carrying) reference
 					{
 						name: 'count',
 						kind: 'variable',
 						typeSignature: 'number',
-						reactivity: '$state'
+						reactivity: '$state',
+						typeInfo: {
+							kind: 'union',
+							members: [
+								{ kind: 'reference', name: 'Lost', module: 'schemas.ts' },
+								{ kind: 'intrinsic', text: 'null' }
+							]
+						}
 					},
 					// EnumDeclarationJson — members
 					{
@@ -953,6 +961,16 @@ describe('typeJsonToTokens', () => {
 	test('a bare reference is a single name token', () => {
 		const tokens = typeJsonToTokens({ kind: 'reference', name: 'A' });
 		assert.deepStrictEqual(tokens, [{ kind: 'name', name: 'A' }]);
+	});
+
+	test('a registry-recovered reference passes `module` through to its name token', () => {
+		const node: TypeJson = { kind: 'reference', name: 'A', module: 'a.ts' };
+		assert.deepStrictEqual(typeJsonToTokens(node), [{ kind: 'name', name: 'A', module: 'a.ts' }]);
+		// module-less references stay module-less tokens — no `module: undefined` key
+		const bare = typeJsonToTokens({ kind: 'reference', name: 'A' });
+		assert.ok(bare[0] && !('module' in bare[0]));
+		// `module` is link scoping, never rendered text
+		assert.strictEqual(typeJsonToText(node), 'A');
 	});
 
 	test('a generic instantiation packs punctuation around recursive args', () => {

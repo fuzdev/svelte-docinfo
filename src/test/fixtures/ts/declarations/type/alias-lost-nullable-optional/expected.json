@@ -12,7 +12,8 @@
 			"optional": true,
 			"typeInfo": {
 				"kind": "reference",
-				"name": "LostNullable"
+				"name": "LostNullable",
+				"module": "declarations/type/alias-lost-nullable-optional.ts"
 			}
 		}
 	]
