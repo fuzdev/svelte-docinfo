@@ -2,14 +2,21 @@
  * Utility functions for working with declaration and member types.
  *
  * Display formatting, code generation, serialization, type narrowing,
- * and type reference discovery for `DeclarationJson` and `MemberJson`.
+ * and `TypeJson` tokenization for `DeclarationJson` and `MemberJson`.
  *
- * @see `types.ts` for `DeclarationJson`, `MemberJson` Zod schemas
+ * @see `types.ts` for `DeclarationJson`, `MemberJson`, `TypeJson` Zod schemas
  *
  * @module
  */
 
-import type { DeclarationJson, MemberJson, DeclarationKind, MemberKind } from './types.ts';
+import type {
+	DeclarationJson,
+	MemberJson,
+	DeclarationKind,
+	MemberKind,
+	TupleElementJson,
+	TypeJson
+} from './types.ts';
 
 // Serialization
 
@@ -164,99 +171,148 @@ const pascalCaseFromModulePath = (modulePath: string): string => {
 		.join('');
 };
 
-// Type Reference Helpers
+// TypeJson Tokenization
 
 /**
- * Escape special regex characters in a string.
+ * One rendered piece of a `TypeJson` tree, produced by `typeJsonToTokens`:
+ * `name` tokens are candidate references for a renderer to link (or print
+ * plainly) — reference names, alias names of alias-carrying
+ * unions/intersections — `code` tokens are terminal type text (intrinsics,
+ * literals, anonymous objects/functions, depth-capped nodes) for a renderer
+ * to syntax-highlight, and `text` tokens are structural punctuation
+ * (`<`, ` | `, `[]`, tuple labels).
  */
-const escapeRegex = (s: string): string => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-
-/** Matches TypeScript identifier characters (letters, digits, `_`, `$`). */
-const ID_CHAR = '[a-zA-Z0-9_$]';
-
-/**
- * Build a regex that matches `name` only at identifier boundaries.
- *
- * Uses lookaround for `[a-zA-Z0-9_$]` instead of `\b` so that
- * `$`-prefixed identifiers like `$state` are matched correctly.
- */
-const buildIdentifierPattern = (name: string): RegExp =>
-	new RegExp('(?<!' + ID_CHAR + ')' + escapeRegex(name) + '(?!' + ID_CHAR + ')');
+export type TypeJsonToken =
+	{ kind: 'text'; text: string } | { kind: 'name'; name: string } | { kind: 'code'; text: string };
 
 /**
- * Pre-compile identifier-boundary patterns for a set of declaration names.
- *
- * When scanning many type strings against the same declaration set,
- * call this once and pass the result to `findTypeReferences`
- * to avoid recompiling regexes on every call.
- *
- * @param declarationNames - set of known in-project declaration names
- * @returns array of `[name, pattern]` pairs for use with `findTypeReferences`
- *
- * @example
- * ```ts
- * const names = new Set(modules.flatMap(m => m.declarations.map(d => d.name)));
- * const patterns = buildTypeReferencePatterns(names);
- * for (const decl of declarations) {
- *   const refs = findTypeReferences(decl.typeSignature, patterns);
- * }
- * ```
+ * Whether a node's rendering is ambiguous when composed into a surrounding
+ * union, intersection, or array and needs parentheses. Alias-carrying
+ * unions/intersections render as their bare alias name, so they compose
+ * without parens.
  */
-export const buildTypeReferencePatterns = (
-	declarationNames: ReadonlySet<string>
-): Array<[string, RegExp]> => {
-	const patterns: Array<[string, RegExp]> = [];
-	for (const name of declarationNames) {
-		if (name) patterns.push([name, buildIdentifierPattern(name)]);
+const needsParens = (node: TypeJson): boolean =>
+	node.kind === 'function' ||
+	((node.kind === 'union' || node.kind === 'intersection') && node.alias === undefined);
+
+const pushText = (tokens: Array<TypeJsonToken>, text: string): void => {
+	const last = tokens.at(-1);
+	if (last?.kind === 'text') {
+		last.text += text;
+	} else {
+		tokens.push({ kind: 'text', text });
 	}
-	return patterns;
+};
+
+const pushParenthesized = (tokens: Array<TypeJsonToken>, node: TypeJson): void => {
+	if (needsParens(node)) {
+		pushText(tokens, '(');
+		pushNode(tokens, node);
+		pushText(tokens, ')');
+	} else {
+		pushNode(tokens, node);
+	}
+};
+
+// a rest element's type is already the array it collects, so `...` composes
+// directly; an unnamed optional element takes the postfix form (`[string?]`)
+const pushTupleElement = (tokens: Array<TypeJsonToken>, element: TupleElementJson): void => {
+	if (element.rest) pushText(tokens, '...');
+	if (element.name === undefined) {
+		pushNode(tokens, element.type);
+		if (element.optional) pushText(tokens, '?');
+	} else {
+		pushText(tokens, element.optional ? `${element.name}?: ` : `${element.name}: `);
+		pushNode(tokens, element.type);
+	}
+};
+
+const pushNode = (tokens: Array<TypeJsonToken>, node: TypeJson): void => {
+	switch (node.kind) {
+		case 'reference': {
+			tokens.push({ kind: 'name', name: node.name });
+			const { typeArgs } = node;
+			if (typeArgs?.length) {
+				pushText(tokens, '<');
+				for (let i = 0; i < typeArgs.length; i++) {
+					if (i > 0) pushText(tokens, ', ');
+					pushNode(tokens, typeArgs[i]!);
+				}
+				pushText(tokens, '>');
+			}
+			break;
+		}
+		case 'union':
+		case 'intersection': {
+			// a written sub-alias survives as an alias-carrying node — emit the
+			// name (linkable) rather than expanding the members it stands for
+			if (node.alias !== undefined) {
+				tokens.push({ kind: 'name', name: node.alias });
+				break;
+			}
+			const separator = node.kind === 'union' ? ' | ' : ' & ';
+			for (let i = 0; i < node.members.length; i++) {
+				if (i > 0) pushText(tokens, separator);
+				pushParenthesized(tokens, node.members[i]!);
+			}
+			break;
+		}
+		case 'array': {
+			if (node.readonly) pushText(tokens, 'readonly ');
+			pushParenthesized(tokens, node.element);
+			pushText(tokens, '[]');
+			break;
+		}
+		case 'tuple': {
+			if (node.readonly) pushText(tokens, 'readonly ');
+			pushText(tokens, '[');
+			const { elements } = node;
+			if (elements) {
+				for (let i = 0; i < elements.length; i++) {
+					if (i > 0) pushText(tokens, ', ');
+					pushTupleElement(tokens, elements[i]!);
+				}
+			}
+			pushText(tokens, ']');
+			break;
+		}
+		default: {
+			// terminal kinds: intrinsic, literal, function, object, other
+			tokens.push({ kind: 'code', text: node.text });
+		}
+	}
 };
 
 /**
- * Find in-project declaration names referenced in a type string.
+ * Flatten a `TypeJson` tree into a render-ready token list.
  *
- * Uses identifier-boundary matching to find which known declaration names appear
- * in an opaque type string (e.g., `typeSignature`, `returnType`, parameter `type`).
- * Enables consumers to render clickable type links without needing access to
- * the TypeScript type checker.
+ * The semantic linearization for renderers: spacing, separators,
+ * parenthesization (`((x) => void) | null`, `(A | B)[]`), and tuple labels
+ * (`[a: string, b?: number, ...rest: boolean[]]`) are decided here — in
+ * lockstep with the `TypeJson` schema's projection rules — so a renderer
+ * maps tokens to output without re-deriving type syntax. What a token
+ * *looks like* stays the consumer's decision: fuz_ui links `name` tokens to
+ * API docs and syntax-highlights `code` tokens; a CLI might print them all
+ * plainly. Adjacent punctuation merges into single `text` tokens.
  *
- * Handles identifiers starting with `$` (e.g., `$state`) which `\b` does not
- * recognize as word boundaries.
- *
- * Accepts either a `ReadonlySet<string>` (convenience) or pre-compiled patterns
- * from `buildTypeReferencePatterns` (performance). Use pre-compiled patterns
- * when scanning many type strings against the same declaration set.
- *
- * **Known limitations**: Identifier-boundary matching can produce false positives
- * when a declaration name appears as a property key in an object literal type
- * (e.g., `{ Foo: string }` when `Foo` is a declaration). This is rare in practice.
- *
- * @param typeString - opaque type string from analysis output
- * @param declarationNames - set of names or pre-compiled patterns from `buildTypeReferencePatterns`
- * @returns array of declaration names found in the type string
+ * @param node - the `TypeJson` tree to flatten (a `typeInfo`/`returnTypeInfo` field)
+ * @returns tokens in source order; concatenating their text yields the printed type
  *
  * @example
  * ```ts
- * const names = new Set(modules.flatMap(m => m.declarations.map(d => d.name)));
- * findTypeReferences('Map<string, ModuleJson[]>', names)
- * // => ['ModuleJson']
+ * typeJsonToTokens({kind: 'reference', name: 'Map', typeArgs: [
+ * 	{kind: 'intrinsic', text: 'string'},
+ * 	{kind: 'reference', name: 'Tome'}
+ * ]})
+ * // => [{kind: 'name', name: 'Map'}, {kind: 'text', text: '<'},
+ * //     {kind: 'code', text: 'string'}, {kind: 'text', text: ', '},
+ * //     {kind: 'name', name: 'Tome'}, {kind: 'text', text: '>'}]
  * ```
  */
-export const findTypeReferences = (
-	typeString: string,
-	declarationNames: ReadonlySet<string> | Array<[string, RegExp]>
-): Array<string> => {
-	if (!typeString) return [];
-	const patterns: Array<[string, RegExp]> = Array.isArray(declarationNames)
-		? declarationNames
-		: buildTypeReferencePatterns(declarationNames);
-	const refs: Array<string> = [];
-	for (const [name, pattern] of patterns) {
-		if (pattern.test(typeString)) {
-			refs.push(name);
-		}
-	}
-	return refs;
+export const typeJsonToTokens = (node: TypeJson): Array<TypeJsonToken> => {
+	const tokens: Array<TypeJsonToken> = [];
+	pushNode(tokens, node);
+	return tokens;
 };
 
 // Narrowed Declaration Types

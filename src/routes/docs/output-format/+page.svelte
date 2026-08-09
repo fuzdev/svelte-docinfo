@@ -473,23 +473,27 @@
 		</TomeSection>
 
 		<TomeSection>
-			<TomeSectionHeader text="Working with type strings" />
+			<TomeSectionHeader text="Rendering structured types" />
 			<p>
-				Type signatures are opaque strings produced by the TypeScript compiler. To discover which
-				in-project declaration names appear in a type string (e.g., for rendering clickable links),
-				use <DeclarationLink name="findTypeReferences" />:
+				Flat type signatures are opaque strings produced by the TypeScript compiler. Where a
+				<code>typeInfo</code>/<code>returnTypeInfo</code> tree exists beside one, flatten it with
+				<DeclarationLink name="typeJsonToTokens" /> to render per-node — linking
+				<code>name</code> tokens to in-project declarations, syntax-highlighting
+				<code>code</code> tokens, printing <code>text</code> punctuation as-is:
 			</p>
 			<Code
 				lang="ts"
-				content={`import {findTypeReferences} from 'svelte-docinfo';
+				content={`import {typeJsonToTokens} from 'svelte-docinfo';
 
-const names = new Set(modules.flatMap(m => m.declarations.map(d => d.name)));
-findTypeReferences('Map<string, ModuleJson[]>', names);
-// => ['ModuleJson']`}
+typeJsonToTokens(declaration.typeInfo);
+// e.g. [{kind: 'name', name: 'Map'}, {kind: 'text', text: '<'},
+//       {kind: 'code', text: 'string'}, {kind: 'text', text: ', '},
+//       {kind: 'name', name: 'Tome'}, {kind: 'text', text: '>'}]`}
 			/>
 			<p>
-				When scanning many type strings against the same set of names, pre-compile the patterns with
-				<DeclarationLink name="buildTypeReferencePatterns" /> to avoid recompiling regexes on every call.
+				Spacing, separators, parenthesization, and tuple labels are decided by the tokenizer in
+				lockstep with the <DeclarationLink name="TypeJson" /> projection rules; what a token looks like
+				— link, colored span, plain text — stays the renderer's decision.
 			</p>
 		</TomeSection>
 
