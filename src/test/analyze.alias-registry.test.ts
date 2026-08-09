@@ -24,7 +24,7 @@ import { join } from 'node:path';
 import { analyze } from '$lib/analyze.ts';
 import type { AnalyzeResultJson } from '$lib/analyze-core.ts';
 import { byKind } from '$lib/diagnostics.ts';
-import type { DeclarationJson, ModuleJson } from '$lib/types.ts';
+import type { DeclarationJson, ModuleJson, TypeJson } from '$lib/types.ts';
 
 import { testSourceOptions } from './test-module-helpers.ts';
 
@@ -147,6 +147,13 @@ const declOf = (module: ModuleJson, name: string): DeclarationJson => {
 	return declaration;
 };
 
+/** A registry-recovered reference: registry hits always carry the declaring module. */
+const schemaRef = (name: string): TypeJson => ({
+	kind: 'reference',
+	name,
+	module: 'schemas.ts'
+});
+
 beforeAll(async () => {
 	const projectRoot = process.cwd();
 	const files: Record<string, string> = {
@@ -175,11 +182,7 @@ describe('alias registry over real zod', () => {
 		const decl = declOf(consumers, 'parsePoint');
 		assert(decl.kind === 'function', 'expected a function');
 		// registry hits carry `module` — the winning alias's declaring module
-		assert.deepStrictEqual(decl.returnTypeInfo, {
-			kind: 'reference',
-			name: 'Point',
-			module: 'schemas.ts'
-		});
+		assert.deepStrictEqual(decl.returnTypeInfo, schemaRef('Point'));
 		// the flat string stays the checker's canonical rendering
 		assert.strictEqual(decl.returnType, '{ x: number; y: number; }');
 	});
@@ -192,7 +195,7 @@ describe('alias registry over real zod', () => {
 		assert(list.kind === 'function', 'expected a function');
 		assert.deepStrictEqual(list.returnTypeInfo, {
 			kind: 'array',
-			element: { kind: 'reference', name: 'Point', module: 'schemas.ts' }
+			element: schemaRef('Point')
 		});
 		const later = declOf(consumers, 'pointLater');
 		assert(later.kind === 'function', 'expected a function');
@@ -201,7 +204,7 @@ describe('alias registry over real zod', () => {
 		assert.deepStrictEqual(later.returnTypeInfo, {
 			kind: 'reference',
 			name: 'Promise',
-			typeArgs: [{ kind: 'reference', name: 'Point', module: 'schemas.ts' }]
+			typeArgs: [schemaRef('Point')]
 		});
 	});
 
@@ -216,7 +219,7 @@ describe('alias registry over real zod', () => {
 			assert(node?.kind === 'array', `expected an array node at depth ${i}`);
 			node = node.element;
 		}
-		assert.deepStrictEqual(node, { kind: 'reference', name: 'Point', module: 'schemas.ts' });
+		assert.deepStrictEqual(node, schemaRef('Point'));
 	});
 
 	test('z.enum outputs never register — interned literal unions expand', () => {
@@ -232,11 +235,7 @@ describe('alias registry over real zod', () => {
 	test('the z.input family registers beside the output type', () => {
 		const decl = declOf(consumers, 'derivedInput');
 		assert(decl.kind === 'variable', 'expected a variable');
-		assert.deepStrictEqual(decl.typeInfo, {
-			kind: 'reference',
-			name: 'WithDefaultInput',
-			module: 'schemas.ts'
-		});
+		assert.deepStrictEqual(decl.typeInfo, schemaRef('WithDefaultInput'));
 	});
 
 	test('a cyclic lost type registers without crashing and recovers', () => {
@@ -244,11 +243,7 @@ describe('alias registry over real zod', () => {
 		// what keeps registration from overflowing
 		const decl = declOf(consumers, 'parseCategory');
 		assert(decl.kind === 'function', 'expected a function');
-		assert.deepStrictEqual(decl.returnTypeInfo, {
-			kind: 'reference',
-			name: 'Category',
-			module: 'schemas.ts'
-		});
+		assert.deepStrictEqual(decl.returnTypeInfo, schemaRef('Category'));
 	});
 
 	test('own-declaration self-skip: the pair documents structurally, nested self-hits stay live', () => {
@@ -263,7 +258,7 @@ describe('alias registry over real zod', () => {
 		assert(children?.kind === 'variable', 'expected a variable member');
 		assert.deepStrictEqual(children.typeInfo, {
 			kind: 'array',
-			element: { kind: 'reference', name: 'Category', module: 'schemas.ts' }
+			element: schemaRef('Category')
 		});
 	});
 
@@ -272,11 +267,7 @@ describe('alias registry over real zod', () => {
 		// the tie-break says TwinA everywhere
 		const decl = declOf(consumers, 'parseTwin');
 		assert(decl.kind === 'function', 'expected a function');
-		assert.deepStrictEqual(decl.returnTypeInfo, {
-			kind: 'reference',
-			name: 'TwinA',
-			module: 'schemas.ts'
-		});
+		assert.deepStrictEqual(decl.returnTypeInfo, schemaRef('TwinA'));
 		// same rule keeps parsePoint on 'Point' over its 'PointOutput' twin
 	});
 
@@ -289,11 +280,7 @@ describe('alias registry over real zod', () => {
 		assert(maybe?.kind === 'variable', 'expected a variable member');
 		assert.strictEqual(maybe.optional, true);
 		assert.strictEqual(maybe.typeSignature, '{ x: number; y: number; } | null');
-		assert.deepStrictEqual(maybe.typeInfo, {
-			kind: 'reference',
-			name: 'NullablePoint',
-			module: 'schemas.ts'
-		});
+		assert.deepStrictEqual(maybe.typeInfo, schemaRef('NullablePoint'));
 	});
 
 	test('an array-root loss stays outside the predicate — documented v1 boundary', () => {

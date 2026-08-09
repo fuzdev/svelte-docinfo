@@ -47,7 +47,11 @@ import {
  * Svelte module, the svelte2tsx *virtual* — `program.getSourceFile` returns
  * `undefined` for a raw `.svelte` id, so the caller resolves through
  * `virtualPath`) and its `ModuleJson.path`, which becomes
- * `AliasRegistryEntry.module`.
+ * `AliasRegistryEntry.module` and ships verbatim on recovered reference
+ * nodes — `analyzeCore` derives it with the same `extractPath` call that
+ * mints `ModuleJson.path`, and `normalizeModulePathsInTypes` deliberately
+ * skips the `module` key, so a caller passing anything else (an absolute
+ * path, a virtual-suffixed one) would publish it unrewritten.
  */
 export interface AliasRegistrySource {
 	sourceFile: ts.SourceFile;
