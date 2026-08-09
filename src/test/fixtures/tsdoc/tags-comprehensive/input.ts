@@ -11,6 +11,7 @@
  * @example
  * const a = fn('value', {c: true});
  * @deprecated Description 6
+ * @internal Description 7
  * @see {@link https://fuz.dev}
  * @since 1.0.0
  */

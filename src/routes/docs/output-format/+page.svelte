@@ -212,6 +212,11 @@
 					<code>throws</code>, <code>since</code>: from standard JSDoc tags
 				</li>
 				<li>
+					<code>internalMessage</code>: from <code>@internal</code> — a marker, not an exclusion (presence
+					means tagged, empty string for a bare tag, trailing prose kept). Declarations and members only,
+					not component props
+				</li>
+				<li>
 					<code>mutates</code>: from the non-standard <code>@mutates</code> tag, stored as
 					<code>Record&lt;string, string&gt;</code> mapping target keys to descriptions. Keys are
 					typically parameter names but compound paths (<code>this.foo</code>) and external state

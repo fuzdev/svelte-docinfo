@@ -14,10 +14,16 @@
  * ## Tag support
  *
  * Supports the common JSDoc/TSDoc doc tags as used across the TypeScript ecosystem:
- * `@param`, `@returns`, `@throws`, `@example`, `@deprecated`, `@see`, `@since`, `@default`, `@nodocs`.
+ * `@param`, `@returns`, `@throws`, `@example`, `@deprecated`, `@internal`, `@see`,
+ * `@since`, `@default`, `@nodocs`.
  * Where the two standards spell a tag differently, both spellings are accepted:
  * `@return` (JSDoc synonym) parses like `@returns`, and `@defaultValue` (the TSDoc
  * spelling, plus JSDoc's lowercase `@defaultvalue` synonym) parses like `@default`.
+ *
+ * `@internal` is a marker, not an exclusion: it means "not stable public API"
+ * and lands as `internalMessage` (with any trailing prose; empty string for a
+ * bare tag) while the declaration stays documented. Use `@nodocs` to exclude
+ * a declaration from output entirely.
  *
  * The `@nodocs` tag excludes exports from documentation and flat namespace validation.
  * The declaration is still exported and usable, just not documented.
@@ -74,6 +80,13 @@ export interface TsdocParsedComment {
 	examples?: Array<string>;
 	/** Deprecation message from `@deprecated`. */
 	deprecatedMessage?: string;
+	/**
+	 * Internal-API marker from `@internal`. Presence means the tag was written;
+	 * an empty string is a bare tag with no trailing prose. Means "not stable
+	 * public API" — the declaration is still documented (use `@nodocs` to
+	 * exclude from output).
+	 */
+	internalMessage?: string;
 	/** Related references from `@see`. */
 	seeAlso?: Array<string>;
 	/** Version information from `@since`. */
@@ -126,6 +139,7 @@ const belongsToModuleBlock = (node: ts.JSDoc | ts.JSDocTag): boolean =>
  * - `@throws` - error documentation
  * - `@example` - code examples
  * - `@deprecated` - deprecation warnings
+ * - `@internal` - internal-API marker (trailing prose kept)
  * - `@see` - related references
  * - `@since` - version information
  * - `@default` - default value (`@defaultValue`/`@defaultvalue` accepted as synonyms)
@@ -179,6 +193,7 @@ export const parseComment = (
 	let throws: Array<{ type?: string; description: string }> | undefined;
 	let examples: Array<string> | undefined;
 	let deprecatedMessage: string | undefined;
+	let internalMessage: string | undefined;
 	let seeAlso: Array<string> | undefined;
 	let since: string | undefined;
 	let defaultValue: string | undefined;
@@ -223,6 +238,8 @@ export const parseComment = (
 			(examples ??= []).push(tagText.trim());
 		} else if (tagName === 'deprecated') {
 			deprecatedMessage = tagText?.trim() ?? '';
+		} else if (tagName === 'internal') {
+			internalMessage = tagText?.trim() ?? '';
 		} else if (tagName === 'see') {
 			// The TS API strips 'https' from URLs in @see tags, so get full text from source
 			const fullTagText = tag.getText(sourceFile);
@@ -269,6 +286,7 @@ export const parseComment = (
 		throws,
 		examples,
 		deprecatedMessage,
+		internalMessage,
 		seeAlso,
 		since,
 		defaultValue,
@@ -305,7 +323,7 @@ export const hasDocContent = ({ text, params, ...tags }: TsdocParsedComment): bo
  * @param isMember - whether `declaration` is a member of a container; function
  * *members* carry `defaultValue` (the documented behavior when a callback is
  * omitted) while top-level function declarations never do
- * @mutates declaration - adds docComment, deprecatedMessage, examples, seeAlso, throws, since, mutates, defaultValue fields
+ * @mutates declaration - adds docComment, deprecatedMessage, internalMessage, examples, seeAlso, throws, since, mutates, defaultValue fields
  */
 export const applyToDeclaration = (
 	declaration: DeclarationJsonBuild | MemberJsonBuild,
@@ -319,6 +337,9 @@ export const applyToDeclaration = (
 	}
 	if (tsdoc.deprecatedMessage !== undefined) {
 		declaration.deprecatedMessage = tsdoc.deprecatedMessage;
+	}
+	if (tsdoc.internalMessage !== undefined) {
+		declaration.internalMessage = tsdoc.internalMessage;
 	}
 
 	// Only assign arrays if they have content

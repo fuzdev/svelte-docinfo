@@ -734,6 +734,7 @@ const NON_TYPE_TEXT_KEYS: ReadonlySet<string> = new Set([
 	'extends',
 	'externalStarExports',
 	'implements',
+	'internalMessage',
 	'intersects',
 	'module',
 	'moduleComment',

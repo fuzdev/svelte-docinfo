@@ -258,8 +258,9 @@ export type DuplicateCommentDiagnostic = z.infer<typeof DuplicateCommentDiagnost
  * Two contexts emit this:
  *
  * - **Non-primary overload signature** — symbol-scope tags (`@example`,
- *   `@deprecated`, `@since`, `@see`, `@throws`, `@mutates`, `@default`,
- *   `@nodocs`) describe the function as a whole, not individual signatures.
+ *   `@deprecated`, `@internal`, `@since`, `@see`, `@throws`, `@mutates`,
+ *   `@default`, `@nodocs`) describe the function as a whole, not individual
+ *   signatures.
  *   The primary signature's JSDoc feeds the parent declaration's symbol-level
  *   extraction; tags on non-primary overload signatures are silently dropped
  *   from output. This diagnostic surfaces them so authors can move them to
@@ -278,6 +279,7 @@ export const MisplacedTagDiagnostic = z.strictObject({
 	tagName: z.enum([
 		'example',
 		'deprecated',
+		'internal',
 		'since',
 		'see',
 		'throws',

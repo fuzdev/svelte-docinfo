@@ -55,6 +55,7 @@ export interface MemberJsonBuild {
 	overloads?: Array<OverloadJsonInput>;
 	examples?: Array<string>;
 	deprecatedMessage?: string;
+	internalMessage?: string;
 	seeAlso?: Array<string>;
 	throws?: Array<{ type?: string; description: string }>;
 	since?: string;
@@ -91,6 +92,7 @@ export interface DeclarationJsonBuild {
 	overloads?: Array<OverloadJsonInput>;
 	examples?: Array<string>;
 	deprecatedMessage?: string;
+	internalMessage?: string;
 	seeAlso?: Array<string>;
 	throws?: Array<{ type?: string; description: string }>;
 	since?: string;

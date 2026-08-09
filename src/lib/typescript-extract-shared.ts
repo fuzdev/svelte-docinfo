@@ -410,6 +410,7 @@ const collectSymbolScopeTags = (
 	const found: Array<MisplacedTagDiagnostic['tagName']> = [];
 	if (tsdoc.examples?.length) found.push('example');
 	if (tsdoc.deprecatedMessage !== undefined) found.push('deprecated');
+	if (tsdoc.internalMessage !== undefined) found.push('internal');
 	if (tsdoc.since) found.push('since');
 	if (tsdoc.seeAlso?.length) found.push('see');
 	if (tsdoc.throws?.length) found.push('throws');
@@ -455,8 +456,8 @@ const applyReturnType = (
  * `returnDescription`. These are signature-scope: each overload may
  * describe its own parameters and return value distinctly.
  *
- * Symbol-scope tags (`@example`, `@deprecated`, `@since`, `@see`, `@throws`,
- * `@mutates`) describe the function as a whole and belong on the parent
+ * Symbol-scope tags (`@example`, `@deprecated`, `@internal`, `@since`, `@see`,
+ * `@throws`, `@mutates`) describe the function as a whole and belong on the parent
  * declaration. The primary overload — the one whose JSDoc text matches the
  * parent's `docComment` — already feeds the parent's symbol-level extraction,
  * so its symbol-scope tags reach the parent through that path. On non-primary
