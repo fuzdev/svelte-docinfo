@@ -52,10 +52,11 @@ const session = createAnalysisSession({
 			<code>normalizeSourceOptions</code> (idempotent) but does not apply any further defaults.
 		</p>
 		<p>
-			<code>tsconfig</code> and <code>compilerOptions</code> flow to both the underlying
-			<code>LanguageService</code> and the lazy default <DeclarationLink name="ImportResolver" />.
-			User-supplied <code>compilerOptions</code> merge over the parsed tsconfig per key, but the tsconfig
-			file is still required.
+			<code>tsconfig</code> and <code>compilerOptions</code> drive the underlying
+			<code>LanguageService</code>'s construction-time tsconfig parse — the session's only one. The
+			lazy default <DeclarationLink name="ImportResolver" /> reuses the parsed result, so both see the
+			same merge. User-supplied <code>compilerOptions</code> merge over the parsed tsconfig per key, but
+			the tsconfig file is still required.
 		</p>
 	</TomeSection>
 
@@ -194,13 +195,12 @@ const myResolver: ImportResolver = {
 		<p>
 			When neither <code>AnalysisSessionOptions.resolveImport</code> nor a per-call
 			<DeclarationLink name="SetFileOptions" />.<code>resolveImport</code> is supplied, the session
-			lazily constructs a TS + tsconfig default with a fresh symbol identity on first use. That
-			laziness matters: if every file in every batch arrives fully pre-resolved (<code
+			lazily constructs a TS + tsconfig default with a fresh symbol identity on first use. It reuses
+			the compiler options the session's <code>LanguageService</code> parsed at construction, so no
+			second tsconfig parse runs; if every file in every batch arrives fully pre-resolved (<code
 				>SourceFileInfo.dependencies</code
 			>
-			populated), the default is never built and
-			<code>loadTsconfig</code> is never called, saving a multi-second
-			<code>ts.createProgram</code> on cold start.
+			populated), the default is never built at all.
 		</p>
 	</TomeSection>
 

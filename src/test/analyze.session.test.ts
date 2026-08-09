@@ -35,7 +35,7 @@ import * as svelteModule from '$lib/svelte.ts';
 import type { SourceFileInfo } from '$lib/source.ts';
 import { createSourceOptions } from '$lib/source-config.ts';
 
-import { withTestProject } from './test-helpers.ts';
+import { collectingLog, withTestProject } from './test-helpers.ts';
 
 const TS_FILE = (root: string) => join(root, 'src/lib/math.ts');
 const SVELTE_FILE = (root: string) => join(root, 'src/lib/Button.svelte');
@@ -819,6 +819,88 @@ describe('createAnalysisSession', { timeout: 30_000 }, () => {
 						});
 						assert.strictEqual(r2.changed, true, 'identity change must bust the cache');
 						assert.deepStrictEqual(calls, ['first', 'second']);
+					} finally {
+						session.dispose();
+					}
+				}
+			);
+		});
+	});
+
+	describe('lazy default resolver', () => {
+		test('cold run parses the tsconfig exactly once', async () => {
+			// The LS parses the tsconfig at session construction; the lazy default
+			// resolver reuses those options via `getCompilerOptions()` instead of
+			// re-invoking `loadTsconfig` — so the "using .../tsconfig.json" info
+			// line (and the tsconfig `include` glob behind it) appears once, not
+			// twice, across construction + ingest + query.
+			const { infos, log } = collectingLog();
+			await withTestProject(
+				{
+					'src/lib/a.ts': "import {b} from './b.js';\nexport const a = b;",
+					'src/lib/b.ts': 'export const b = 2;'
+				},
+				async (projectRoot) => {
+					const session = createAnalysisSession({
+						sourceOptions: createSourceOptions(projectRoot),
+						log
+					});
+					try {
+						await session.setFiles([
+							{
+								id: join(projectRoot, 'src/lib/a.ts'),
+								content: "import {b} from './b.js';\nexport const a = b;"
+							},
+							{ id: join(projectRoot, 'src/lib/b.ts'), content: 'export const b = 2;' }
+						]);
+						const result = session.query();
+
+						// The default resolver ran against the LS's merged options —
+						// the dependency edge is the proof it resolved correctly.
+						const a = result.modules.find((m) => m.path.endsWith('a.ts'))!;
+						assert.deepStrictEqual(a.dependencies, ['b.ts']);
+
+						const usingLines = infos.filter((m) => m.startsWith('using '));
+						assert.strictEqual(
+							usingLines.length,
+							1,
+							`expected one tsconfig parse, saw: ${usingLines.join('; ')}`
+						);
+					} finally {
+						session.dispose();
+					}
+				}
+			);
+		});
+
+		test('user-supplied compilerOptions reach the default resolver', async () => {
+			// The lazy default reads the LS's merged options, so a `paths` alias
+			// supplied via session `compilerOptions` (not in tsconfig.json) must
+			// resolve — locking the merge-flows-to-resolver contract end to end.
+			await withTestProject(
+				{
+					'src/lib/a.ts': "import {b} from '@app/b.js';\nexport const a = b;",
+					'src/lib/sub/b.ts': 'export const b = 2;'
+				},
+				async (projectRoot) => {
+					const session = createAnalysisSession({
+						sourceOptions: createSourceOptions(projectRoot),
+						compilerOptions: {
+							baseUrl: projectRoot,
+							paths: { '@app/*': ['src/lib/sub/*'] }
+						}
+					});
+					try {
+						await session.setFiles([
+							{
+								id: join(projectRoot, 'src/lib/a.ts'),
+								content: "import {b} from '@app/b.js';\nexport const a = b;"
+							},
+							{ id: join(projectRoot, 'src/lib/sub/b.ts'), content: 'export const b = 2;' }
+						]);
+						const result = session.query();
+						const a = result.modules.find((m) => m.path.endsWith('a.ts'))!;
+						assert.deepStrictEqual(a.dependencies, ['sub/b.ts']);
 					} finally {
 						session.dispose();
 					}

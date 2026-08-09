@@ -21,8 +21,9 @@
  * outside the session, but not part of the stable barrel surface.
  *
  * @see `session.ts` for the three-phase ingestion pipeline that consumes these
- * @see `loadTsconfig` in `typescript-program.ts` for the TS module-resolution
- *   compiler-options shortcut used by the default resolver
+ * @see `loadTsconfig` in `typescript-program.ts` for producing the merged
+ *   compiler options the default resolver consumes (the session reuses its
+ *   LS's parse via `getCompilerOptions()` rather than calling it again)
  *
  * @module
  */
@@ -170,7 +171,8 @@ export const isNodeBuiltin = (specifier: string): boolean => isBuiltin(specifier
  * (tsconfig `paths` aliases, package subpaths) stay unresolved; supply a
  * custom `resolveImport` for those setups.
  *
- * @param compilerOptions - parsed tsconfig (from `loadTsconfig`)
+ * @param compilerOptions - parsed tsconfig (from `loadTsconfig`, or the LS
+ *   handle's `getCompilerOptions()`)
  * @param projectRoot - absolute project root for the module-resolution cache
  */
 export const createDefaultResolver = (
