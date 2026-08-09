@@ -327,7 +327,7 @@ See the [API docs](https://svelte-docinfo.fuz.dev/docs/api) for the full referen
 
 - **Full type resolution**: infers complex types without manual annotations, including generics, imported types, and inferred return types
 - **Structured types**: an optional `typeInfo` tree (`TypeJson`) beside the flat type strings on props, parameters, return types (`returnTypeInfo`, overloads included), type members, and variable/type declarations — union and intersection members (alias names kept, enum members as `{value, text}` pairs), reference type arguments (named generic instantiations like `Snippet<[a: string]>` classify as references), array and tuple elements (with `readonly` markers), so a union alias documents more than its own name — and absent wherever the flat string already says everything
-- **TSDoc/JSDoc parsing**: standard tags (`@param`, `@returns`, `@throws`, `@example`, `@deprecated`, `@see`, `@since`, `@default`) plus `@nodocs`, `@mutates`, and `@module` for file-level comments
+- **TSDoc/JSDoc parsing**: the common doc tags (`@param`, `@returns`, `@throws`, `@example`, `@deprecated`, `@see`, `@since`, `@default`) plus `@nodocs`, `@mutates`, and `@module` for file-level comments; divergent spellings parse as synonyms (`@return`, TSDoc's `@defaultValue`)
 - **Svelte 5 component props**: extracts prop types, descriptions, defaults, and bindability via svelte2tsx
 - **Svelte 5 snippets**: `kind: 'snippet'` for template snippets (with structured parameters), `acceptsChildren` on components
 - **Svelte 5 reactivity runes**: detects `$state`, `$state.raw`, `$derived`, `$derived.by` on variables and class fields (`reactivity` field) — syntactic detection, surfaces wherever the rune pattern appears

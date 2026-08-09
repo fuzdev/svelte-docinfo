@@ -588,7 +588,14 @@ export const FunctionMemberJson = z.strictObject({
 	 */
 	name: z.string(),
 	/** Whether the member has a `?` token in its declaration. */
-	optional: z.boolean().default(false)
+	optional: z.boolean().default(false),
+	/**
+	 * Default value documented via `@default` — for a callable member,
+	 * typically the behavior used when the callback is omitted. Always
+	 * tag-authored (structural containers have no initializers). Members only:
+	 * top-level function declarations and overloads never carry one.
+	 */
+	defaultValue: z.string().optional()
 });
 export type FunctionMemberJson = z.infer<typeof FunctionMemberJson>;
 

@@ -153,11 +153,11 @@ export const extractTypeInfo = (
 							member.type
 						);
 					} else {
-						applyToDeclaration(propDeclaration, propTsdoc);
+						applyToDeclaration(propDeclaration, propTsdoc, true);
 					}
 				} catch (err) {
 					propDeclaration.partial = true;
-					applyToDeclaration(propDeclaration, propTsdoc);
+					applyToDeclaration(propDeclaration, propTsdoc, true);
 					const loc = getNodeLocation(member);
 					diagnostics.push({
 						kind: 'type_extraction_failed',
@@ -200,7 +200,7 @@ export const extractTypeInfo = (
 
 				// Extract TSDoc
 				const methodTsdoc = parseComment(member, node.getSourceFile());
-				applyToDeclaration(methodDeclaration, methodTsdoc);
+				applyToDeclaration(methodDeclaration, methodTsdoc, true);
 
 				// Extract signatures via type checker
 				try {
@@ -276,7 +276,7 @@ export const extractTypeInfo = (
 						}
 					}
 					const indexTsdoc = parseComment(member, node.getSourceFile());
-					applyToDeclaration(indexDeclaration, indexTsdoc);
+					applyToDeclaration(indexDeclaration, indexTsdoc, true);
 					(declaration.members ??= []).push(indexDeclaration);
 				}
 			}
@@ -364,7 +364,7 @@ export const extractEnumInfo = (
 
 		// Extract TSDoc
 		const memberTsdoc = parseComment(member, node.getSourceFile());
-		applyToDeclaration(memberDeclaration, memberTsdoc);
+		applyToDeclaration(memberDeclaration, memberTsdoc, true);
 
 		// Extract type and value via the checker
 		try {

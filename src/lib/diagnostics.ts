@@ -254,7 +254,7 @@ export type DuplicateCommentDiagnostic = z.infer<typeof DuplicateCommentDiagnost
 /**
  * A JSDoc tag found somewhere it has no effect.
  *
- * Three contexts emit this:
+ * Two contexts emit this:
  *
  * - **Non-primary overload signature** — symbol-scope tags (`@example`,
  *   `@deprecated`, `@since`, `@see`, `@throws`, `@mutates`, `@default`,
@@ -265,10 +265,6 @@ export type DuplicateCommentDiagnostic = z.infer<typeof DuplicateCommentDiagnost
  *   the primary signature. `@default` and `@nodocs` are included even though
  *   overloads never carry a `defaultValue` or per-overload exclusion: their
  *   presence on a non-primary signature is always a misplacement.
- * - **Callable property** — `@default` on a type-alias or interface property
- *   that classifies as a function member (`fn: () => void`) is dropped:
- *   `defaultValue` is a variable-member field, and the callable
- *   classification wins. Document the default in the description instead.
  * - **Module comment** — `@nodocs` has no module-level meaning (it applies to
  *   declarations and export statements); in a `@module` comment the tag does
  *   nothing except remain verbatim in `moduleComment` text. To omit a module
@@ -290,9 +286,8 @@ export const MisplacedTagDiagnostic = z.strictObject({
 	]),
 	/**
 	 * Name of the enclosing symbol: the function or method whose overload
-	 * carries the misplaced tag, or the callable property whose `@default`
-	 * was dropped. Absent for module-comment misplacements (no enclosing
-	 * symbol).
+	 * carries the misplaced tag. Absent for module-comment misplacements (no
+	 * enclosing symbol).
 	 */
 	functionName: z.string().optional()
 });

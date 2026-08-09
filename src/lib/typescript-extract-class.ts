@@ -127,7 +127,7 @@ export const extractClassInfo = (
 
 			// Extract TSDoc (applies docComment, examples, deprecated, seeAlso, since, mutates)
 			const memberTsdoc = parseComment(member, node.getSourceFile());
-			applyToDeclaration(memberDeclaration, memberTsdoc);
+			applyToDeclaration(memberDeclaration, memberTsdoc, true);
 
 			// Extract type information and parameters for methods and constructors
 			try {
@@ -263,7 +263,7 @@ export const extractClassInfo = (
 		const getterTsdoc = getter ? parseComment(getter, node.getSourceFile()) : undefined;
 		const setterTsdoc = setter ? parseComment(setter, node.getSourceFile()) : undefined;
 		const accessorTsdoc = getterTsdoc ?? setterTsdoc;
-		applyToDeclaration(accessorDeclaration, accessorTsdoc);
+		applyToDeclaration(accessorDeclaration, accessorTsdoc, true);
 
 		// Extract type signature from getter's return type
 		try {

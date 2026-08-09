@@ -1,0 +1,45 @@
+{
+	"name": "RetryOptions",
+	"kind": "interface",
+	"docComment": "Options with defaulted callbacks.",
+	"typeSignature": "RetryOptions",
+	"members": [
+		{
+			"name": "onRetry",
+			"kind": "function",
+			"docComment": "Called before each retry attempt.",
+			"typeSignature": "(attempt: number): void",
+			"parameters": [
+				{
+					"name": "attempt",
+					"type": "number"
+				}
+			],
+			"returnType": "void",
+			"defaultValue": "noop"
+		},
+		{
+			"name": "computeDelay",
+			"kind": "function",
+			"docComment": "Computes the backoff delay.",
+			"typeSignature": "(attempt: number): number",
+			"parameters": [
+				{
+					"name": "attempt",
+					"type": "number"
+				}
+			],
+			"returnType": "number",
+			"optional": true,
+			"defaultValue": "exponential backoff starting at 100ms"
+		},
+		{
+			"name": "maxAttempts",
+			"kind": "variable",
+			"docComment": "Maximum number of attempts.",
+			"typeSignature": "number",
+			"optional": true,
+			"defaultValue": "3"
+		}
+	]
+}

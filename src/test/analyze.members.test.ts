@@ -1,11 +1,11 @@
 /**
  * Tests for member extraction shapes across the container kinds: literal
  * property names (unquoted, matching the symbol-based paths), `readonly`
- * index signatures, `genericParams` on callable properties, the
- * `misplaced_tag` for a `@default` dropped by callable classification, and
- * graceful degradation when a member's type is unresolvable (replacing the
- * old `errors/*` fixture category, which ran no extractor and asserted
- * nothing).
+ * index signatures, `genericParams` on callable properties, `@default` →
+ * `defaultValue` on members of every kind (callable members included;
+ * top-level function declarations excluded), and graceful degradation when a
+ * member's type is unresolvable (replacing the old `errors/*` fixture
+ * category, which ran no extractor and asserted nothing).
  */
 
 import { test, assert, describe } from 'vitest';
@@ -105,10 +105,10 @@ export type T = {
 		}
 	});
 
-	test('`@default` dropped by callable classification surfaces as misplaced_tag', async () => {
-		// `defaultValue` is schema-allowed on variable members only; a callable
-		// property flips to a function member, so the tag is dropped — with a
-		// warning, per the no-silent-doc-loss policy
+	test('`@default` on callable members populates defaultValue on both container kinds', async () => {
+		// function members carry `defaultValue` like variable members — for a
+		// callable option it documents the behavior used when the callback is
+		// omitted; property syntax and method shorthand behave identically
 		const { modules, diagnostics } = await analyzeSource(`export interface I {
 	/**
 	 * A callable option.
@@ -117,28 +117,77 @@ export type T = {
 	 */
 	fn: () => void;
 	/**
+	 * A method-shorthand option.
+	 *
+	 * @default identity
+	 */
+	m(x: number): number;
+	/**
 	 * A plain option.
 	 *
 	 * @default 3
 	 */
 	limit: number;
-}`);
-		const declaration = modules[0]?.declarations[0];
-		assert(declaration?.kind === 'interface', 'expected an interface declaration');
-		const fn = declaration.members.find((m) => m.name === 'fn');
+}
+export type T = {
+	/** @default noop */
+	fn: () => void;
+};`);
+		const iface = modules[0]?.declarations.find((d) => d.name === 'I');
+		assert(iface?.kind === 'interface', 'expected an interface declaration');
+		const fn = iface.members.find((m) => m.name === 'fn');
 		assert(fn?.kind === 'function', 'expected a function member');
 		assert.strictEqual(fn.docComment, 'A callable option.');
-		assert.ok(!('defaultValue' in fn), 'expected no defaultValue on a function member');
-		const misplaced = diagnostics.find((d) => d.kind === 'misplaced_tag');
-		assert.ok(misplaced, 'expected a misplaced_tag diagnostic');
-		assert(misplaced.kind === 'misplaced_tag');
-		assert.strictEqual(misplaced.tagName, 'default');
-		assert.strictEqual(misplaced.functionName, 'fn');
-		// the variable member keeps its @default — no diagnostic for it
-		const limit = declaration.members.find((m) => m.name === 'limit');
+		assert.strictEqual(fn.defaultValue, 'noop');
+		const shorthand = iface.members.find((m) => m.name === 'm');
+		assert(shorthand?.kind === 'function', 'expected a function member for the method shorthand');
+		assert.strictEqual(shorthand.defaultValue, 'identity');
+		const limit = iface.members.find((m) => m.name === 'limit');
 		assert(limit?.kind === 'variable', 'expected a variable member');
 		assert.strictEqual(limit.defaultValue, '3');
-		assert.strictEqual(diagnostics.filter((d) => d.kind === 'misplaced_tag').length, 1);
+		const alias = modules[0]?.declarations.find((d) => d.name === 'T');
+		assert(alias?.kind === 'type', 'expected a type declaration');
+		const aliasFn = alias.members.find((m) => m.name === 'fn');
+		assert(aliasFn?.kind === 'function', 'expected a function member on the type alias');
+		assert.strictEqual(aliasFn.defaultValue, 'noop');
+		assert.strictEqual(diagnostics.length, 0, 'the tag is honored, not misplaced');
+	});
+
+	test('`@default` documents class methods but never top-level functions', async () => {
+		// members only: `FunctionDeclarationJson` has no `defaultValue` (a
+		// top-level function has an implementation — nothing is "defaulted"),
+		// and `z.strictObject` would reject a leak at `ModuleJson.parse`
+		const module = await analyzeFile(`export class C {
+	/** @default noop */
+	fn(): void {}
+}
+
+/**
+ * Docs.
+ *
+ * @default nonsense
+ */
+export const arrowFn = (): void => {};
+
+/**
+ * Docs.
+ *
+ * @default nonsense
+ */
+export function declaredFn(): void {}`);
+		const cls = module.declarations.find((d) => d.name === 'C');
+		assert(cls?.kind === 'class', 'expected a class declaration');
+		const method = cls.members.find((m) => m.name === 'fn');
+		assert(method?.kind === 'function', 'expected a function member');
+		assert.strictEqual(method.defaultValue, 'noop');
+		for (const name of ['arrowFn', 'declaredFn']) {
+			const declaration = module.declarations.find((d) => d.name === name);
+			assert(declaration?.kind === 'function', `expected a function declaration for ${name}`);
+			assert.ok(
+				!('defaultValue' in declaration),
+				`expected no defaultValue on top-level function ${name}`
+			);
+		}
 	});
 });
 
