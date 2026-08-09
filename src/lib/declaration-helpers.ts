@@ -315,6 +315,25 @@ export const typeJsonToTokens = (node: TypeJson): Array<TypeJsonToken> => {
 	return tokens;
 };
 
+/**
+ * The plain-text printed form of a `TypeJson` tree — `typeJsonToTokens`
+ * concatenated. For consumers with no linkification or highlighting surface
+ * (CLI output, markdown code spans, log lines) and for test assertions.
+ *
+ * @example
+ * ```ts
+ * typeJsonToText({kind: 'union', members: [
+ * 	{kind: 'reference', name: 'Tome'},
+ * 	{kind: 'intrinsic', text: 'null'}
+ * ]})
+ * // => 'Tome | null'
+ * ```
+ */
+export const typeJsonToText = (node: TypeJson): string =>
+	typeJsonToTokens(node)
+		.map((t) => (t.kind === 'name' ? t.name : t.text))
+		.join('');
+
 // Narrowed Declaration Types
 
 /**

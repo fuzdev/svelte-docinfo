@@ -66,7 +66,8 @@ export {
 	generateImport,
 	compactReplacer,
 	isKind,
-	typeJsonToTokens
+	typeJsonToTokens,
+	typeJsonToText
 } from './declaration-helpers.ts';
 export type { TypeJsonToken } from './declaration-helpers.ts';
 

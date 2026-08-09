@@ -7,9 +7,11 @@
  * - compactReplacer - compact JSON serialization
  * - isKind - type narrowing for DeclarationJson and MemberJson
  * - typeJsonToTokens - flattening TypeJson trees into render-ready tokens
+ * - typeJsonToText - the concatenated plain-text form
  */
 
 import { readFileSync } from 'node:fs';
+import { globSync } from 'tinyglobby';
 import { test, assert, describe } from 'vitest';
 import { ZodError } from 'zod';
 
@@ -18,7 +20,7 @@ import {
 	MemberJson,
 	type ConstructorMemberJson,
 	ModuleJson,
-	type TypeJson
+	TypeJson
 } from '$lib/types.ts';
 import {
 	getDisplayName,
@@ -26,6 +28,7 @@ import {
 	compactReplacer,
 	isKind,
 	typeJsonToTokens,
+	typeJsonToText,
 	type TypeJsonToken
 } from '$lib/declaration-helpers.ts';
 import { AnalyzeResultJson } from '$lib/analyze-core.ts';
@@ -947,9 +950,6 @@ describe('isKind', () => {
 });
 
 describe('typeJsonToTokens', () => {
-	const toText = (tokens: Array<TypeJsonToken>): string =>
-		tokens.map((t) => (t.kind === 'name' ? t.name : t.text)).join('');
-
 	test('a bare reference is a single name token', () => {
 		const tokens = typeJsonToTokens({ kind: 'reference', name: 'A' });
 		assert.deepStrictEqual(tokens, [{ kind: 'name', name: 'A' }]);
@@ -973,7 +973,7 @@ describe('typeJsonToTokens', () => {
 			{ kind: 'name', name: 'A' },
 			{ kind: 'text', text: '>' }
 		]);
-		assert.strictEqual(toText(tokens), 'Map<string, A>');
+		assert.strictEqual(typeJsonToText(node), 'Map<string, A>');
 	});
 
 	test('union members separate with pipes and terminals stay code tokens', () => {
@@ -985,7 +985,7 @@ describe('typeJsonToTokens', () => {
 				{ kind: 'intrinsic', text: 'null' }
 			]
 		};
-		assert.strictEqual(toText(typeJsonToTokens(node)), '"a" | "b" | null');
+		assert.strictEqual(typeJsonToText(node), '"a" | "b" | null');
 	});
 
 	test('an alias-carrying union renders as its bare name', () => {
@@ -1012,7 +1012,7 @@ describe('typeJsonToTokens', () => {
 				{ kind: 'intrinsic', text: 'null' }
 			]
 		};
-		assert.strictEqual(toText(typeJsonToTokens(node)), 'E | null');
+		assert.strictEqual(typeJsonToText(node), 'E | null');
 	});
 
 	test('function members parenthesize inside unions', () => {
@@ -1023,7 +1023,7 @@ describe('typeJsonToTokens', () => {
 				{ kind: 'intrinsic', text: 'null' }
 			]
 		};
-		assert.strictEqual(toText(typeJsonToTokens(node)), '((x: string) => void) | null');
+		assert.strictEqual(typeJsonToText(node), '((x: string) => void) | null');
 	});
 
 	test('arrays wrap union elements in parens and honor readonly', () => {
@@ -1034,15 +1034,13 @@ describe('typeJsonToTokens', () => {
 				{ kind: 'intrinsic', text: 'null' }
 			]
 		};
-		assert.strictEqual(toText(typeJsonToTokens({ kind: 'array', element: union })), '(A | null)[]');
+		assert.strictEqual(typeJsonToText({ kind: 'array', element: union }), '(A | null)[]');
 		assert.strictEqual(
-			toText(
-				typeJsonToTokens({
-					kind: 'array',
-					element: { kind: 'intrinsic', text: 'string' },
-					readonly: true
-				})
-			),
+			typeJsonToText({
+				kind: 'array',
+				element: { kind: 'intrinsic', text: 'string' },
+				readonly: true
+			}),
 			'readonly string[]'
 		);
 	});
@@ -1055,7 +1053,7 @@ describe('typeJsonToTokens', () => {
 				{ kind: 'reference', name: 'B' }
 			]
 		};
-		assert.strictEqual(toText(typeJsonToTokens(node)), 'A & B');
+		assert.strictEqual(typeJsonToText(node), 'A & B');
 	});
 
 	test('tuples render labels, optional and rest markers', () => {
@@ -1071,10 +1069,7 @@ describe('typeJsonToTokens', () => {
 				}
 			]
 		};
-		assert.strictEqual(
-			toText(typeJsonToTokens(node)),
-			'[a: string, b?: number, ...rest: boolean[]]'
-		);
+		assert.strictEqual(typeJsonToText(node), '[a: string, b?: number, ...rest: boolean[]]');
 	});
 
 	test('an unnamed optional tuple element takes the postfix marker', () => {
@@ -1082,11 +1077,11 @@ describe('typeJsonToTokens', () => {
 			kind: 'tuple',
 			elements: [{ type: { kind: 'intrinsic', text: 'string' }, optional: true }]
 		};
-		assert.strictEqual(toText(typeJsonToTokens(node)), '[string?]');
+		assert.strictEqual(typeJsonToText(node), '[string?]');
 	});
 
 	test('the empty tuple renders bare brackets', () => {
-		assert.strictEqual(toText(typeJsonToTokens({ kind: 'tuple' })), '[]');
+		assert.strictEqual(typeJsonToText({ kind: 'tuple' }), '[]');
 	});
 
 	test('adjacent punctuation merges into single text tokens', () => {
@@ -1099,6 +1094,67 @@ describe('typeJsonToTokens', () => {
 			{ kind: 'name', name: 'A' },
 			{ kind: 'text', text: '[][]' }
 		]);
+	});
+});
+
+describe('typeJsonToText', () => {
+	test('concatenates tokens into the printed form', () => {
+		assert.strictEqual(
+			typeJsonToText({
+				kind: 'union',
+				members: [
+					{ kind: 'reference', name: 'A' },
+					{ kind: 'intrinsic', text: 'null' }
+				]
+			}),
+			'A | null'
+		);
+	});
+});
+
+describe('typeJsonToTokens over the fixture corpus', () => {
+	// every `typeInfo`/`returnTypeInfo` tree committed in the fixture baselines —
+	// binds the tokenizer to the shapes the analyzer actually emits, so a
+	// projection change the hand-built literals above miss still fails here.
+	// Roots only: nested nodes are exercised through tokenization recursion
+	const collectTrees = (value: unknown, out: Array<unknown>): void => {
+		if (Array.isArray(value)) {
+			for (const v of value) collectTrees(v, out);
+			return;
+		}
+		if (value === null || typeof value !== 'object') return;
+		for (const [key, v] of Object.entries(value)) {
+			if ((key === 'typeInfo' || key === 'returnTypeInfo') && v != null) out.push(v);
+			collectTrees(v, out);
+		}
+	};
+
+	test('every committed tree parses and tokenizes within invariants', () => {
+		const files = globSync('src/test/fixtures/**/expected.json');
+		const trees: Array<unknown> = [];
+		for (const file of files) {
+			collectTrees(JSON.parse(readFileSync(file, 'utf8')), trees);
+		}
+		// the walk finding nothing would pass vacuously — assert a floor
+		assert.isAtLeast(trees.length, 10, 'expected the corpus walk to find trees');
+		for (const raw of trees) {
+			const tree = TypeJson.parse(raw);
+			const tokens = typeJsonToTokens(tree);
+			assert.isAbove(tokens.length, 0);
+			let prev: TypeJsonToken | undefined;
+			for (const token of tokens) {
+				if (token.kind === 'text') {
+					assert.notStrictEqual(token.text, '', 'empty text token');
+					assert.notStrictEqual(prev?.kind, 'text', 'adjacent text tokens must merge');
+				} else if (token.kind === 'name') {
+					assert.notStrictEqual(token.name, '', 'empty name token');
+				} else {
+					assert.notStrictEqual(token.text, '', 'empty code token');
+				}
+				prev = token;
+			}
+			assert.notStrictEqual(typeJsonToText(tree), '', 'empty printed form');
+		}
 	});
 });
 
