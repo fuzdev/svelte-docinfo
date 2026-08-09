@@ -464,12 +464,12 @@ export const analyzeCore = (inputs: AnalyzeCoreInputs): AnalyzeResultJson => {
 	}
 
 	// Phase 2a: build alsoExportedFrom arrays from the modules' forward edges
-	mergeReExports(modules);
+	const mergedModules = mergeReExports(modules);
 	// Phase 2b: fill component-only fields on renamed component aliases —
 	// canonical components are only fully populated after phase 1 finishes.
-	resolveComponentAliases(modules);
+	const resolvedModules = resolveComponentAliases(mergedModules);
 
-	const sortedModules = sortModules(modules);
+	const sortedModules = sortModules(resolvedModules);
 
 	// Always run duplicate detection so a `duplicate_declaration` diagnostic
 	// reaches consumers regardless of `onDuplicates`. The `onDuplicates`
