@@ -6,6 +6,7 @@
  * surface.
  */
 
+import { join } from 'node:path';
 import { test, assert, describe } from 'vitest';
 
 import { createAnalysisLanguageService, loadTsconfig } from '$lib/typescript-program.ts';
@@ -88,6 +89,38 @@ describe('createAnalysisLanguageService', () => {
 					ls.dispose();
 				}
 			});
+		});
+	});
+
+	describe('setFile of a previously disk-resolved file', () => {
+		test('first push reparses — the disk version sentinel cannot collide with owned version 1', async () => {
+			const mainContent = `import { width } from './dep.ts';\nexport const w = width;`;
+			await withTestProject(
+				{
+					'src/lib/dep.ts': 'export const width = 1;',
+					'src/lib/main.ts': mainContent
+				},
+				async (projectRoot) => {
+					const ls = createAnalysisLanguageService({ projectRoot });
+					try {
+						const depPath = join(projectRoot, 'src/lib/dep.ts');
+						ls.setFile(join(projectRoot, 'src/lib/main.ts'), { content: mainContent });
+						// dep.ts enters the program from disk (import target + tsconfig root).
+						const before = ls.getProgram().getSourceFile(depPath);
+						assert.ok(before);
+						assert.match(before.text, /width = 1/);
+						// The registry reparses only on a version-string change, so a
+						// numeric disk sentinel would make this first push a silent
+						// no-op ('1' → '1') and keep serving the stale disk AST.
+						ls.setFile(depPath, { content: 'export const width = 2;' });
+						const after = ls.getProgram().getSourceFile(depPath);
+						assert.ok(after);
+						assert.match(after.text, /width = 2/);
+					} finally {
+						ls.dispose();
+					}
+				}
+			);
 		});
 	});
 });

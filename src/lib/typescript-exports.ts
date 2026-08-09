@@ -35,7 +35,11 @@ import {
 	extractPath,
 	isSource
 } from './source-config.ts';
-import { type IsExternalFile, createIsExternalFile } from './typescript-program.ts';
+import {
+	type IsExternalFile,
+	createIsExternalFile,
+	createIsExternalPath
+} from './typescript-program.ts';
 import { inferDeclarationKind } from './typescript-extract-shared.ts';
 import { extractFunctionInfo, extractVariableInfo } from './typescript-extract-function.ts';
 import { extractTypeInfo, extractEnumInfo } from './typescript-extract-type.ts';
@@ -140,7 +144,18 @@ const walkSameNameCanonical = (
  */
 type NamespaceClassification =
 	| { kind: 'origination'; sourceModule: string }
-	| { kind: 'same-name'; canonicalModule: string; sourceModule: string }
+	| {
+			kind: 'same-name';
+			canonicalModule: string;
+			sourceModule: string;
+			/**
+			 * The canonical's file is project-local but gated from output
+			 * (`internal/` convention, user excludes) — there is no canonical
+			 * declaration to link, so the caller synthesizes the alias
+			 * unconditionally and skips the `reExports` edge.
+			 */
+			canonicalGated: boolean;
+	  }
 	| {
 			kind: 'renamed';
 			namespaceDefiningFile: string;
@@ -165,14 +180,21 @@ const classifyNamespaceReExport = (
 	exportSymbol: ts.Symbol,
 	checker: ts.TypeChecker,
 	currentFileName: string,
-	options: ModuleSourceOptions
+	options: ModuleSourceOptions,
+	isExternalPath: (file: string) => boolean
 ): NamespaceClassification | null => {
 	const deeplyAliased = checker.getAliasedSymbol(exportSymbol);
 	if ((deeplyAliased.flags & ts.SymbolFlags.ValueModule) === 0) return null;
 
-	// Source module = where the deeply-resolved module symbol lives.
+	// Source module = where the deeply-resolved module symbol lives. The gate
+	// is externality, not `isSource` — a project-local gated module (the
+	// `internal/` convention) still classifies, so `export * as ns from
+	// './internal/x.ts'` documents as a namespace instead of falling through
+	// to the external arm with a relative path as its "package" specifier.
+	// Truly external targets (`export * as ns from 'pkg'`) return null and
+	// take the external arm as before.
 	const sourceModuleFile = getPrimaryDeclarationFile(deeplyAliased);
-	if (!sourceModuleFile || !isSource(sourceModuleFile, options)) return null;
+	if (!sourceModuleFile || isExternalPath(sourceModuleFile)) return null;
 
 	// Origination: export's first declaration is itself a NamespaceExport in
 	// this file. The caller's locality skip filters star-projected bindings
@@ -210,7 +232,7 @@ const classifyNamespaceReExport = (
 					: undefined;
 		}
 		if (!namespaceDefiningFile || !canonicalName) return null;
-		if (!isSource(namespaceDefiningFile, options)) return null;
+		if (isExternalPath(namespaceDefiningFile)) return null;
 		return {
 			kind: 'renamed',
 			namespaceDefiningFile: extractPath(namespaceDefiningFile, options),
@@ -226,11 +248,12 @@ const classifyNamespaceReExport = (
 	if (!canonicalDecl) return null;
 	const canonicalFile = stripVirtualSuffix(canonicalDecl.getSourceFile().fileName);
 	if (canonicalFile === currentFileName) return null;
-	if (!isSource(canonicalFile, options)) return null;
+	if (isExternalPath(canonicalFile)) return null;
 	return {
 		kind: 'same-name',
 		canonicalModule: extractPath(canonicalFile, options),
-		sourceModule: extractPath(sourceModuleFile, options)
+		sourceModule: extractPath(sourceModuleFile, options),
+		canonicalGated: !isSource(canonicalFile, options)
 	};
 };
 
@@ -331,6 +354,21 @@ const isTypeOnlyLocalExport = (local: {
  * uniformly), the filename-derived component name for Svelte. `sourceLine`
  * is the local export specifier's line, not the canonical's location.
  */
+/**
+ * Public name for a cross-file re-export: `default` re-keys to the
+ * component's filename-derived name when the canonical is a Svelte component
+ * (its declarations live in the svelte2tsx virtual), matching how the
+ * canonical documents — every other name passes through.
+ */
+const reExportPublicName = (
+	exportName: string,
+	canonicalVirtualFileName: string | undefined,
+	canonicalFile: string
+): string =>
+	exportName === 'default' && (canonicalVirtualFileName?.endsWith(SVELTE_VIRTUAL_SUFFIX) ?? false)
+		? getComponentName(canonicalFile)
+		: exportName;
+
 const synthesizeCrossFileAlias = (
 	publicName: string,
 	aliasedSymbol: ts.Symbol,
@@ -397,9 +435,20 @@ export const analyzeExports = (
 	const externalReExports: Array<ExternalReExportJsonInput> = [];
 
 	const isExternalFile = createIsExternalFile(options);
+	// Externality by path, for the re-export arms and star extraction below.
+	// Not the same axis as `isSource`: a project-local file can be gated from
+	// output (`internal/` convention, user excludes) without being external —
+	// its re-exports synthesize here instead of masquerading as
+	// external-package facts.
+	const isExternalPath = createIsExternalPath(options);
 
 	// Extract star exports (export * from './module' / 'pkg')
-	const { starExports, externalStarExports } = extractStarExports(sourceFile, checker, options);
+	const { starExports, externalStarExports } = extractStarExports(
+		sourceFile,
+		checker,
+		options,
+		isExternalPath
+	);
 
 	// Normalize virtual paths once (e.g., Foo.svelte.__svelte2tsx__.ts → Foo.svelte)
 	// so re-export tracking matches real module paths
@@ -450,7 +499,13 @@ export const analyzeExports = (
 				// is robust to arbitrary re-export chain depth (the immediate-alias
 				// shape is fragile — intermediate hops are `ExportSpecifier` nodes,
 				// not `NamespaceExport`).
-				const nsClass = classifyNamespaceReExport(exportSymbol, checker, currentFileName, options);
+				const nsClass = classifyNamespaceReExport(
+					exportSymbol,
+					checker,
+					currentFileName,
+					options,
+					isExternalPath
+				);
 				if (nsClass) {
 					// The locality skip above filters star-projected bindings before
 					// classification, so origination/renamed/same-name statements are
@@ -496,8 +551,11 @@ export const analyzeExports = (
 						// `kind: 'namespace'` alias declaration so the local content
 						// has somewhere to live (mirrors non-namespace same-name semantics
 						// at the standard alias path). `@nodocs` suppresses both the
-						// alias and the link.
-						if (localTsdoc) {
+						// alias and the link. A *gated* canonical (project-local but
+						// excluded from output) has no declaration to link, so the
+						// alias synthesizes unconditionally and the edge is skipped —
+						// this module owns the documentation.
+						if (localTsdoc || nsClass.canonicalGated) {
 							const decl: DeclarationJsonBuild = {
 								name: exportSymbol.name,
 								kind: 'namespace',
@@ -508,10 +566,12 @@ export const analyzeExports = (
 								},
 								sourceLine: nsSpecifierLine
 							};
-							applyToDeclaration(decl, localTsdoc);
-							declarations.push({ declaration: decl, nodocs: !!localTsdoc.nodocs });
+							if (localTsdoc) {
+								applyToDeclaration(decl, localTsdoc);
+							}
+							declarations.push({ declaration: decl, nodocs: !!localTsdoc?.nodocs });
 						}
-						if (!localTsdoc?.nodocs) {
+						if (!localTsdoc?.nodocs && !nsClass.canonicalGated) {
 							reExports.push({
 								name: exportSymbol.name,
 								module: nsClass.canonicalModule,
@@ -587,18 +647,14 @@ export const analyzeExports = (
 									? stripVirtualSuffix(canonicalSource.fileName)
 									: originalFileName;
 								// `export {default} from './x'` is a same-name re-export of the
-								// default slot. For Svelte components the canonical declaration
-								// in `analyzeSvelteModule` is named after the file, not `'default'`
-								// — so re-key the link by component name to match. For non-Svelte
-								// defaults the canonical's name is `'default'` (the actual symbol
-								// name); pass it through. Other same-name re-exports
-								// (`export {foo}`) match the canonical by name as before.
-								const isSvelteCanonical =
-									canonicalSource?.fileName.endsWith(SVELTE_VIRTUAL_SUFFIX) ?? false;
-								const reExportName =
-									exportSymbol.name === 'default' && isSvelteCanonical
-										? getComponentName(canonicalFile)
-										: exportSymbol.name;
+								// default slot — re-keyed by component name for Svelte
+								// canonicals so `mergeReExports` matches (see
+								// `reExportPublicName`).
+								const reExportName = reExportPublicName(
+									exportSymbol.name,
+									canonicalSource?.fileName,
+									canonicalFile
+								);
 
 								// Position 3 (content-conditional synthesis): if the local export
 								// statement carries JSDoc or @nodocs, synthesize an alias declaration
@@ -639,6 +695,37 @@ export const analyzeExports = (
 							continue;
 						}
 
+						// Re-export whose canonical is project-local but gated from
+						// output (the `internal/` convention, user excludes): the
+						// statement publishes the symbol *here*, and the canonical
+						// module emits nothing — so this module owns the docs. A full
+						// alias declaration is synthesized (same-name and renamed
+						// alike; there is no canonical to link an `alsoExportedFrom`
+						// edge to), inheriting the canonical's analyzed shape, with
+						// `aliasOf` kept for provenance and canonical-identity dedupe
+						// in `findDuplicates` — its `module` references a module
+						// absent from output, a documented margin. Svelte defaults
+						// re-key to the component's filename-derived name as in the
+						// source arm.
+						if (!isExternalPath(originalFileName)) {
+							const localTsdoc = local ? parseComment(local.statement, sourceFile) : undefined;
+							const decl = synthesizeCrossFileAlias(
+								reExportPublicName(exportSymbol.name, originalSource.fileName, originalFileName),
+								aliasedSymbol,
+								originalSource,
+								extractPath(originalFileName, options),
+								specifierLine,
+								checker,
+								diagnostics,
+								isExternalFile
+							);
+							if (localTsdoc) {
+								applyToDeclaration(decl, localTsdoc);
+							}
+							declarations.push({ declaration: decl, nodocs: !!localTsdoc?.nodocs });
+							continue;
+						}
+
 						// Re-export from an external module. Direct forms
 						// (`export {x} from 'pkg'`, `export * as ns from 'pkg'`) are
 						// captured as externalReExports — but only when the statement's
@@ -646,11 +733,15 @@ export const analyzeExports = (
 						// package through another source module stay silent (that module
 						// owns the entry), as do import-then-export forms (their
 						// specifier lives on an import statement, and their immediate
-						// alias is the local import binding).
+						// alias is the local import binding). The gate is real
+						// externality, not `!isSource` — a chain reaching a package
+						// through a project-local *gated* module also stays silent
+						// (nothing owns the entry, a documented margin) rather than
+						// recording a relative path as a package specifier.
 						const immediateExternal = checker.getImmediateAliasedSymbol(exportSymbol);
 						const immediateExternalFile =
 							immediateExternal && getPrimaryDeclarationFile(immediateExternal);
-						if (!immediateExternalFile || isSource(immediateExternalFile, options)) continue;
+						if (!immediateExternalFile || !isExternalPath(immediateExternalFile)) continue;
 						if (!local?.statement.moduleSpecifier) continue;
 						if (!ts.isStringLiteral(local.statement.moduleSpecifier)) continue;
 						if (parseComment(local.statement, sourceFile)?.nodocs) continue;
@@ -908,7 +999,8 @@ const stripModuleTag = (text: string): string => {
 const extractStarExports = (
 	sourceFile: ts.SourceFile,
 	checker: ts.TypeChecker,
-	options: ModuleSourceOptions
+	options: ModuleSourceOptions,
+	isExternalPath: (file: string) => boolean
 ): { starExports: Array<string>; externalStarExports: Array<string> } => {
 	const starExports: Array<string> = [];
 	const externalStarExports: Array<string> = [];
@@ -927,7 +1019,12 @@ const extractStarExports = (
 			// Virtual paths for Svelte files are normalized by getPrimaryDeclarationFile
 			const resolvedPath = moduleSymbol && getPrimaryDeclarationFile(moduleSymbol);
 			if (resolvedPath) {
-				if (isSource(resolvedPath, options)) {
+				if (!isExternalPath(resolvedPath)) {
+					// Project-local target — source or gated (`internal/`
+					// convention, user excludes). A gated target's path isn't in
+					// the analyzed set, so `resolveExportSurface` reports it via
+					// `unresolvedStarExports` — truthful incompleteness, instead
+					// of recording a relative path as an external package.
 					starExports.push(extractPath(resolvedPath, options));
 				} else {
 					// External package — record the specifier as written

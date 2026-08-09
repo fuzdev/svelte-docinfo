@@ -102,8 +102,9 @@ const CONDITION_PRIORITY = ['svelte', 'default', 'import', 'require'];
  * Read and parse the exports field from package.json.
  *
  * Handles all Node.js export formats: strings, objects with conditions,
- * nested conditions, null exclusions (surfaced on `blocked` for
- * best-match blocking during discovery), and wildcard patterns.
+ * nested conditions, fallback arrays (first usable element), null exclusions
+ * (surfaced on `blocked` for best-match blocking during discovery), and
+ * wildcard patterns.
  *
  * @param projectRoot - absolute path to project root
  * @returns parsed `ParsedExports`, or `{entries: [], blocked: [], hasExports: false}` if no exports field
@@ -138,11 +139,12 @@ export const parsePackageExports = async (projectRoot: string): Promise<ParsedEx
 
 		const conditions = flattenConditions(value);
 		if (!conditions) {
-			// A conditions object with no usable target (all-null values, or
-			// empty) blocks like a literal null — Node resolves nothing for it.
-			// Other unparseable shapes (fallback arrays) skip and fail open:
-			// they do export something.
-			if (typeof value === 'object' && !Array.isArray(value)) blocked.push(specifier);
+			// An object-ish shape with no usable target — a conditions object
+			// of all-null values, an empty object, or a fallback array with no
+			// usable element — blocks like a literal null: Node resolves
+			// nothing for it. Non-object garbage (numbers, booleans) is
+			// skipped and fails open.
+			if (typeof value === 'object') blocked.push(specifier);
 			continue;
 		}
 
@@ -163,6 +165,12 @@ export const parsePackageExports = async (projectRoot: string): Promise<ParsedEx
  * them to `blocked` first; a `null` nested *inside* a conditions object just
  * contributes nothing.
  *
+ * Fallback arrays take their first usable element — a static approximation
+ * of Node's error-driven fallback that is exact for the shapes that occur in
+ * practice (`["./a.js"]`, `[{...conditions}, "./fallback.js"]`). An array
+ * with no usable element flattens to `null` like an all-null conditions
+ * object, so it blocks rather than silently failing open.
+ *
  * @returns flat conditions record, or null when nothing usable remains
  */
 const flattenConditions = (value: unknown, prefix?: string): Record<string, string> | null => {
@@ -174,8 +182,17 @@ const flattenConditions = (value: unknown, prefix?: string): Record<string, stri
 		return { [prefix ?? 'default']: value };
 	}
 
-	// Object = conditions map (possibly nested)
-	if (typeof value === 'object' && !Array.isArray(value)) {
+	// Array = fallback list: first usable element wins
+	if (Array.isArray(value)) {
+		for (const item of value) {
+			const flattened = flattenConditions(item, prefix);
+			if (flattened) return flattened;
+		}
+		return null;
+	}
+
+	// Object = conditions map (possibly nested; arrays returned above)
+	if (typeof value === 'object') {
 		// Null-prototype map: condition keys come from package.json `exports` (external
 		// input) and are read back by key in `selectCondition` (`key in conditions`,
 		// `conditions[key]`); avoids prototype keys leaking into membership/lookup.

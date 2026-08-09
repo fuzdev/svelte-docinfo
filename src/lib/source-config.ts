@@ -145,28 +145,20 @@ export interface ModuleSourceOptions {
 	 *
 	 * @default Uses file extension: `.svelte` → svelte, `.ts`/`.js` → typescript, `.css` → css, `.json` → json
 	 *
+	 * Extend the default table by delegating to `getDefaultAnalyzer` (exported
+	 * from the main barrel) for everything but the added case — restating the
+	 * table drifts when it grows.
+	 *
 	 * @example
 	 * ```ts
 	 * // Add MDsveX support
-	 * getAnalyzerType: (path) => {
-	 *   if (path.endsWith('.svelte') || path.endsWith('.svx')) return 'svelte';
-	 *   if (path.endsWith('.ts') || path.endsWith('.js')) return 'typescript';
-	 *   if (path.endsWith('.css')) return 'css';
-	 *   if (path.endsWith('.json')) return 'json';
-	 *   return null;
-	 * }
+	 * getAnalyzerType: (path) => (path.endsWith('.svx') ? 'svelte' : getDefaultAnalyzer(path))
 	 * ```
 	 *
 	 * @example
 	 * ```ts
-	 * // Include .d.ts files
-	 * getAnalyzerType: (path) => {
-	 *   if (path.endsWith('.svelte')) return 'svelte';
-	 *   if (path.endsWith('.ts') || path.endsWith('.d.ts') || path.endsWith('.js')) return 'typescript';
-	 *   if (path.endsWith('.css')) return 'css';
-	 *   if (path.endsWith('.json')) return 'json';
-	 *   return null;
-	 * }
+	 * // Include .d.ts files (the default excludes them)
+	 * getAnalyzerType: (path) => (path.endsWith('.d.ts') ? 'typescript' : getDefaultAnalyzer(path))
 	 * ```
 	 */
 	getAnalyzerType: (path: string) => AnalyzerType | null;

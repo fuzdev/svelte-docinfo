@@ -94,6 +94,36 @@ describe('parsePackageExports', () => {
 		});
 	});
 
+	test('fallback arrays take the first usable element', async () => {
+		await withTestDir(async (dir) => {
+			await writeFile(
+				join(dir, 'package.json'),
+				JSON.stringify({
+					exports: {
+						'./direct.js': ['./dist/direct.js'],
+						'./conditional.js': [{ default: './dist/conditional.js' }, './dist/fallback.js'],
+						'./null-first.js': [null, './dist/second.js'],
+						// no usable element — blocks like an all-null conditions object
+						'./dead.js': [null],
+						'./empty.js': []
+					}
+				})
+			);
+
+			const result = await parsePackageExports(dir);
+			assert.ok(result.hasExports);
+			assert.deepStrictEqual(
+				result.entries.map((e) => [e.specifier, e.conditions.default]),
+				[
+					['./direct.js', './dist/direct.js'],
+					['./conditional.js', './dist/conditional.js'],
+					['./null-first.js', './dist/second.js']
+				]
+			);
+			assert.deepStrictEqual(result.blocked, ['./dead.js', './empty.js']);
+		});
+	});
+
 	test('returns hasExports: false when no exports field', async () => {
 		await withTestDir(async (dir) => {
 			await writeFile(join(dir, 'package.json'), JSON.stringify({ name: 'test' }));
@@ -543,6 +573,44 @@ describe('discoverFromExports', () => {
 					}
 				),
 				['src/lib/a.ts']
+			);
+		});
+
+		test('a fallback-array exact key is a positive key — a broader null wildcard cannot block it', async () => {
+			// Node resolves `./internal/escape.js` via the exact array key, so
+			// the file is exported and must stay discovered. Treating the array
+			// as unparseable would leave the key out of the checker entirely and
+			// let the blocked `./internal/*` out-match it — failing closed
+			// against the fail-open intent.
+			assert.deepStrictEqual(
+				await discoverWith(
+					{
+						'src/lib/public.ts': 'export const p = 1;',
+						'src/lib/internal/escape.ts': 'export const e = 1;'
+					},
+					{
+						'./*.js': { default: './dist/*.js' },
+						'./internal/escape.js': ['./dist/internal/escape.js'],
+						'./internal/*': null
+					}
+				),
+				['src/lib/internal/escape.ts', 'src/lib/public.ts']
+			);
+		});
+
+		test('the allowlist shape: null wildcard default, array-valued concrete keys', async () => {
+			assert.deepStrictEqual(
+				await discoverWith(
+					{
+						'src/lib/api.ts': 'export const a = 1;',
+						'src/lib/hidden.ts': 'export const h = 2;'
+					},
+					{
+						'./*.js': null,
+						'./api.js': ['./dist/api.js']
+					}
+				),
+				['src/lib/api.ts']
 			);
 		});
 

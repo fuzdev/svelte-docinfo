@@ -85,7 +85,10 @@ export const analyze = async (options: AnalyzeOptions): Promise<AnalyzeResultJso
 	const session = createAnalysisSession({
 		sourceOptions: options.sourceOptions,
 		log: options.log,
-		resolveImport: options.resolveImport
+		resolveImport: options.resolveImport,
+		// One-shot: no watch loop, so context files are read exactly once via
+		// the LS disk fallback either way — closure ownership is pure overhead.
+		contextClosure: false
 	});
 	try {
 		const ingest = await session.setFiles(options.sourceFiles);
@@ -146,6 +149,8 @@ export interface AnalyzeFromFilesOptions {
 	 * (no merge between the two). An array replaces the default patterns
 	 * wholesale; the callback form extends them without restating them
 	 * (`(defaults) => [...defaults, '**\/*.gen.ts']` — see `ExcludeOption`).
+	 * The callback always receives the built-in defaults, even when
+	 * `sourceOptions.exclude` is also set (that value is superseded whole).
 	 * The always-on baseline (`node_modules` + dot-directories below a matched
 	 * source path) applies beneath it and is unaffected by overrides.
 	 */
@@ -261,7 +266,10 @@ export const analyzeFromFiles = async (
 	const session: AnalysisSession = createAnalysisSession({
 		sourceOptions: resolvedSourceOptions,
 		log,
-		resolveImport: sessionResolver
+		resolveImport: sessionResolver,
+		// One-shot: no watch loop, so context files are read exactly once via
+		// the LS disk fallback either way — closure ownership is pure overhead.
+		contextClosure: false
 	});
 	let result: AnalyzeResultJson;
 	try {

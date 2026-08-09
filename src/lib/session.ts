@@ -29,6 +29,7 @@
  * @module
  */
 
+import { readFile } from 'node:fs/promises';
 import type ts from 'typescript';
 
 import {
@@ -50,9 +51,14 @@ import {
 	normalizeResolveImport
 } from './dep-resolver.ts';
 import type { SourceFileInfo } from './source.ts';
-import { type ModuleSourceOptions, isSource, normalizeSourceOptions } from './source-config.ts';
+import {
+	type ModuleSourceOptions,
+	hasBaselineExcludedSegment,
+	isSource,
+	normalizeSourceOptions
+} from './source-config.ts';
 import { toPosixPath } from './paths.ts';
-import { MAX_RESOLVE_CONCURRENCY, map_concurrent } from './concurrency.ts';
+import { MAX_FILE_CONCURRENCY, MAX_RESOLVE_CONCURRENCY, map_concurrent } from './concurrency.ts';
 import {
 	analyzeCore,
 	normalizeDiagnosticPaths,
@@ -170,7 +176,11 @@ export interface QueryOptions {
  * `query()` gates the *module set* through `isSource`: only owned files under
  * `sourceOptions.sourcePaths` and not matching `exclude` emit a `ModuleJson`.
  * The gate emits no diagnostics — `query()` logs the gated count as info, and
- * `list()` reports the full owned set for introspection.
+ * `list()` reports the full owned set for introspection. By default the
+ * session completes the owned set itself: `contextClosure` ingests the
+ * in-root non-source dependency closure (e.g. `internal/` modules public
+ * files import) so those files are version-tracked rather than pinned at
+ * their first disk read.
  */
 export interface AnalysisSession {
 	/**
@@ -275,6 +285,37 @@ export interface AnalysisSessionOptions extends Omit<
 	 * default on first use.
 	 */
 	resolveImport?: ResolveImport;
+	/**
+	 * Own the in-root non-source dependency closure as context files
+	 * (default `true`).
+	 *
+	 * After each ingest batch, the session reads from disk any file the
+	 * batch's imports resolved to that is under `projectRoot`, fails
+	 * `isSource` (outside `sourcePaths` or matching `exclude` — e.g. the
+	 * `src/lib/internal/` convention), has no `node_modules`/dot-directory
+	 * segments, and has an analyzer type — transitively, until the closure
+	 * converges. Context files are owned but never emit modules (`query()`
+	 * gates them), so this changes no output; what it changes is *freshness*:
+	 * an owned file's edit version-bumps the LS, whereas a disk-resolved file
+	 * is read once and pinned for the session's lifetime. Watch-style
+	 * consumers (the Vite plugin) gate their watchers on
+	 * `isSource(file) || session.has(file)`, so context-file edits trigger
+	 * re-analysis and public output tracks internal types live.
+	 *
+	 * Context batches always ingest in lex+resolve mode (their edges exist
+	 * only to walk the closure — context files emit nothing), so a fully
+	 * pre-resolved consumer whose files import in-root non-source paths
+	 * constructs the default resolver after all. Context ingest diagnostics
+	 * surface via `allIngestDiagnostics()`, not the batch return, and
+	 * `setFiles` results stay keyed by the caller's input IDs. Unreadable
+	 * candidates are skipped silently (the LS disk fallback covers them).
+	 *
+	 * Set `false` for one-shot use (the internal `analyze()` /
+	 * `analyzeFromFiles()` wrappers do): without a watch loop, disk-resolved
+	 * context is read exactly once anyway, so closure ownership is pure
+	 * overhead.
+	 */
+	contextClosure?: boolean;
 	/** Optional logger for session-level messages. */
 	log?: AnalysisLog;
 }
@@ -645,11 +686,13 @@ export const createAnalysisSession = (options: AnalysisSessionOptions): Analysis
 		return { changed: true, diagnostics: [...pending.ingestDiagnostics] };
 	};
 
-	// setFiles: orchestrate three phases
-	const setFiles = async (
+	// Batch ingest core: orchestrate three phases. `rawDeps` carries the
+	// batch's posixified resolved import targets before any `isSource`
+	// filtering — the context-closure seed; never stored on entries.
+	const runBatch = async (
 		files: ReadonlyArray<SourceFileInfo>,
 		opts?: SetFileOptions
-	): Promise<SetFilesResult> => {
+	): Promise<{ result: SetFilesResult; rawDeps: Set<string> }> => {
 		await ensureLexerReady();
 
 		// Resolver gating: pick one only if any file in the batch lacks
@@ -771,6 +814,24 @@ export const createAnalysisSession = (options: AnalysisSessionOptions): Analysis
 			});
 		}
 
+		// Raw dependency targets of the batch's changed files (posixified,
+		// pre-`isSource`) — the context-closure seed. Cache-hit entries
+		// contribute nothing: their closure was walked when they last changed,
+		// and a context file missed then (e.g. an unreadable candidate)
+		// self-heals on the importer's next change.
+		const rawDeps = new Set<string>();
+		for (let i = 0; i < pendings.length; i++) {
+			const p = pendings[i]!;
+			if (p.cacheHit) continue;
+			if (p.preResolvedDeps !== undefined) {
+				for (const raw of p.preResolvedDeps) rawDeps.add(toPosixPath(raw));
+			} else {
+				for (const r of resolvedByPending[i]!) {
+					if (r !== null) rawDeps.add(r);
+				}
+			}
+		}
+
 		// Phase 3: serial per-file LS push + entry write. Single LS mutator
 		// across the batch — no interleaved updates from concurrent tasks.
 		const perFile = new Map<string, SetFileResult>();
@@ -785,7 +846,65 @@ export const createAnalysisSession = (options: AnalysisSessionOptions): Analysis
 			for (const d of result.diagnostics) aggregateDiagnostics.push(d);
 		}
 
-		return { changedIds, diagnostics: aggregateDiagnostics, perFile };
+		return { result: { changedIds, diagnostics: aggregateDiagnostics, perFile }, rawDeps };
+	};
+
+	// Context-closure ingest (see `AnalysisSessionOptions.contextClosure`).
+
+	const contextClosureEnabled = options.contextClosure ?? true;
+	const rootPrefix = sourceOptions.projectRoot.endsWith('/')
+		? sourceOptions.projectRoot
+		: `${sourceOptions.projectRoot}/`;
+
+	// A raw dependency target qualifies as a context candidate when it is
+	// in-root, not already owned, fails `isSource` (source files come from the
+	// caller or discovery, never from closure — under exports discovery an
+	// undiscovered source file must not sneak into the emitted set), carries
+	// no `node_modules`/dot-directory segments (package deps and build caches
+	// are not project context), and has an analyzer type (binary assets a
+	// custom resolver resolves are not ingestable).
+	const isContextCandidate = (dep: string): boolean =>
+		!owned.has(dep) &&
+		dep.startsWith(rootPrefix) &&
+		!isSource(dep, sourceOptions) &&
+		!hasBaselineExcludedSegment(dep.slice(rootPrefix.length)) &&
+		sourceOptions.getAnalyzerType(dep) !== null;
+
+	// Walk the candidate set to a fixpoint: read each candidate from disk,
+	// ingest it through the normal batch pipeline (owned, LS-pushed,
+	// version-tracked — but gated from output by `query()`), and recurse on
+	// the new batch's raw deps. Terminates because each round only processes
+	// never-attempted paths. Unreadable candidates are skipped silently — the
+	// LS disk fallback (or a genuinely broken import) covers them.
+	const ingestContextClosure = async (
+		seedDeps: ReadonlySet<string>,
+		opts: SetFileOptions | undefined
+	): Promise<void> => {
+		const attempted = new Set<string>();
+		let candidates = [...seedDeps].filter(isContextCandidate);
+		while (candidates.length > 0) {
+			for (const c of candidates) attempted.add(c);
+			const loaded = await map_concurrent(candidates, MAX_FILE_CONCURRENCY, async (id) => {
+				try {
+					return { id, content: await readFile(id, 'utf-8') };
+				} catch {
+					return null;
+				}
+			});
+			const files = loaded.filter((f) => f !== null);
+			if (files.length === 0) return;
+			const batch = await runBatch(files, opts);
+			candidates = [...batch.rawDeps].filter((id) => !attempted.has(id) && isContextCandidate(id));
+		}
+	};
+
+	const setFiles = async (
+		files: ReadonlyArray<SourceFileInfo>,
+		opts?: SetFileOptions
+	): Promise<SetFilesResult> => {
+		const { result, rawDeps } = await runBatch(files, opts);
+		if (contextClosureEnabled) await ingestContextClosure(rawDeps, opts);
+		return result;
 	};
 
 	const setFile = async (file: SourceFileInfo, opts?: SetFileOptions): Promise<SetFileResult> => {

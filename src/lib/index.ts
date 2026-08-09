@@ -72,6 +72,7 @@ export {
 
 // Source types
 
+export { getDefaultAnalyzer } from './source.ts';
 export type { SourceFileInfo, AnalyzerType } from './source.ts';
 
 // Source options
