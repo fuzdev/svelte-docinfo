@@ -1,4 +1,9 @@
+import type ts from 'typescript';
+
 import { DeclarationJson, type DeclarationJsonInput } from '$lib/types.ts';
+import type { SvelteVirtualFile } from '$lib/svelte.ts';
+import { buildAliasRegistry } from '$lib/typescript-alias-registry.ts';
+import type { AliasRegistry } from '$lib/typescript-extract-type-json.ts';
 
 import { loadFixturesGeneric } from '../../test-helpers.ts';
 
@@ -32,6 +37,24 @@ export const fixtureNameToComponentName = (name: string): string => {
 		.map((word) => word.charAt(0).toUpperCase() + word.slice(1))
 		.join('');
 };
+
+/**
+ * The svelte harness's twin of `analyzeCore`'s registry pre-pass: build the
+ * alias registry over a set of transformed fixtures, reached through their
+ * virtuals in `program`. `svelte.test.ts` and the update task must wire
+ * identically or fixtures drift from regeneration — both call this.
+ */
+export const buildSvelteFixtureRegistry = (
+	program: ts.Program,
+	entries: ReadonlyArray<{ virtualFile: SvelteVirtualFile; modulePath: string }>
+): AliasRegistry =>
+	buildAliasRegistry(
+		entries.map(({ virtualFile, modulePath }) => ({
+			sourceFile: program.getSourceFile(virtualFile.virtualPath)!,
+			modulePath
+		})),
+		program.getTypeChecker()
+	);
 
 /**
  * Load all fixtures from the svelte fixtures directory.

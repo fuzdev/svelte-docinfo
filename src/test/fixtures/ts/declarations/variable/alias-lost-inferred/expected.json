@@ -1,7 +1,11 @@
 {
 	"name": "derived",
 	"kind": "variable",
-	"docComment": "An unannotated variable of an alias-lost type: with no written annotation\nto recover a name from, the flat string prints the expansion and the tree\nis absent (an object root has no structure beyond the flat string).",
+	"docComment": "An unannotated variable of an alias-lost type: the flat string prints the\nexpansion, and the tree recovers the exported alias's name through the\nregistry (`{kind: 'reference', name: 'Inferred'}`).",
 	"typeSignature": "{ a: string; b: number; }",
-	"sourceLine": 15
+	"sourceLine": 12,
+	"typeInfo": {
+		"kind": "reference",
+		"name": "Inferred"
+	}
 }

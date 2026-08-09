@@ -28,9 +28,95 @@ import type {
 import type { DeclarationJsonBuild, MemberJsonBuild } from './declaration-build.ts';
 import { type Diagnostic, type MisplacedTagDiagnostic } from './diagnostics.ts';
 import { to_error_message } from './error.ts';
+import { stripVirtualSuffix } from './source.ts';
 import { applyToDeclaration, parseComment, type TsdocParsedComment } from './tsdoc.ts';
-import { optionalWideningTarget, resolveTypeInfo } from './typescript-extract-type-json.ts';
+import {
+	optionalWideningTarget,
+	resolveTypeInfo,
+	type AliasRegistry
+} from './typescript-extract-type-json.ts';
 import { type IsExternalFile } from './typescript-program.ts';
+
+/**
+ * The pass-scoped, cross-cutting state one extraction run threads through the
+ * extractor seams — `analyzeDeclaration` down to the `resolveTypeInfo` call
+ * sites. Constructed once per module walk (`analyzeExports`,
+ * `analyzeSvelteModule`) or per direct call (tests, fixture harnesses).
+ *
+ * Membership is deliberately tight: only state that is constant for the pass
+ * and consumed across extractor boundaries belongs here. Per-declaration
+ * inputs (nodes, symbols, parsed TSDoc, written annotations, names) stay
+ * positional parameters.
+ */
+export interface ExtractContext {
+	checker: ts.TypeChecker;
+	/** Accumulator for non-fatal issues — mutated via `Array.push` throughout the pass. */
+	diagnostics: Array<Diagnostic>;
+	/** Predicate for external source files (node_modules, out-of-tree declarations). */
+	isExternalFile: IsExternalFile;
+	/**
+	 * Identity-keyed registry of the analyzed set's exported alias-lost type
+	 * aliases (`buildAliasRegistry` in `typescript-alias-registry.ts`), or
+	 * `undefined` when no pre-pass ran — registry recovery is then disabled
+	 * while written-name recovery keeps working. A required field so every
+	 * construction site decides explicitly.
+	 */
+	aliasRegistry: AliasRegistry | undefined;
+}
+
+/**
+ * Whether any of the symbol's declarations lives in `fileName`
+ * (virtual-suffix-normalized).
+ *
+ * Merged symbols (module augmentation, declaration merging) can have
+ * declarations in several files — a symbol counts as declared in the file
+ * when at least one declaration is, so checking a single declaration node
+ * would drop locally-declared exports depending on bind order. Symbols
+ * without declarations are treated as declared in the file (permissive).
+ *
+ * @internal Shared by the export walk (`analyzeExports`) and the
+ * alias-registry pre-pass (`buildAliasRegistry`) — both must skip
+ * star-projected bindings the same way.
+ */
+export const isDeclaredInFile = (symbol: ts.Symbol, fileName: string): boolean => {
+	const decls = symbol.declarations;
+	if (!decls?.length) return true;
+	return decls.some((d) => stripVirtualSuffix(d.getSourceFile().fileName) === fileName);
+};
+
+/**
+ * The local export statement and binding node for an alias export symbol —
+ * `{node, statement}` where `node` is the `ExportSpecifier` (or, for
+ * `export * as ns`, the `NamespaceExport`) and `statement` its
+ * `ExportDeclaration`.
+ *
+ * Returns `undefined` when the statement isn't in `sourceFile`: merged
+ * symbols can put a foreign declaration first, and parsing JSDoc or
+ * positions there would attribute another module's content here.
+ *
+ * @internal Shared by the export walk (`analyzeExports`) and the
+ * alias-registry pre-pass (`buildAliasRegistry`).
+ */
+export const getLocalExportStatement = (
+	exportSymbol: ts.Symbol,
+	sourceFile: ts.SourceFile
+):
+	| { node: ts.ExportSpecifier | ts.NamespaceExport; statement: ts.ExportDeclaration }
+	| undefined => {
+	const node = exportSymbol.declarations?.[0];
+	if (!node) return undefined;
+	if (ts.isExportSpecifier(node)) {
+		const statement = node.parent.parent;
+		if (statement.getSourceFile() !== sourceFile) return undefined;
+		return { node, statement };
+	}
+	if (ts.isNamespaceExport(node)) {
+		const statement = node.parent;
+		if (statement.getSourceFile() !== sourceFile) return undefined;
+		return { node, statement };
+	}
+	return undefined;
+};
 
 /**
  * Infer declaration kind from symbol and node.
@@ -196,15 +282,16 @@ export const getNonOptionalType = (type: ts.Type, checker: ts.TypeChecker): ts.T
  * and class methods/constructors.
  *
  * @param sig - the TypeScript signature to extract parameters from
- * @param checker - TypeScript type checker for type resolution
+ * @param ctx - the extraction pass's context (checker + alias registry)
  * @param tsdocParams - record of parameter names to TSDoc descriptions (from `TsdocParsedComment.params`)
  * @returns array of `ParameterJson` objects
  */
 export const extractSignatureParameters = (
 	sig: ts.Signature,
-	checker: ts.TypeChecker,
+	ctx: ExtractContext,
 	tsdocParams: Record<string, string> | undefined
 ): Array<ParameterJson> => {
+	const { checker, aliasRegistry } = ctx;
 	return sig.parameters.map((param) => {
 		const paramDecl = param.valueDeclaration;
 		const optional = !!(paramDecl && ts.isParameter(paramDecl) && paramDecl.questionToken);
@@ -219,11 +306,13 @@ export const extractSignatureParameters = (
 			const paramType = checker.getTypeOfSymbolAtLocation(param, paramDecl);
 			typeString = getTypeSignature(paramType, checker, optional);
 			const annotation = ts.isParameter(paramDecl) ? paramDecl.type : undefined;
-			typeInfo = resolveTypeInfo(paramType, checker, optional, { writtenNode: annotation });
+			typeInfo = resolveTypeInfo(paramType, checker, aliasRegistry, optional, {
+				writtenNode: annotation
+			});
 		} else {
 			const paramType = checker.getDeclaredTypeOfSymbol(param);
 			typeString = checker.typeToString(paramType);
-			typeInfo = resolveTypeInfo(paramType, checker, false);
+			typeInfo = resolveTypeInfo(paramType, checker, aliasRegistry, false);
 		}
 
 		// Get TSDoc description for this parameter
@@ -340,14 +429,17 @@ const collectSymbolScopeTags = (
 const applyReturnType = (
 	target: { returnType?: string; returnTypeInfo?: TypeJson },
 	sig: ts.Signature,
-	checker: ts.TypeChecker
+	ctx: ExtractContext
 ): void => {
+	const { checker } = ctx;
 	const returnType = checker.getReturnTypeOfSignature(sig);
 	target.returnType = checker.typeToString(returnType);
 	// a JSDoc signature's `type` is a return *tag*, not a TypeNode
 	const decl = sig.declaration;
 	const returnNode = decl && !ts.isJSDocSignature(decl) ? decl.type : undefined;
-	const returnTypeInfo = resolveTypeInfo(returnType, checker, false, { writtenNode: returnNode });
+	const returnTypeInfo = resolveTypeInfo(returnType, checker, ctx.aliasRegistry, false, {
+		writtenNode: returnNode
+	});
 	if (returnTypeInfo) target.returnTypeInfo = returnTypeInfo;
 };
 
@@ -373,31 +465,30 @@ const applyReturnType = (
  * author at the primary signature.
  *
  * @param signatures - all call signatures from the type checker
- * @param checker - TypeScript type checker
+ * @param ctx - the extraction pass's context
  * @param parentTsdoc - parsed JSDoc of the parent declaration (for primary-signature detection)
  * @param parentName - parent function/method name (for diagnostic messages)
- * @param diagnostics - diagnostics collector for non-fatal issues
  * @returns array of overload info objects
  */
 const extractOverloads = (
 	signatures: ReadonlyArray<ts.Signature>,
-	checker: ts.TypeChecker,
+	ctx: ExtractContext,
 	parentTsdoc: TsdocParsedComment | undefined,
-	parentName: string,
-	diagnostics: Array<Diagnostic>
+	parentName: string
 ): Array<OverloadJsonInput> => {
+	const { checker, diagnostics } = ctx;
 	return signatures.map((sig) => {
 		const decl = sig.getDeclaration();
 		const sourceFile = decl.getSourceFile();
 		const tsdoc = parseComment(decl, sourceFile);
 
 		const typeSignature = checker.signatureToString(sig);
-		const parameters = extractSignatureParameters(sig, checker, tsdoc?.params);
+		const parameters = extractSignatureParameters(sig, ctx, tsdoc?.params);
 
 		validateParamKeys(tsdoc?.params, parameters, decl, parentName, diagnostics);
 
 		const overload: OverloadJsonInput = { typeSignature, parameters };
-		applyReturnType(overload, sig, checker);
+		applyReturnType(overload, sig, ctx);
 
 		if (tsdoc?.text) {
 			overload.docComment = tsdoc.text;
@@ -459,38 +550,38 @@ const extractOverloads = (
  *
  * @param target - declaration or member build object (mutated)
  * @param signatures - public call/construct signatures (`signatures[0]` is primary)
+ * @param ctx - the extraction pass's context
  * @param tsdoc - parsed TSDoc for the target (supplies `@param`/`@returns`)
  * @param paramValidationNode - node `validateParamKeys` reports `unknown_param` against
  * @param name - target name, for diagnostic messages
  * @param includeReturn - set `false` for constructors (no return type/description)
  * @mutates target - sets typeSignature, parameters, overloads, returnType, returnTypeInfo, returnDescription
- * @mutates diagnostics - via `validateParamKeys` / `extractOverloads`
+ * @mutates ctx.diagnostics - via `validateParamKeys` / `extractOverloads`
  */
 export const populateCallableMember = (
 	target: DeclarationJsonBuild | MemberJsonBuild,
 	signatures: ReadonlyArray<ts.Signature>,
-	checker: ts.TypeChecker,
+	ctx: ExtractContext,
 	tsdoc: TsdocParsedComment | undefined,
 	paramValidationNode: ts.Node,
 	name: string,
-	diagnostics: Array<Diagnostic>,
 	includeReturn = true
 ): void => {
 	if (signatures.length === 0) return;
 	const sig = signatures[0]!;
 
-	target.typeSignature = checker.signatureToString(sig);
+	target.typeSignature = ctx.checker.signatureToString(sig);
 
 	if (includeReturn) {
-		applyReturnType(target, sig, checker);
+		applyReturnType(target, sig, ctx);
 		if (tsdoc?.returns) target.returnDescription = tsdoc.returns;
 	}
 
-	target.parameters = extractSignatureParameters(sig, checker, tsdoc?.params);
-	validateParamKeys(tsdoc?.params, target.parameters, paramValidationNode, name, diagnostics);
+	target.parameters = extractSignatureParameters(sig, ctx, tsdoc?.params);
+	validateParamKeys(tsdoc?.params, target.parameters, paramValidationNode, name, ctx.diagnostics);
 
 	if (signatures.length > 1) {
-		target.overloads = extractOverloads(signatures, checker, tsdoc, name, diagnostics);
+		target.overloads = extractOverloads(signatures, ctx, tsdoc, name);
 	}
 };
 
@@ -525,34 +616,26 @@ export const memberNameText = (name: ts.PropertyName): string | undefined =>
  *
  * @param annotation - the written type annotation, when one exists (feeds `typeInfo` name recovery)
  * @mutates member - sets kind, doc fields, and either the callable field set or typeSignature/typeInfo
- * @mutates diagnostics - via `populateCallableMember`
+ * @mutates ctx.diagnostics - via `populateCallableMember`
  */
 export const populatePropertyMember = (
 	member: MemberJsonBuild,
 	propType: ts.Type,
-	checker: ts.TypeChecker,
+	ctx: ExtractContext,
 	optional: boolean,
 	tsdoc: TsdocParsedComment | undefined,
 	paramValidationNode: ts.Node,
 	name: string,
-	diagnostics: Array<Diagnostic>,
 	annotation: ts.TypeNode | undefined
 ): void => {
+	const { checker } = ctx;
 	// an optional property resolves to a union with `undefined`, which reports no
 	// call signatures — strip it so `fn?: () => void` still reads as a function
 	const callableType = optional ? getNonOptionalType(propType, checker) : propType;
 	const callSigs = callableType.getCallSignatures();
 	if (callSigs.length > 0) {
 		member.kind = 'function';
-		populateCallableMember(
-			member,
-			callSigs,
-			checker,
-			tsdoc,
-			paramValidationNode,
-			name,
-			diagnostics
-		);
+		populateCallableMember(member, callSigs, ctx, tsdoc, paramValidationNode, name);
 		// generic signatures carry genericParams like method signatures and
 		// (call) members do — read from the primary signature's declaration
 		const sigDecl = callSigs[0]!.getDeclaration();
@@ -561,7 +644,9 @@ export const populatePropertyMember = (
 		}
 	} else {
 		member.typeSignature = getTypeSignature(propType, checker, optional);
-		const typeInfo = resolveTypeInfo(propType, checker, optional, { writtenNode: annotation });
+		const typeInfo = resolveTypeInfo(propType, checker, ctx.aliasRegistry, optional, {
+			writtenNode: annotation
+		});
 		if (typeInfo) member.typeInfo = typeInfo;
 	}
 	// owning the apply here keeps projection + docs a single call for both
@@ -855,7 +940,7 @@ export const extractModifiers = (
  *
  * @mutates declaration - appends a member when signatures are present;
  *   sets `partial: true` on extraction failure
- * @mutates diagnostics - adds `signature_analysis_failed` on checker error
+ * @mutates ctx.diagnostics - adds `signature_analysis_failed` on checker error
  */
 export const emitCallOrConstructSignature = (
 	getSignatures: () => ReadonlyArray<ts.Signature>,
@@ -863,10 +948,10 @@ export const emitCallOrConstructSignature = (
 	resolveTsdocNode: (sig: ts.Signature) => ts.Node | undefined,
 	paramValidationFallbackNode: ts.Node,
 	declaration: DeclarationJsonBuild,
-	checker: ts.TypeChecker,
-	diagnostics: Array<Diagnostic>,
+	ctx: ExtractContext,
 	errorContext: { node: ts.Node; kindLabel: string }
 ): void => {
+	const { checker, diagnostics } = ctx;
 	try {
 		const signatures = getSignatures();
 		if (signatures.length === 0) return;
@@ -877,13 +962,13 @@ export const emitCallOrConstructSignature = (
 
 		const sig = signatures[0]!;
 		member.typeSignature = checker.signatureToString(sig);
-		if (signatureKind === 'call') applyReturnType(member, sig, checker);
+		if (signatureKind === 'call') applyReturnType(member, sig, ctx);
 
 		const tsdocNode = resolveTsdocNode(sig);
 		const tsdoc = tsdocNode ? parseComment(tsdocNode, tsdocNode.getSourceFile()) : undefined;
 		applyToDeclaration(member, tsdoc, true);
 
-		member.parameters = extractSignatureParameters(sig, checker, tsdoc?.params);
+		member.parameters = extractSignatureParameters(sig, ctx, tsdoc?.params);
 		validateParamKeys(
 			tsdoc?.params,
 			member.parameters,
@@ -898,7 +983,7 @@ export const emitCallOrConstructSignature = (
 		}
 
 		if (signatures.length > 1) {
-			member.overloads = extractOverloads(signatures, checker, tsdoc, memberName, diagnostics);
+			member.overloads = extractOverloads(signatures, ctx, tsdoc, memberName);
 		}
 
 		(declaration.members ??= []).push(member);

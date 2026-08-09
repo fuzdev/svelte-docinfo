@@ -2,6 +2,7 @@ import ts from 'typescript';
 
 import { DeclarationJson, type DeclarationJsonInput } from '$lib/types.ts';
 import { analyzeDeclaration, extractModuleComment } from '$lib/typescript-exports.ts';
+import { buildAliasRegistry } from '$lib/typescript-alias-registry.ts';
 import type { Diagnostic } from '$lib/diagnostics.ts';
 
 import { loadFixturesGeneric } from '../../test-helpers.ts';
@@ -219,6 +220,14 @@ export const extractDeclarationFromSource = (
 		return extractModuleComment(sourceFile) ?? null;
 	}
 
+	// The registry pre-pass runs here like `analyzeCore`'s — the fixture is its
+	// own single-module emitted set — so fixtures lock registry recovery, not
+	// the no-registry path (neither harness routes through `analyzeCore`).
+	const aliasRegistry = buildAliasRegistry(
+		[{ sourceFile, modulePath: sourceFile.fileName }],
+		checker
+	);
+
 	// Find the first exported declaration's symbol
 	for (const statement of sourceFile.statements) {
 		const modifiers = ts.canHaveModifiers(statement) ? ts.getModifiers(statement) : undefined;
@@ -248,13 +257,12 @@ export const extractDeclarationFromSource = (
 		if (!symbol) continue;
 
 		const diagnostics: Array<Diagnostic> = [];
-		const { declaration, nodocs } = analyzeDeclaration(
-			symbol,
-			sourceFile,
+		const { declaration, nodocs } = analyzeDeclaration(symbol, sourceFile, {
 			checker,
 			diagnostics,
-			() => false
-		);
+			isExternalFile: () => false,
+			aliasRegistry
+		});
 		if (nodocs) return null;
 
 		return DeclarationJson.parse(declaration);

@@ -7,6 +7,7 @@ import { type Diagnostic } from '$lib/diagnostics.ts';
 import type { DeclarationJsonBuild, MemberJsonBuild } from '$lib/declaration-build.ts';
 
 import { createMultiFileProgram, findTypeAlias } from './fixtures/ts/ts-test-helpers.ts';
+import { mockExtractContext } from './test-helpers.ts';
 
 /**
  * Local convenience wrapper that returns the checker directly — the tests in
@@ -33,7 +34,11 @@ const runExtractTypeInfo = (
 	const alias = findTypeAlias(sf, checker, typeName)!;
 	const declaration: DeclarationJsonBuild = { kind: 'type', name: typeName };
 	const diagnostics: Array<Diagnostic> = [];
-	extractTypeInfo(alias.node, checker, declaration, diagnostics, isExternal);
+	extractTypeInfo(
+		alias.node,
+		declaration,
+		mockExtractContext(checker, { diagnostics, isExternalFile: isExternal })
+	);
 	return { declaration, diagnostics };
 };
 

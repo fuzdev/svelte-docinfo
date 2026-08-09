@@ -12,13 +12,22 @@
  * with `extractSnippetParameters`). `resolveTypeInfo` builds the
  * tree and applies the `TypeJson` absence contract — returning `undefined`
  * when the node carries no structure beyond the flat string. It also owns
- * written-name recovery: a caller-supplied annotation node feeds a
- * type-identity map (`buildWrittenNameMap`) so a type whose alias TypeScript
- * dropped (an alias over an indexed access or conditional — `z.infer<typeof
- * S>`, valibot's `InferOutput`) can still emit `{kind: 'reference', name}`
- * where the checker would print its whole structure. Expansion,
- * alias, and normalization policy live on the `TypeJson` schema doc in
- * `types.ts`.
+ * name recovery for types whose alias TypeScript dropped (an alias over an
+ * indexed access or conditional — `z.infer<typeof S>`, valibot's
+ * `InferOutput`), through two composed channels consulted only at nameless
+ * positions: written-name recovery (a caller-supplied annotation node feeds a
+ * type-identity map, `buildWrittenNameMap`) and the identity-keyed alias
+ * registry (`AliasRegistry`, built by `buildAliasRegistry` in
+ * `typescript-alias-registry.ts` over the analyzed set's exported lost
+ * aliases). Where either names the type, the tree emits
+ * `{kind: 'reference', name}` instead of the structure the checker would
+ * print. The written channel wins when both match; the registry is
+ * additionally suppressed at the root of a type-alias declaration's own site
+ * (the self-skip — a lost alias carries no `aliasSymbol`, so without it the
+ * declaration's own `typeInfo` would collapse to a self-reference, or under
+ * ambiguity a reference to its twin; nested self-hits stay live and terminate
+ * recursive types with a name). Expansion, alias, and normalization policy
+ * live on the `TypeJson` schema doc in `types.ts`.
  *
  * @internal Used by the extractors — not part of the public barrel export.
  *
@@ -132,10 +141,104 @@ export const optionalWideningTarget = (
 	return { target: checker.getNonNullableType(type), dropUndefined: false };
 };
 
-/** The type's non-anonymous symbol name (`__type`/`__object`/`__function` mark anonymous shapes). */
-const namedSymbolName = (type: ts.Type): string | undefined => {
+/**
+ * The type's non-anonymous symbol name (`__type`/`__object`/`__function` mark
+ * anonymous shapes). The one anonymity rule shared by the recovery gate here,
+ * the alias-lost predicate (`isAliasLostType`), and the registry's safety-gate
+ * walk (`typescript-alias-registry.ts`) — never `ObjectFlags.Anonymous`, which
+ * real inferred schema outputs (zod's are `Mapped | Instantiated`) don't carry.
+ */
+export const namedSymbolName = (type: ts.Type): string | undefined => {
 	const name = type.symbol?.name;
 	return name && !name.startsWith('__') ? name : undefined;
+};
+
+/**
+ * Whether the checker kept no name for a type-alias declaration's resolved
+ * type: no alias symbol (the checker still prints `type A = B` as `B`), no
+ * nominal symbol (interfaces/classes/enums print their own name), and not an
+ * interned terminal (`type A = string` and `type A = 'x'` carry no alias
+ * symbol either but print fine). True exactly for the expansion-prone class
+ * the alias registry targets and the `alias_lost` diagnostic reports —
+ * indexed-access and conditional right-hand sides (`z.infer<typeof S>` et
+ * al.), whose resolution lands on a pre-existing interned type that TypeScript
+ * never retroactively stamps an alias symbol on.
+ */
+export const isAliasLostType = (type: ts.Type): boolean =>
+	type.aliasSymbol === undefined &&
+	namedSymbolName(type) === undefined &&
+	!(type.flags & (INTRINSIC_FLAGS | ts.TypeFlags.Literal));
+
+/**
+ * Whether a type is a union of literals only (`z.enum` outputs — a lost alias
+ * over one degrades mildly and readably, so the `alias_lost` diagnostic
+ * excludes it). Enum-member literals match too.
+ */
+export const isLiteralOnlyUnion = (type: ts.Type): boolean =>
+	type.isUnion() && type.types.every((t) => !!(t.flags & ts.TypeFlags.Literal));
+
+/**
+ * Whether a type is an intersection carrying an intrinsic or literal member —
+ * the `.brand()` shape (`string & BRAND<'x'>`). Such aliases are lost but
+ * unrecoverable, readable, and author-unfixable, so the `alias_lost`
+ * diagnostic excludes them.
+ */
+export const isBrandLikeIntersection = (type: ts.Type): boolean =>
+	type.isIntersection() &&
+	type.types.some((t) => !!(t.flags & (INTRINSIC_FLAGS | ts.TypeFlags.Literal)));
+
+/** A name registered for an alias-lost type — see `buildAliasRegistry` in `typescript-alias-registry.ts`. */
+export interface AliasRegistryEntry {
+	/** The alias's importable name. */
+	name: string;
+	/** The `ModuleJson.path` of the module declaring the alias. */
+	module: string;
+}
+
+/**
+ * Identity-keyed registry of exported alias-lost type aliases, consulted by
+ * the tree builder at nameless positions behind written-name recovery. Built
+ * per analysis cycle by `buildAliasRegistry` (`typescript-alias-registry.ts`);
+ * `undefined` wherever no pre-pass ran (registry recovery disabled, written
+ * recovery unaffected).
+ */
+export interface AliasRegistry {
+	/** Checker type identity → the winning alias (`compareStrings` name-then-module tie-break). */
+	byType: Map<ts.Type, AliasRegistryEntry>;
+	/**
+	 * Union member-set key (`unionMemberSetKey`) → the winning alias, for
+	 * registered unions only. Consulted at optional-widened positions, where a
+	 * `null`-bearing union flattens with the widening `undefined` into a type
+	 * object the identity lookup can never match — the registered members
+	 * survive by identity inside the widened union, so the set matches exactly.
+	 */
+	byMemberSet: Map<string, AliasRegistryEntry>;
+}
+
+/** `ts.Type` with the internal `id` field (absent from the public declarations). */
+interface TypeWithId extends ts.Type {
+	id?: number;
+}
+
+/**
+ * The member-set key of a union — sorted internal type ids, `undefined`
+ * filtered — or `undefined` when unusable (an internal-API `id` missing, or
+ * fewer than two non-`undefined` members, a set no widened-union lookup can
+ * produce). One function for both sides so registration and lookup can't
+ * drift. Identity safety carries over from the ids: two unions share a key
+ * only when they share their non-`undefined` members by object identity.
+ */
+export const unionMemberSetKey = (type: ts.UnionType): string | undefined => {
+	const ids: Array<number> = [];
+	for (const t of type.types) {
+		if (t.flags & ts.TypeFlags.Undefined) continue;
+		const id = (t as TypeWithId).id;
+		if (typeof id !== 'number') return undefined;
+		ids.push(id);
+	}
+	if (ids.length < 2) return undefined;
+	ids.sort((a, b) => a - b);
+	return ids.join(',');
 };
 
 /**
@@ -218,22 +321,74 @@ const createWrittenNameLookup = (
 };
 
 /**
- * The reference node recovered from the written annotation for a type the
- * checker has no name for, or `undefined`. Fires only at nameless positions —
- * a type carrying an alias symbol or a non-anonymous symbol is the checker's
- * to name (never overridden), and recovery substitutes the whole node rather
- * than grafting a recovered name onto checker structure: where the checker
- * dropped the alias it expands the structure into the flat string anyway, so
- * the tree's contribution is the name the string lost.
+ * The two recovery channels threaded through a tree build, plus the self-skip
+ * flag. Constructed once per `resolveTypeInfo`/`restElementForms` call.
+ */
+interface NameRecovery {
+	/** Names from the written annotation at this site, when one exists. */
+	written: WrittenNameLookup | undefined;
+	/** Names from the analyzed set's exported lost aliases, when a pre-pass ran. */
+	registry: AliasRegistry | undefined;
+	/**
+	 * Suppress registry hits for the root node — set at a type-alias
+	 * declaration's own site, where a lost declared type is (or ties with) its
+	 * own registry entry and a hit would collapse the declaration's structural
+	 * tree to a self- or twin-reference. Root-only by position, not identity:
+	 * nested self-hits stay live so a recursive lost type terminates with a
+	 * name instead of elided text.
+	 */
+	suppressRegistryAtRoot: boolean;
+}
+
+/** The one `NameRecovery` constructor — see the interface for field semantics. */
+const createNameRecovery = (
+	writtenNode: ts.TypeNode | undefined,
+	checker: ts.TypeChecker,
+	registry: AliasRegistry | undefined,
+	suppressRegistryAtRoot = false
+): NameRecovery => ({
+	written: createWrittenNameLookup(writtenNode, checker),
+	registry,
+	suppressRegistryAtRoot
+});
+
+/**
+ * The reference node recovered for a type the checker has no name for, or
+ * `undefined`. Fires only at nameless positions — a type carrying an alias
+ * symbol or a non-anonymous symbol is the checker's to name (never
+ * overridden), and recovery substitutes the whole node rather than grafting a
+ * recovered name onto checker structure: where the checker dropped the alias
+ * it expands the structure into the flat string anyway, so the tree's
+ * contribution is the name the string lost.
+ *
+ * Channel order: written annotation first (the author's spelling at this
+ * site), then the alias registry by type identity, then — only at
+ * optional-widened union positions (`memberSetEligible`, the sibling of
+ * `dropUndefined`) — the registry's member-set side index, which is what
+ * recovers a `null`-bearing lost union that the widening flattened past
+ * identity match.
  */
 const recoveredReference = (
 	type: ts.Type,
-	lookup: WrittenNameLookup | undefined
+	recovery: NameRecovery,
+	depth: number,
+	memberSetEligible = false
 ): TypeJson | undefined => {
-	if (!lookup) return undefined;
+	if (recovery.written === undefined && recovery.registry === undefined) return undefined;
 	if (type.aliasSymbol !== undefined || namedSymbolName(type) !== undefined) return undefined;
-	const name = lookup(type);
-	return name === undefined ? undefined : { kind: 'reference', name };
+	const written = recovery.written?.(type);
+	if (written !== undefined) return { kind: 'reference', name: written };
+	const { registry } = recovery;
+	if (registry === undefined) return undefined;
+	if (depth === 0 && recovery.suppressRegistryAtRoot) return undefined;
+	const entry = registry.byType.get(type);
+	if (entry) return { kind: 'reference', name: entry.name };
+	if (memberSetEligible && type.isUnion()) {
+		const key = unionMemberSetKey(type);
+		const side = key === undefined ? undefined : registry.byMemberSet.get(key);
+		if (side) return { kind: 'reference', name: side.name };
+	}
+	return undefined;
 };
 
 /**
@@ -392,7 +547,7 @@ const buildUnion = (
 	checker: ts.TypeChecker,
 	depth: number,
 	dropUndefined: boolean,
-	lookup: WrittenNameLookup | undefined
+	recovery: NameRecovery
 ): TypeJson => {
 	let memberTypes: ReadonlyArray<ts.Type> = sinkNullishLast(unionMemberTypes(type));
 	if (dropUndefined) {
@@ -417,7 +572,7 @@ const buildUnion = (
 			}
 			continue;
 		}
-		members.push(buildTypeJson(memberType, checker, depth + 1, lookup));
+		members.push(buildTypeJson(memberType, checker, depth + 1, recovery));
 	}
 
 	if (members.length === 0) return { kind: 'other', text: printType(type, checker) };
@@ -502,13 +657,15 @@ const printRestElementType = (elementType: ts.Type, checker: ts.TypeChecker): st
  * parenthesizes everything but bare identifier paths — sometimes
  * over-parenthesized, never a different type. The tree is presence-gated like
  * any array node (present when the element is a reference or carries
- * structure). `writtenNode` feeds name recovery like `resolveTypeInfo`'s — the
- * caller passes the same annotation it hands the sibling tree, so the two
- * projections of one element can't disagree on a recovered name.
+ * structure). `writtenNode` and `aliasRegistry` feed name recovery like
+ * `resolveTypeInfo`'s — the caller passes the same annotation and registry it
+ * hands the sibling tree, so the two projections of one element can't disagree
+ * on a recovered name.
  */
 export const restElementForms = (
 	elementType: ts.Type,
 	checker: ts.TypeChecker,
+	aliasRegistry: AliasRegistry | undefined,
 	writtenNode?: ts.TypeNode
 ): { type: string; typeInfo: TypeJson | undefined } => {
 	// depth 1: the element sits under the implicit array root, matching what a
@@ -516,7 +673,12 @@ export const restElementForms = (
 	// same element inside the prop-level tree, so the depth caps differ by one)
 	const node: TypeJson = {
 		kind: 'array',
-		element: buildTypeJson(elementType, checker, 1, createWrittenNameLookup(writtenNode, checker))
+		element: buildTypeJson(
+			elementType,
+			checker,
+			1,
+			createNameRecovery(writtenNode, checker, aliasRegistry)
+		)
 	};
 	return {
 		type: printRestElementType(elementType, checker),
@@ -537,7 +699,7 @@ const buildTuple = (
 	type: ts.TypeReference,
 	checker: ts.TypeChecker,
 	depth: number,
-	lookup: WrittenNameLookup | undefined
+	recovery: NameRecovery
 ): TypeJson => {
 	const isReadonly = (type.target as ts.TupleType).readonly;
 	const walked = tupleElements(type, checker);
@@ -546,7 +708,7 @@ const buildTuple = (
 	}
 	const elements = walked.map((el): TupleElementJson => {
 		const { target, dropUndefined } = optionalWideningTarget(el.type, checker, el.optional);
-		const built = buildTypeJson(target, checker, depth + 1, lookup, { dropUndefined });
+		const built = buildTypeJson(target, checker, depth + 1, recovery, { dropUndefined });
 		const node: TypeJson = el.rest ? { kind: 'array', element: built } : built;
 		// `name` leads the literal so the wire keys read name-first
 		const name = tupleElementName(el);
@@ -559,22 +721,25 @@ const buildTuple = (
 };
 
 /**
- * Build a `TypeJson` node for a type. `lookup` threads through the whole walk
- * (recovery can fire at any depth); `options` are positional — see
+ * Build a `TypeJson` node for a type. `recovery` threads through the whole
+ * walk (recovery can fire at any depth); `options` are positional — see
  * `BuildTypeJsonOptions`.
  */
 const buildTypeJson = (
 	type: ts.Type,
 	checker: ts.TypeChecker,
 	depth: number,
-	lookup: WrittenNameLookup | undefined,
+	recovery: NameRecovery,
 	options: BuildTypeJsonOptions = NO_OPTIONS
 ): TypeJson => {
 	// recovery still applies at the cap — a ~40 B reference beats elided text,
-	// and the map can't misfire here: it excludes interned types (intrinsics,
-	// literals, type parameters) at build, and lookup is by type identity
+	// and neither channel can misfire here: the written map excludes interned
+	// types (intrinsics, literals, type parameters) at build, the registry
+	// excludes them at registration, and lookup is by type identity
 	if (depth >= MAX_TYPE_JSON_DEPTH) {
-		return recoveredReference(type, lookup) ?? { kind: 'other', text: printType(type, checker) };
+		return (
+			recoveredReference(type, recovery, depth) ?? { kind: 'other', text: printType(type, checker) }
+		);
 	}
 
 	if (type.flags & INTRINSIC_FLAGS) return { kind: 'intrinsic', text: printType(type, checker) };
@@ -584,18 +749,22 @@ const buildTypeJson = (
 
 	// recovery precedes union/intersection expansion: an alias-lost union
 	// (`z.infer` over a discriminated union) has no alias to label its members
-	// with, so a written name replaces the expansion outright
+	// with, so a recovered name replaces the expansion outright. The
+	// member-set channel is eligible exactly where `dropUndefined` applies —
+	// an optional-widened position, the one place a registered `null`-bearing
+	// union arrives flattened past identity match
 	if (type.isUnion()) {
+		const dropUndefined = options.dropUndefined ?? false;
 		return (
-			recoveredReference(type, lookup) ??
-			buildUnion(type, checker, depth, options.dropUndefined ?? false, lookup)
+			recoveredReference(type, recovery, depth, dropUndefined) ??
+			buildUnion(type, checker, depth, dropUndefined, recovery)
 		);
 	}
 
 	if (type.isIntersection()) {
-		const recovered = recoveredReference(type, lookup);
+		const recovered = recoveredReference(type, recovery, depth);
 		if (recovered) return recovered;
-		const members = type.types.map((t) => buildTypeJson(t, checker, depth + 1, lookup));
+		const members = type.types.map((t) => buildTypeJson(t, checker, depth + 1, recovery));
 		const alias = type.aliasSymbol?.name;
 		return alias === undefined
 			? { kind: 'intersection', members }
@@ -607,10 +776,18 @@ const buildTypeJson = (
 	// reference emission even when callable, so `Snippet<[...]>` keeps its type
 	// args (`refName` is checked first — flag/symbol reads plus resolved type
 	// arguments, while `getCallSignatures` instantiates the type's whole
-	// member table)
+	// member table). Recovery consults before the terminal `function` node —
+	// anonymous callables are exactly the shapes that blow the text budget, and
+	// an aliased function type (`Handler`) declines via the nameless gate, so
+	// callability stays the classification for everything a checker can name
 	const refName = referenceSymbolName(type, checker);
 	if (refName === undefined && type.getCallSignatures().length > 0) {
-		return { kind: 'function', text: printType(type, checker) };
+		return (
+			recoveredReference(type, recovery, depth) ?? {
+				kind: 'function',
+				text: printType(type, checker)
+			}
+		);
 	}
 
 	if (type.flags & ts.TypeFlags.Object) {
@@ -623,16 +800,25 @@ const buildTypeJson = (
 				return {
 					kind: 'reference',
 					name: type.aliasSymbol.name,
-					typeArgs: aliasArgs.map((t) => buildTypeJson(t, checker, depth + 1, lookup))
+					typeArgs: aliasArgs.map((t) => buildTypeJson(t, checker, depth + 1, recovery))
 				};
 			}
 			return { kind: 'reference', name: type.aliasSymbol.name };
 		}
 
+		// one consult for every nameless object shape, tuples included (sub-cap
+		// tuples never consulted before — tuple references carry no symbol, so
+		// they *did* recover at the cap, an inconsistency this placement closes).
+		// Arrays and named instantiations decline via the nameless gate
+		// (`Array`/`ReadonlyArray`/the instantiation's own symbol), so their
+		// structural branches below still run
+		const recovered = recoveredReference(type, recovery, depth);
+		if (recovered) return recovered;
+
 		if (checker.isArrayType(type)) {
 			const elementType = checker.getTypeArguments(type as ts.TypeReference)[0];
 			if (elementType) {
-				const element = buildTypeJson(elementType, checker, depth + 1, lookup);
+				const element = buildTypeJson(elementType, checker, depth + 1, recovery);
 				// `isArrayType` matches `ReadonlyArray` references too (`readonly T[]`)
 				return namedSymbolName(type) === 'ReadonlyArray'
 					? { kind: 'array', element, readonly: true }
@@ -641,7 +827,7 @@ const buildTypeJson = (
 		}
 
 		if (checker.isTupleType(type)) {
-			return buildTuple(type as ts.TypeReference, checker, depth, lookup);
+			return buildTuple(type as ts.TypeReference, checker, depth, recovery);
 		}
 
 		if (refName !== undefined) {
@@ -651,18 +837,20 @@ const buildTypeJson = (
 				name: refName,
 				typeArgs: checker
 					.getTypeArguments(type as ts.TypeReference)
-					.map((t) => buildTypeJson(t, checker, depth + 1, lookup))
+					.map((t) => buildTypeJson(t, checker, depth + 1, recovery))
 			};
 		}
 
 		const symbolName = namedSymbolName(type);
 		if (symbolName !== undefined) return { kind: 'reference', name: symbolName };
 
-		return recoveredReference(type, lookup) ?? { kind: 'object', text: printType(type, checker) };
+		return { kind: 'object', text: printType(type, checker) };
 	}
 
 	// type parameters, index/conditional types, non-literal enums
-	return recoveredReference(type, lookup) ?? { kind: 'other', text: printType(type, checker) };
+	return (
+		recoveredReference(type, recovery, depth) ?? { kind: 'other', text: printType(type, checker) }
+	);
 };
 
 /**
@@ -750,8 +938,8 @@ export interface ResolveTypeInfoOptions {
  * never carry the alias symbol, so `type Str = string` still prints
  * structurally and stays absent.
  *
- * **Recovered roots relax it too.** When `writtenNode` is supplied, a nameless
- * type found in the written annotation emits `{kind: 'reference', name}` (see
+ * **Recovered roots relax it too.** When `writtenNode` or `aliasRegistry`
+ * names a nameless type, the tree emits `{kind: 'reference', name}` (see
  * `buildWrittenNameMap` / `recoveredReference`) — and at the root that node is
  * emitted even though a bare reference normally stays absent: a checker-named
  * bare reference defers to a flat sibling printing the same name, while a
@@ -760,25 +948,39 @@ export interface ResolveTypeInfoOptions {
  *
  * @param type - the checker type the flat string was printed from
  * @param checker - TypeScript type checker
+ * @param aliasRegistry - the analyzed set's alias registry, or `undefined` when no pre-pass ran; required so a call site can't silently opt out of registry recovery
  * @param optional - whether the declaration site carries a `?` token (pairs the widening strip, like `getTypeSignature`)
- * @param options - the declaration-site context: `ownAliasName` at a type-alias declaration (see `BuildTypeJsonOptions.skipAliasName`), `writtenNode` wherever a written annotation exists (the name-recovery source for aliases TypeScript dropped)
+ * @param options - the declaration-site context: `ownAliasName` at a type-alias declaration (see `BuildTypeJsonOptions.skipAliasName`; also suppresses registry hits at the root — the self-skip), `writtenNode` wherever a written annotation exists (the name-recovery source for aliases TypeScript dropped)
  */
 export const resolveTypeInfo = (
 	type: ts.Type,
 	checker: ts.TypeChecker,
+	aliasRegistry: AliasRegistry | undefined,
 	optional: boolean,
 	options?: ResolveTypeInfoOptions
 ): TypeJson | undefined => {
-	const lookup = createWrittenNameLookup(options?.writtenNode, checker);
 	const ownAliasName = options?.ownAliasName;
+	const recovery = createNameRecovery(
+		options?.writtenNode,
+		checker,
+		aliasRegistry,
+		ownAliasName !== undefined
+	);
 	const { target, dropUndefined } = optionalWideningTarget(type, checker, optional);
-	const node = buildTypeJson(target, checker, 0, lookup, {
+	const node = buildTypeJson(target, checker, 0, recovery, {
 		dropUndefined,
 		skipAliasName: ownAliasName
 	});
 	if (hasTypeStructure(node)) return node;
-	// a recovered bare reference at the root carries the name the flat string lost
-	if (node.kind === 'reference' && recoveredReference(target, lookup) !== undefined) return node;
+	// a recovered bare reference at the root carries the name the flat string
+	// lost — re-derived with root semantics (depth 0, member-set eligibility
+	// matching the build) so this check can't disagree with the build above
+	if (
+		node.kind === 'reference' &&
+		recoveredReference(target, recovery, 0, dropUndefined) !== undefined
+	) {
+		return node;
+	}
 	// the flat string is the bare alias name, so absence would say nothing
 	if (ownAliasName !== undefined && type.aliasSymbol?.name === ownAliasName) {
 		if (REDUNDANT_WITH_MEMBERS.has(node.kind)) return undefined;

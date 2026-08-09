@@ -19,7 +19,6 @@ import ts from 'typescript';
 
 import type { DeclarationModifier } from './types.ts';
 import type { DeclarationJsonBuild, MemberJsonBuild } from './declaration-build.ts';
-import { type Diagnostic } from './diagnostics.ts';
 import { to_error_message } from './error.ts';
 import { parseComment } from './tsdoc.ts';
 import { resolveTypeInfo } from './typescript-extract-type-json.ts';
@@ -30,7 +29,8 @@ import {
 	getNodeLocation,
 	isExternalIntersectionBranch,
 	populatePropertyMember,
-	resolveIntersectionTypeNode
+	resolveIntersectionTypeNode,
+	type ExtractContext
 } from './typescript-extract-shared.ts';
 
 /**
@@ -126,18 +126,17 @@ const emitLocalIndexSignature = (
 	declaration: DeclarationJsonBuild,
 	nodeType: ts.Type,
 	node: ts.TypeAliasDeclaration,
-	checker: ts.TypeChecker,
-	diagnostics: Array<Diagnostic>,
-	isExternalFile: IsExternalFile,
+	ctx: ExtractContext,
 	kind: 'string' | 'number'
 ): void => {
+	const { checker, diagnostics } = ctx;
 	const indexKind = kind === 'string' ? ts.IndexKind.String : ts.IndexKind.Number;
 	try {
 		const indexInfo = extractLocalIndexInfo(
 			nodeType,
 			node.type,
 			checker,
-			isExternalFile,
+			ctx.isExternalFile,
 			indexKind
 		);
 		if (indexInfo) {
@@ -149,7 +148,7 @@ const emitLocalIndexSignature = (
 			};
 			// `readonly [key: string]: T` carries the modifier like a property
 			if (indexInfo.isReadonly) member.modifiers = ['readonly'];
-			const typeInfo = resolveTypeInfo(indexInfo.type, checker, false, {
+			const typeInfo = resolveTypeInfo(indexInfo.type, checker, ctx.aliasRegistry, false, {
 				writtenNode: indexInfo.declaration?.type
 			});
 			if (typeInfo) member.typeInfo = typeInfo;
@@ -208,12 +207,11 @@ const isReadonlyProperty = (prop: ts.Symbol, mappedReadonly: boolean): boolean =
 export const extractTypeAliasProperties = (
 	node: ts.TypeAliasDeclaration,
 	nodeType: ts.Type,
-	checker: ts.TypeChecker,
 	declaration: DeclarationJsonBuild,
-	diagnostics: Array<Diagnostic>,
-	isExternalFile: IsExternalFile
+	ctx: ExtractContext
 ): void => {
 	if (!hasExtractableProperties(nodeType)) return;
+	const { checker, isExternalFile } = ctx;
 
 	// Drop properties contributed by external types (node_modules / declaration
 	// files) and surface those external types in the `intersects` field. Applies
@@ -286,12 +284,11 @@ export const extractTypeAliasProperties = (
 		populatePropertyMember(
 			member,
 			propType,
-			checker,
+			ctx,
 			optional,
 			propTsdoc,
 			propDecl ?? node,
 			prop.getName(),
-			diagnostics,
 			annotation
 		);
 
@@ -301,24 +298,8 @@ export const extractTypeAliasProperties = (
 	// Extract index signatures. For intersections, only emit signatures contributed
 	// by local branches — external branches like `HTMLAttributes<HTMLDivElement>`
 	// otherwise leak their string index signature onto the consuming type.
-	emitLocalIndexSignature(
-		declaration,
-		nodeType,
-		node,
-		checker,
-		diagnostics,
-		isExternalFile,
-		'string'
-	);
-	emitLocalIndexSignature(
-		declaration,
-		nodeType,
-		node,
-		checker,
-		diagnostics,
-		isExternalFile,
-		'number'
-	);
+	emitLocalIndexSignature(declaration, nodeType, node, ctx, 'string');
+	emitLocalIndexSignature(declaration, nodeType, node, ctx, 'number');
 
 	// Extract call and construct signatures. TSDoc resolves through the
 	// signature's own declaration — for type aliases, that's typically the
@@ -331,8 +312,7 @@ export const extractTypeAliasProperties = (
 		(sig) => sig.getDeclaration(),
 		node,
 		declaration,
-		checker,
-		diagnostics,
+		ctx,
 		errorContext
 	);
 
@@ -342,8 +322,7 @@ export const extractTypeAliasProperties = (
 		(sig) => sig.getDeclaration(),
 		node,
 		declaration,
-		checker,
-		diagnostics,
+		ctx,
 		errorContext
 	);
 };

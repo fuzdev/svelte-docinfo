@@ -13,7 +13,7 @@
 				}
 			}
 		],
-		"sourceLine": 9
+		"sourceLine": 12
 	},
 	{
 		"name": "Point",
@@ -32,6 +32,24 @@
 				"name": "y",
 				"kind": "variable",
 				"typeSignature": "number"
+			}
+		]
+	},
+	{
+		"name": "parsePoint",
+		"kind": "function",
+		"docComment": "An inferred (unannotated) return of the lost type — the registry recovers the name.",
+		"sourceLine": 9,
+		"typeSignature": "(input: unknown): { x: number; y: number; }",
+		"returnType": "{ x: number; y: number; }",
+		"returnTypeInfo": {
+			"kind": "reference",
+			"name": "Point"
+		},
+		"parameters": [
+			{
+				"name": "input",
+				"type": "unknown"
 			}
 		]
 	}

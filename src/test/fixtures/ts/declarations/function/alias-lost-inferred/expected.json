@@ -1,8 +1,12 @@
 {
 	"name": "make",
 	"kind": "function",
-	"docComment": "An inferred (unannotated) return of an alias-lost type: no written return\nannotation exists, so the flat string prints the expansion and\n`returnTypeInfo` is absent.",
+	"docComment": "An inferred (unannotated) return of an alias-lost type: no written return\nannotation exists, so the flat string prints the expansion while\n`returnTypeInfo` recovers the exported alias's name through the registry.",
 	"typeSignature": "(): { a: string; b: number; }",
-	"sourceLine": 15,
-	"returnType": "{ a: string; b: number; }"
+	"sourceLine": 12,
+	"returnType": "{ a: string; b: number; }",
+	"returnTypeInfo": {
+		"kind": "reference",
+		"name": "Inferred"
+	}
 }

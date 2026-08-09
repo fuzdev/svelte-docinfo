@@ -19,6 +19,7 @@ import type { SourceFileInfo } from '$lib/source.ts';
 import type { ModuleSourceOptions } from '$lib/source-config.ts';
 
 import {
+	buildSvelteFixtureRegistry,
 	loadFixtures,
 	validateDeclarationStructures,
 	fixtureNameToComponentName,
@@ -70,7 +71,9 @@ const analyzeTestComponent = (
 		createTestSourceOptions(dirname(sourceFile.id)),
 		diagnostics,
 		program,
-		virtualFile
+		virtualFile,
+		// registry over the single-module set, mirroring analyzeCore's pre-pass
+		buildSvelteFixtureRegistry(program, [{ virtualFile, modulePath }])
 	);
 	if (!result) throw new Error(`Analysis returned undefined for ${modulePath}`);
 	const componentDecl = result.declarations.find((d) => d.declaration.kind === 'component');
@@ -99,7 +102,8 @@ const analyzeSvelteTestIntegration = (
 		opts,
 		diagnostics,
 		program,
-		virtualFile
+		virtualFile,
+		buildSvelteFixtureRegistry(program, [{ virtualFile, modulePath }])
 	);
 	if (!result) throw new Error(`Analysis returned undefined for ${modulePath}`);
 	return result;
@@ -126,6 +130,8 @@ describe('svelte component analyzer (fixture-based)', () => {
 		const program = createAnalysisProgram({ virtualFiles: allVirtualFiles });
 		const fixtureChecker = program.getTypeChecker();
 		const opts = testSourceOptions();
+		// one registry over the whole fixture set, mirroring analyzeCore's pre-pass
+		const aliasRegistry = buildSvelteFixtureRegistry(program, fixtureData);
 
 		for (const { fixture, modulePath, sourceFile, virtualFile } of fixtureData) {
 			const diagnostics: Array<Diagnostic> = [];
@@ -136,7 +142,8 @@ describe('svelte component analyzer (fixture-based)', () => {
 				opts,
 				diagnostics,
 				program,
-				virtualFile
+				virtualFile,
+				aliasRegistry
 			);
 			assert.ok(moduleResult, `Analysis returned undefined for fixture "${fixture.name}"`);
 

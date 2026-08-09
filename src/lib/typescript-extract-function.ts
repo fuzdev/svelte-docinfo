@@ -15,7 +15,6 @@
 import ts from 'typescript';
 
 import type { DeclarationJsonBuild } from './declaration-build.ts';
-import { type Diagnostic } from './diagnostics.ts';
 import { to_error_message } from './error.ts';
 import type { TsdocParsedComment } from './tsdoc.ts';
 import { resolveTypeInfo } from './typescript-extract-type-json.ts';
@@ -23,7 +22,8 @@ import {
 	detectReactivity,
 	getNodeLocation,
 	parseGenericParam,
-	populateCallableMember
+	populateCallableMember,
+	type ExtractContext
 } from './typescript-extract-shared.ts';
 
 /**
@@ -34,29 +34,27 @@ import {
  *
  * @param node - the declaration AST node
  * @param symbol - the TypeScript symbol
- * @param checker - TypeScript type checker
  * @param declaration - the declaration to populate
  * @param tsdoc - parsed TSDoc comment (if available)
- * @param diagnostics - diagnostics collector for non-fatal issues
+ * @param ctx - the extraction pass's context
  * @mutates declaration - adds typeSignature, returnType, returnDescription, parameters, genericParams, overloads (and `partial: true` on signature failure)
- * @mutates diagnostics - adds `signature_analysis_failed` diagnostic on checker error
+ * @mutates ctx.diagnostics - adds `signature_analysis_failed` diagnostic on checker error
  */
 export const extractFunctionInfo = (
 	node: ts.Node,
 	symbol: ts.Symbol,
-	checker: ts.TypeChecker,
 	declaration: DeclarationJsonBuild,
 	tsdoc: TsdocParsedComment | undefined,
-	diagnostics: Array<Diagnostic>
+	ctx: ExtractContext
 ): void => {
 	try {
-		const type = checker.getTypeOfSymbolAtLocation(symbol, node);
+		const type = ctx.checker.getTypeOfSymbolAtLocation(symbol, node);
 		const signatures = type.getCallSignatures();
-		populateCallableMember(declaration, signatures, checker, tsdoc, node, symbol.name, diagnostics);
+		populateCallableMember(declaration, signatures, ctx, tsdoc, node, symbol.name);
 	} catch (err) {
 		declaration.partial = true;
 		const loc = getNodeLocation(node);
-		diagnostics.push({
+		ctx.diagnostics.push({
 			kind: 'signature_analysis_failed',
 			file: loc.file,
 			line: loc.line,
@@ -96,28 +94,29 @@ export const extractFunctionInfo = (
  *
  * @param node - the declaration AST node
  * @param symbol - the TypeScript symbol
- * @param checker - TypeScript type checker
  * @param declaration - the declaration to populate
- * @param diagnostics - diagnostics collector for non-fatal issues
+ * @param ctx - the extraction pass's context
  * @mutates declaration - adds typeSignature, reactivity (when initialized with a Svelte rune)
  */
 export const extractVariableInfo = (
 	node: ts.Node,
 	symbol: ts.Symbol,
-	checker: ts.TypeChecker,
 	declaration: DeclarationJsonBuild,
-	diagnostics: Array<Diagnostic>
+	ctx: ExtractContext
 ): void => {
+	const { checker } = ctx;
 	try {
 		const type = checker.getTypeOfSymbolAtLocation(symbol, node);
 		declaration.typeSignature = checker.typeToString(type);
 		const annotation = ts.isVariableDeclaration(node) ? node.type : undefined;
-		const typeInfo = resolveTypeInfo(type, checker, false, { writtenNode: annotation });
+		const typeInfo = resolveTypeInfo(type, checker, ctx.aliasRegistry, false, {
+			writtenNode: annotation
+		});
 		if (typeInfo) declaration.typeInfo = typeInfo;
 	} catch (err) {
 		declaration.partial = true;
 		const loc = getNodeLocation(node);
-		diagnostics.push({
+		ctx.diagnostics.push({
 			kind: 'type_extraction_failed',
 			file: loc.file,
 			line: loc.line,

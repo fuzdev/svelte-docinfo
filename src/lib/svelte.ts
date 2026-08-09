@@ -17,7 +17,7 @@
  * @see `typescript-exports.ts` for `analyzeExports`, `extractModuleComment`
  * @see `typescript-extract-shared.ts` for `parseGenericParam`, `filterExternalProperties`
  * @see `typescript-extract-type-json.ts` for `resolveTypeInfo`, `referenceSymbolName`, `tupleElements`, `restElementForms`
- * @see `typescript-program.ts` for `IsExternalFile`, `createIsExternalFile`
+ * @see `typescript-program.ts` for `createIsExternalFile`
  * @see `tsdoc.ts` for `parseComment`, `applyToDeclaration`
  * @see `source.ts` for `SourceFileInfo`, `getComponentName`
  *
@@ -46,25 +46,33 @@ import {
 	hasDocContent,
 	type TsdocParsedComment
 } from './tsdoc.ts';
-import { type IsExternalFile, createIsExternalFile } from './typescript-program.ts';
+import { createIsExternalFile } from './typescript-program.ts';
 import {
 	parseGenericParam,
 	filterExternalProperties,
-	getTypeSignature
+	getTypeSignature,
+	type ExtractContext
 } from './typescript-extract-shared.ts';
 import {
 	referenceSymbolName,
 	resolveTypeInfo,
 	restElementForms,
 	tupleElementName,
-	tupleElements
+	tupleElements,
+	type AliasRegistry
 } from './typescript-extract-type-json.ts';
 import {
 	extractModuleComment,
 	analyzeExports,
 	warnModuleCommentNodocs
 } from './typescript-exports.ts';
-import { type SourceFileInfo, getComponentName, SVELTE_VIRTUAL_SUFFIX } from './source.ts';
+import {
+	type SourceFileInfo,
+	getComponentName,
+	isSvelte2tsxInternal,
+	SVELTE_COMPONENT_ALIAS_SUFFIX,
+	SVELTE_VIRTUAL_SUFFIX
+} from './source.ts';
 import { type ModuleSourceOptions, extractDependencies } from './source-config.ts';
 import { compareStrings } from './postprocess.ts';
 import { type Diagnostic } from './diagnostics.ts';
@@ -211,8 +219,8 @@ const SVELTE2TSX_IDENTIFIERS = {
 	PROPS_RUNE: '$props',
 	/** Identifier for `$bindable()` rune. */
 	BINDABLE_RUNE: '$bindable',
-	/** Suffix on the synthesized component const/type alias. */
-	COMPONENT_ALIAS_SUFFIX: '__SvelteComponent_'
+	/** Suffix on the synthesized component const/type alias (shared constant — `isSvelte2tsxInternal` in `source.ts` filters on it too). */
+	COMPONENT_ALIAS_SUFFIX: SVELTE_COMPONENT_ALIAS_SUFFIX
 } as const;
 
 /**
@@ -854,6 +862,8 @@ export const isSnippetType = (type: ts.Type, checker: ts.TypeChecker): boolean =
  * the bare `Snippet<...>` TypeReference — a union
  * wrapping it (optional widening, `| null`) reports no type arguments.
  *
+ * @param aliasRegistry - the analyzed set's alias registry, or `undefined` when
+ *   no pre-pass ran — feeds `typeInfo` name recovery like the prop-level tree
  * @param writtenNode - the written annotation the snippet type came from, when
  *   one exists — feeds `typeInfo` name recovery, the same node the caller
  *   hands the prop-level tree so the two projections can't disagree
@@ -863,6 +873,7 @@ export const isSnippetType = (type: ts.Type, checker: ts.TypeChecker): boolean =
 export const extractSnippetParameters = (
 	snippetType: ts.Type,
 	checker: ts.TypeChecker,
+	aliasRegistry: AliasRegistry | undefined,
 	writtenNode?: ts.TypeNode
 ): Array<ParameterJsonInput> => {
 	// Snippet<T> is an interface — type args accessed via TypeReference, not aliasTypeArguments.
@@ -880,10 +891,10 @@ export const extractSnippetParameters = (
 		// a rest element reports as the array it collects, flat string and tree
 		// together (`restElementForms`); everything else takes the widening strip
 		const { type, typeInfo } = el.rest
-			? restElementForms(el.type, checker, writtenNode)
+			? restElementForms(el.type, checker, aliasRegistry, writtenNode)
 			: {
 					type: getTypeSignature(el.type, checker, el.optional),
-					typeInfo: resolveTypeInfo(el.type, checker, el.optional, { writtenNode })
+					typeInfo: resolveTypeInfo(el.type, checker, aliasRegistry, el.optional, { writtenNode })
 				};
 		const param: ParameterJsonInput = {
 			name,
@@ -936,21 +947,6 @@ export const synthesizeSnippetTypeSignature = (parameters: Array<ParameterJsonIn
 // Checker-Backed Analysis
 
 /**
- * Check if a symbol name is an internal svelte2tsx identifier.
- *
- * Filters generated identifiers that should not appear in documentation output:
- * `$$ComponentProps`, `$$render`, `__sveltets_Render`, and the synthesized
- * component class/type alias `<ComponentName>__SvelteComponent_`.
- */
-const isSvelte2tsxInternal = (name: string): boolean => {
-	return (
-		name.startsWith('$$') ||
-		name.startsWith('__sveltets_') ||
-		name.endsWith(SVELTE2TSX_IDENTIFIERS.COMPONENT_ALIAS_SUFFIX)
-	);
-};
-
-/**
  * Detect whether the props type accepts a `Snippet`-typed `children` prop.
  *
  * Resolves the `children` symbol on the (unfiltered) props type, strips
@@ -964,11 +960,11 @@ const isSvelte2tsxInternal = (name: string): boolean => {
 const detectChildrenSnippet = (
 	propsType: ts.Type,
 	propsTypeNode: ts.Node,
-	checker: ts.TypeChecker,
-	diagnostics: Array<Diagnostic>,
+	ctx: ExtractContext,
 	componentName: string,
 	filePath: string
 ): boolean => {
+	const { checker } = ctx;
 	const childrenSym = propsType.getProperty('children');
 	if (!childrenSym) return false;
 	try {
@@ -985,7 +981,7 @@ const detectChildrenSnippet = (
 			(t.isIntersection() && t.types.some((m) => isSnippetType(m, checker)));
 		return childrenType.isUnion() ? childrenType.types.some(matches) : matches(childrenType);
 	} catch (err) {
-		diagnostics.push({
+		ctx.diagnostics.push({
 			kind: 'svelte_prop_failed',
 			file: filePath,
 			message: `Failed to resolve type for "children" in ${componentName} while detecting acceptsChildren: ${to_error_message(err)}`,
@@ -1006,18 +1002,17 @@ const detectChildrenSnippet = (
  */
 const extractPropsViaChecker = (
 	virtualSource: ts.SourceFile,
-	checker: ts.TypeChecker,
+	ctx: ExtractContext,
 	componentName: string,
 	filePath: string,
 	sourceMap: SourceMap | null,
-	diagnostics: Array<Diagnostic>,
-	metadata: PropsMetadata,
-	isExternalFile: IsExternalFile
+	metadata: PropsMetadata
 ): {
 	props: Array<ComponentPropJsonInput>;
 	externalTypes?: Array<string>;
 	acceptsChildren: boolean;
 } => {
+	const { checker, diagnostics } = ctx;
 	// Resolve the $props() declaration's type via the checker
 	let propsType: ts.Type | undefined;
 	let propsTypeNode: ts.Node | undefined;
@@ -1073,8 +1068,7 @@ const extractPropsViaChecker = (
 	const acceptsChildren = detectChildrenSnippet(
 		propsType,
 		propsTypeNode,
-		checker,
-		diagnostics,
+		ctx,
 		componentName,
 		filePath
 	);
@@ -1086,7 +1080,7 @@ const extractPropsViaChecker = (
 		propsType,
 		propsTypeNode,
 		checker,
-		isExternalFile
+		ctx.isExternalFile
 	);
 
 	// Emit props in source order — `getPropertiesOfType` returns the binder's
@@ -1134,7 +1128,9 @@ const extractPropsViaChecker = (
 			// props type) feeds name recovery; only symbols are resolved from it,
 			// so source-position remapping is not implicated
 			const annotation = propDecl && ts.isPropertySignature(propDecl) ? propDecl.type : undefined;
-			typeInfo = resolveTypeInfo(propType, checker, optional, { writtenNode: annotation });
+			typeInfo = resolveTypeInfo(propType, checker, ctx.aliasRegistry, optional, {
+				writtenNode: annotation
+			});
 
 			// Detect Snippet-typed props structurally, then extract structured
 			// parameters. Stripped unconditionally so detection and extraction see
@@ -1145,7 +1141,12 @@ const extractPropsViaChecker = (
 			if (isSnippetType(strippedPropType, checker)) {
 				// the same annotation feeds both trees, so a recovered name in the
 				// prop's tuple typeArg and in `parameters[i].typeInfo` can't disagree
-				snippetParams = extractSnippetParameters(strippedPropType, checker, annotation);
+				snippetParams = extractSnippetParameters(
+					strippedPropType,
+					checker,
+					ctx.aliasRegistry,
+					annotation
+				);
 			}
 		} catch (err) {
 			// Map position if possible
@@ -1197,6 +1198,7 @@ const extractPropsViaChecker = (
  * @param diagnostics - diagnostics collector for non-fatal issues
  * @param program - TypeScript program containing the virtual file
  * @param virtualFile - pre-transformed virtual file data
+ * @param aliasRegistry - the analyzed set's alias registry (see `buildAliasRegistry`), or `undefined` when no pre-pass ran
  * @returns module analysis with declarations, re-exports, and star exports;
  *   `undefined` if the virtual file is not found in the program
  */
@@ -1207,7 +1209,8 @@ export const analyzeSvelteModule = (
 	options: ModuleSourceOptions,
 	diagnostics: Array<Diagnostic>,
 	program: ts.Program,
-	virtualFile: SvelteVirtualFile
+	virtualFile: SvelteVirtualFile,
+	aliasRegistry?: AliasRegistry
 ): ModuleAnalysis | undefined => {
 	// Look up the virtual source file in the program
 	const virtualTsSource = program.getSourceFile(virtualFile.virtualPath);
@@ -1236,7 +1239,7 @@ export const analyzeSvelteModule = (
 		starExports,
 		externalReExports,
 		externalStarExports
-	} = analyzeExports(virtualTsSource, checker, options, diagnostics);
+	} = analyzeExports(virtualTsSource, checker, options, diagnostics, aliasRegistry);
 
 	// 2. Filter internal svelte2tsx symbols and the default export (generated component class),
 	//    and reclassify exported snippets from 'function' to 'snippet'
@@ -1359,7 +1362,12 @@ export const analyzeSvelteModule = (
 		componentDecl.lang = 'js';
 	}
 
-	const isExternalFile = createIsExternalFile(options);
+	const ctx: ExtractContext = {
+		checker,
+		diagnostics,
+		isExternalFile: createIsExternalFile(options),
+		aliasRegistry
+	};
 
 	// scan the original source once — the legacy-prop scan reads the instance
 	// script, step 4's module-comment extraction reads both
@@ -1377,13 +1385,11 @@ export const analyzeSvelteModule = (
 		acceptsChildren: propsAcceptsChildren
 	} = extractPropsViaChecker(
 		virtualTsSource,
-		checker,
+		ctx,
 		componentName,
 		modulePath,
 		virtualFile.sourceMap,
-		diagnostics,
-		propsMetadata,
-		isExternalFile
+		propsMetadata
 	);
 	if (props.length > 0) {
 		componentDecl.props = props;

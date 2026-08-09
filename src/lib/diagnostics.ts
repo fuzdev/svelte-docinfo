@@ -91,7 +91,8 @@ export const DiagnosticKind = z.enum([
 	'source_map_failed',
 	'duplicate_declaration',
 	'transform_failed',
-	'resolver_failed'
+	'resolver_failed',
+	'alias_lost'
 ]);
 export type DiagnosticKind = z.infer<typeof DiagnosticKind>;
 
@@ -381,6 +382,31 @@ export const ResolverFailedDiagnostic = z.strictObject({
 export type ResolverFailedDiagnostic = z.infer<typeof ResolverFailedDiagnostic>;
 
 /**
+ * An exported type alias loses its name at use sites.
+ *
+ * The alias's right-hand side (an indexed access or conditional —
+ * `z.infer<typeof S>`, valibot's `InferOutput`) resolves to a pre-existing
+ * interned type that TypeScript never retroactively stamps an alias symbol
+ * on, so unannotated positions document the expansion instead of the name.
+ * Fires only where nothing self-heals: a loss the alias registry recovers
+ * (`typeInfo` emits `{kind: 'reference', name}` at use sites) is suppressed,
+ * as are literal-only unions (`z.enum` outputs) and brand-like intersections
+ * (`.brand()`) — readable degradations with no author-side fix worth
+ * demanding. `@nodocs` on the declaration suppresses. The author-side escape
+ * for a flagged alias is a nominal symbol, e.g.
+ * `interface Foo extends z.infer<typeof S> {}` where applicable.
+ *
+ * Always `warning`, query-time category (recomputed each `query()`).
+ */
+export const AliasLostDiagnostic = z.strictObject({
+	kind: z.literal('alias_lost'),
+	...baseDiagnosticFields,
+	/** Name of the alias whose right-hand side resolves to a nameless type. */
+	aliasName: z.string()
+});
+export type AliasLostDiagnostic = z.infer<typeof AliasLostDiagnostic>;
+
+/**
  * Discriminated union of all diagnostic variants.
  */
 export const Diagnostic: z.ZodDiscriminatedUnion<
@@ -399,7 +425,8 @@ export const Diagnostic: z.ZodDiscriminatedUnion<
 		typeof SourceMapFailedDiagnostic,
 		typeof DuplicateDeclarationDiagnostic,
 		typeof TransformFailedDiagnostic,
-		typeof ResolverFailedDiagnostic
+		typeof ResolverFailedDiagnostic,
+		typeof AliasLostDiagnostic
 	],
 	'kind'
 > = z.discriminatedUnion('kind', [
@@ -417,7 +444,8 @@ export const Diagnostic: z.ZodDiscriminatedUnion<
 	SourceMapFailedDiagnostic,
 	DuplicateDeclarationDiagnostic,
 	TransformFailedDiagnostic,
-	ResolverFailedDiagnostic
+	ResolverFailedDiagnostic,
+	AliasLostDiagnostic
 ]);
 export type Diagnostic = z.infer<typeof Diagnostic>;
 

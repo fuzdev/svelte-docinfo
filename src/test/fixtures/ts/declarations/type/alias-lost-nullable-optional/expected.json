@@ -1,9 +1,9 @@
 {
 	"name": "NullableHolder",
 	"kind": "type",
-	"docComment": "A null-bearing alias-lost union at an optional position: the optional\nwidening flattens `LostNullable | undefined` into one union, so the walk\nnever sees the two-member union the written name maps — the members\nexpand instead of recovering.",
+	"docComment": "A null-bearing alias-lost union at an optional position: the optional\nwidening flattens `LostNullable | undefined` into one union the identity\nlookup can never match — the registry's member-set side index recovers the\nname from the surviving members instead.",
 	"typeSignature": "NullableHolder",
-	"sourceLine": 15,
+	"sourceLine": 11,
 	"members": [
 		{
 			"name": "maybe",
@@ -11,17 +11,8 @@
 			"typeSignature": "{ a: string; } | null",
 			"optional": true,
 			"typeInfo": {
-				"kind": "union",
-				"members": [
-					{
-						"kind": "object",
-						"text": "{ a: string; }"
-					},
-					{
-						"kind": "intrinsic",
-						"text": "null"
-					}
-				]
+				"kind": "reference",
+				"name": "LostNullable"
 			}
 		}
 	]

@@ -142,3 +142,23 @@ export const SVELTE_VIRTUAL_SUFFIX = '.__svelte2tsx__.ts';
  */
 export const stripVirtualSuffix = (path: string): string =>
 	path.endsWith(SVELTE_VIRTUAL_SUFFIX) ? path.slice(0, -SVELTE_VIRTUAL_SUFFIX.length) : path;
+
+/**
+ * Suffix svelte2tsx appends to the synthesized component const/type alias
+ * (`<Name>__SvelteComponent_`). One of the generated-identifier shapes
+ * `isSvelte2tsxInternal` filters.
+ */
+export const SVELTE_COMPONENT_ALIAS_SUFFIX = '__SvelteComponent_';
+
+/**
+ * Whether a symbol name is an internal svelte2tsx identifier — a generated
+ * name that must not appear in documentation output: `$$ComponentProps`,
+ * `$$render`, `__sveltets_Render`, and the synthesized component class/type
+ * alias `<ComponentName>__SvelteComponent_`. The one filter shared by the
+ * Svelte export walk (`analyzeSvelteModule`) and the alias-registry pre-pass
+ * (`buildAliasRegistry`), which both iterate a virtual's export table.
+ */
+export const isSvelte2tsxInternal = (name: string): boolean =>
+	name.startsWith('$$') ||
+	name.startsWith('__sveltets_') ||
+	name.endsWith(SVELTE_COMPONENT_ALIAS_SUFFIX);
