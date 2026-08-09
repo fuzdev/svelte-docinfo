@@ -358,3 +358,76 @@ export const m: Mode = 'x';`
 		});
 	});
 });
+
+describe('internal/ default exclude (the src/lib/internal/ convention)', () => {
+	test('internal modules are gated from output but still serve type resolution', async () => {
+		const files: Record<string, string> = {
+			'src/lib/internal/helper.ts': `export type Level = 'low' | 'high';\nexport const bump = (l: Level): Level => l;`,
+			'src/lib/api.ts': `import { bump, type Level } from './internal/helper.ts';\n\nexport const level: Level = bump('low');`
+		};
+		const result = await withTestProject(files, (projectRoot) =>
+			analyze({
+				sourceFiles: Object.entries(files).map(([path, content]) => ({
+					id: join(projectRoot, path),
+					content
+				})),
+				sourceOptions: createSourceOptions(projectRoot)
+			})
+		);
+		assert.deepStrictEqual(
+			result.modules.map((m) => m.path),
+			['api.ts'],
+			'the internal module emits nothing'
+		);
+		const level = result.modules[0]?.declarations.find((d) => d.name === 'level');
+		assert(level?.kind === 'variable', 'expected a variable declaration');
+		assert.strictEqual(level.typeSignature, 'Level', 'the internal type resolves by name');
+		assert.deepStrictEqual(
+			result.modules[0]?.dependencies,
+			[],
+			'the edge to the gated internal module is dropped with it'
+		);
+	});
+
+	test('the exclude callback re-includes internal modules and their edges', async () => {
+		const files: Record<string, string> = {
+			'src/lib/internal/helper.ts': `export const secret = 1;`,
+			'src/lib/api.ts': `import { secret } from './internal/helper.ts';\n\nexport const twice = secret * 2;`
+		};
+		const result = await withTestProject(files, (projectRoot) =>
+			analyze({
+				sourceFiles: Object.entries(files).map(([path, content]) => ({
+					id: join(projectRoot, path),
+					content
+				})),
+				sourceOptions: createSourceOptions(projectRoot, {
+					exclude: (defaults) => defaults.filter((p) => p !== '**/internal/**')
+				})
+			})
+		);
+		assert.deepStrictEqual(
+			result.modules.map((m) => m.path),
+			['api.ts', 'internal/helper.ts']
+		);
+		assert.deepStrictEqual(
+			result.modules[0]?.dependencies,
+			['internal/helper.ts'],
+			'the dependency edge returns with the module'
+		);
+	});
+
+	test('analyzeFromFiles glob discovery skips internal/ by default', async () => {
+		const files: Record<string, string> = {
+			'src/lib/internal/helper.ts': `export const secret = 1;`,
+			'src/lib/public.ts': `export const p = 1;`,
+			'package.json': JSON.stringify({ name: 'internal-glob-test' })
+		};
+		const result = await withTestProject(files, (projectRoot) =>
+			analyzeFromFiles({ projectRoot, discovery: 'glob' })
+		);
+		assert.deepStrictEqual(
+			result.modules.map((m) => m.path),
+			['public.ts']
+		);
+	});
+});

@@ -22,8 +22,9 @@ import type { AnalysisLog } from './log.ts';
 import { createAnalysisSession, type AnalysisSession } from './session.ts';
 import {
 	createSourceOptionsWithInclude,
+	type ExcludeOption,
 	type ModuleSourceOptions,
-	type SourceOptionsDefaults
+	type SourceOptionsOverrides
 } from './source-config.ts';
 import { discoverSourceFiles, type Discovery } from './discovery.ts';
 import { noDepsResolver, type ResolveImport } from './dep-resolver.ts';
@@ -84,7 +85,13 @@ export const analyze = async (options: AnalyzeOptions): Promise<AnalyzeResultJso
 	const session = createAnalysisSession({
 		sourceOptions: options.sourceOptions,
 		log: options.log,
-		resolveImport: options.resolveImport
+		resolveImport: options.resolveImport,
+		// One-shot with caller-provided inputs: no watch loop, so TS/JS context
+		// is read exactly once via the LS disk fallback either way — closure
+		// ownership is pure overhead. Gated *Svelte* dependencies are the
+		// exception (the LS can't serve raw `.svelte` from disk); callers pass
+		// them in `sourceFiles` — the query gate keeps them out of output.
+		contextClosure: false
 	});
 	try {
 		const ingest = await session.setFiles(options.sourceFiles);
@@ -112,7 +119,7 @@ export interface AnalyzeFromFilesOptions {
 	/** Absolute path to project root directory. */
 	projectRoot: string;
 	/** Partial overrides for default source options (SvelteKit `src/lib` layout). */
-	sourceOptions?: Partial<SourceOptionsDefaults>;
+	sourceOptions?: SourceOptionsOverrides;
 	/** Behavior when duplicate declaration names are found across modules. */
 	onDuplicates?: OnDuplicates;
 	/** Optional logger for status and diagnostic messages. */
@@ -141,11 +148,16 @@ export interface AnalyzeFromFilesOptions {
 	 */
 	include?: Array<string>;
 	/**
-	 * Glob patterns to exclude — fully replaces `sourceOptions.exclude` (no
-	 * merge). The always-on baseline (`node_modules` + dot-directories below a
-	 * matched source path) applies beneath it and is unaffected by overrides.
+	 * Glob patterns to exclude — takes precedence over `sourceOptions.exclude`
+	 * (no merge between the two). An array replaces the default patterns
+	 * wholesale; the callback form extends them without restating them
+	 * (`(defaults) => [...defaults, '**\/*.gen.ts']` — see `ExcludeOption`).
+	 * The callback always receives the built-in defaults, even when
+	 * `sourceOptions.exclude` is also set (that value is superseded whole).
+	 * The always-on baseline (`node_modules` + dot-directories below a matched
+	 * source path) applies beneath it and is unaffected by overrides.
 	 */
-	exclude?: Array<string>;
+	exclude?: ExcludeOption;
 	/**
 	 * Whether to resolve import dependencies (default `true`).
 	 *
@@ -258,14 +270,24 @@ export const analyzeFromFiles = async (
 		sourceOptions: resolvedSourceOptions,
 		log,
 		resolveImport: sessionResolver
+		// Closure stays on (the session default) despite being one-shot:
+		// discovery excludes gated files, so a gated `.svelte` dependency
+		// (`export {default as X} from './internal/X.svelte'`) exists nowhere
+		// else — the LS can't serve raw `.svelte` from disk, only the closure's
+		// ingest runs svelte2tsx. TS/JS context would be covered by the disk
+		// fallback either way; the closure's extra reads are the price of the
+		// Svelte case resolving.
 	});
 	let result: AnalyzeResultJson;
 	try {
-		const ingest = await session.setFiles(discoveredFiles);
+		await session.setFiles(discoveredFiles);
 		const query = session.query({ onDuplicates, log });
 		result = {
 			modules: query.modules,
-			diagnostics: [...ingest.diagnostics, ...query.diagnostics]
+			// Cumulative rather than the batch return: context-closure ingest
+			// diagnostics (e.g. a gated Svelte file whose transform failed)
+			// live only on entries.
+			diagnostics: [...session.allIngestDiagnostics(), ...query.diagnostics]
 		};
 	} finally {
 		session.dispose();

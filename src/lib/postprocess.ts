@@ -316,13 +316,21 @@ export const mergeReExports = (modules: Array<ModuleJson>): Array<ModuleJson> =>
  * `===`-equal.
  *
  * @param modules - the analyzed modules (parsed `ModuleJson`s)
+ * @param contextModules - canonical-lookup-only modules that never appear in
+ *   output — gated component canonicals (the `internal/` convention) analyzed
+ *   as fill context by `analyzeCore`. An alias whose `aliasOf.module` is
+ *   gated fills from here; an emitted module with the same path (impossible
+ *   by construction) would win the lookup
  * @returns a new array with component-only fields filled on aliased component
  *   declarations
  */
-export const resolveComponentAliases = (modules: Array<ModuleJson>): Array<ModuleJson> => {
+export const resolveComponentAliases = (
+	modules: Array<ModuleJson>,
+	contextModules: ReadonlyArray<ModuleJson> = []
+): Array<ModuleJson> => {
 	// Build {modulePath → {componentName → ComponentDeclarationJson}} for canonical lookups
 	const canonicalByModule = new Map<string, Map<string, ComponentDeclarationJson>>();
-	for (const mod of modules) {
+	for (const mod of [...contextModules, ...modules]) {
 		for (const decl of mod.declarations) {
 			if (decl.kind !== 'component' || decl.aliasOf) continue;
 			let perModule = canonicalByModule.get(mod.path);

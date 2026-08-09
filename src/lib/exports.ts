@@ -73,6 +73,20 @@ export interface ExportsDiscoveryResult {
 export interface ParsedExports {
 	/** All parsed export entries. */
 	entries: Array<ExportEntry>;
+	/**
+	 * Specifiers (exact or wildcard patterns) whose export target resolves
+	 * nothing — a literal `null`, or a conditions object with no usable
+	 * target. Node's explicit-exclusion form: `"./internal/*": null` blocks
+	 * the subpaths a broader wildcard would otherwise expose. Discovery
+	 * honors these with Node's best-match semantics: a subpath whose
+	 * most-specific matching key is blocked is not exported, so its source
+	 * file is not discovered.
+	 *
+	 * Interpret via `createBlockedSpecifierChecker` — a naive membership
+	 * check (`blocked.includes(specifier)`) is wrong for wildcard keys and
+	 * ignores the positive keys that can out-match a blocked one.
+	 */
+	blocked: Array<string>;
 	/** Whether the package.json had an exports field. */
 	hasExports: boolean;
 }
@@ -88,10 +102,12 @@ const CONDITION_PRIORITY = ['svelte', 'default', 'import', 'require'];
  * Read and parse the exports field from package.json.
  *
  * Handles all Node.js export formats: strings, objects with conditions,
- * nested conditions, null exclusions, and wildcard patterns.
+ * nested conditions, fallback arrays (first usable element), null exclusions
+ * (surfaced on `blocked` for best-match blocking during discovery), and
+ * wildcard patterns.
  *
  * @param projectRoot - absolute path to project root
- * @returns parsed `ParsedExports`, or `{entries: [], hasExports: false}` if no exports field
+ * @returns parsed `ParsedExports`, or `{entries: [], blocked: [], hasExports: false}` if no exports field
  */
 export const parsePackageExports = async (projectRoot: string): Promise<ParsedExports> => {
 	let pkg: Record<string, unknown>;
@@ -99,22 +115,38 @@ export const parsePackageExports = async (projectRoot: string): Promise<ParsedEx
 		const content = await readFile(join(projectRoot, 'package.json'), 'utf-8');
 		pkg = JSON.parse(content) as Record<string, unknown>;
 	} catch {
-		return { entries: [], hasExports: false };
+		return { entries: [], blocked: [], hasExports: false };
 	}
 
 	const exportsField = pkg.exports;
 	if (!exportsField || typeof exportsField !== 'object') {
-		return { entries: [], hasExports: false };
+		return { entries: [], blocked: [], hasExports: false };
 	}
 
 	const entries: Array<ExportEntry> = [];
+	const blocked: Array<string> = [];
 
 	for (const [specifier, value] of Object.entries(exportsField as Record<string, unknown>)) {
 		// Skip package.json self-reference
 		if (specifier === './package.json') continue;
 
+		// A literal null target is Node's explicit exclusion — record it so
+		// discovery can block the subpaths it covers.
+		if (value === null) {
+			blocked.push(specifier);
+			continue;
+		}
+
 		const conditions = flattenConditions(value);
-		if (!conditions) continue; // null exclusion or unparseable
+		if (!conditions) {
+			// An object-ish shape with no usable target — a conditions object
+			// of all-null values, an empty object, or a fallback array with no
+			// usable element — blocks like a literal null: Node resolves
+			// nothing for it. Non-object garbage (numbers, booleans) is
+			// skipped and fails open.
+			if (typeof value === 'object') blocked.push(specifier);
+			continue;
+		}
 
 		entries.push({
 			specifier,
@@ -123,16 +155,26 @@ export const parsePackageExports = async (projectRoot: string): Promise<ParsedEx
 		});
 	}
 
-	return { entries, hasExports: true };
+	return { entries, blocked, hasExports: true };
 };
 
 /**
  * Flatten a possibly-nested export value into a flat conditions record.
  *
- * @returns flat conditions record, or null for explicit exclusions
+ * Top-level `null` targets never reach here — `parsePackageExports` routes
+ * them to `blocked` first; a `null` nested *inside* a conditions object just
+ * contributes nothing.
+ *
+ * Fallback arrays take their first usable element — a static approximation
+ * of Node's error-driven fallback that is exact for the shapes that occur in
+ * practice (`["./a.js"]`, `[{...conditions}, "./fallback.js"]`). An array
+ * with no usable element flattens to `null` like an all-null conditions
+ * object, so it blocks rather than silently failing open.
+ *
+ * @returns flat conditions record, or null when nothing usable remains
  */
 const flattenConditions = (value: unknown, prefix?: string): Record<string, string> | null => {
-	// Null = explicit exclusion
+	// Null condition target = that condition doesn't resolve
 	if (value === null || value === undefined) return null;
 
 	// String = direct path (condition is the parent key, or 'default')
@@ -140,8 +182,17 @@ const flattenConditions = (value: unknown, prefix?: string): Record<string, stri
 		return { [prefix ?? 'default']: value };
 	}
 
-	// Object = conditions map (possibly nested)
-	if (typeof value === 'object' && !Array.isArray(value)) {
+	// Array = fallback list: first usable element wins
+	if (Array.isArray(value)) {
+		for (const item of value) {
+			const flattened = flattenConditions(item, prefix);
+			if (flattened) return flattened;
+		}
+		return null;
+	}
+
+	// Object = conditions map (possibly nested; arrays returned above)
+	if (typeof value === 'object') {
 		// Null-prototype map: condition keys come from package.json `exports` (external
 		// input) and are read back by key in `selectCondition` (`key in conditions`,
 		// `conditions[key]`); avoids prototype keys leaking into membership/lookup.
@@ -156,6 +207,88 @@ const flattenConditions = (value: unknown, prefix?: string): Record<string, stri
 	}
 
 	return null;
+};
+
+// Null-target blocking
+
+/**
+ * Split a pattern-ish string at its first `*` — the one star rule shared by
+ * exports-key matching, glob widening, and specifier reconstruction. Any
+ * further `*` sits in `after` and is matched literally — Node instead skips
+ * multi-star keys outright, but a literal-`*` trailer matches no real
+ * specifier, so the outcomes coincide. Returns `null` for a starless string.
+ */
+const splitAtFirstStar = (s: string): { before: string; after: string } | null => {
+	const star = s.indexOf('*');
+	return star === -1 ? null : { before: s.slice(0, star), after: s.slice(star + 1) };
+};
+
+/** A wildcard exports key split at its first `*` for Node-style matching. */
+interface ExportsPatternKey {
+	/** Static text before the `*`. */
+	base: string;
+	/** Static text after the `*` (matched literally, like Node's patternTrailer). */
+	trailer: string;
+	/** Full key length (Node's minimum-specifier-length bound). */
+	length: number;
+	/** Whether this key's target is `null`. */
+	blocked: boolean;
+}
+
+/**
+ * Node's `PATTERN_KEY_COMPARE`: the key with the longer static base wins;
+ * ties break to the longer key overall. Negative when `a` is the better
+ * (more specific) match.
+ */
+const comparePatternKeys = (a: ExportsPatternKey, b: ExportsPatternKey): number =>
+	b.base.length - a.base.length || b.length - a.length;
+
+/**
+ * Build a predicate deciding whether an export specifier is blocked, per
+ * Node's resolution semantics: an exact (starless) key wins outright, else
+ * the best-matching wildcard key (`comparePatternKeys`) decides — and when
+ * that winner's target is `null`, the subpath is not exported.
+ *
+ * Blocking is only observable when blocked keys exist, so this returns
+ * `null` for the common no-blocked-keys case and callers skip specifier
+ * computation entirely.
+ *
+ * Exported for consumers reading `ParsedExports.blocked` directly — this is
+ * the one implementation of the interpretation rule.
+ */
+export const createBlockedSpecifierChecker = (
+	parsed: ParsedExports
+): ((specifier: string) => boolean) | null => {
+	if (parsed.blocked.length === 0) return null;
+
+	const exact = new Map<string, boolean>();
+	const patterns: Array<ExportsPatternKey> = [];
+	const add = (key: string, blocked: boolean): void => {
+		const split = splitAtFirstStar(key);
+		if (split === null) {
+			exact.set(key, blocked);
+			return;
+		}
+		patterns.push({ base: split.before, trailer: split.after, length: key.length, blocked });
+	};
+	for (const entry of parsed.entries) add(entry.specifier, false);
+	for (const key of parsed.blocked) add(key, true);
+
+	return (specifier) => {
+		const exactHit = exact.get(specifier);
+		if (exactHit !== undefined) return exactHit;
+		let best: ExportsPatternKey | null = null;
+		for (const p of patterns) {
+			// Node's match rule: specifier extends the base, and the trailer (when
+			// present) matches with at least one captured character.
+			if (!specifier.startsWith(p.base) || specifier === p.base) continue;
+			if (p.trailer !== '' && !(specifier.endsWith(p.trailer) && specifier.length >= p.length)) {
+				continue;
+			}
+			if (best === null || comparePatternKeys(p, best) < 0) best = p;
+		}
+		return best?.blocked ?? false;
+	};
 };
 
 // Source mapping
@@ -220,6 +353,25 @@ export const mapDistToSource = (
 // Discovery
 
 /**
+ * Per-run invariants threaded through the concrete and wildcard resolvers —
+ * built once in `discoverFromExports`.
+ */
+interface ExportsDiscoveryContext {
+	/** Absolute project root (POSIX). */
+	projectRoot: string;
+	/** Dist→source mapping configuration. */
+	mappingOptions: { distDir: string; sourceDir: string };
+	/** User exclude globs — applied as glob `ignore` on the wildcard path. */
+	exclude: Array<string> | undefined;
+	/** Compiled form of `exclude` for the concrete path. */
+	excludeMatcher: ((relPath: string) => boolean) | undefined;
+	/** Blocked-key best-match checker; `null` when the exports field has no blocked keys. */
+	isBlockedSpecifier: ((specifier: string) => boolean) | null;
+	/** Accumulator: absolute path → relative source path. */
+	discovered: Map<string, string>;
+}
+
+/**
  * Select the best condition for source mapping from an export entry.
  */
 const selectCondition = (conditions: Record<string, string>): [string, string] | null => {
@@ -246,6 +398,13 @@ const selectCondition = (conditions: Record<string, string>): [string, string] |
  * For concrete exports, maps directly to source paths and verifies existence.
  * For wildcard exports, globs the source directory for matching files.
  *
+ * Null-target keys are honored with Node's resolution semantics: a subpath
+ * whose most-specific matching key is `null` is not exported, so its file is
+ * not discovered — `"./internal/*": null` beside the usual `"./*.js"`
+ * wildcards keeps `src/lib/internal/` out of discovery exactly as it keeps
+ * the subpaths unresolvable for consumers (the `src/lib/internal/`
+ * convention's exports half).
+ *
  * @param options - discovery configuration
  * @returns `ExportsDiscoveryResult` with discovered files and any error diagnostics
  */
@@ -257,9 +416,16 @@ export const discoverFromExports = async (
 	const parsed = await parsePackageExports(projectRoot);
 	if (!parsed.hasExports) return { files: null, diagnostics: [] };
 
-	const mappingOptions = { distDir, sourceDir };
-	const discovered: Map<string, string> = new Map(); // absolute path → relative source path
-	const excludeMatcher = exclude?.length ? picomatch(exclude) : undefined;
+	const ctx: ExportsDiscoveryContext = {
+		projectRoot,
+		mappingOptions: { distDir, sourceDir },
+		exclude,
+		excludeMatcher: exclude?.length ? picomatch(exclude) : undefined,
+		// Blocked keys gate the subpaths they best-match (Node semantics);
+		// `null` when the exports field has none.
+		isBlockedSpecifier: createBlockedSpecifierChecker(parsed),
+		discovered: new Map()
+	};
 
 	for (const entry of parsed.entries) {
 		const selected = selectCondition(entry.conditions);
@@ -267,29 +433,20 @@ export const discoverFromExports = async (
 		const [condition, distPath] = selected;
 
 		if (entry.isPattern) {
-			// Wildcard: expand via glob
-
-			await expandWildcardExport(
-				distPath,
-				condition,
-				mappingOptions,
-				projectRoot,
-				exclude,
-				discovered
-			);
+			// Wildcard: expand via glob. Files whose specifier a blocked key
+			// best-matches are skipped; a file reachable through several
+			// wildcard entries stays discovered if any of its specifiers
+			// resolves (Map union).
+			await expandWildcardExport(distPath, condition, entry.specifier, ctx);
 		} else {
-			// Concrete: map directly
-			await resolveConcreteExport(
-				distPath,
-				condition,
-				mappingOptions,
-				projectRoot,
-				excludeMatcher,
-				discovered
-			);
+			// Concrete: map directly. Never block-checked — an exact key with a
+			// target wins over every wildcard in Node's resolution, blocked keys
+			// included.
+			await resolveConcreteExport(distPath, condition, ctx);
 		}
 	}
 
+	const { discovered } = ctx;
 	if (discovered.size === 0) return { files: [], diagnostics: [] };
 
 	// Load file contents with bounded concurrency to keep FD pressure under
@@ -333,11 +490,9 @@ export const discoverFromExports = async (
 const resolveConcreteExport = async (
 	distPath: string,
 	condition: string,
-	mappingOptions: { distDir: string; sourceDir: string },
-	projectRoot: string,
-	excludeMatcher: ((relPath: string) => boolean) | undefined,
-	discovered: Map<string, string>
+	ctx: ExportsDiscoveryContext
 ): Promise<void> => {
+	const { mappingOptions, projectRoot, excludeMatcher, discovered } = ctx;
 	const sourcePath = mapDistToSource(distPath, condition, mappingOptions);
 	if (!sourcePath) return;
 	// `mapDistToSource` prefixes `sourceDir/`, so the slice is the base-relative
@@ -388,13 +543,31 @@ const resolveConcreteExport = async (
  * Both fall through to matching same-directory files only.
  */
 const toRecursiveExportGlob = (pattern: string): string => {
-	const star = pattern.indexOf('*');
-	if (star === -1) return pattern;
-	const before = pattern.slice(0, star);
-	const after = pattern.slice(star + 1);
-	if (before.endsWith('/')) return `${before}**/*${after}`;
+	const split = splitAtFirstStar(pattern);
+	if (split === null) return pattern;
+	if (split.before.endsWith('/')) return `${split.before}**/*${split.after}`;
 	return pattern;
 };
+
+/**
+ * Extensions a `.ts`-mapped exports pattern also matches — `mapDistToSource`
+ * maps `.js` dist entries to `.ts` sources, but the same entry serves
+ * Svelte/JS/CSS files too.
+ */
+const TS_VARIANT_EXTENSIONS = ['.svelte', '.js', '.css'];
+
+/**
+ * Expand a `.ts`-suffixed pattern (or pattern trailer) into every
+ * source-extension variant it matches, itself first. The one variant table:
+ * the glob expansion and the specifier inversion
+ * (`createSpecifierForSourcePath`) both consume it, so they can't drift — a
+ * divergence would make blocked-key checking silently fail open for the
+ * missed extension.
+ */
+const tsExtensionVariants = (pattern: string): Array<string> =>
+	pattern.endsWith('.ts')
+		? [pattern, ...TS_VARIANT_EXTENSIONS.map((ext) => pattern.slice(0, -3) + ext)]
+		: [pattern];
 
 /**
  * Expand a wildcard export pattern to matching source files.
@@ -402,26 +575,31 @@ const toRecursiveExportGlob = (pattern: string): string => {
 const expandWildcardExport = async (
 	distPath: string,
 	condition: string,
-	mappingOptions: { distDir: string; sourceDir: string },
-	projectRoot: string,
-	exclude: Array<string> | undefined,
-	discovered: Map<string, string>
+	entrySpecifier: string,
+	ctx: ExportsDiscoveryContext
 ): Promise<void> => {
+	const { mappingOptions, projectRoot, exclude, isBlockedSpecifier, discovered } = ctx;
 	const mappedPattern = mapDistToSource(distPath, condition, mappingOptions);
 	if (!mappedPattern) return;
 
 	// The exports `*` crosses directory separators; a glob `*` does not — widen
-	// it so nested modules aren't silently dropped.
-	const sourcePattern = toRecursiveExportGlob(mappedPattern);
-	const patterns = [sourcePattern];
+	// it so nested modules aren't silently dropped. A `.ts`-mapped pattern also
+	// matches Svelte/JS/CSS sources (`tsExtensionVariants`).
+	const patterns = tsExtensionVariants(toRecursiveExportGlob(mappedPattern));
 
-	// For .ts patterns, also try .svelte and .js
-	if (sourcePattern.endsWith('.ts')) {
-		patterns.push(sourcePattern.replace(/\.ts$/, '.svelte'));
-		patterns.push(sourcePattern.replace(/\.ts$/, '.js'));
-		// Also try CSS
-		patterns.push(sourcePattern.replace(/\.ts$/, '.css'));
-	}
+	// Blocked-key checking: reconstruct the specifier this entry would resolve
+	// a file under and ask the best-match checker. A path whose specifier can't
+	// be reconstructed (degenerate multi-`*` pattern, unmatched shape) fails
+	// open — the file stays discovered, matching the pre-blocking behavior.
+	const toSpecifier =
+		isBlockedSpecifier && createSpecifierForSourcePath(mappedPattern, entrySpecifier);
+	const isBlockedPath =
+		isBlockedSpecifier && toSpecifier
+			? (relPath: string): boolean => {
+					const specifier = toSpecifier(relPath);
+					return specifier !== null && isBlockedSpecifier(specifier);
+				}
+			: null;
 
 	const filePaths = await glob(patterns, {
 		cwd: projectRoot,
@@ -435,13 +613,53 @@ const expandWildcardExport = async (
 		// Posixify before keying — tinyglobby returns native separators on
 		// Windows; the rest of the pipeline expects POSIX absolute paths.
 		const absPath = toPosixPath(rawAbsPath);
-		if (!discovered.has(absPath)) {
-			// Compute relative source path from absolute. Both sides are POSIX
-			// at this point, so the slice produces a forward-slash relative path.
-			const relPath = absPath.slice(projectRoot.length + 1);
-			discovered.set(absPath, relPath);
-		}
+		if (discovered.has(absPath)) continue;
+		// Compute relative source path from absolute. Both sides are POSIX
+		// at this point, so the slice produces a forward-slash relative path.
+		const relPath = absPath.slice(projectRoot.length + 1);
+		if (isBlockedPath?.(relPath)) continue;
+		discovered.set(absPath, relPath);
 	}
+};
+
+/**
+ * Build the source-path → export-specifier mapping for one wildcard entry.
+ *
+ * Inverts the discovery direction: the glob matched source files against the
+ * dist-mapped pattern (`src/lib/*.ts` for the `./*.js` entry), so the text the
+ * pattern's `*` captured, substituted into the entry's specifier, is the
+ * specifier Node would resolve that file under (`src/lib/internal/foo.ts` →
+ * capture `internal/foo` → `./internal/foo.js`). Extension variants come from
+ * `tsExtensionVariants`, the same table the glob used, so `.svelte`/`.js`/
+ * `.css` files map too — their specifier keeps this entry's extension
+ * (`./X.js` for an `X.svelte` match), which is exact for prefix-shaped
+ * blocked keys (`./internal/*`) and only approximate for a blocked key
+ * targeting a specific foreign extension.
+ *
+ * Returns `null` when the pattern shape can't be inverted (no `*`, or a
+ * second `*` in the trailer); the per-path mapper returns `null` for a path
+ * that doesn't fit the pattern. Callers treat both as "don't block".
+ */
+const createSpecifierForSourcePath = (
+	mappedPattern: string,
+	entrySpecifier: string
+): ((relPath: string) => string | null) | null => {
+	const pattern = splitAtFirstStar(mappedPattern);
+	const specifier = splitAtFirstStar(entrySpecifier);
+	if (!pattern || !specifier || pattern.after.includes('*')) return null;
+
+	const trailers = tsExtensionVariants(pattern.after);
+
+	return (relPath) => {
+		if (!relPath.startsWith(pattern.before)) return null;
+		for (const t of trailers) {
+			if (relPath.length > pattern.before.length + t.length && relPath.endsWith(t)) {
+				const capture = relPath.slice(pattern.before.length, relPath.length - t.length);
+				return specifier.before + capture + specifier.after;
+			}
+		}
+		return null;
+	};
 };
 
 /**

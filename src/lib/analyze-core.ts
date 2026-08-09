@@ -374,6 +374,15 @@ export interface AnalyzeCoreInputs {
 	svelteVirtualFiles: ReadonlyMap<string, SvelteVirtualFile>;
 	/** Svelte file IDs whose svelte2tsx transform failed at ingest. */
 	transformFailedIds?: ReadonlySet<string>;
+	/**
+	 * Gated Svelte files (owned but failing `isSource` — the `internal/`
+	 * convention) whose virtuals are in `svelteVirtualFiles`. Analyzed only
+	 * when an emitted component alias references them, as canonical-fill
+	 * context for `resolveComponentAliases` — their modules never emit and
+	 * their analysis diagnostics are dropped (`partial` on the canonical
+	 * propagates to the filled alias instead).
+	 */
+	contextSvelteFiles?: ReadonlyArray<SourceFileInfo>;
 	onDuplicates?: OnDuplicates;
 	log?: AnalysisLog;
 }
@@ -395,6 +404,47 @@ export interface AnalyzeCoreInputs {
  * `extractDependencies`); `analyzeCore` does not compute them. `session.query`
  * runs `computeDependents` on the owned set before invoking this.
  */
+/**
+ * Analyze the gated Svelte canonicals referenced by an emitted component
+ * alias, as `resolveComponentAliases` fill context only (see
+ * `AnalyzeCoreInputs.contextSvelteFiles`). Unreferenced files are skipped
+ * entirely; analysis diagnostics are dropped — the canonical's `partial`
+ * flag propagates through the fill, which is the emitted signal.
+ */
+const analyzeContextComponents = (
+	contextSvelteFiles: ReadonlyArray<SourceFileInfo>,
+	emittedModules: ReadonlyArray<ModuleJson>,
+	inputs: AnalyzeCoreInputs
+): Array<ModuleJson> => {
+	const { sourceOptions, program, svelteVirtualFiles } = inputs;
+	const referenced = new Set<string>();
+	for (const mod of emittedModules) {
+		for (const decl of mod.declarations) {
+			if (decl.kind === 'component' && decl.aliasOf) referenced.add(decl.aliasOf.module);
+		}
+	}
+	const contextModules: Array<ModuleJson> = [];
+	if (referenced.size === 0) return contextModules;
+	for (const sourceFile of contextSvelteFiles) {
+		const modulePath = extractPath(sourceFile.id, sourceOptions);
+		if (!referenced.has(modulePath)) continue;
+		const virtualFile = svelteVirtualFiles.get(sourceFile.id);
+		if (!virtualFile) continue;
+		const droppedDiagnostics: Array<Diagnostic> = [];
+		const raw = analyzeSvelteModule(
+			sourceFile,
+			modulePath,
+			program.getTypeChecker(),
+			sourceOptions,
+			droppedDiagnostics,
+			program,
+			virtualFile
+		);
+		if (raw) contextModules.push(toModuleJson(raw));
+	}
+	return contextModules;
+};
+
 export const analyzeCore = (inputs: AnalyzeCoreInputs): AnalyzeResultJson => {
 	const {
 		sourceFiles,
@@ -402,6 +452,7 @@ export const analyzeCore = (inputs: AnalyzeCoreInputs): AnalyzeResultJson => {
 		program,
 		svelteVirtualFiles,
 		transformFailedIds,
+		contextSvelteFiles,
 		onDuplicates,
 		log
 	} = inputs;
@@ -463,11 +514,19 @@ export const analyzeCore = (inputs: AnalyzeCoreInputs): AnalyzeResultJson => {
 		modules.push(mod);
 	}
 
+	// Phase 1.5: gated Svelte canonicals as fill context — kept out of
+	// `mergeReExports` (their edges would back-link modules absent from
+	// output) and out of the emitted set.
+	const contextModules = contextSvelteFiles?.length
+		? analyzeContextComponents(contextSvelteFiles, modules, inputs)
+		: [];
+
 	// Phase 2a: build alsoExportedFrom arrays from the modules' forward edges
 	const mergedModules = mergeReExports(modules);
 	// Phase 2b: fill component-only fields on renamed component aliases —
 	// canonical components are only fully populated after phase 1 finishes.
-	const resolvedModules = resolveComponentAliases(mergedModules);
+	// Gated canonicals extend the lookup without joining the output.
+	const resolvedModules = resolveComponentAliases(mergedModules, contextModules);
 
 	const sortedModules = sortModules(resolvedModules);
 

@@ -439,8 +439,13 @@ export const createAnalysisLanguageService = (
 		getScriptVersion: (fileName) => {
 			const entry = owned.get(fileName);
 			// External / disk-only files: stable version. We don't watch them;
-			// the LS reads them once into the document registry.
-			return entry ? String(entry.version) : '1';
+			// the LS reads them once into the document registry. The sentinel is
+			// non-numeric so it can never collide with an owned version — owned
+			// versions start at 1, and the LS/document registry reparse only on a
+			// version-string *change*, so a colliding constant would make the
+			// first `setFile` of a previously-disk-resolved file a silent no-op
+			// (stale AST served despite new content).
+			return entry ? String(entry.version) : 'disk';
 		},
 		getScriptSnapshot: (fileName) => {
 			const entry = owned.get(fileName);
@@ -519,12 +524,45 @@ export type IsExternalFile = (sourceFile: ts.SourceFile) => boolean;
  *   declarations like `.svelte-kit/non-ambient.d.ts` while keeping user `.d.ts` files
  *   in the source tree)
  */
-export const createIsExternalFile = (options: ModuleSourceOptions): IsExternalFile => {
+/** The project/source prefixes both externality predicates compare against. */
+const externalityPrefixes = (
+	options: ModuleSourceOptions
+): { projectPrefix: string; sourcePrefix: string } => {
 	const projectPrefix = options.projectRoot + '/';
 	const effectiveRoot = getSourceRoot(options);
-	const sourcePrefix = effectiveRoot ? projectPrefix + effectiveRoot + '/' : projectPrefix;
+	return {
+		projectPrefix,
+		sourcePrefix: effectiveRoot ? projectPrefix + effectiveRoot + '/' : projectPrefix
+	};
+};
+
+export const createIsExternalFile = (options: ModuleSourceOptions): IsExternalFile => {
+	const { projectPrefix, sourcePrefix } = externalityPrefixes(options);
 	return (sf) =>
 		!sf.fileName.startsWith(projectPrefix) ||
 		sf.fileName.includes('/node_modules/') ||
 		(sf.isDeclarationFile && !sf.fileName.startsWith(sourcePrefix));
+};
+
+/** Declaration-file suffixes — the path-string stand-in for `isDeclarationFile`. */
+const DECLARATION_FILE_SUFFIXES = ['.d.ts', '.d.mts', '.d.cts'];
+
+/**
+ * Path-string counterpart of `IsExternalFile`, for call sites that hold a
+ * file path rather than a `ts.SourceFile` (re-export classification). Same
+ * rule, with declaration-file suffixes standing in for `isDeclarationFile`.
+ *
+ * Deliberately distinct from `isSource`: `isSource` answers "does this file
+ * emit a module?" while this answers "is this file outside the project?" —
+ * an in-root file can fail `isSource` (the `src/lib/internal/` convention,
+ * user excludes) while remaining project-local, and conflating the two
+ * mis-files project-local re-exports as external-package facts.
+ */
+export const createIsExternalPath = (options: ModuleSourceOptions): ((file: string) => boolean) => {
+	const { projectPrefix, sourcePrefix } = externalityPrefixes(options);
+	return (file) =>
+		!file.startsWith(projectPrefix) ||
+		file.includes('/node_modules/') ||
+		(DECLARATION_FILE_SUFFIXES.some((suffix) => file.endsWith(suffix)) &&
+			!file.startsWith(sourcePrefix));
 };

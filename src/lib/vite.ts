@@ -51,8 +51,9 @@ import { compactReplacer } from './declaration-helpers.ts';
 import {
 	createSourceOptionsWithInclude,
 	isSource,
+	type ExcludeOption,
 	type ModuleSourceOptions,
-	type SourceOptionsDefaults
+	type SourceOptionsOverrides
 } from './source-config.ts';
 import { noDepsResolver, type ImportResolver } from './dep-resolver.ts';
 import { toPosixPath } from './paths.ts';
@@ -96,13 +97,17 @@ export interface VitePluginSvelteDocinfoOptions {
 	/**
 	 * Glob patterns to exclude, applied at both discovery and analysis time.
 	 *
-	 * When provided, **fully replaces** `sourceOptions.exclude` (no array
-	 * merge) — the default test and spec filters are dropped unless
-	 * re-included explicitly. The always-on baseline (`node_modules` +
-	 * dot-directories below a matched source path) applies beneath it and is
-	 * unaffected by overrides.
+	 * Takes precedence over `sourceOptions.exclude` (no merge between the
+	 * two). An array **replaces** the default patterns wholesale — the test,
+	 * spec, and `internal/` filters are dropped unless re-included — while the
+	 * callback form extends them without restating them
+	 * (`(defaults) => [...defaults, '**\/*.gen.ts']` — see `ExcludeOption`).
+	 * The callback always receives the built-in defaults, even when
+	 * `sourceOptions.exclude` is also set (that value is superseded whole).
+	 * The always-on baseline (`node_modules` + dot-directories below a matched
+	 * source path) applies beneath it and is unaffected by overrides.
 	 */
-	exclude?: Array<string>;
+	exclude?: ExcludeOption;
 	/**
 	 * Whether to resolve import dependencies.
 	 *
@@ -127,7 +132,7 @@ export interface VitePluginSvelteDocinfoOptions {
 	/**
 	 * Partial overrides for default source options (SvelteKit `src/lib` layout).
 	 */
-	sourceOptions?: Partial<SourceOptionsDefaults>;
+	sourceOptions?: SourceOptionsOverrides;
 	/** Behavior when duplicate declaration names are found across modules. */
 	onDuplicates?: OnDuplicates;
 	/**
@@ -286,7 +291,14 @@ const svelteDocinfo = (options: VitePluginSvelteDocinfoOptions = {}): Plugin => 
 		log.error(`[svelte-docinfo] ${message}`);
 	};
 
-	const isWatchedFile = (file: string): boolean => isSource(file, resolvedSourceOptions);
+	// Source files re-analyze on change; so do owned context files (the
+	// session's context closure — e.g. `internal/` modules public files
+	// import), whose edits change public output through the checker even
+	// though they emit no module themselves. A context file created *after*
+	// its importer's last ingest becomes owned on that importer's next
+	// change (the closure re-walks); until then its events are dropped.
+	const isWatchedFile = (file: string): boolean =>
+		isSource(file, resolvedSourceOptions) || (session?.has(file) ?? false);
 
 	// Initial analysis (cold start in buildStart)
 	const runInitialAnalysis = async (): Promise<void> => {
