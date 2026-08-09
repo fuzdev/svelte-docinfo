@@ -3,6 +3,7 @@
 	"kind": "type",
 	"docComment": "Infer keyword in conditional types.",
 	"typeSignature": "A<T>",
+	"sourceLine": 4,
 	"genericParams": [
 		{
 			"name": "T"

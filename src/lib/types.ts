@@ -761,7 +761,17 @@ export const InterfaceDeclarationJson = z.strictObject({
 	 * Interface members: property signatures, method signatures, index signatures,
 	 * call/construct signatures.
 	 */
-	members: z.array(MemberJson).default([])
+	members: z.array(MemberJson).default([]),
+	/**
+	 * The exported name also carries a value meaning — a merged value+type
+	 * symbol (`const Foo = ...` + `interface Foo {...}`), where the interface
+	 * wins the declaration slot and the value's own type goes undocumented.
+	 * Tells consumers the name is importable as a runtime value: `import
+	 * {Foo}`, never `import type {Foo}` (see `generateImport`).
+	 *
+	 * @see `TypeDeclarationJson.mergedValue`
+	 */
+	mergedValue: z.boolean().default(false)
 });
 export type InterfaceDeclarationJson = z.infer<typeof InterfaceDeclarationJson>;
 
@@ -791,7 +801,18 @@ export const TypeDeclarationJson = z.strictObject({
 	 * Type members: property signatures, method signatures, index signatures,
 	 * call/construct signatures.
 	 */
-	members: z.array(MemberJson).default([])
+	members: z.array(MemberJson).default([]),
+	/**
+	 * The exported name also carries a value meaning — a merged value+type
+	 * symbol (`const Foo = z.strictObject({...})` + `type Foo = z.infer<typeof
+	 * Foo>`, the schema/type pattern), where the type alias wins the
+	 * declaration slot and the value's own type goes undocumented. Tells
+	 * consumers the name is importable as a runtime value: `import {Foo}`,
+	 * never `import type {Foo}` (see `generateImport`).
+	 *
+	 * @see `InterfaceDeclarationJson.mergedValue`
+	 */
+	mergedValue: z.boolean().default(false)
 });
 export type TypeDeclarationJson = z.infer<typeof TypeDeclarationJson>;
 

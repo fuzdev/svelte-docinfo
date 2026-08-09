@@ -110,6 +110,8 @@ export interface DeclarationJsonBuild {
 	module?: string;
 	/** Default value documented via `@default`. Variable declarations only. */
 	defaultValue?: string;
+	/** The exported name also carries a value meaning. Type/interface declarations only. */
+	mergedValue?: boolean;
 	/** Structured type. Variable and type-alias declarations only; see `TypeJson`. */
 	typeInfo?: TypeJson;
 }

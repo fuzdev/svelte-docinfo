@@ -106,8 +106,14 @@
 					<code>"class"</code>: adds <code>members</code>, <code>extends</code>,
 					<code>implements</code>
 				</li>
-				<li><code>"interface"</code>: adds <code>members</code>, <code>extends</code></li>
-				<li><code>"type"</code>: adds <code>members</code>, <code>intersects</code></li>
+				<li>
+					<code>"interface"</code>: adds <code>members</code>, <code>extends</code>,
+					<code>mergedValue</code>
+				</li>
+				<li>
+					<code>"type"</code>: adds <code>members</code>, <code>intersects</code>,
+					<code>mergedValue</code>
+				</li>
 				<li><code>"enum"</code>: adds <code>members</code> (enum values)</li>
 				<li>
 					<code>"component"</code>: adds <code>props</code>, <code>intersects</code>,
@@ -121,6 +127,17 @@
 					this binding); synthesized for <code>export * as ns from './x'</code>
 				</li>
 			</ul>
+			<p>
+				A merged value+type export — one name declared in both spaces, like the schema pattern
+				<code>{`export const Foo = z.strictObject({...})`}</code> +
+				<code>{`export type Foo = z.infer<typeof Foo>`}</code> — produces one declaration: the type
+				meaning wins the slot and documents like its un-merged equivalent (structure,
+				<code>members</code>, <code>typeInfo</code>), and <code>mergedValue: true</code> marks that
+				the name is also importable as a runtime value —
+				<DeclarationLink name="generateImport" /> reads it to emit <code>import</code> instead of
+				<code>import type</code>. JSDoc falls back to the value declaration's comment when the type
+				declaration has none, and <code>@nodocs</code> on either declaration excludes the pair.
+			</p>
 			<p>Shared fields on all variants:</p>
 			<ul>
 				<li>

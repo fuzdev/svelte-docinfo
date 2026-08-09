@@ -1,4 +1,4 @@
-import type { DeclarationJsonInput } from '$lib/types.ts';
+import { DeclarationJson, type DeclarationJsonInput } from '$lib/types.ts';
 
 import { loadFixturesGeneric } from '../../test-helpers.ts';
 
@@ -57,29 +57,9 @@ export const validateDeclarationStructures = (declarations: Array<DeclarationJso
 		throw new Error(`Expected exactly 1 component declaration, got ${components.length}`);
 	}
 
+	// Validate through the Zod schema — strictly stronger than any hand-rolled
+	// structural check and can't fall behind the data model
 	for (const decl of declarations) {
-		if (typeof decl.name !== 'string') {
-			throw new Error('Expected declaration.name to be a string');
-		}
-		if (typeof decl.kind !== 'string') {
-			throw new Error('Expected declaration.kind to be a string');
-		}
-
-		// Component-specific validation
-		if (decl.kind === 'component') {
-			if (decl.props !== undefined) {
-				if (!Array.isArray(decl.props)) {
-					throw new Error('Expected component.props to be an array');
-				}
-				for (const prop of decl.props) {
-					if (typeof prop.name !== 'string') {
-						throw new Error('Expected prop.name to be a string');
-					}
-					if (typeof prop.type !== 'string') {
-						throw new Error('Expected prop.type to be a string');
-					}
-				}
-			}
-		}
+		DeclarationJson.parse(decl);
 	}
 };

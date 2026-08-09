@@ -3,6 +3,7 @@
 	"kind": "type",
 	"docComment": "Various array type forms.",
 	"typeSignature": "A",
+	"sourceLine": 4,
 	"members": [
 		{
 			"name": "a",

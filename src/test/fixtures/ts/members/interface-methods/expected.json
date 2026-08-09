@@ -3,6 +3,7 @@
 	"kind": "interface",
 	"docComment": "An interface with method signatures.",
 	"typeSignature": "A",
+	"sourceLine": 4,
 	"members": [
 		{
 			"name": "fn1",

@@ -2,6 +2,7 @@
 	"name": "A",
 	"kind": "class",
 	"docComment": "A generic class with type parameters.",
+	"sourceLine": 4,
 	"genericParams": [
 		{
 			"name": "T"

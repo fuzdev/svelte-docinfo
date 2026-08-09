@@ -3,5 +3,6 @@
 	"kind": "variable",
 	"docComment": "A derived reactive variable.",
 	"typeSignature": "number",
+	"sourceLine": 4,
 	"reactivity": "$derived"
 }

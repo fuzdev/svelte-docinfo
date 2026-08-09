@@ -3,6 +3,7 @@
 	"kind": "function",
 	"docComment": "A function with type predicate.",
 	"typeSignature": "(a: unknown): a is string",
+	"sourceLine": 7,
 	"parameters": [
 		{
 			"name": "a",

@@ -78,6 +78,39 @@ export const inferDeclarationKind = (symbol: ts.Symbol, node: ts.Node): Declarat
 	return 'variable';
 };
 
+/**
+ * Select the declaration node that carries a symbol's documented meaning.
+ *
+ * Mirrors `inferDeclarationKind`'s flag priority. A symbol can merge value and
+ * type meanings — `const Foo = ...` + `type Foo = ...` (the schema/type
+ * pattern) or `const Foo` + `interface Foo` share one symbol with combined
+ * flags — and there `valueDeclaration` points at the value while the flags
+ * resolve a type-space kind, so value-first selection would document the
+ * value's type under the type's kind. When the flags resolve type-space
+ * (`interface`, `type`, `enum`), the first matching type-space declaration is
+ * selected instead; value-space kinds (and unmerged symbols) keep the
+ * `valueDeclaration`-first selection. The merged value meaning goes
+ * undocumented under the one-declaration-per-export-name model — the type is
+ * what consumers look up.
+ */
+export const selectDeclarationNode = (symbol: ts.Symbol): ts.Declaration | undefined => {
+	// Class/Function flags win in inferDeclarationKind, so only a flag set
+	// resolving type-space redirects selection
+	if (!(symbol.flags & (ts.SymbolFlags.Class | ts.SymbolFlags.Function))) {
+		let matches: ((node: ts.Node) => boolean) | undefined;
+		if (symbol.flags & ts.SymbolFlags.Interface) {
+			matches = ts.isInterfaceDeclaration;
+		} else if (symbol.flags & ts.SymbolFlags.TypeAlias) {
+			matches = ts.isTypeAliasDeclaration;
+		} else if (symbol.flags & (ts.SymbolFlags.Enum | ts.SymbolFlags.ConstEnum)) {
+			matches = ts.isEnumDeclaration;
+		}
+		const typeNode = matches && symbol.declarations?.find(matches);
+		if (typeNode) return typeNode;
+	}
+	return symbol.valueDeclaration ?? symbol.declarations?.[0];
+};
+
 /** Separator the TypeScript printer emits before a top-level `undefined` union member. */
 const UNDEFINED_UNION_SUFFIX = ' | undefined';
 

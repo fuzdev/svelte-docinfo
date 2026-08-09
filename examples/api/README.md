@@ -164,6 +164,7 @@ The examples analyze source files in `src/lib/` (SvelteKit layout) and `src/` (p
 
 - `src/lib/math.ts` — TypeScript functions, interfaces, and JSDoc comments
 - `src/lib/shapes.ts` — classes, enums, function overloads, const assertions, and richer JSDoc tags
+- `src/lib/schema.ts` — merged value+type export (the schema/type pattern, `mergedValue`)
 - `src/lib/counter.svelte.ts` — Svelte 5 runes (`$state`, `$derived`) in a plain `.svelte.ts` module
 - `src/lib/Calculator.svelte` — Svelte 5 component with typed props
 - `src/lib/Card.svelte` — component with `children` and snippet props

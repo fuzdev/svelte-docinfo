@@ -1,6 +1,7 @@
 {
 	"name": "Worker",
 	"kind": "class",
+	"sourceLine": 3,
 	"members": [
 		{
 			"name": "status",

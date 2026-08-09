@@ -2,6 +2,7 @@
 	"name": "A",
 	"kind": "class",
 	"docComment": "A class with getter and setter properties.",
+	"sourceLine": 4,
 	"members": [
 		{
 			"name": "a",

@@ -3,6 +3,7 @@
 	"kind": "enum",
 	"docComment": "Description.",
 	"typeSignature": "A",
+	"sourceLine": 5,
 	"members": [
 		{
 			"name": "a",

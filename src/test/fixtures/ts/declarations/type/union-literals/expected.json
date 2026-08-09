@@ -3,6 +3,7 @@
 	"kind": "type",
 	"docComment": "A simple type alias.",
 	"typeSignature": "A",
+	"sourceLine": 4,
 	"typeInfo": {
 		"kind": "union",
 		"alias": "A",

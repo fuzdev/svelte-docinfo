@@ -2,6 +2,7 @@
 	"name": "A",
 	"kind": "class",
 	"docComment": "A class with private fields that should be filtered out.",
+	"sourceLine": 4,
 	"members": [
 		{
 			"name": "e",

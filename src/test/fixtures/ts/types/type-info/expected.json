@@ -2,6 +2,7 @@
 	"name": "O",
 	"kind": "type",
 	"typeSignature": "O",
+	"sourceLine": 18,
 	"members": [
 		{
 			"name": "a",

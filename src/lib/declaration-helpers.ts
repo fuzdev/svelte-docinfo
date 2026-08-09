@@ -95,7 +95,10 @@ export const getDisplayName = (declaration: DeclarationJson | MemberJson): strin
 /**
  * Generate TypeScript import statement for a declaration.
  *
- * Produces `import type` for type/interface declarations, `import` for values.
+ * Produces `import type` for type/interface declarations, `import` for values —
+ * including type/interface declarations marked `mergedValue` (a merged
+ * value+type symbol like a schema/type pair is importable as a runtime value,
+ * so a type-only import would break value use).
  *
  * **Default export handling**: when `declaration.name === 'default'`, emits
  * `import X from '...'` with the binding derived by PascalCasing the module
@@ -144,9 +147,13 @@ export const generateImport = (
 		return `import * as ${declaration.name} from '${specifier}';`;
 	}
 
-	const importKeyword =
-		declaration.kind === 'type' || declaration.kind === 'interface' ? 'import type' : 'import';
-	return `${importKeyword} {${declaration.name}} from '${specifier}';`;
+	// A merged value+type symbol is importable as a runtime value — `import
+	// type` would break value use (`Foo.parse(...)` on a schema/type pair).
+	// Absent `mergedValue` (wire-form input with the default stripped) means
+	// not merged, so the type-only rendering is safe.
+	const typeOnly =
+		(declaration.kind === 'type' || declaration.kind === 'interface') && !declaration.mergedValue;
+	return `${typeOnly ? 'import type' : 'import'} {${declaration.name}} from '${specifier}';`;
 };
 
 const pascalCaseFromModulePath = (modulePath: string): string => {

@@ -3,6 +3,7 @@
 	"kind": "type",
 	"docComment": "A type alias with optional properties.",
 	"typeSignature": "A",
+	"sourceLine": 4,
 	"members": [
 		{
 			"name": "a",

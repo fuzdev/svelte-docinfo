@@ -158,6 +158,15 @@ const {modules} = await analyze({
 					<code>@mutates</code> to flag side effects
 				</li>
 				<li>
+					<strong>merged value+type symbols</strong>: a schema/type pair (<code
+						>{`const Foo = z.strictObject({...})`}</code
+					>
+					+
+					<code>{`type Foo = z.infer<typeof Foo>`}</code>) documents the type meaning with full
+					structure, marked <code>mergedValue</code> so consumers know the name is also a runtime
+					value — see the <TomeLink slug="output-format">output format</TomeLink>
+				</li>
+				<li>
 					<strong>Svelte 5 components</strong>: analyzes components via svelte2tsx, extracting prop
 					types, defaults, bindability, snippet parameters, children detection, and exported
 					template snippets

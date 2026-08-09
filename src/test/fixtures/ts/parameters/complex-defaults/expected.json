@@ -3,6 +3,7 @@
 	"kind": "function",
 	"docComment": "A function with complex default values.",
 	"typeSignature": "(a?: { b: string; c: number; }, b?: Array<number>, c?: string): string",
+	"sourceLine": 9,
 	"parameters": [
 		{
 			"name": "a",

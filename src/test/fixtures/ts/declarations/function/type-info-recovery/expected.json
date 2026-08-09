@@ -3,6 +3,7 @@
 	"kind": "function",
 	"docComment": "Return and parameter recovery: the alias-lost object as a return-union\nmember and a parameter, the alias-lost union as an optional parameter\n(recovery composes with the optional-widening strip). Lib-referencing\nshapes (`Promise<Inferred>`) are unit-tested instead — this harness runs\n`noResolve` with no lib, so lib generics don't instantiate here.",
 	"typeSignature": "(base: { a: string; b: number; }, extra?: \"x\" | { y: number; } | undefined): { a: string; b: number; } | undefined",
+	"sourceLine": 22,
 	"parameters": [
 		{
 			"name": "base",

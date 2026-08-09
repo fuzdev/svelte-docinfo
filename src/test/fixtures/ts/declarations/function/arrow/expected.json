@@ -3,6 +3,7 @@
 	"kind": "function",
 	"docComment": "An arrow function.",
 	"typeSignature": "(a: string, b: number): string",
+	"sourceLine": 8,
 	"parameters": [
 		{
 			"name": "a",

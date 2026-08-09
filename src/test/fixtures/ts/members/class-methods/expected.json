@@ -2,6 +2,7 @@
 	"name": "A",
 	"kind": "class",
 	"docComment": "A class with various method types.",
+	"sourceLine": 4,
 	"members": [
 		{
 			"name": "fn1",

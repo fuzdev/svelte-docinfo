@@ -25,6 +25,7 @@ const loadSource = async (relativePath, dependencies = []) => ({
 const sourceFiles = await Promise.all([
 	loadSource('src/lib/math.ts'),
 	loadSource('src/lib/shapes.ts'),
+	loadSource('src/lib/schema.ts'),
 	loadSource('src/lib/counter.svelte.ts'),
 	loadSource('src/lib/has-issues.ts'),
 	loadSource('src/lib/Calculator.svelte', ['src/lib/math.ts']),

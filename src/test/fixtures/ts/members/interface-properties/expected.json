@@ -3,6 +3,7 @@
 	"kind": "interface",
 	"docComment": "An interface with property variations.",
 	"typeSignature": "A",
+	"sourceLine": 4,
 	"members": [
 		{
 			"name": "a",

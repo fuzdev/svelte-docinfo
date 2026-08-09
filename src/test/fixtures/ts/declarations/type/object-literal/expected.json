@@ -3,6 +3,7 @@
 	"kind": "type",
 	"docComment": "Description 1.",
 	"typeSignature": "A",
+	"sourceLine": 4,
 	"members": [
 		{
 			"name": "a",

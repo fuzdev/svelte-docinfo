@@ -3,6 +3,7 @@
 	"kind": "function",
 	"docComment": "A function with this parameter.",
 	"typeSignature": "(this: { value: string; }, a: number): string",
+	"sourceLine": 7,
 	"parameters": [
 		{
 			"name": "a",

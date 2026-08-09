@@ -3,6 +3,7 @@
 	"kind": "interface",
 	"docComment": "An interface with construct signatures.",
 	"typeSignature": "A",
+	"sourceLine": 4,
 	"members": [
 		{
 			"name": "(construct)",

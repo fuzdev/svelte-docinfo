@@ -2,6 +2,7 @@
 	"name": "A",
 	"kind": "interface",
 	"typeSignature": "A",
+	"sourceLine": 12,
 	"extends": [
 		"B",
 		"C"
