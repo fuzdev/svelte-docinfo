@@ -65,14 +65,19 @@ describe('parsePackageExports', () => {
 		});
 	});
 
-	test('skips null exclusions', async () => {
+	test('null exclusions land in blocked, not entries', async () => {
 		await withTestDir(async (dir) => {
 			await writeFile(
 				join(dir, 'package.json'),
 				JSON.stringify({
 					exports: {
 						'.': { default: './dist/index.js' },
-						'./internal': null
+						'./internal': null,
+						'./internal/*': null,
+						// conditions objects with no usable target block like a
+						// literal null — Node resolves nothing for them
+						'./all-null/*': { default: null },
+						'./empty/*': {}
 					}
 				})
 			);
@@ -80,6 +85,12 @@ describe('parsePackageExports', () => {
 			const result = await parsePackageExports(dir);
 			assert.ok(result.hasExports);
 			assert.strictEqual(result.entries.length, 1);
+			assert.deepStrictEqual(result.blocked, [
+				'./internal',
+				'./internal/*',
+				'./all-null/*',
+				'./empty/*'
+			]);
 		});
 	});
 
@@ -387,6 +398,170 @@ describe('discoverFromExports', () => {
 			assert.ok(paths.some((p) => p.endsWith('src/lib/auth/session.ts')));
 			assert.ok(paths.some((p) => p.endsWith('src/lib/auth/Login.svelte')));
 			assert.ok(paths.some((p) => p.endsWith('src/lib/db/deep/nested.ts')));
+		});
+	});
+
+	describe('null-target blocking (Node best-match semantics)', () => {
+		/**
+		 * Write `files` plus a package.json carrying `exports`, run discovery,
+		 * and return the discovered ids dir-relative and sorted.
+		 */
+		const discoverWith = async (
+			files: Record<string, string>,
+			exports: Record<string, unknown>
+		): Promise<Array<string>> => {
+			let discovered: Array<string> = [];
+			await withTestDir(async (dir) => {
+				for (const [relPath, content] of Object.entries(files)) {
+					const absPath = join(dir, relPath);
+					await mkdir(join(absPath, '..'), { recursive: true });
+					await writeFile(absPath, content);
+				}
+				await writeFile(join(dir, 'package.json'), JSON.stringify({ exports }));
+				const result = await discoverFromExports({ projectRoot: dir });
+				assert.ok(result.files);
+				discovered = result.files.map((f) => f.id.slice(dir.length + 1)).sort();
+			});
+			return discovered;
+		};
+
+		test('a null wildcard key blocks the subpaths broader wildcards would expose', async () => {
+			// The `src/lib/internal/` convention's exports shape: generic
+			// wildcards plus `"./internal/*": null`. Node refuses to resolve
+			// `pkg/internal/x.js`, so discovery must not find the file either —
+			// at every depth, since the exports `*` crosses `/`.
+			assert.deepStrictEqual(
+				await discoverWith(
+					{
+						'src/lib/public.ts': 'export const p = 1;',
+						'src/lib/internal/secret.ts': 'export const s = 2;',
+						'src/lib/internal/deep/nested.ts': 'export const n = 3;'
+					},
+					{
+						'./*.js': { types: './dist/*.d.ts', default: './dist/*.js' },
+						'./*.ts': { types: './dist/*.d.ts', default: './dist/*.js' },
+						'./internal/*': null
+					}
+				),
+				['src/lib/public.ts']
+			);
+		});
+
+		test('a nested-directory null key blocks its subtree', async () => {
+			// gro emits one null key per internal directory at any depth
+			// (exports keys allow a single `*`, so any-depth needs one key each).
+			assert.deepStrictEqual(
+				await discoverWith(
+					{
+						'src/lib/public.ts': 'export const p = 1;',
+						'src/lib/domain/internal/secret.ts': 'export const s = 2;'
+					},
+					{
+						'./*.js': { default: './dist/*.js' },
+						'./domain/internal/*': null
+					}
+				),
+				['src/lib/public.ts']
+			);
+		});
+
+		test('a null wildcard key blocks Svelte components under it', async () => {
+			assert.deepStrictEqual(
+				await discoverWith(
+					{
+						'src/lib/Public.svelte': '<div>public</div>',
+						'src/lib/internal/Secret.svelte': '<div>secret</div>'
+					},
+					{
+						'./*.svelte': { svelte: './dist/*.svelte', default: './dist/*.svelte' },
+						'./internal/*': null
+					}
+				),
+				['src/lib/Public.svelte']
+			);
+		});
+
+		test('a null exact key blocks a single wildcard-discovered file', async () => {
+			assert.deepStrictEqual(
+				await discoverWith(
+					{
+						'src/lib/a.ts': 'export const a = 1;',
+						'src/lib/secret.ts': 'export const s = 2;'
+					},
+					{
+						'./*.js': { default: './dist/*.js' },
+						'./secret.js': null
+					}
+				),
+				['src/lib/a.ts']
+			);
+		});
+
+		test('a more specific positive key beats a broader null key', async () => {
+			// PATTERN_KEY_COMPARE: `./pub/*.js` has the longer static base, so it
+			// wins over the null `./*.js` for pub files — they stay exported and
+			// discovered even though the null key also matches them.
+			assert.deepStrictEqual(
+				await discoverWith(
+					{ 'src/lib/pub/a.ts': 'export const a = 1;' },
+					{
+						'./pub/*.js': { default: './dist/pub/*.js' },
+						'./*.js': null
+					}
+				),
+				['src/lib/pub/a.ts']
+			);
+		});
+
+		test('a concrete positive entry is never blocked — exact keys win in Node', async () => {
+			assert.deepStrictEqual(
+				await discoverWith(
+					{ 'src/lib/internal/escape.ts': 'export const e = 1;' },
+					{
+						'./internal/escape.js': { default: './dist/internal/escape.js' },
+						'./internal/*': null
+					}
+				),
+				['src/lib/internal/escape.ts']
+			);
+		});
+
+		test('a null key with a trailer blocks via the equal-base longer-key tie-break', async () => {
+			// `./*.gen.js` and `./*.js` share the base `./`; PATTERN_KEY_COMPARE
+			// breaks the tie to the longer key, so the null `./*.gen.js` wins for
+			// `./b.gen.js` (trailer-matched) while `./a.js` only matches the
+			// positive key and stays discovered.
+			assert.deepStrictEqual(
+				await discoverWith(
+					{
+						'src/lib/a.ts': 'export const a = 1;',
+						'src/lib/b.gen.ts': 'export const b = 2;'
+					},
+					{
+						'./*.js': { default: './dist/*.js' },
+						'./*.gen.js': null
+					}
+				),
+				['src/lib/a.ts']
+			);
+		});
+
+		test('an all-null conditions object blocks like a literal null', async () => {
+			// `{"default": null}` resolves nothing in Node — same outcome as a
+			// literal null target, so it blocks rather than silently failing open.
+			assert.deepStrictEqual(
+				await discoverWith(
+					{
+						'src/lib/public.ts': 'export const p = 1;',
+						'src/lib/internal/secret.ts': 'export const s = 2;'
+					},
+					{
+						'./*.js': { default: './dist/*.js' },
+						'./internal/*': { default: null }
+					}
+				),
+				['src/lib/public.ts']
+			);
 		});
 	});
 

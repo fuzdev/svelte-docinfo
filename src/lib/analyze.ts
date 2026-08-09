@@ -22,8 +22,9 @@ import type { AnalysisLog } from './log.ts';
 import { createAnalysisSession, type AnalysisSession } from './session.ts';
 import {
 	createSourceOptionsWithInclude,
+	type ExcludeOption,
 	type ModuleSourceOptions,
-	type SourceOptionsDefaults
+	type SourceOptionsOverrides
 } from './source-config.ts';
 import { discoverSourceFiles, type Discovery } from './discovery.ts';
 import { noDepsResolver, type ResolveImport } from './dep-resolver.ts';
@@ -112,7 +113,7 @@ export interface AnalyzeFromFilesOptions {
 	/** Absolute path to project root directory. */
 	projectRoot: string;
 	/** Partial overrides for default source options (SvelteKit `src/lib` layout). */
-	sourceOptions?: Partial<SourceOptionsDefaults>;
+	sourceOptions?: SourceOptionsOverrides;
 	/** Behavior when duplicate declaration names are found across modules. */
 	onDuplicates?: OnDuplicates;
 	/** Optional logger for status and diagnostic messages. */
@@ -141,11 +142,14 @@ export interface AnalyzeFromFilesOptions {
 	 */
 	include?: Array<string>;
 	/**
-	 * Glob patterns to exclude — fully replaces `sourceOptions.exclude` (no
-	 * merge). The always-on baseline (`node_modules` + dot-directories below a
-	 * matched source path) applies beneath it and is unaffected by overrides.
+	 * Glob patterns to exclude — takes precedence over `sourceOptions.exclude`
+	 * (no merge between the two). An array replaces the default patterns
+	 * wholesale; the callback form extends them without restating them
+	 * (`(defaults) => [...defaults, '**\/*.gen.ts']` — see `ExcludeOption`).
+	 * The always-on baseline (`node_modules` + dot-directories below a matched
+	 * source path) applies beneath it and is unaffected by overrides.
 	 */
-	exclude?: Array<string>;
+	exclude?: ExcludeOption;
 	/**
 	 * Whether to resolve import dependencies (default `true`).
 	 *

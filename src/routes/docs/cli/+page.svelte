@@ -79,9 +79,9 @@ npx svelte-docinfo | jq -r '.modules[].declarations[].name'  # list all exported
 					<tr>
 						<td class="white-space:nowrap"><code>-e, --exclude &lt;pattern&gt;</code></td>
 						<td>
-							exclude glob, applied at discovery and analysis (repeatable; fully replaces defaults,
-							so it does not merge with <code>**/*.test.ts</code>, <code>**/*.spec.ts</code>; the
-							always-on baseline below applies beneath)
+							exclude glob, applied at discovery and analysis (repeatable; fully replaces the
+							defaults <code>**/*.test.ts</code>, <code>**/*.spec.ts</code>,
+							<code>**/internal/**</code> — no merge; the always-on baseline below applies beneath)
 						</td>
 					</tr>
 					<tr>
@@ -154,9 +154,14 @@ npx svelte-docinfo | jq -r '.modules[].declarations[].name'  # list all exported
 				joins the source paths, so module paths become relative to the widened root, and a pattern
 				with no base (<code>**/*.ts</code>, a literal root file) scopes the whole project root as
 				source and logs an info line. Beneath any <code>--exclude</code>, an always-on baseline
-				applies: <code>node_modules</code> and dot-directories below a source dir are never source. Absolute
-				paths and patterns inside the project root are accepted (relativized); out-of-root ones fail loudly
-				instead of silently emitting nothing.
+				applies: <code>node_modules</code> and dot-directories below a source dir are never source.
+				The default excludes cover tests and the <code>src/lib/internal/</code> convention (<code
+					>**/internal/**</code
+				>); exports-based discovery additionally honors
+				<code>null</code>-target exports keys (<code>"./internal/*": null</code>) with Node's
+				best-match resolution, so blocked subpaths are never discovered. Absolute paths and patterns
+				inside the project root are accepted (relativized); out-of-root ones fail loudly instead of
+				silently emitting nothing.
 			</p>
 			<p>
 				Exit codes: <strong>0</strong> success, <strong>1</strong> analysis errors,

@@ -269,7 +269,7 @@ const session = createAnalysisSession({
 			lang="ts"
 			content={`import {createSourceOptions} from 'svelte-docinfo';
 
-// Default: single sourcePaths=['src/lib'], standard test/spec exclude.
+// Default: single sourcePaths=['src/lib'], test/spec + internal/ exclude.
 const opts = createSourceOptions(process.cwd());
 
 // Monorepo: multiple source directories, optional explicit sourceRoot.
@@ -278,9 +278,9 @@ const monorepoOpts = createSourceOptions(process.cwd(), {
   // sourceRoot derived as longest common prefix when omitted.
 });
 
-// Custom exclude (replaces defaults entirely — no merge).
+// Extend the default exclude (callback form — the array form replaces).
 const customOpts = createSourceOptions(process.cwd(), {
-  exclude: ['**/*.test.ts', '**/*.spec.ts', '**/fixtures/**'],
+  exclude: (defaults) => [...defaults, '**/fixtures/**'],
 });`}
 		/>
 		<p>
@@ -288,7 +288,11 @@ const customOpts = createSourceOptions(process.cwd(), {
 			<code>'.'</code>
 			for project-relative paths. <code>exclude</code> is the single source of truth for user
 			exclusions, applied at both discovery and analysis time, so a file dropped here never shows up
-			in the output regardless of how it was discovered. Beneath it sits an always-on baseline that
+			in the output regardless of how it was discovered. The defaults cover tests and the
+			<code>src/lib/internal/</code> convention (<code>**/internal/**</code> — internal modules ship
+			for public modules to import but aren't documented); an array override replaces them
+			wholesale, while the callback form extends them without restating them. Beneath both sits an
+			always-on baseline that
 			<code>exclude</code> overrides can't strip: <code>node_modules</code> and dot-directories
 			below a matched source path are never source. The baseline matches relative to the matched
 			source path, so an explicit dot-directory source path (<code

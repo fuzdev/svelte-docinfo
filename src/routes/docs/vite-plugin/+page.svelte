@@ -94,12 +94,12 @@ svelteDocinfo({
   // no base scopes the whole project root and logs an info line.
   include: ['src/**/*.ts', 'src/**/*.svelte'],
 
-  // Exclude globs. When provided, fully replaces the default
-  // ['**/*.test.ts', '**/*.spec.ts'] — re-include those patterns
-  // explicitly if you want them filtered. node_modules and
+  // Exclude globs. An array fully replaces the default
+  // ['**/*.test.ts', '**/*.spec.ts', '**/internal/**']; the callback
+  // form extends the defaults without restating them. node_modules and
   // dot-directories below a source path are always excluded,
   // independent of this option.
-  exclude: ['**/*.test.ts', '**/*.spec.ts'],
+  exclude: (defaults) => [...defaults, '**/*.gen.ts'],
 
   // Discovery strategy: 'auto' | 'exports' | 'glob'. Default: 'auto'.
   // 'auto'    → exports first, glob fallback

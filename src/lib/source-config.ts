@@ -114,6 +114,15 @@ export interface ModuleSourceOptions {
 	 * below a matched source path — see `hasBaselineExcludedSegment`) applies
 	 * independently; overriding `exclude` can't strip it.
 	 *
+	 * The defaults exclude tests and `internal/` directories — the
+	 * `src/lib/internal/` convention: internal modules ship in the package for
+	 * public modules to import (typically paired with an `"./internal/*": null`
+	 * package.json exports entry blocking consumer imports), but aren't part of
+	 * the documented surface. The override surfaces accept a
+	 * `(defaults) => patterns` callback (see `ExcludeOption`) so extending the
+	 * defaults doesn't require restating them; this normalized field is always
+	 * a plain array.
+	 *
 	 * `analyzeFromFiles` accepts a top-level `exclude` shortcut that merges into this field.
 	 *
 	 * Compiled to a matcher once per options object via picomatch and cached by reference;
@@ -121,7 +130,7 @@ export interface ModuleSourceOptions {
 	 * `normalizeSourceOptions` (which returns a fresh object) or otherwise build a
 	 * new options object to apply changes.
 	 *
-	 * @default `['**\/*.test.ts', '**\/*.spec.ts']`
+	 * @default `['**\/*.test.ts', '**\/*.spec.ts', '**\/internal/**']`
 	 */
 	exclude: Array<string>;
 	/**
@@ -173,6 +182,39 @@ export interface ModuleSourceOptions {
 export type SourceOptionsDefaults = Omit<ModuleSourceOptions, 'projectRoot'>;
 
 /**
+ * Exclude patterns as accepted by the override surfaces (`createSourceOptions`,
+ * `analyzeFromFiles`, the Vite plugin — not the CLI, whose `--exclude` is
+ * array-only).
+ *
+ * An array **replaces** `DEFAULT_SOURCE_OPTIONS.exclude` wholesale; the
+ * callback form receives a fresh copy of those defaults and returns the list
+ * to use, so extending them doesn't require restating them:
+ *
+ * ```ts
+ * exclude: (defaults) => [...defaults, '**\/*.gen.ts']         // add a pattern
+ * exclude: (defaults) => defaults.filter((p) => p !== '**\/internal/**') // drop one
+ * ```
+ *
+ * The callback runs at most once per built options object (include-pattern
+ * widening rebuilds options from the already-resolved array). Resolved to a
+ * plain array before normalization; `ModuleSourceOptions.exclude` never
+ * carries the function form.
+ */
+export type ExcludeOption = Array<string> | ((defaults: Array<string>) => Array<string>);
+
+/**
+ * Override surface for building `ModuleSourceOptions`: all fields optional,
+ * with `exclude` widened to `ExcludeOption` so callers can extend the default
+ * patterns instead of replacing them. Accepted by `createSourceOptions` /
+ * `createSourceOptionsWithInclude` and the option types layered on them
+ * (`AnalyzeFromFilesOptions.sourceOptions`, the Vite plugin's
+ * `sourceOptions`).
+ */
+export type SourceOptionsOverrides = Omit<Partial<SourceOptionsDefaults>, 'exclude'> & {
+	exclude?: ExcludeOption;
+};
+
+/**
  * Default partial options for standard SvelteKit library structure.
  *
  * Does not include `projectRoot` — use `createSourceOptions` to create
@@ -186,7 +228,7 @@ export type SourceOptionsDefaults = Omit<ModuleSourceOptions, 'projectRoot'>;
  */
 export const DEFAULT_SOURCE_OPTIONS: SourceOptionsDefaults = {
 	sourcePaths: ['src/lib'],
-	exclude: ['**/*.test.ts', '**/*.spec.ts'],
+	exclude: ['**/*.test.ts', '**/*.spec.ts', '**/internal/**'],
 	getAnalyzerType: getDefaultAnalyzer
 };
 
@@ -219,7 +261,15 @@ export const DEFAULT_SOURCE_OPTIONS: SourceOptionsDefaults = {
  *
  * @example
  * ```ts
- * // Custom exclusions
+ * // Extend the default exclusions (callback form — see `ExcludeOption`)
+ * const options = createSourceOptions(process.cwd(), {
+ *   exclude: (defaults) => [...defaults, '**\/*.gen.ts'],
+ * });
+ * ```
+ *
+ * @example
+ * ```ts
+ * // Replace the default exclusions wholesale
  * const options = createSourceOptions(process.cwd(), {
  *   exclude: ['**\/*.test.ts', '**\/*.internal.ts'],
  * });
@@ -227,13 +277,26 @@ export const DEFAULT_SOURCE_OPTIONS: SourceOptionsDefaults = {
  */
 export const createSourceOptions = (
 	projectRoot: string,
-	overrides?: Partial<SourceOptionsDefaults>
+	overrides?: SourceOptionsOverrides
 ): ModuleSourceOptions =>
 	normalizeSourceOptions({
 		projectRoot,
 		...DEFAULT_SOURCE_OPTIONS,
-		...overrides
+		...overrides,
+		exclude: resolveExcludeOption(overrides?.exclude)
 	});
+
+/**
+ * Resolve an `ExcludeOption` to a concrete pattern array: an array is used
+ * as-is, `undefined` keeps the defaults, and the callback form maps them —
+ * receiving a fresh copy so a mutating callback can't corrupt
+ * `DEFAULT_SOURCE_OPTIONS` for later calls.
+ */
+const resolveExcludeOption = (exclude: ExcludeOption | undefined): Array<string> => {
+	if (Array.isArray(exclude)) return exclude;
+	const defaults = [...DEFAULT_SOURCE_OPTIONS.exclude];
+	return exclude ? exclude(defaults) : defaults;
+};
 
 /**
  * Normalize and validate `ModuleSourceOptions`, returning a new options object.
@@ -548,7 +611,7 @@ export const widenSourcePathsForInclude = (
  */
 export const createSourceOptionsWithInclude = (
 	projectRoot: string,
-	overrides: Partial<SourceOptionsDefaults> | undefined,
+	overrides: SourceOptionsOverrides | undefined,
 	include: ReadonlyArray<string> | undefined,
 	log?: AnalysisLog
 ): ModuleSourceOptions => {
@@ -569,8 +632,12 @@ export const createSourceOptionsWithInclude = (
 				'dot-directories stay excluded)'
 		);
 	}
+	// Rebuild with the already-resolved (and normalized — re-normalization is
+	// idempotent) exclude array, so a callback-form `exclude` runs exactly
+	// once per options build rather than again on the widening pass.
 	return createSourceOptions(options.projectRoot, {
 		...overrides,
+		exclude: options.exclude,
 		sourcePaths: [...widened]
 	});
 };

@@ -15,7 +15,8 @@ import {
 	createSourceOptions,
 	DEFAULT_SOURCE_OPTIONS,
 	type ModuleSourceOptions,
-	type SourceOptionsDefaults
+	type SourceOptionsDefaults,
+	type SourceOptionsOverrides
 } from '$lib/source-config.ts';
 import { applyVirtualFiles, type VirtualFileEntry } from '$lib/typescript-program.ts';
 import { analyze } from '$lib/analyze.ts';
@@ -55,7 +56,7 @@ export const TEST_PROJECT_ROOT = '/home/user/project';
  */
 export const createTestSourceOptions = (
 	projectRoot: string = TEST_PROJECT_ROOT,
-	overrides?: Partial<SourceOptionsDefaults>
+	overrides?: SourceOptionsOverrides
 ): ModuleSourceOptions => createSourceOptions(projectRoot, overrides);
 
 /**
@@ -72,9 +73,8 @@ export const createTestSourceOptions = (
  * const result = analyze({sourceFiles, sourceOptions: options});
  * ```
  */
-export const testSourceOptions = (
-	overrides?: Partial<SourceOptionsDefaults>
-): ModuleSourceOptions => createTestSourceOptions(process.cwd(), overrides);
+export const testSourceOptions = (overrides?: SourceOptionsOverrides): ModuleSourceOptions =>
+	createTestSourceOptions(process.cwd(), overrides);
 
 /**
  * Create ModuleSourceOptions using the mock TEST_PROJECT_ROOT.
@@ -90,7 +90,7 @@ export const testSourceOptions = (
  * const path = extractPath('/home/user/project/src/lib/foo.ts', options);
  * ```
  */
-export const testMockOptions = (overrides?: Partial<SourceOptionsDefaults>): ModuleSourceOptions =>
+export const testMockOptions = (overrides?: SourceOptionsOverrides): ModuleSourceOptions =>
 	createTestSourceOptions(TEST_PROJECT_ROOT, overrides);
 
 /**

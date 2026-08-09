@@ -260,9 +260,10 @@ export interface AnalysisSessionOptions extends Omit<
 	 * Must be a fully-constructed `ModuleSourceOptions` — the session re-runs
 	 * `normalizeSourceOptions` (idempotent) but does not apply any defaults.
 	 * Pass through `createSourceOptions(projectRoot, overrides?)` to merge with
-	 * `DEFAULT_SOURCE_OPTIONS`. (The `Partial<SourceOptionsDefaults>` ergonomic
-	 * shape exists only on `AnalyzeFromFilesOptions.sourceOptions`, where the
-	 * defaults merge happens inside `analyzeFromFiles`.)
+	 * `DEFAULT_SOURCE_OPTIONS`. (The `SourceOptionsOverrides` ergonomic shape —
+	 * exclude-callback form included — exists only on
+	 * `AnalyzeFromFilesOptions.sourceOptions` and the Vite plugin, where the
+	 * defaults merge happens inside `createSourceOptions`.)
 	 */
 	sourceOptions: ModuleSourceOptions;
 	/**

@@ -25,6 +25,7 @@ import picomatch from 'picomatch';
 
 import { analyzeFromFiles } from './analyze.ts';
 import type { OnDuplicates } from './analyze-core.ts';
+import { DEFAULT_SOURCE_OPTIONS } from './source-config.ts';
 import type { Discovery } from './discovery.ts';
 import { hasErrors } from './diagnostics.ts';
 import { to_error_message } from './error.ts';
@@ -58,11 +59,13 @@ export interface CliOptions {
 	 */
 	include?: Array<string>;
 	/**
-	 * File patterns to exclude (undefined = use defaults — test and spec files).
+	 * File patterns to exclude (undefined = use defaults — test/spec files and
+	 * `internal/` directories).
 	 *
 	 * When provided, **fully replaces** the defaults — no array merge. Passing
-	 * a custom `--exclude` pattern drops the default test/spec filters unless
-	 * the caller re-includes them explicitly. The always-on baseline
+	 * a custom `--exclude` pattern drops the default test/spec/`internal/`
+	 * filters unless the caller re-includes them explicitly (the API's
+	 * exclude-callback form has no CLI equivalent). The always-on baseline
 	 * (`node_modules` + dot-directories below a source path) applies beneath
 	 * it and is unaffected by overrides.
 	 */
@@ -173,7 +176,7 @@ export const runCli = async (argv: Array<string> = process.argv): Promise<number
 		.option(
 			'-e, --exclude <pattern>',
 			'Exclude glob (applied at discovery and analysis, repeatable; ' +
-				'fully replaces defaults — does not merge with **/*.test.ts, **/*.spec.ts; ' +
+				`fully replaces the defaults ${DEFAULT_SOURCE_OPTIONS.exclude.join(', ')} — no merge; ` +
 				'node_modules and dot-directories below a source dir are always excluded regardless)',
 			collect
 		)

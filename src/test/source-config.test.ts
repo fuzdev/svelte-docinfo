@@ -116,7 +116,11 @@ describe('DEFAULT_SOURCE_OPTIONS', () => {
 	});
 
 	test('has expected default exclude globs', () => {
-		assert.deepStrictEqual(DEFAULT_SOURCE_OPTIONS.exclude, ['**/*.test.ts', '**/*.spec.ts']);
+		assert.deepStrictEqual(DEFAULT_SOURCE_OPTIONS.exclude, [
+			'**/*.test.ts',
+			'**/*.spec.ts',
+			'**/internal/**'
+		]);
 	});
 
 	test('has no sourceRoot (auto-derived from sourcePaths)', () => {
@@ -143,6 +147,65 @@ describe('createSourceOptions', () => {
 		});
 		assert.strictEqual(options.projectRoot, '/my/project');
 		assert.deepStrictEqual(options.sourcePaths, ['packages/core']);
+	});
+
+	describe('exclude callback form (ExcludeOption)', () => {
+		test('callback receives the defaults and its return is used', () => {
+			const options = createSourceOptions('/my/project', {
+				exclude: (defaults) => [...defaults, '**/*.gen.ts']
+			});
+			assert.deepStrictEqual(options.exclude, [
+				'**/*.test.ts',
+				'**/*.spec.ts',
+				'**/internal/**',
+				'**/*.gen.ts'
+			]);
+		});
+
+		test('callback can drop a default pattern', () => {
+			const options = createSourceOptions('/my/project', {
+				exclude: (defaults) => defaults.filter((p) => p !== '**/internal/**')
+			});
+			assert.deepStrictEqual(options.exclude, ['**/*.test.ts', '**/*.spec.ts']);
+		});
+
+		test('array form replaces the defaults wholesale', () => {
+			const options = createSourceOptions('/my/project', {
+				exclude: ['**/custom/**']
+			});
+			assert.deepStrictEqual(options.exclude, ['**/custom/**']);
+		});
+
+		test('the callback runs once even when include patterns widen the source set', () => {
+			let calls = 0;
+			const options = createSourceOptionsWithInclude(
+				'/my/project',
+				{
+					exclude: (defaults) => {
+						calls++;
+						return [...defaults, '**/*.gen.ts'];
+					}
+				},
+				['src/other/**/*.ts']
+			);
+			assert.strictEqual(calls, 1);
+			assert.deepStrictEqual(options.sourcePaths, ['src/lib', 'src/other']);
+			assert.ok(options.exclude.includes('**/*.gen.ts'));
+		});
+
+		test('a mutating callback cannot corrupt DEFAULT_SOURCE_OPTIONS', () => {
+			createSourceOptions('/my/project', {
+				exclude: (defaults) => {
+					defaults.length = 0; // hostile mutation of the received array
+					return ['**/only-mine/**'];
+				}
+			});
+			assert.deepStrictEqual(DEFAULT_SOURCE_OPTIONS.exclude, [
+				'**/*.test.ts',
+				'**/*.spec.ts',
+				'**/internal/**'
+			]);
+		});
 	});
 });
 
@@ -199,6 +262,25 @@ describe('isSource', () => {
 
 		test('excludes test files', () => {
 			assert.isFalse(isSource('/home/user/project/src/lib/foo.test.ts', testMockOptions()));
+		});
+
+		test('excludes internal/ directories at any depth (default pattern)', () => {
+			assert.isFalse(isSource('/home/user/project/src/lib/internal/secret.ts', testMockOptions()));
+			assert.isFalse(
+				isSource('/home/user/project/src/lib/domain/internal/deep.ts', testMockOptions())
+			);
+		});
+
+		test('a file named internal.ts is not excluded — only directory segments count', () => {
+			assert.isTrue(isSource('/home/user/project/src/lib/internal.ts', testMockOptions()));
+		});
+
+		test('exclude callback opting out of the internal pattern re-includes it', () => {
+			const options = testMockOptions({
+				exclude: (defaults) => defaults.filter((p) => p !== '**/internal/**')
+			});
+			assert.isTrue(isSource('/home/user/project/src/lib/internal/secret.ts', options));
+			assert.isFalse(isSource('/home/user/project/src/lib/foo.test.ts', options));
 		});
 
 		test('excludes files outside src/lib', () => {

@@ -77,7 +77,12 @@ export type { SourceFileInfo, AnalyzerType } from './source.ts';
 // Source options
 
 export { createSourceOptions, DEFAULT_SOURCE_OPTIONS } from './source-config.ts';
-export type { ModuleSourceOptions, SourceOptionsDefaults } from './source-config.ts';
+export type {
+	ExcludeOption,
+	ModuleSourceOptions,
+	SourceOptionsDefaults,
+	SourceOptionsOverrides
+} from './source-config.ts';
 
 // Post-processing
 
