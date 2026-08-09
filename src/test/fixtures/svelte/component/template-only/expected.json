@@ -1,8 +1,11 @@
-[
-	{
-		"name": "ComponentTemplateOnly",
-		"kind": "component",
-		"lang": "js",
-		"sourceLine": 1
-	}
-]
+{
+	"path": "ComponentTemplateOnly.svelte",
+	"declarations": [
+		{
+			"name": "ComponentTemplateOnly",
+			"kind": "component",
+			"sourceLine": 1,
+			"lang": "js"
+		}
+	]
+}

@@ -8,10 +8,36 @@ import { readdir, readFile, writeFile, mkdir, rm } from 'node:fs/promises';
 import { join, relative } from 'node:path';
 import { tmpdir } from 'node:os';
 import type ts from 'typescript';
+import { z } from 'zod';
 
 import { compareStrings } from '$lib/postprocess.ts';
 import type { AnalysisLog } from '$lib/log.ts';
 import type { ExtractContext } from '$lib/typescript-extract-shared.ts';
+import {
+	ModuleJson,
+	type DeclarationJson,
+	type FunctionDeclarationJson,
+	type ComponentDeclarationJson
+} from '$lib/types.ts';
+import { Diagnostic } from '$lib/diagnostics.ts';
+
+/**
+ * The fixture harnesses' capture shape: the whole module analysis object plus
+ * the analysis-pass diagnostics — what `expected.json` holds for both the ts
+ * and svelte fixture sets. `ModuleJson` extended rather than the
+ * `AnalyzeResultJson` envelope because a fixture is exactly one module; the
+ * envelope's `modules` array would add a wrapper level with no information.
+ *
+ * Fixtures are written through `compactReplacer`, so defaulted fields
+ * (`.default([])`, `.default(false)`) are stripped on disk and restored by
+ * `.parse()`.
+ */
+export const ModuleFixtureJson = ModuleJson.extend({
+	diagnostics: z.array(Diagnostic).default([])
+});
+export type ModuleFixtureJson = z.infer<typeof ModuleFixtureJson>;
+/** Wire (serialized) form of `ModuleFixtureJson` — the shape read from disk. */
+export type ModuleFixtureJsonInput = z.input<typeof ModuleFixtureJson>;
 
 /**
  * Create an `AnalysisLog` that collects info messages for assertions.
@@ -253,12 +279,6 @@ export const normalizeJson = (obj: any): any => {
 };
 
 import { assert } from 'vitest';
-import type {
-	ModuleJson,
-	DeclarationJson,
-	FunctionDeclarationJson,
-	ComponentDeclarationJson
-} from '$lib/types.ts';
 
 /**
  * Assert that a module has a specific dependency.
@@ -411,6 +431,13 @@ export interface GenericFixture<T> {
 	input: string;
 	expected: T;
 }
+
+/**
+ * A loaded module fixture: raw input beside the expected wire-form
+ * `ModuleFixtureJson`. The shared fixture shape of the ts and svelte
+ * harnesses.
+ */
+export type ModuleFixture = GenericFixture<ModuleFixtureJsonInput>;
 
 /**
  * Generic fixture loader configuration.

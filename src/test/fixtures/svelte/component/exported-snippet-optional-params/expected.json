@@ -1,24 +1,27 @@
-[
-	{
-		"name": "ComponentExportedSnippetOptionalParams",
-		"kind": "component",
-		"sourceLine": 3
-	},
-	{
-		"name": "greet",
-		"kind": "snippet",
-		"sourceLine": 5,
-		"typeSignature": "Snippet<[a: string, b?: number]>",
-		"parameters": [
-			{
-				"name": "a",
-				"type": "string"
-			},
-			{
-				"name": "b",
-				"type": "number",
-				"optional": true
-			}
-		]
-	}
-]
+{
+	"path": "ComponentExportedSnippetOptionalParams.svelte",
+	"declarations": [
+		{
+			"name": "ComponentExportedSnippetOptionalParams",
+			"kind": "component",
+			"sourceLine": 3
+		},
+		{
+			"name": "greet",
+			"kind": "snippet",
+			"typeSignature": "Snippet<[a: string, b?: number]>",
+			"sourceLine": 5,
+			"parameters": [
+				{
+					"name": "a",
+					"type": "string"
+				},
+				{
+					"name": "b",
+					"type": "number",
+					"optional": true
+				}
+			]
+		}
+	]
+}

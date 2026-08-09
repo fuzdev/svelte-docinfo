@@ -1,17 +1,20 @@
-[
-	{
-		"name": "ComponentWithJsdoc",
-		"kind": "component",
-		"props": [
-			{
-				"name": "value",
-				"type": "string"
-			}
-		],
-		"docComment": "A well-documented component with JSDoc.\n\nThis component demonstrates comprehensive documentation.",
-		"examples": [
-			"```svelte\n<ComponentJsdoc value=\"text\" />\n```"
-		],
-		"sourceLine": 13
-	}
-]
+{
+	"path": "ComponentWithJsdoc.svelte",
+	"declarations": [
+		{
+			"name": "ComponentWithJsdoc",
+			"kind": "component",
+			"docComment": "A well-documented component with JSDoc.\n\nThis component demonstrates comprehensive documentation.",
+			"sourceLine": 13,
+			"examples": [
+				"```svelte\n<ComponentJsdoc value=\"text\" />\n```"
+			],
+			"props": [
+				{
+					"name": "value",
+					"type": "string"
+				}
+			]
+		}
+	]
+}

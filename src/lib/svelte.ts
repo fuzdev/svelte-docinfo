@@ -69,7 +69,7 @@ import {
 import {
 	type SourceFileInfo,
 	getComponentName,
-	isSvelte2tsxInternal,
+	isSvelte2tsxGeneratedExport,
 	SVELTE_COMPONENT_ALIAS_SUFFIX,
 	SVELTE_VIRTUAL_SUFFIX
 } from './source.ts';
@@ -304,6 +304,21 @@ const extractGenericParams = (nodes: ComponentNodes): Array<GenericParamJson> | 
 };
 
 /**
+ * Map a virtual position to the original `.svelte` position via the source
+ * map, or `undefined` when unmappable. Takes trace-mapping's input convention
+ * (1-based line, 0-based column) and returns 1-based line and column — the
+ * one owner of the ±1 conversion; callers choose their own fallback.
+ */
+const mapSourcePosition = (
+	sourceMap: SourceMap,
+	line: number,
+	column: number
+): { line: number; column: number } | undefined => {
+	const original = originalPositionFor(sourceMap, { line, column });
+	return original.line === null ? undefined : { line: original.line, column: original.column + 1 };
+};
+
+/**
  * Extract the original source line for the component's `<script>` tag.
  *
  * Maps the `$$render` function's position back to the original `.svelte` file
@@ -317,10 +332,8 @@ const extractComponentSourceLine = (
 ): number => {
 	if (sourceMap && nodes.renderFunction) {
 		const pos = virtualSource.getLineAndCharacterOfPosition(nodes.renderFunction.getStart());
-		const original = originalPositionFor(sourceMap, { line: pos.line + 1, column: pos.character });
-		if (original.line !== null) {
-			return original.line;
-		}
+		const mapped = mapSourcePosition(sourceMap, pos.line + 1, pos.character);
+		if (mapped) return mapped.line;
 	}
 	return 1;
 };
@@ -692,12 +705,62 @@ const mapVirtualPosition = (
 ): { line: number | undefined; column: number | undefined } => {
 	const { line, character } = sourceFile.getLineAndCharacterOfPosition(node.getStart());
 	if (sourceMap) {
-		const original = originalPositionFor(sourceMap, { line: line + 1, column: character });
-		if (original.line !== null) {
-			return { line: original.line, column: original.column + 1 };
-		}
+		const mapped = mapSourcePosition(sourceMap, line + 1, character);
+		if (mapped) return mapped;
 	}
 	return { line: line + 1, column: character + 1 };
+};
+
+/**
+ * Remap diagnostic positions emitted against svelte2tsx virtuals back to
+ * original `.svelte` positions, in place.
+ *
+ * Extractors locate diagnostics via `getNodeLocation`, which reads whatever
+ * source file the node lives in — for a `<script module>` declaration that's
+ * the virtual. `normalizeDiagnosticPaths` later rewrites `file` to the
+ * `.svelte` path but has no position input, so without this pass the published
+ * combination is the original file with the virtual's line — actively
+ * misleading. Runs over the whole batch keyed by `file`, so a diagnostic
+ * emitted against *another* component's virtual (a rename re-export
+ * re-analyzes its canonical in the canonical's own source file) remaps through
+ * that virtual's map.
+ *
+ * Must run before `normalizeDiagnosticPaths`, which strips the virtual suffix
+ * this pass matches on — `finalizeDiagnostics` (in `analyze-core.ts`) runs
+ * the pair in that order and is the call for callers assembling modules
+ * themselves through `analyzeModule` / `analyzeSvelteModule`. An unmappable
+ * position (no source map, or a node svelte2tsx synthesized) drops
+ * `line`/`column` — absence over a virtual line.
+ *
+ * @mutates diagnostics — rewrites `line`/`column` on virtual-file entries
+ */
+export const remapVirtualDiagnosticPositions = (
+	diagnostics: Array<Diagnostic>,
+	virtualFiles: Iterable<SvelteVirtualFile>
+): void => {
+	// built lazily on the first positioned diagnostic — the common case has none
+	let sourceMapsByVirtualPath: Map<string, SourceMap | null> | undefined;
+	for (const diagnostic of diagnostics) {
+		if (diagnostic.line === undefined) continue;
+		if (sourceMapsByVirtualPath === undefined) {
+			sourceMapsByVirtualPath = new Map();
+			for (const virtualFile of virtualFiles) {
+				sourceMapsByVirtualPath.set(virtualFile.virtualPath, virtualFile.sourceMap);
+			}
+		}
+		const sourceMap = sourceMapsByVirtualPath.get(diagnostic.file);
+		if (sourceMap === undefined) continue; // not emitted against a virtual
+		const mapped = sourceMap
+			? mapSourcePosition(sourceMap, diagnostic.line, (diagnostic.column ?? 1) - 1)
+			: undefined;
+		if (mapped) {
+			diagnostic.line = mapped.line;
+			diagnostic.column = mapped.column;
+		} else {
+			delete diagnostic.line;
+			delete diagnostic.column;
+		}
+	}
 };
 
 /**
@@ -1247,11 +1310,9 @@ export const analyzeSvelteModule = (
 	for (const d of rawDeclarations) {
 		// The svelte2tsx-emitted component default export (`export default Foo__SvelteComponent_`)
 		// surfaces here as `name: 'default'`. The component declaration itself is
-		// synthesized fresh below — drop the auto-generated alias.
+		// synthesized fresh below — drop it with the rest of the generated names.
 		const name = d.declaration.name;
-		if (name === undefined) continue;
-		if (name === 'default') continue;
-		if (isSvelte2tsxInternal(name)) continue;
+		if (name === undefined || isSvelte2tsxGeneratedExport(name)) continue;
 
 		// Reclassify exported snippets: svelte2tsx transforms {#snippet} + export
 		// into arrow functions with ReturnType<import('svelte').Snippet> return type.

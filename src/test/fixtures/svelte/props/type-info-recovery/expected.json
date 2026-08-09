@@ -1,71 +1,74 @@
-[
-	{
-		"name": "PropsTypeInfoRecovery",
-		"kind": "component",
-		"props": [
-			{
-				"name": "item",
-				"type": "{ a: string; b: number; }",
-				"description": "A schema-inferred prop — the tree recovers the written name.",
-				"typeInfo": {
-					"kind": "reference",
-					"name": "Inferred"
-				}
-			},
-			{
-				"name": "maybe",
-				"type": "{ a: string; b: number; }",
-				"optional": true,
-				"typeInfo": {
-					"kind": "reference",
-					"name": "Inferred"
-				}
-			},
-			{
-				"name": "row",
-				"type": "Snippet<[entry: { a: string; b: number; }, i: number]>",
-				"optional": true,
-				"typeInfo": {
-					"kind": "reference",
-					"name": "Snippet",
-					"typeArgs": [
+{
+	"path": "PropsTypeInfoRecovery.svelte",
+	"declarations": [
+		{
+			"name": "PropsTypeInfoRecovery",
+			"kind": "component",
+			"sourceLine": 1,
+			"props": [
+				{
+					"name": "item",
+					"type": "{ a: string; b: number; }",
+					"typeInfo": {
+						"kind": "reference",
+						"name": "Inferred"
+					},
+					"description": "A schema-inferred prop — the tree recovers the written name."
+				},
+				{
+					"name": "maybe",
+					"type": "{ a: string; b: number; }",
+					"typeInfo": {
+						"kind": "reference",
+						"name": "Inferred"
+					},
+					"optional": true
+				},
+				{
+					"name": "row",
+					"type": "Snippet<[entry: { a: string; b: number; }, i: number]>",
+					"typeInfo": {
+						"kind": "reference",
+						"name": "Snippet",
+						"typeArgs": [
+							{
+								"kind": "tuple",
+								"elements": [
+									{
+										"name": "entry",
+										"type": {
+											"kind": "reference",
+											"name": "Inferred"
+										}
+									},
+									{
+										"name": "i",
+										"type": {
+											"kind": "intrinsic",
+											"text": "number"
+										}
+									}
+								]
+							}
+						]
+					},
+					"optional": true,
+					"parameters": [
 						{
-							"kind": "tuple",
-							"elements": [
-								{
-									"name": "entry",
-									"type": {
-										"kind": "reference",
-										"name": "Inferred"
-									}
-								},
-								{
-									"name": "i",
-									"type": {
-										"kind": "intrinsic",
-										"text": "number"
-									}
-								}
-							]
+							"name": "entry",
+							"type": "{ a: string; b: number; }",
+							"typeInfo": {
+								"kind": "reference",
+								"name": "Inferred"
+							}
+						},
+						{
+							"name": "i",
+							"type": "number"
 						}
 					]
-				},
-				"parameters": [
-					{
-						"name": "entry",
-						"type": "{ a: string; b: number; }",
-						"typeInfo": {
-							"kind": "reference",
-							"name": "Inferred"
-						}
-					},
-					{
-						"name": "i",
-						"type": "number"
-					}
-				]
-			}
-		],
-		"sourceLine": 1
-	}
-]
+				}
+			]
+		}
+	]
+}

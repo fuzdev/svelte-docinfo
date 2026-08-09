@@ -1,13 +1,16 @@
-[
-	{
-		"name": "ErrorsTemplateMalformed",
-		"kind": "component",
-		"props": [
-			{
-				"name": "prop1",
-				"type": "string"
-			}
-		],
-		"sourceLine": 1
-	}
-]
+{
+	"path": "ErrorsTemplateMalformed.svelte",
+	"declarations": [
+		{
+			"name": "ErrorsTemplateMalformed",
+			"kind": "component",
+			"sourceLine": 1,
+			"props": [
+				{
+					"name": "prop1",
+					"type": "string"
+				}
+			]
+		}
+	]
+}

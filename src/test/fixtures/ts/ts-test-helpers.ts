@@ -1,26 +1,23 @@
 import ts from 'typescript';
 
-import { DeclarationJson, type DeclarationJsonInput } from '$lib/types.ts';
-import { analyzeDeclaration, extractModuleComment } from '$lib/typescript-exports.ts';
-import { buildAliasRegistry } from '$lib/typescript-alias-registry.ts';
-import type { Diagnostic } from '$lib/diagnostics.ts';
+import { analyzeCore } from '$lib/analyze-core.ts';
 
-import { loadFixturesGeneric } from '../../test-helpers.ts';
+import {
+	loadFixturesGeneric,
+	type ModuleFixture,
+	type ModuleFixtureJson,
+	type ModuleFixtureJsonInput
+} from '../../test-helpers.ts';
+import { createTestSourceOptions, TEST_PROJECT_ROOT } from '../../test-module-helpers.ts';
 
-export type TsFixtureCategory = 'declaration' | 'moduleComment';
-
-export interface TsFixture {
-	name: string;
-	category: TsFixtureCategory;
-	input: string;
-	/**
-	 * string for moduleComment category, null for module_no_comment case,
-	 * otherwise a `DeclarationJsonInput` (wire form — fixtures are written
-	 * through `compactReplacer` so defaulted array/boolean fields are
-	 * stripped on disk).
-	 */
-	expected: DeclarationJsonInput | string | null;
-}
+/**
+ * Synthetic file id for fixture analysis. Never touches disk — the program
+ * serves the single fixture file from memory — but sits under
+ * `TEST_PROJECT_ROOT`'s default `src/lib` layout so `path` extracts to
+ * `input.ts` and diagnostic paths normalize to `src/lib/input.ts`
+ * deterministically on every machine.
+ */
+const FIXTURE_FILE_ID = `${TEST_PROJECT_ROOT}/src/lib/input.ts`;
 
 /**
  * Create a TypeScript program for a given source file.
@@ -59,24 +56,33 @@ export const createTestProgram = (sourceFile: ts.SourceFile, filePath: string): 
 	);
 
 /**
- * Create a TypeScript program from a fixture.
- * Convenience wrapper for the common pattern of creating a source file then a program.
+ * Analyze a fixture input through `analyzeCore` — the production orchestrator
+ * over a one-file source set, so the registry pre-pass, export walk, kind
+ * dispatch, `@nodocs` filter, output passes, and diagnostic boundary sequence
+ * are all production code and fixtures can't drift from real output.
  *
- * @param fixture - The TypeScript fixture
- * @returns An object with the program, checker, and source file
+ * Used by both `typescript.test.ts` and the update task so the two can't
+ * diverge; the returned object (module fields + `diagnostics`) is exactly what
+ * `expected.json` captures.
  */
-export const createFixtureProgram = (
-	fixture: TsFixture
-): { program: ts.Program; checker: ts.TypeChecker; sourceFile: ts.SourceFile } => {
+export const analyzeFixtureModule = (input: string): ModuleFixtureJson => {
 	const sourceFile = ts.createSourceFile(
-		`${fixture.name}.ts`,
-		fixture.input,
+		FIXTURE_FILE_ID,
+		input,
 		ts.ScriptTarget.Latest,
 		true,
 		ts.ScriptKind.TS
 	);
-	const program = createTestProgram(sourceFile, `${fixture.name}.ts`);
-	return { program, checker: program.getTypeChecker(), sourceFile };
+	const program = createTestProgram(sourceFile, FIXTURE_FILE_ID);
+	const { modules, diagnostics } = analyzeCore({
+		sourceFiles: [{ id: FIXTURE_FILE_ID, content: input }],
+		sourceOptions: createTestSourceOptions(),
+		program,
+		svelteVirtualFiles: new Map()
+	});
+	const mod = modules[0];
+	if (!mod) throw new Error('analyzeCore emitted no module for fixture input');
+	return { ...mod, diagnostics };
 };
 
 /**
@@ -195,105 +201,10 @@ export const findTypeAlias = (
 };
 
 /**
- * Extract a declaration from a TypeScript source file for fixture comparison.
- * Used by both test files and update tasks to ensure consistent behavior.
- *
- * Routes through the production `analyzeDeclaration` — the statement walk here
- * only locates the first exported symbol; node selection, kind dispatch, and
- * TSDoc handling (merged value+type selection and doc fallback included) are
- * production code, so the fixtures can't drift from real output. Diagnostics
- * are discarded (the fixture harness doesn't model them).
- *
- * @param sourceFile - The TypeScript source file to analyze
- * @param checker - The TypeScript type checker
- * @param category - The fixture category (declaration or moduleComment)
- * @returns The extracted declaration (null for `@nodocs`), or the module
- * comment string (null when absent) for the moduleComment category
- */
-export const extractDeclarationFromSource = (
-	sourceFile: ts.SourceFile,
-	checker: ts.TypeChecker,
-	category: TsFixtureCategory
-): DeclarationJson | string | null => {
-	// Handle moduleComment category differently (returns string, not DeclarationJson)
-	if (category === 'moduleComment') {
-		return extractModuleComment(sourceFile) ?? null;
-	}
-
-	// The registry pre-pass runs here like `analyzeCore`'s — the fixture is its
-	// own single-module emitted set — so fixtures lock registry recovery, not
-	// the no-registry path (neither harness routes through `analyzeCore`).
-	const aliasRegistry = buildAliasRegistry(
-		[{ sourceFile, modulePath: sourceFile.fileName }],
-		checker
-	);
-
-	// Find the first exported declaration's symbol
-	for (const statement of sourceFile.statements) {
-		const modifiers = ts.canHaveModifiers(statement) ? ts.getModifiers(statement) : undefined;
-		const isExported = modifiers?.some((mod) => mod.kind === ts.SyntaxKind.ExportKeyword);
-		if (!isExported) continue;
-
-		let nameNode: ts.Identifier | undefined;
-		if (
-			(ts.isFunctionDeclaration(statement) ||
-				ts.isClassDeclaration(statement) ||
-				ts.isInterfaceDeclaration(statement) ||
-				ts.isTypeAliasDeclaration(statement) ||
-				ts.isEnumDeclaration(statement)) &&
-			statement.name
-		) {
-			nameNode = statement.name;
-		} else if (ts.isVariableStatement(statement)) {
-			// Get the first declaration
-			const decl = statement.declarationList.declarations[0];
-			if (decl && ts.isIdentifier(decl.name)) {
-				nameNode = decl.name;
-			}
-		}
-		if (!nameNode) continue;
-
-		const symbol = checker.getSymbolAtLocation(nameNode);
-		if (!symbol) continue;
-
-		const diagnostics: Array<Diagnostic> = [];
-		const { declaration, nodocs } = analyzeDeclaration(symbol, sourceFile, {
-			checker,
-			diagnostics,
-			isExternalFile: () => false,
-			aliasRegistry
-		});
-		if (nodocs) return null;
-
-		return DeclarationJson.parse(declaration);
-	}
-
-	return null;
-};
-
-/**
- * Infer the fixture category from its path based on directory structure.
- *
- * `module/comment/*` fixtures capture the module comment string; everything
- * else captures a `DeclarationJson` through the production `analyzeDeclaration`
- * (which dispatches on inferred kind — the per-kind extractor is no longer a
- * fixture-side choice).
- */
-export const inferCategoryFromName = (name: string): TsFixtureCategory =>
-	name.startsWith('module/comment/') ? 'moduleComment' : 'declaration';
-
-/**
  * Load all fixtures from the ts fixtures directory (flat structure).
  */
-export const loadFixtures = async (): Promise<Array<TsFixture>> => {
-	const genericFixtures = await loadFixturesGeneric<DeclarationJsonInput | string | null>({
+export const loadFixtures = async (): Promise<Array<ModuleFixture>> =>
+	loadFixturesGeneric<ModuleFixtureJsonInput>({
 		fixturesDir: import.meta.dirname,
 		inputExtension: '.ts'
 	});
-
-	// Add category inference
-	return genericFixtures.map((f) => ({
-		...f,
-		category: inferCategoryFromName(f.name)
-	}));
-};

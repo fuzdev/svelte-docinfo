@@ -1,20 +1,23 @@
-[
-	{
-		"name": "PropsDeprecatedBare",
-		"kind": "component",
-		"props": [
-			{
-				"name": "prop1",
-				"type": "string",
-				"deprecatedMessage": ""
-			},
-			{
-				"name": "prop2",
-				"type": "number",
-				"description": "Description.",
-				"deprecatedMessage": ""
-			}
-		],
-		"sourceLine": 1
-	}
-]
+{
+	"path": "PropsDeprecatedBare.svelte",
+	"declarations": [
+		{
+			"name": "PropsDeprecatedBare",
+			"kind": "component",
+			"sourceLine": 1,
+			"props": [
+				{
+					"name": "prop1",
+					"type": "string",
+					"deprecatedMessage": ""
+				},
+				{
+					"name": "prop2",
+					"type": "number",
+					"description": "Description.",
+					"deprecatedMessage": ""
+				}
+			]
+		}
+	]
+}

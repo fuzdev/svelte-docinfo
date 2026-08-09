@@ -1,32 +1,37 @@
 {
-	"name": "A",
-	"kind": "class",
-	"docComment": "Description.",
-	"sourceLine": 6,
-	"deprecatedMessage": "Description 1",
-	"members": [
+	"path": "input.ts",
+	"declarations": [
 		{
-			"name": "a",
-			"kind": "variable",
-			"typeSignature": "string"
-		},
-		{
-			"name": "b",
-			"kind": "variable",
-			"typeSignature": "number"
-		},
-		{
-			"name": "constructor",
-			"kind": "constructor",
-			"typeSignature": "(a: string, b: number): A",
-			"parameters": [
+			"name": "A",
+			"kind": "class",
+			"docComment": "Description.",
+			"sourceLine": 6,
+			"deprecatedMessage": "Description 1",
+			"members": [
 				{
 					"name": "a",
-					"type": "string"
+					"kind": "variable",
+					"typeSignature": "string"
 				},
 				{
 					"name": "b",
-					"type": "number"
+					"kind": "variable",
+					"typeSignature": "number"
+				},
+				{
+					"name": "constructor",
+					"kind": "constructor",
+					"typeSignature": "(a: string, b: number): A",
+					"parameters": [
+						{
+							"name": "a",
+							"type": "string"
+						},
+						{
+							"name": "b",
+							"type": "number"
+						}
+					]
 				}
 			]
 		}

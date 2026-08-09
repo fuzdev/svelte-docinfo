@@ -1,14 +1,17 @@
-[
-	{
-		"name": "ComponentDoccommentLocalAfterProps",
-		"kind": "component",
-		"props": [
-			{
-				"name": "prop1",
-				"type": "string"
-			}
-		],
-		"docComment": "Description 1.",
-		"sourceLine": 6
-	}
-]
+{
+	"path": "ComponentDoccommentLocalAfterProps.svelte",
+	"declarations": [
+		{
+			"name": "ComponentDoccommentLocalAfterProps",
+			"kind": "component",
+			"docComment": "Description 1.",
+			"sourceLine": 6,
+			"props": [
+				{
+					"name": "prop1",
+					"type": "string"
+				}
+			]
+		}
+	]
+}

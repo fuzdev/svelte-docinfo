@@ -1,116 +1,121 @@
 {
-	"name": "A",
-	"kind": "type",
-	"docComment": "Optional properties whose declared type includes `null`.",
-	"typeSignature": "A",
-	"sourceLine": 4,
-	"members": [
+	"path": "input.ts",
+	"declarations": [
 		{
-			"name": "a",
-			"kind": "variable",
-			"typeSignature": "null",
-			"optional": true
-		},
-		{
-			"name": "b",
-			"kind": "variable",
-			"typeSignature": "string | null",
-			"optional": true,
-			"typeInfo": {
-				"kind": "union",
-				"members": [
-					{
-						"kind": "intrinsic",
-						"text": "string"
-					},
-					{
-						"kind": "intrinsic",
-						"text": "null"
+			"name": "A",
+			"kind": "type",
+			"docComment": "Optional properties whose declared type includes `null`.",
+			"typeSignature": "A",
+			"sourceLine": 4,
+			"members": [
+				{
+					"name": "a",
+					"kind": "variable",
+					"typeSignature": "null",
+					"optional": true
+				},
+				{
+					"name": "b",
+					"kind": "variable",
+					"typeSignature": "string | null",
+					"optional": true,
+					"typeInfo": {
+						"kind": "union",
+						"members": [
+							{
+								"kind": "intrinsic",
+								"text": "string"
+							},
+							{
+								"kind": "intrinsic",
+								"text": "null"
+							}
+						]
 					}
-				]
-			}
-		},
-		{
-			"name": "c",
-			"kind": "variable",
-			"typeSignature": "(() => void) | null",
-			"optional": true,
-			"typeInfo": {
-				"kind": "union",
-				"members": [
-					{
-						"kind": "function",
-						"text": "() => void"
-					},
-					{
-						"kind": "intrinsic",
-						"text": "null"
+				},
+				{
+					"name": "c",
+					"kind": "variable",
+					"typeSignature": "(() => void) | null",
+					"optional": true,
+					"typeInfo": {
+						"kind": "union",
+						"members": [
+							{
+								"kind": "function",
+								"text": "() => void"
+							},
+							{
+								"kind": "intrinsic",
+								"text": "null"
+							}
+						]
 					}
-				]
-			}
-		},
-		{
-			"name": "d",
-			"kind": "variable",
-			"typeSignature": "null",
-			"optional": true
-		},
-		{
-			"name": "e",
-			"kind": "variable",
-			"typeSignature": "string",
-			"optional": true
-		},
-		{
-			"name": "f",
-			"kind": "function",
-			"typeSignature": "(): void",
-			"returnType": "void",
-			"optional": true
-		},
-		{
-			"name": "g",
-			"kind": "variable",
-			"typeSignature": "string | null",
-			"typeInfo": {
-				"kind": "union",
-				"members": [
-					{
-						"kind": "intrinsic",
-						"text": "string"
-					},
-					{
-						"kind": "intrinsic",
-						"text": "null"
+				},
+				{
+					"name": "d",
+					"kind": "variable",
+					"typeSignature": "null",
+					"optional": true
+				},
+				{
+					"name": "e",
+					"kind": "variable",
+					"typeSignature": "string",
+					"optional": true
+				},
+				{
+					"name": "f",
+					"kind": "function",
+					"typeSignature": "(): void",
+					"returnType": "void",
+					"optional": true
+				},
+				{
+					"name": "g",
+					"kind": "variable",
+					"typeSignature": "string | null",
+					"typeInfo": {
+						"kind": "union",
+						"members": [
+							{
+								"kind": "intrinsic",
+								"text": "string"
+							},
+							{
+								"kind": "intrinsic",
+								"text": "null"
+							}
+						]
 					}
-				]
-			}
-		},
-		{
-			"name": "h",
-			"kind": "variable",
-			"typeSignature": "undefined",
-			"optional": true
-		},
-		{
-			"name": "i",
-			"kind": "function",
-			"typeSignature": "(): number | void",
-			"returnType": "number | void",
-			"returnTypeInfo": {
-				"kind": "union",
-				"members": [
-					{
-						"kind": "intrinsic",
-						"text": "number"
+				},
+				{
+					"name": "h",
+					"kind": "variable",
+					"typeSignature": "undefined",
+					"optional": true
+				},
+				{
+					"name": "i",
+					"kind": "function",
+					"typeSignature": "(): number | void",
+					"returnType": "number | void",
+					"returnTypeInfo": {
+						"kind": "union",
+						"members": [
+							{
+								"kind": "intrinsic",
+								"text": "number"
+							},
+							{
+								"kind": "intrinsic",
+								"text": "void"
+							}
+						]
 					},
-					{
-						"kind": "intrinsic",
-						"text": "void"
-					}
-				]
-			},
-			"optional": true
+					"optional": true
+				}
+			]
 		}
 	]
 }

@@ -1,48 +1,51 @@
-[
-	{
-		"name": "TypesExtendsHtml",
-		"kind": "component",
-		"props": [
-			{
-				"name": "prop1",
-				"type": "\"a\" | \"b\"",
-				"optional": true,
-				"description": "Description 1",
-				"defaultValue": "'a'",
-				"typeInfo": {
-					"kind": "union",
-					"members": [
-						{
-							"kind": "literal",
-							"value": "a",
-							"text": "\"a\""
-						},
-						{
-							"kind": "literal",
-							"value": "b",
-							"text": "\"b\""
-						}
-					]
+{
+	"path": "TypesExtendsHtml.svelte",
+	"declarations": [
+		{
+			"name": "TypesExtendsHtml",
+			"kind": "component",
+			"sourceLine": 1,
+			"intersects": [
+				"SvelteHTMLElements['button']"
+			],
+			"props": [
+				{
+					"name": "prop1",
+					"type": "\"a\" | \"b\"",
+					"typeInfo": {
+						"kind": "union",
+						"members": [
+							{
+								"kind": "literal",
+								"value": "a",
+								"text": "\"a\""
+							},
+							{
+								"kind": "literal",
+								"value": "b",
+								"text": "\"b\""
+							}
+						]
+					},
+					"optional": true,
+					"description": "Description 1",
+					"defaultValue": "'a'"
+				},
+				{
+					"name": "prop2",
+					"type": "boolean",
+					"optional": true,
+					"description": "Description 2",
+					"defaultValue": "false"
+				},
+				{
+					"name": "prop3",
+					"type": "Snippet<[]>",
+					"optional": true,
+					"description": "Description 3"
 				}
-			},
-			{
-				"name": "prop2",
-				"type": "boolean",
-				"optional": true,
-				"description": "Description 2",
-				"defaultValue": "false"
-			},
-			{
-				"name": "prop3",
-				"type": "Snippet<[]>",
-				"optional": true,
-				"description": "Description 3"
-			}
-		],
-		"intersects": [
-			"SvelteHTMLElements['button']"
-		],
-		"acceptsChildren": true,
-		"sourceLine": 1
-	}
-]
+			],
+			"acceptsChildren": true
+		}
+	]
+}

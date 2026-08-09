@@ -27,7 +27,7 @@
 import ts from 'typescript';
 
 import { compareStrings } from './postprocess.ts';
-import { isSvelte2tsxInternal, stripVirtualSuffix, SVELTE_VIRTUAL_SUFFIX } from './source.ts';
+import { isSvelte2tsxGeneratedExport, isSvelteVirtualPath, stripVirtualSuffix } from './source.ts';
 import { parseComment } from './tsdoc.ts';
 import {
 	getLocalExportStatement,
@@ -173,12 +173,12 @@ export const buildAliasRegistry = (
 	for (const { sourceFile, modulePath } of sources) {
 		const moduleSymbol = checker.getSymbolAtLocation(sourceFile);
 		if (!moduleSymbol) continue;
-		const isVirtual = sourceFile.fileName.endsWith(SVELTE_VIRTUAL_SUFFIX);
+		const isVirtual = isSvelteVirtualPath(sourceFile.fileName);
 		const currentFileName = stripVirtualSuffix(sourceFile.fileName);
 
 		for (const exportSymbol of checker.getExportsOfModule(moduleSymbol)) {
 			const name = exportSymbol.name;
-			if (isVirtual && (name === 'default' || isSvelte2tsxInternal(name))) continue;
+			if (isVirtual && isSvelte2tsxGeneratedExport(name)) continue;
 			if (!isDeclaredInFile(exportSymbol, currentFileName)) continue;
 
 			let resolved = exportSymbol;

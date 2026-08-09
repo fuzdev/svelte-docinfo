@@ -1,1 +1,12 @@
-null
+{
+	"path": "input.ts",
+	"declarations": [
+		{
+			"name": "a",
+			"kind": "variable",
+			"docComment": "This is a freestanding comment without `@module` tag.\n\nUnder the old heuristic this would be extracted.\nUnder the new `@module` requirement it should not be.",
+			"typeSignature": "1",
+			"sourceLine": 8
+		}
+	]
+}

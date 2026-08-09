@@ -1,14 +1,17 @@
-[
-	{
-		"name": "ComponentMultipleComponentHtml",
-		"kind": "component",
-		"props": [
-			{
-				"name": "prop1",
-				"type": "string"
-			}
-		],
-		"docComment": "Second description.",
-		"sourceLine": 11
-	}
-]
+{
+	"path": "ComponentMultipleComponentHtml.svelte",
+	"declarations": [
+		{
+			"name": "ComponentMultipleComponentHtml",
+			"kind": "component",
+			"docComment": "Second description.",
+			"sourceLine": 11,
+			"props": [
+				{
+					"name": "prop1",
+					"type": "string"
+				}
+			]
+		}
+	]
+}

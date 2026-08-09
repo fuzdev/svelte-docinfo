@@ -1,14 +1,26 @@
-[
-	{
-		"name": "ComponentDoccommentBothDetached",
-		"kind": "component",
-		"props": [
-			{
-				"name": "prop1",
-				"type": "string"
-			}
-		],
-		"docComment": "Detached JSDoc description.",
-		"sourceLine": 6
-	}
-]
+{
+	"path": "ComponentDoccommentBothDetached.svelte",
+	"declarations": [
+		{
+			"name": "ComponentDoccommentBothDetached",
+			"kind": "component",
+			"docComment": "Detached JSDoc description.",
+			"sourceLine": 6,
+			"props": [
+				{
+					"name": "prop1",
+					"type": "string"
+				}
+			]
+		}
+	],
+	"diagnostics": [
+		{
+			"kind": "duplicate_comment",
+			"commentType": "doc_comment",
+			"file": "ComponentDoccommentBothDetached.svelte",
+			"message": "Both HTML @component comment and JSDoc in <script> provide component documentation. Using JSDoc.",
+			"severity": "warning"
+		}
+	]
+}

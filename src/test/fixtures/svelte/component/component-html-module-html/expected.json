@@ -1,14 +1,18 @@
-[
-	{
-		"name": "ComponentComponentHtmlModuleHtml",
-		"kind": "component",
-		"props": [
-			{
-				"name": "prop1",
-				"type": "string"
-			}
-		],
-		"docComment": "Component description from HTML.",
-		"sourceLine": 11
-	}
-]
+{
+	"path": "ComponentComponentHtmlModuleHtml.svelte",
+	"declarations": [
+		{
+			"name": "ComponentComponentHtmlModuleHtml",
+			"kind": "component",
+			"docComment": "Component description from HTML.",
+			"sourceLine": 11,
+			"props": [
+				{
+					"name": "prop1",
+					"type": "string"
+				}
+			]
+		}
+	],
+	"moduleComment": "Module description from HTML."
+}

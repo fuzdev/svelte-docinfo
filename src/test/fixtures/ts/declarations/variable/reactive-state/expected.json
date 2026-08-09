@@ -1,8 +1,13 @@
 {
-	"name": "a",
-	"kind": "variable",
-	"docComment": "A reactive state variable.",
-	"typeSignature": "number",
-	"sourceLine": 4,
-	"reactivity": "$state"
+	"path": "input.ts",
+	"declarations": [
+		{
+			"name": "a",
+			"kind": "variable",
+			"docComment": "A reactive state variable.",
+			"typeSignature": "number",
+			"sourceLine": 4,
+			"reactivity": "$state"
+		}
+	]
 }

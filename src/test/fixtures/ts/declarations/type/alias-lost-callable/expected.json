@@ -1,41 +1,66 @@
 {
-	"name": "CallableHolder",
-	"kind": "type",
-	"docComment": "An alias-lost callable: a callable property projects as a function member\n(signature fields — callability stays the classification, so no recovery\nthere), while inside a union the callable branch's recovery consult emits\n`{kind: 'reference', name: 'LostFn'}` instead of a terminal function node.",
-	"typeSignature": "CallableHolder",
-	"sourceLine": 11,
-	"members": [
+	"path": "input.ts",
+	"declarations": [
 		{
-			"name": "direct",
-			"kind": "function",
-			"docComment": "Direct callable property — projects as a function member.",
-			"typeSignature": "(x: string): { a: string; }",
-			"parameters": [
+			"name": "CallableHolder",
+			"kind": "type",
+			"docComment": "An alias-lost callable: a callable property projects as a function member\n(signature fields — callability stays the classification, so no recovery\nthere), while inside a union the callable branch's recovery consult emits\n`{kind: 'reference', name: 'LostFn'}` instead of a terminal function node.",
+			"typeSignature": "CallableHolder",
+			"sourceLine": 11,
+			"members": [
 				{
-					"name": "x",
-					"type": "string"
+					"name": "direct",
+					"kind": "function",
+					"docComment": "Direct callable property — projects as a function member.",
+					"typeSignature": "(x: string): { a: string; }",
+					"parameters": [
+						{
+							"name": "x",
+							"type": "string"
+						}
+					],
+					"returnType": "{ a: string; }"
+				},
+				{
+					"name": "handler",
+					"kind": "variable",
+					"docComment": "Nullable callable — the union member recovers the registered name.",
+					"typeSignature": "((x: string) => { a: string; }) | null",
+					"typeInfo": {
+						"kind": "union",
+						"members": [
+							{
+								"kind": "reference",
+								"name": "LostFn"
+							},
+							{
+								"kind": "intrinsic",
+								"text": "null"
+							}
+						]
+					}
 				}
-			],
-			"returnType": "{ a: string; }"
+			]
 		},
 		{
-			"name": "handler",
-			"kind": "variable",
-			"docComment": "Nullable callable — the union member recovers the registered name.",
-			"typeSignature": "((x: string) => { a: string; }) | null",
-			"typeInfo": {
-				"kind": "union",
-				"members": [
-					{
-						"kind": "reference",
-						"name": "LostFn"
-					},
-					{
-						"kind": "intrinsic",
-						"text": "null"
-					}
-				]
-			}
+			"name": "LostFn",
+			"kind": "type",
+			"typeSignature": "(x: string) => { a: string; }",
+			"sourceLine": 21,
+			"members": [
+				{
+					"name": "(call)",
+					"kind": "function",
+					"typeSignature": "(x: string): { a: string; }",
+					"parameters": [
+						{
+							"name": "x",
+							"type": "string"
+						}
+					],
+					"returnType": "{ a: string; }"
+				}
+			]
 		}
 	]
 }

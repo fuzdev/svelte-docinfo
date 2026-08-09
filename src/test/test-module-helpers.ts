@@ -33,16 +33,25 @@ import { withTestProject } from './test-helpers.ts';
  * emission to `src/lib` (default `sourcePaths`) minus `exclude`, so extra
  * files (a root `package.json`, say) feed the checker but don't become
  * modules. See `analyze.source-gate.test.ts`.
+ *
+ * @param options - passed through to `withTestProject` (e.g. `baseDir` for
+ * tests that need the project inside the repo so packages resolve)
  */
-export const analyzeTestProject = (files: Record<string, string>): Promise<AnalyzeResultJson> =>
-	withTestProject(files, (projectRoot) =>
-		analyze({
-			sourceFiles: Object.entries(files).map(([path, content]) => ({
-				id: join(projectRoot, path),
-				content
-			})),
-			sourceOptions: createSourceOptions(projectRoot)
-		})
+export const analyzeTestProject = (
+	files: Record<string, string>,
+	options?: Parameters<typeof withTestProject>[2]
+): Promise<AnalyzeResultJson> =>
+	withTestProject(
+		files,
+		(projectRoot) =>
+			analyze({
+				sourceFiles: Object.entries(files).map(([path, content]) => ({
+					id: join(projectRoot, path),
+					content
+				})),
+				sourceOptions: createSourceOptions(projectRoot)
+			}),
+		options
 	);
 
 /** Default project root for tests. */

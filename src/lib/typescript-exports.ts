@@ -25,8 +25,9 @@ import type { Diagnostic } from './diagnostics.ts';
 import { parseComment, applyToDeclaration, cleanComment, hasDocContent } from './tsdoc.ts';
 import {
 	type SourceFileInfo,
+	isSvelte2tsxGeneratedExport,
+	isSvelteVirtualPath,
 	stripVirtualSuffix,
-	SVELTE_VIRTUAL_SUFFIX,
 	getComponentName
 } from './source.ts';
 import {
@@ -312,7 +313,9 @@ const reExportPublicName = (
 	canonicalVirtualFileName: string | undefined,
 	canonicalFile: string
 ): string =>
-	exportName === 'default' && (canonicalVirtualFileName?.endsWith(SVELTE_VIRTUAL_SUFFIX) ?? false)
+	exportName === 'default' &&
+	canonicalVirtualFileName !== undefined &&
+	isSvelteVirtualPath(canonicalVirtualFileName)
 		? getComponentName(canonicalFile)
 		: exportName;
 
@@ -341,7 +344,7 @@ const synthesizeCrossFileAlias = (
 	specifierLine: number | undefined,
 	ctx: ExtractContext
 ): DeclarationJsonBuild => {
-	if (originalSource.fileName.endsWith(SVELTE_VIRTUAL_SUFFIX)) {
+	if (isSvelteVirtualPath(originalSource.fileName)) {
 		return {
 			name: publicName,
 			kind: 'component',
@@ -903,6 +906,13 @@ const warnAliasLost = (node: ts.TypeAliasDeclaration, name: string, ctx: Extract
 	if (!registry) return;
 	if (registry.warnedAliasLost.has(node)) return;
 	if (!ALIAS_LOST_RHS_KINDS.has(node.type.kind)) return;
+	// The svelte2tsx-synthesized component alias (`<Name>__SvelteComponent_`,
+	// alias-lost by construction for generic components) is not an author-side
+	// type — the svelte layer filters it from declarations after the walk, so
+	// the warning skips it too, mirroring the registry pre-pass's virtual skip.
+	if (isSvelteVirtualPath(node.getSourceFile().fileName) && isSvelte2tsxGeneratedExport(name)) {
+		return;
+	}
 	let type: ts.Type;
 	try {
 		type = ctx.checker.getTypeAtLocation(node);

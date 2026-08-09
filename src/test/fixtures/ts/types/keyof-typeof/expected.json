@@ -1,33 +1,38 @@
 {
-	"name": "A",
-	"kind": "type",
-	"typeSignature": "A",
-	"sourceLine": 8,
-	"members": [
+	"path": "input.ts",
+	"declarations": [
 		{
-			"name": "a",
-			"kind": "variable",
-			"typeSignature": "keyof C",
-			"typeInfo": {
-				"kind": "union",
-				"members": [
-					{
-						"kind": "literal",
-						"value": "a",
-						"text": "\"a\""
-					},
-					{
-						"kind": "literal",
-						"value": "b",
-						"text": "\"b\""
+			"name": "A",
+			"kind": "type",
+			"typeSignature": "A",
+			"sourceLine": 8,
+			"members": [
+				{
+					"name": "a",
+					"kind": "variable",
+					"typeSignature": "keyof C",
+					"typeInfo": {
+						"kind": "union",
+						"members": [
+							{
+								"kind": "literal",
+								"value": "a",
+								"text": "\"a\""
+							},
+							{
+								"kind": "literal",
+								"value": "b",
+								"text": "\"b\""
+							}
+						]
 					}
-				]
-			}
-		},
-		{
-			"name": "b",
-			"kind": "variable",
-			"typeSignature": "{ readonly a: \"value\"; readonly c: 1; }"
+				},
+				{
+					"name": "b",
+					"kind": "variable",
+					"typeSignature": "{ readonly a: \"value\"; readonly c: 1; }"
+				}
+			]
 		}
 	]
 }

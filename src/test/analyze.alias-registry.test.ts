@@ -26,7 +26,7 @@ import type { AnalyzeResultJson } from '$lib/analyze-core.ts';
 import { byKind } from '$lib/diagnostics.ts';
 import type { DeclarationJson, ModuleJson, TypeJson } from '$lib/types.ts';
 
-import { testSourceOptions } from './test-module-helpers.ts';
+import { analyzeTestProject, testSourceOptions } from './test-module-helpers.ts';
 
 const SCHEMAS = `import { z } from 'zod';
 
@@ -368,5 +368,30 @@ describe('alias_lost diagnostic', () => {
 		const publicId = barrel.declarations.find((d) => d.name === 'PublicId');
 		assert.ok(publicId, 'expected the synthesized rename alias');
 		assert.deepStrictEqual(publicId.aliasOf, { module: 'schemas.ts', name: 'Id' });
+	});
+
+	test('never fires on the svelte2tsx-internal component alias', async () => {
+		// a generic component's virtual carries `type <Name>__SvelteComponent_`
+		// with an alias-lost RHS by construction — not an author-side type (the
+		// svelte layer filters it from declarations), so it must not warn.
+		// Surfaced by the whole-module fixture capture: every generic component
+		// warned once per analysis. The project roots inside the repo so the
+		// virtual's `svelte` imports resolve — in an isolated tmpdir the loss
+		// predicate fails on error types and the assertion passes vacuously
+		const genericComponent = `<script lang="ts" generics="T">
+	let { prop1 }: { prop1: Array<T> } = $props();
+</script>
+
+{#each prop1 as item}{String(item)}{/each}
+`;
+		const generic = await analyzeTestProject(
+			{ 'src/lib/Widget.svelte': genericComponent },
+			{ baseDir: join(process.cwd(), 'node_modules', '.cache') }
+		);
+		assert.deepStrictEqual(byKind(generic.diagnostics, 'alias_lost'), []);
+		assert.ok(
+			generic.modules[0]?.declarations.some((d) => d.kind === 'component'),
+			'expected the component to analyze'
+		);
 	});
 });

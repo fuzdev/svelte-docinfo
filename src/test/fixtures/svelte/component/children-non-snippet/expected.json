@@ -1,14 +1,17 @@
-[
-	{
-		"name": "ComponentChildrenNonSnippet",
-		"kind": "component",
-		"props": [
-			{
-				"name": "children",
-				"type": "string",
-				"description": "Description 1"
-			}
-		],
-		"sourceLine": 1
-	}
-]
+{
+	"path": "ComponentChildrenNonSnippet.svelte",
+	"declarations": [
+		{
+			"name": "ComponentChildrenNonSnippet",
+			"kind": "component",
+			"sourceLine": 1,
+			"props": [
+				{
+					"name": "children",
+					"type": "string",
+					"description": "Description 1"
+				}
+			]
+		}
+	]
+}

@@ -334,10 +334,11 @@ export type DuplicateDeclarationDiagnostic = z.infer<typeof DuplicateDeclaration
 /**
  * Source map parsing failed for a Svelte virtual file.
  *
- * Analysis continues using virtual-file positions, so downstream `line`/`column`
- * fields on other diagnostics may point into the svelte2tsx-generated TS rather
- * than the original `.svelte` source. Rare; usually signals a malformed or
- * incompatible svelte2tsx output.
+ * Analysis continues without position mapping: query-time diagnostics emitted
+ * against the virtual drop `line`/`column` (`remapVirtualDiagnosticPositions`
+ * prefers absence over a line pointing into svelte2tsx-generated TS), and
+ * declaration `sourceLine`s fall back to virtual positions. Rare; usually
+ * signals a malformed or incompatible svelte2tsx output.
  *
  * Emitted at ingest time by `transformSvelteSource` (in `svelte.ts`); flows
  * through `setFile`/`setFiles` ingest diagnostics rather than the analysis

@@ -1,14 +1,17 @@
-[
-	{
-		"name": "ComponentNoChildren",
-		"kind": "component",
-		"props": [
-			{
-				"name": "prop1",
-				"type": "string",
-				"description": "Description 1"
-			}
-		],
-		"sourceLine": 1
-	}
-]
+{
+	"path": "ComponentNoChildren.svelte",
+	"declarations": [
+		{
+			"name": "ComponentNoChildren",
+			"kind": "component",
+			"sourceLine": 1,
+			"props": [
+				{
+					"name": "prop1",
+					"type": "string",
+					"description": "Description 1"
+				}
+			]
+		}
+	]
+}

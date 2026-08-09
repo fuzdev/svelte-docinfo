@@ -1,23 +1,17 @@
 {
-	"name": "A",
-	"kind": "interface",
-	"docComment": "An interface with overloaded and generic method signatures.",
-	"typeSignature": "A",
-	"sourceLine": 4,
-	"members": [
+	"path": "input.ts",
+	"declarations": [
 		{
-			"name": "fn1",
-			"kind": "function",
-			"docComment": "Description 1",
-			"typeSignature": "(a: string): void",
-			"parameters": [
+			"name": "A",
+			"kind": "interface",
+			"docComment": "An interface with overloaded and generic method signatures.",
+			"typeSignature": "A",
+			"sourceLine": 4,
+			"members": [
 				{
-					"name": "a",
-					"type": "string"
-				}
-			],
-			"overloads": [
-				{
+					"name": "fn1",
+					"kind": "function",
+					"docComment": "Description 1",
 					"typeSignature": "(a: string): void",
 					"parameters": [
 						{
@@ -25,40 +19,51 @@
 							"type": "string"
 						}
 					],
-					"returnType": "void",
-					"docComment": "Description 1"
+					"overloads": [
+						{
+							"typeSignature": "(a: string): void",
+							"parameters": [
+								{
+									"name": "a",
+									"type": "string"
+								}
+							],
+							"returnType": "void",
+							"docComment": "Description 1"
+						},
+						{
+							"typeSignature": "(a: number): void",
+							"parameters": [
+								{
+									"name": "a",
+									"type": "number"
+								}
+							],
+							"returnType": "void",
+							"docComment": "Description 2"
+						}
+					],
+					"returnType": "void"
 				},
 				{
-					"typeSignature": "(a: number): void",
+					"name": "fn2",
+					"kind": "function",
+					"docComment": "Description 3",
+					"typeSignature": "<T>(a: T): T",
+					"genericParams": [
+						{
+							"name": "T"
+						}
+					],
 					"parameters": [
 						{
 							"name": "a",
-							"type": "number"
+							"type": "T"
 						}
 					],
-					"returnType": "void",
-					"docComment": "Description 2"
+					"returnType": "T"
 				}
-			],
-			"returnType": "void"
-		},
-		{
-			"name": "fn2",
-			"kind": "function",
-			"docComment": "Description 3",
-			"typeSignature": "<T>(a: T): T",
-			"genericParams": [
-				{
-					"name": "T"
-				}
-			],
-			"parameters": [
-				{
-					"name": "a",
-					"type": "T"
-				}
-			],
-			"returnType": "T"
+			]
 		}
 	]
 }

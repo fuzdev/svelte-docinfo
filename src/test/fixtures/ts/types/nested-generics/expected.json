@@ -1,7 +1,12 @@
 {
-	"name": "A",
-	"kind": "type",
-	"docComment": "Nested generic types.",
-	"typeSignature": "Array<Record<string, Set<number>>>",
-	"sourceLine": 4
+	"path": "input.ts",
+	"declarations": [
+		{
+			"name": "A",
+			"kind": "type",
+			"docComment": "Nested generic types.",
+			"typeSignature": "Array<Record<string, Set<number>>>",
+			"sourceLine": 4
+		}
+	]
 }

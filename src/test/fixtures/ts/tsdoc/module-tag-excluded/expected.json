@@ -1,7 +1,13 @@
 {
-	"name": "fn",
-	"kind": "function",
-	"typeSignature": "(): void",
-	"sourceLine": 6,
-	"returnType": "void"
+	"path": "input.ts",
+	"declarations": [
+		{
+			"name": "fn",
+			"kind": "function",
+			"typeSignature": "(): void",
+			"sourceLine": 6,
+			"returnType": "void"
+		}
+	],
+	"moduleComment": "Description 1."
 }

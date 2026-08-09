@@ -1,20 +1,23 @@
-[
-	{
-		"name": "ComponentDoccommentScriptModuleOnly",
-		"kind": "component",
-		"props": [
-			{
-				"name": "prop1",
-				"type": "string"
-			}
-		],
-		"sourceLine": 12
-	},
-	{
-		"name": "a",
-		"kind": "variable",
-		"docComment": "Description 1.",
-		"sourceLine": 9,
-		"typeSignature": "\"value\""
-	}
-]
+{
+	"path": "ComponentDoccommentScriptModuleOnly.svelte",
+	"declarations": [
+		{
+			"name": "ComponentDoccommentScriptModuleOnly",
+			"kind": "component",
+			"sourceLine": 12,
+			"props": [
+				{
+					"name": "prop1",
+					"type": "string"
+				}
+			]
+		},
+		{
+			"name": "a",
+			"kind": "variable",
+			"docComment": "Description 1.",
+			"typeSignature": "\"value\"",
+			"sourceLine": 9
+		}
+	]
+}

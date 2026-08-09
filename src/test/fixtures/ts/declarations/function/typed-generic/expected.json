@@ -1,35 +1,40 @@
 {
-	"name": "fn",
-	"kind": "function",
-	"docComment": "A generic arrow function with generics on the type annotation.",
-	"typeSignature": "<T extends { id: number; }>(a: Array<T>): T | undefined",
-	"sourceLine": 7,
-	"genericParams": [
+	"path": "input.ts",
+	"declarations": [
 		{
-			"name": "T",
-			"constraint": "{ id: number }"
-		}
-	],
-	"parameters": [
-		{
-			"name": "a",
-			"type": "Array<T>",
-			"description": "Description 1"
-		}
-	],
-	"returnType": "T | undefined",
-	"returnTypeInfo": {
-		"kind": "union",
-		"members": [
-			{
-				"kind": "other",
-				"text": "T"
+			"name": "fn",
+			"kind": "function",
+			"docComment": "A generic arrow function with generics on the type annotation.",
+			"typeSignature": "<T extends { id: number; }>(a: Array<T>): T | undefined",
+			"sourceLine": 7,
+			"genericParams": [
+				{
+					"name": "T",
+					"constraint": "{ id: number }"
+				}
+			],
+			"parameters": [
+				{
+					"name": "a",
+					"type": "Array<T>",
+					"description": "Description 1"
+				}
+			],
+			"returnType": "T | undefined",
+			"returnTypeInfo": {
+				"kind": "union",
+				"members": [
+					{
+						"kind": "other",
+						"text": "T"
+					},
+					{
+						"kind": "intrinsic",
+						"text": "undefined"
+					}
+				]
 			},
-			{
-				"kind": "intrinsic",
-				"text": "undefined"
-			}
-		]
-	},
-	"returnDescription": "Description 2"
+			"returnDescription": "Description 2"
+		}
+	]
 }

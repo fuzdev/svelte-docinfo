@@ -1,19 +1,43 @@
 {
-	"name": "NullableHolder",
-	"kind": "type",
-	"docComment": "A null-bearing alias-lost union at an optional position: the optional\nwidening flattens `LostNullable | undefined` into one union the identity\nlookup can never match — the registry's member-set side index recovers the\nname from the surviving members instead.",
-	"typeSignature": "NullableHolder",
-	"sourceLine": 11,
-	"members": [
+	"path": "input.ts",
+	"declarations": [
 		{
-			"name": "maybe",
-			"kind": "variable",
+			"name": "NullableHolder",
+			"kind": "type",
+			"docComment": "A null-bearing alias-lost union at an optional position: the optional\nwidening flattens `LostNullable | undefined` into one union the identity\nlookup can never match — the registry's member-set side index recovers the\nname from the surviving members instead.",
+			"typeSignature": "NullableHolder",
+			"sourceLine": 11,
+			"members": [
+				{
+					"name": "maybe",
+					"kind": "variable",
+					"typeSignature": "{ a: string; } | null",
+					"optional": true,
+					"typeInfo": {
+						"kind": "reference",
+						"name": "LostNullable",
+						"module": "input.ts"
+					}
+				}
+			]
+		},
+		{
+			"name": "LostNullable",
+			"kind": "type",
 			"typeSignature": "{ a: string; } | null",
-			"optional": true,
+			"sourceLine": 18,
 			"typeInfo": {
-				"kind": "reference",
-				"name": "LostNullable",
-				"module": "declarations/type/alias-lost-nullable-optional.ts"
+				"kind": "union",
+				"members": [
+					{
+						"kind": "object",
+						"text": "{ a: string; }"
+					},
+					{
+						"kind": "intrinsic",
+						"text": "null"
+					}
+				]
 			}
 		}
 	]

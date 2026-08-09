@@ -1,13 +1,17 @@
-[
-	{
-		"name": "ComponentModuleOnProps",
-		"kind": "component",
-		"props": [
-			{
-				"name": "prop1",
-				"type": "string"
-			}
-		],
-		"sourceLine": 1
-	}
-]
+{
+	"path": "ComponentModuleOnProps.svelte",
+	"declarations": [
+		{
+			"name": "ComponentModuleOnProps",
+			"kind": "component",
+			"sourceLine": 1,
+			"props": [
+				{
+					"name": "prop1",
+					"type": "string"
+				}
+			]
+		}
+	],
+	"moduleComment": "Module description."
+}

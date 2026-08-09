@@ -1,13 +1,16 @@
-[
-	{
-		"name": "ComponentExportedSnippetParameterless",
-		"kind": "component",
-		"sourceLine": 3
-	},
-	{
-		"name": "greet",
-		"kind": "snippet",
-		"sourceLine": 5,
-		"typeSignature": "Snippet<[]>"
-	}
-]
+{
+	"path": "ComponentExportedSnippetParameterless.svelte",
+	"declarations": [
+		{
+			"name": "ComponentExportedSnippetParameterless",
+			"kind": "component",
+			"sourceLine": 3
+		},
+		{
+			"name": "greet",
+			"kind": "snippet",
+			"typeSignature": "Snippet<[]>",
+			"sourceLine": 5
+		}
+	]
+}

@@ -1,18 +1,23 @@
 {
-	"name": "A",
-	"kind": "interface",
-	"typeSignature": "A",
-	"sourceLine": 12,
-	"extends": [
-		"B",
-		"C"
-	],
-	"members": [
+	"path": "input.ts",
+	"declarations": [
 		{
-			"name": "c",
-			"kind": "variable",
-			"docComment": "Description 1",
-			"typeSignature": "boolean"
+			"name": "A",
+			"kind": "interface",
+			"typeSignature": "A",
+			"sourceLine": 12,
+			"extends": [
+				"B",
+				"C"
+			],
+			"members": [
+				{
+					"name": "c",
+					"kind": "variable",
+					"docComment": "Description 1",
+					"typeSignature": "boolean"
+				}
+			]
 		}
 	]
 }

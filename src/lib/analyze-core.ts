@@ -17,6 +17,9 @@
  * - `AnalyzeResultJson` / `OnDuplicates` / `OnDuplicatesCallback` — shared types
  *   surfaced through the main barrel directly from this module.
  * - `throwOnDuplicates` — convenience callback paired with `OnDuplicates`.
+ * - `finalizeDiagnostics` — the diagnostic boundary passes (virtual position
+ *   remap, then path normalization) in their required order; the one call for
+ *   callers assembling modules themselves.
  * - `normalizeDiagnosticPaths` — boundary helper for build-tool integrations
  *   that bypass the session and collect their own diagnostics.
  * - `normalizeModulePathsInTypes` — output pass rewriting the absolute module
@@ -40,7 +43,11 @@ import type { ModuleAnalysis } from './declaration-build.ts';
 import { Diagnostic } from './diagnostics.ts';
 import type { AnalysisLog } from './log.ts';
 import { analyzeTypescriptModule } from './typescript-exports.ts';
-import { analyzeSvelteModule, type SvelteVirtualFile } from './svelte.ts';
+import {
+	analyzeSvelteModule,
+	remapVirtualDiagnosticPositions,
+	type SvelteVirtualFile
+} from './svelte.ts';
 import {
 	stripVirtualSuffix,
 	SVELTE_VIRTUAL_SUFFIX,
@@ -590,12 +597,37 @@ export const analyzeCore = (inputs: AnalyzeCoreInputs): AnalyzeResultJson => {
 	}
 
 	normalizeModulePathsInTypes(sortedModules, sourceOptions, program);
-	normalizeDiagnosticPaths(diagnostics, sourceOptions.projectRoot);
+	finalizeDiagnostics(diagnostics, {
+		projectRoot: sourceOptions.projectRoot,
+		virtualFiles: svelteVirtualFiles.values()
+	});
 
 	return {
 		modules: sortedModules,
 		diagnostics
 	};
+};
+
+/**
+ * Run the diagnostic boundary passes in their required order: virtual
+ * position remap first (`remapVirtualDiagnosticPositions`), then path
+ * normalization (`normalizeDiagnosticPaths` — it strips the virtual suffix
+ * the remap matches `file` against, so the reverse order silently keeps
+ * virtual positions). The one call for callers assembling modules themselves
+ * through `analyzeModule` / `analyzeSvelteModule`; using it makes the
+ * ordering unrepresentable instead of a contract to remember. Omit
+ * `virtualFiles` when no Svelte virtuals are in play.
+ *
+ * @mutates diagnostics — rewrites positions, `file`, and `message`
+ */
+export const finalizeDiagnostics = (
+	diagnostics: Array<Diagnostic>,
+	options: { projectRoot: string; virtualFiles?: Iterable<SvelteVirtualFile> }
+): void => {
+	if (options.virtualFiles) {
+		remapVirtualDiagnosticPositions(diagnostics, options.virtualFiles);
+	}
+	normalizeDiagnosticPaths(diagnostics, options.projectRoot);
 };
 
 /**

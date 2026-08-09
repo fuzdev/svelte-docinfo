@@ -1,16 +1,21 @@
 {
-	"name": "A",
-	"kind": "interface",
-	"docComment": "Description.",
-	"typeSignature": "A",
-	"sourceLine": 6,
-	"internalMessage": "Description 1",
-	"members": [
+	"path": "input.ts",
+	"declarations": [
 		{
-			"name": "a",
-			"kind": "variable",
-			"typeSignature": "string",
-			"internalMessage": ""
+			"name": "A",
+			"kind": "interface",
+			"docComment": "Description.",
+			"typeSignature": "A",
+			"sourceLine": 6,
+			"internalMessage": "Description 1",
+			"members": [
+				{
+					"name": "a",
+					"kind": "variable",
+					"typeSignature": "string",
+					"internalMessage": ""
+				}
+			]
 		}
 	]
 }

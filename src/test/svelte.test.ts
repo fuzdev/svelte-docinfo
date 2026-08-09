@@ -12,8 +12,7 @@ import {
 	extractHtmlModuleComment,
 	synthesizeSnippetTypeSignature
 } from '$lib/svelte.ts';
-import { createAnalysisProgram } from '$lib/typescript-program.ts';
-import { type Diagnostic, byKind, hasErrors, hasWarnings, warningsOf } from '$lib/diagnostics.ts';
+import { type Diagnostic, hasErrors, hasWarnings, warningsOf } from '$lib/diagnostics.ts';
 import type { ModuleAnalysis } from '$lib/declaration-build.ts';
 import type { SourceFileInfo } from '$lib/source.ts';
 import type { ModuleSourceOptions } from '$lib/source-config.ts';
@@ -21,11 +20,11 @@ import type { ModuleSourceOptions } from '$lib/source-config.ts';
 import {
 	buildSvelteFixtureRegistry,
 	loadFixtures,
-	validateDeclarationStructures,
-	fixtureNameToComponentName,
-	type SvelteFixture
+	transformOrThrow,
+	validateModuleFixture,
+	analyzeSvelteFixtureModules
 } from './fixtures/svelte/svelte-test-helpers.ts';
-import { normalizeJson, FIXTURES_SVELTE_DIR } from './test-helpers.ts';
+import { normalizeJson, FIXTURES_SVELTE_DIR, type ModuleFixture } from './test-helpers.ts';
 import {
 	testSourceOptions,
 	createTestSourceOptions,
@@ -35,16 +34,7 @@ import {
 /** Read fixture file content for analysis. */
 const readFixture = (filePath: string): string => readFileSync(filePath, 'utf-8');
 
-/** Run `transformSvelteSource` and unwrap the virtual file or throw. */
-const transformOrThrow = (sf: SourceFileInfo) => {
-	const r = transformSvelteSource(sf);
-	if (!r.virtual) {
-		throw new Error(`transform failed: ${sf.id}: ${r.diagnostics[0]?.message ?? 'unknown error'}`);
-	}
-	return r.virtual;
-};
-
-let fixtures: Array<SvelteFixture> = [];
+let fixtures: Array<ModuleFixture> = [];
 
 beforeAll(async () => {
 	fixtures = await loadFixtures();
@@ -111,57 +101,22 @@ const analyzeSvelteTestIntegration = (
 
 describe('svelte component analyzer (fixture-based)', () => {
 	test('all fixtures analyze correctly', { timeout: 15_000 }, () => {
-		// Pre-transform all fixtures and create a single shared program (much faster than per-fixture)
-		const fixtureData = fixtures.map((fixture) => {
-			const componentName = fixtureNameToComponentName(fixture.name);
-			const modulePath = `${componentName}.svelte`;
-			const sourceFile: SourceFileInfo = {
-				id: join(FIXTURES_SVELTE_DIR, `${fixture.name}/input.svelte`),
-				content: fixture.input
-			};
-			const virtualFile = transformOrThrow(sourceFile);
-			return { fixture, modulePath, sourceFile, virtualFile };
-		});
+		// The exact pipeline the update task regenerates with — shared program,
+		// per-fixture analyzeCore; results index-aligned with the inputs
+		const analyzed = analyzeSvelteFixtureModules(fixtures);
 
-		// Entries carry `scriptKind` so JS-lang fixtures parse as JS (JSDoc types)
-		const allVirtualFiles = new Map(
-			fixtureData.map((d) => [d.virtualFile.virtualPath, d.virtualFile])
-		);
-		const program = createAnalysisProgram({ virtualFiles: allVirtualFiles });
-		const fixtureChecker = program.getTypeChecker();
-		const opts = testSourceOptions();
-		// one registry over the whole fixture set, mirroring analyzeCore's pre-pass
-		const aliasRegistry = buildSvelteFixtureRegistry(program, fixtureData);
-
-		for (const { fixture, modulePath, sourceFile, virtualFile } of fixtureData) {
-			const diagnostics: Array<Diagnostic> = [];
-			const moduleResult = analyzeSvelteModule(
-				sourceFile,
-				modulePath,
-				fixtureChecker,
-				opts,
-				diagnostics,
-				program,
-				virtualFile,
-				aliasRegistry
-			);
-			assert.ok(moduleResult, `Analysis returned undefined for fixture "${fixture.name}"`);
-
-			// Compare all non-nodocs declarations with expected
-			const actualDeclarations = moduleResult.declarations
-				.filter((d) => !d.nodocs)
-				.map((d) => d.declaration);
+		for (let i = 0; i < fixtures.length; i++) {
 			assert.deepEqual(
-				normalizeJson(actualDeclarations),
-				normalizeJson(fixture.expected),
-				`Fixture "${fixture.name}" failed`
+				normalizeJson(analyzed[i]),
+				normalizeJson(fixtures[i]!.expected),
+				`Fixture "${fixtures[i]!.name}" failed`
 			);
 		}
 	});
 
 	test('all fixtures have valid structure', () => {
 		for (const fixture of fixtures) {
-			validateDeclarationStructures(fixture.expected);
+			validateModuleFixture(fixture.expected);
 		}
 	});
 });
@@ -227,29 +182,6 @@ describe('svelte component analysis', () => {
 		assert.strictEqual(declaration.kind, 'component');
 		// Props should be undefined or empty
 		assert.ok(!declaration.props || declaration.props.length === 0);
-	});
-
-	test('legacy-export-let fixture emits legacy_props naming its exact props', () => {
-		const filePath = join(FIXTURES_SVELTE_DIR, 'component/legacy-export-let/input.svelte');
-		const modulePath = 'ComponentLegacyExportLet.svelte';
-
-		const diagnostics: Array<Diagnostic> = [];
-		const declaration = analyzeTestComponent(
-			{ id: filePath, content: readFixture(filePath) },
-			modulePath,
-			diagnostics
-		);
-
-		// the fixture's expected.json locks declarations only (the harness
-		// discards diagnostics), so the diagnostic on this exact input is
-		// locked here — a fixture edit can't drift detection silently
-		assert.ok(!declaration.props || declaration.props.length === 0);
-		const legacy = byKind(diagnostics, 'legacy_props');
-		assert.strictEqual(legacy.length, 1);
-		assert.strictEqual(legacy[0]!.componentName, 'ComponentLegacyExportLet');
-		assert.deepStrictEqual(legacy[0]!.propNames, ['prop1', 'prop2', 'prop3']);
-		// `export let prop1` sits on line 16 of input.svelte
-		assert.strictEqual(legacy[0]!.line, 16);
 	});
 
 	test('extracts prop descriptions', () => {

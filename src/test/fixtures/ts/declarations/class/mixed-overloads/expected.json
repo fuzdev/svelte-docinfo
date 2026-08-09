@@ -1,38 +1,32 @@
 {
-	"name": "A",
-	"kind": "class",
-	"sourceLine": 1,
-	"members": [
+	"path": "input.ts",
+	"declarations": [
 		{
-			"name": "a",
-			"kind": "variable",
-			"typeSignature": "string | number",
-			"typeInfo": {
-				"kind": "union",
-				"members": [
-					{
-						"kind": "intrinsic",
-						"text": "string"
-					},
-					{
-						"kind": "intrinsic",
-						"text": "number"
-					}
-				]
-			}
-		},
-		{
-			"name": "constructor",
-			"kind": "constructor",
-			"typeSignature": "(a: string): A",
-			"parameters": [
+			"name": "A",
+			"kind": "class",
+			"sourceLine": 1,
+			"members": [
 				{
 					"name": "a",
-					"type": "string"
-				}
-			],
-			"overloads": [
+					"kind": "variable",
+					"typeSignature": "string | number",
+					"typeInfo": {
+						"kind": "union",
+						"members": [
+							{
+								"kind": "intrinsic",
+								"text": "string"
+							},
+							{
+								"kind": "intrinsic",
+								"text": "number"
+							}
+						]
+					}
+				},
 				{
+					"name": "constructor",
+					"kind": "constructor",
 					"typeSignature": "(a: string): A",
 					"parameters": [
 						{
@@ -40,32 +34,32 @@
 							"type": "string"
 						}
 					],
-					"returnType": "A"
+					"overloads": [
+						{
+							"typeSignature": "(a: string): A",
+							"parameters": [
+								{
+									"name": "a",
+									"type": "string"
+								}
+							],
+							"returnType": "A"
+						},
+						{
+							"typeSignature": "(a: number): A",
+							"parameters": [
+								{
+									"name": "a",
+									"type": "number"
+								}
+							],
+							"returnType": "A"
+						}
+					]
 				},
 				{
-					"typeSignature": "(a: number): A",
-					"parameters": [
-						{
-							"name": "a",
-							"type": "number"
-						}
-					],
-					"returnType": "A"
-				}
-			]
-		},
-		{
-			"name": "fn1",
-			"kind": "function",
-			"typeSignature": "(a: string): string",
-			"parameters": [
-				{
-					"name": "a",
-					"type": "string"
-				}
-			],
-			"overloads": [
-				{
+					"name": "fn1",
+					"kind": "function",
 					"typeSignature": "(a: string): string",
 					"parameters": [
 						{
@@ -73,20 +67,31 @@
 							"type": "string"
 						}
 					],
-					"returnType": "string"
-				},
-				{
-					"typeSignature": "(a: number): number",
-					"parameters": [
+					"overloads": [
 						{
-							"name": "a",
-							"type": "number"
+							"typeSignature": "(a: string): string",
+							"parameters": [
+								{
+									"name": "a",
+									"type": "string"
+								}
+							],
+							"returnType": "string"
+						},
+						{
+							"typeSignature": "(a: number): number",
+							"parameters": [
+								{
+									"name": "a",
+									"type": "number"
+								}
+							],
+							"returnType": "number"
 						}
 					],
-					"returnType": "number"
+					"returnType": "string"
 				}
-			],
-			"returnType": "string"
+			]
 		}
 	]
 }

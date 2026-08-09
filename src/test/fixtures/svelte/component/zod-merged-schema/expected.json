@@ -1,57 +1,60 @@
-[
-	{
-		"name": "ComponentZodMergedSchema",
-		"kind": "component",
-		"props": [
-			{
-				"name": "point",
-				"type": "{ x: number; y: number; }",
-				"description": "The point to render — typed by the alias-lost inferred type.",
-				"typeInfo": {
-					"kind": "reference",
-					"name": "Point"
+{
+	"path": "ComponentZodMergedSchema.svelte",
+	"declarations": [
+		{
+			"name": "ComponentZodMergedSchema",
+			"kind": "component",
+			"sourceLine": 12,
+			"props": [
+				{
+					"name": "point",
+					"type": "{ x: number; y: number; }",
+					"typeInfo": {
+						"kind": "reference",
+						"name": "Point"
+					},
+					"description": "The point to render — typed by the alias-lost inferred type."
 				}
-			}
-		],
-		"sourceLine": 12
-	},
-	{
-		"name": "Point",
-		"kind": "type",
-		"docComment": "A schema whose inferred type shares its name (the merged value+type pattern).",
-		"sourceLine": 6,
-		"mergedValue": true,
-		"typeSignature": "{ x: number; y: number; }",
-		"members": [
-			{
-				"name": "x",
-				"kind": "variable",
-				"typeSignature": "number"
-			},
-			{
-				"name": "y",
-				"kind": "variable",
-				"typeSignature": "number"
-			}
-		]
-	},
-	{
-		"name": "parsePoint",
-		"kind": "function",
-		"docComment": "An inferred (unannotated) return of the lost type — the registry recovers the name.",
-		"sourceLine": 9,
-		"typeSignature": "(input: unknown): { x: number; y: number; }",
-		"returnType": "{ x: number; y: number; }",
-		"returnTypeInfo": {
-			"kind": "reference",
-			"name": "Point",
-			"module": "ComponentZodMergedSchema.svelte"
+			]
 		},
-		"parameters": [
-			{
-				"name": "input",
-				"type": "unknown"
+		{
+			"name": "Point",
+			"kind": "type",
+			"docComment": "A schema whose inferred type shares its name (the merged value+type pattern).",
+			"typeSignature": "{ x: number; y: number; }",
+			"sourceLine": 6,
+			"members": [
+				{
+					"name": "x",
+					"kind": "variable",
+					"typeSignature": "number"
+				},
+				{
+					"name": "y",
+					"kind": "variable",
+					"typeSignature": "number"
+				}
+			],
+			"mergedValue": true
+		},
+		{
+			"name": "parsePoint",
+			"kind": "function",
+			"docComment": "An inferred (unannotated) return of the lost type — the registry recovers the name.",
+			"typeSignature": "(input: unknown): { x: number; y: number; }",
+			"sourceLine": 9,
+			"parameters": [
+				{
+					"name": "input",
+					"type": "unknown"
+				}
+			],
+			"returnType": "{ x: number; y: number; }",
+			"returnTypeInfo": {
+				"kind": "reference",
+				"name": "Point",
+				"module": "ComponentZodMergedSchema.svelte"
 			}
-		]
-	}
-]
+		}
+	]
+}

@@ -1,8 +1,13 @@
 {
-	"name": "a",
-	"kind": "variable",
-	"docComment": "A derived reactive variable computed by a function.",
-	"typeSignature": "number",
-	"sourceLine": 4,
-	"reactivity": "$derived.by"
+	"path": "input.ts",
+	"declarations": [
+		{
+			"name": "a",
+			"kind": "variable",
+			"docComment": "A derived reactive variable computed by a function.",
+			"typeSignature": "number",
+			"sourceLine": 4,
+			"reactivity": "$derived.by"
+		}
+	]
 }

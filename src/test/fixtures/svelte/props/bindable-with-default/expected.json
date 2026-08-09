@@ -1,25 +1,28 @@
-[
-	{
-		"name": "PropsBindableWithDefault",
-		"kind": "component",
-		"props": [
-			{
-				"name": "prop1",
-				"type": "string",
-				"optional": true,
-				"description": "Description 1",
-				"defaultValue": "'value'",
-				"bindable": true
-			},
-			{
-				"name": "prop2",
-				"type": "number",
-				"optional": true,
-				"description": "Description 2",
-				"defaultValue": "42",
-				"bindable": true
-			}
-		],
-		"sourceLine": 1
-	}
-]
+{
+	"path": "PropsBindableWithDefault.svelte",
+	"declarations": [
+		{
+			"name": "PropsBindableWithDefault",
+			"kind": "component",
+			"sourceLine": 1,
+			"props": [
+				{
+					"name": "prop1",
+					"type": "string",
+					"optional": true,
+					"description": "Description 1",
+					"defaultValue": "'value'",
+					"bindable": true
+				},
+				{
+					"name": "prop2",
+					"type": "number",
+					"optional": true,
+					"description": "Description 2",
+					"defaultValue": "42",
+					"bindable": true
+				}
+			]
+		}
+	]
+}

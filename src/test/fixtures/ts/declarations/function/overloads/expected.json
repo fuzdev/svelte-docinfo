@@ -1,19 +1,12 @@
 {
-	"name": "fn",
-	"kind": "function",
-	"docComment": "A function with overloads.",
-	"typeSignature": "(a: string): string",
-	"sourceLine": 7,
-	"parameters": [
+	"path": "input.ts",
+	"declarations": [
 		{
-			"name": "a",
-			"type": "string",
-			"description": "Description 1"
-		}
-	],
-	"overloads": [
-		{
+			"name": "fn",
+			"kind": "function",
+			"docComment": "A function with overloads.",
 			"typeSignature": "(a: string): string",
+			"sourceLine": 7,
 			"parameters": [
 				{
 					"name": "a",
@@ -21,21 +14,33 @@
 					"description": "Description 1"
 				}
 			],
-			"returnType": "string",
-			"docComment": "A function with overloads.",
-			"returnDescription": "Description 2"
-		},
-		{
-			"typeSignature": "(a: number): number",
-			"parameters": [
+			"overloads": [
 				{
-					"name": "a",
-					"type": "number"
+					"typeSignature": "(a: string): string",
+					"parameters": [
+						{
+							"name": "a",
+							"type": "string",
+							"description": "Description 1"
+						}
+					],
+					"returnType": "string",
+					"docComment": "A function with overloads.",
+					"returnDescription": "Description 2"
+				},
+				{
+					"typeSignature": "(a: number): number",
+					"parameters": [
+						{
+							"name": "a",
+							"type": "number"
+						}
+					],
+					"returnType": "number"
 				}
 			],
-			"returnType": "number"
+			"returnType": "string",
+			"returnDescription": "Description 2"
 		}
-	],
-	"returnType": "string",
-	"returnDescription": "Description 2"
+	]
 }

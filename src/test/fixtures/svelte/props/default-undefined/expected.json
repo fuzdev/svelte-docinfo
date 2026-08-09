@@ -1,21 +1,24 @@
-[
-	{
-		"name": "PropsDefaultUndefined",
-		"kind": "component",
-		"props": [
-			{
-				"name": "prop1",
-				"type": "string",
-				"optional": true,
-				"description": "Description 1"
-			},
-			{
-				"name": "prop2",
-				"type": "string",
-				"optional": true,
-				"description": "Description 2"
-			}
-		],
-		"sourceLine": 1
-	}
-]
+{
+	"path": "PropsDefaultUndefined.svelte",
+	"declarations": [
+		{
+			"name": "PropsDefaultUndefined",
+			"kind": "component",
+			"sourceLine": 1,
+			"props": [
+				{
+					"name": "prop1",
+					"type": "string",
+					"optional": true,
+					"description": "Description 1"
+				},
+				{
+					"name": "prop2",
+					"type": "string",
+					"optional": true,
+					"description": "Description 2"
+				}
+			]
+		}
+	]
+}

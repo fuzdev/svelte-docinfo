@@ -1,41 +1,46 @@
 {
-	"name": "A",
-	"kind": "type",
-	"typeSignature": "A",
-	"sourceLine": 7,
-	"typeInfo": {
-		"kind": "intersection",
-		"alias": "A",
-		"members": [
-			{
-				"kind": "reference",
-				"name": "B"
+	"path": "input.ts",
+	"declarations": [
+		{
+			"name": "A",
+			"kind": "type",
+			"typeSignature": "A",
+			"sourceLine": 7,
+			"typeInfo": {
+				"kind": "intersection",
+				"alias": "A",
+				"members": [
+					{
+						"kind": "reference",
+						"name": "B"
+					},
+					{
+						"kind": "reference",
+						"name": "C"
+					},
+					{
+						"kind": "object",
+						"text": "{ c: boolean; }"
+					}
+				]
 			},
-			{
-				"kind": "reference",
-				"name": "C"
-			},
-			{
-				"kind": "object",
-				"text": "{ c: boolean; }"
-			}
-		]
-	},
-	"members": [
-		{
-			"name": "a",
-			"kind": "variable",
-			"typeSignature": "string"
-		},
-		{
-			"name": "b",
-			"kind": "variable",
-			"typeSignature": "number"
-		},
-		{
-			"name": "c",
-			"kind": "variable",
-			"typeSignature": "boolean"
+			"members": [
+				{
+					"name": "a",
+					"kind": "variable",
+					"typeSignature": "string"
+				},
+				{
+					"name": "b",
+					"kind": "variable",
+					"typeSignature": "number"
+				},
+				{
+					"name": "c",
+					"kind": "variable",
+					"typeSignature": "boolean"
+				}
+			]
 		}
 	]
 }

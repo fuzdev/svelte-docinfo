@@ -1,65 +1,68 @@
-[
-	{
-		"name": "PropsNullable",
-		"kind": "component",
-		"props": [
-			{
-				"name": "prop1",
-				"type": "null",
-				"optional": true,
-				"description": "Description 1"
-			},
-			{
-				"name": "prop2",
-				"type": "string | null",
-				"optional": true,
-				"description": "Description 2",
-				"typeInfo": {
-					"kind": "union",
-					"members": [
-						{
-							"kind": "intrinsic",
-							"text": "string"
-						},
-						{
-							"kind": "intrinsic",
-							"text": "null"
-						}
-					]
+{
+	"path": "PropsNullable.svelte",
+	"declarations": [
+		{
+			"name": "PropsNullable",
+			"kind": "component",
+			"sourceLine": 1,
+			"props": [
+				{
+					"name": "prop1",
+					"type": "null",
+					"optional": true,
+					"description": "Description 1"
+				},
+				{
+					"name": "prop2",
+					"type": "string | null",
+					"typeInfo": {
+						"kind": "union",
+						"members": [
+							{
+								"kind": "intrinsic",
+								"text": "string"
+							},
+							{
+								"kind": "intrinsic",
+								"text": "null"
+							}
+						]
+					},
+					"optional": true,
+					"description": "Description 2"
+				},
+				{
+					"name": "prop3",
+					"type": "(() => void) | null",
+					"typeInfo": {
+						"kind": "union",
+						"members": [
+							{
+								"kind": "function",
+								"text": "() => void"
+							},
+							{
+								"kind": "intrinsic",
+								"text": "null"
+							}
+						]
+					},
+					"optional": true,
+					"description": "Description 3"
+				},
+				{
+					"name": "prop4",
+					"type": "string",
+					"optional": true,
+					"description": "Description 4"
+				},
+				{
+					"name": "prop5",
+					"type": "() => void",
+					"optional": true,
+					"description": "Description 5"
 				}
-			},
-			{
-				"name": "prop3",
-				"type": "(() => void) | null",
-				"optional": true,
-				"description": "Description 3",
-				"typeInfo": {
-					"kind": "union",
-					"members": [
-						{
-							"kind": "function",
-							"text": "() => void"
-						},
-						{
-							"kind": "intrinsic",
-							"text": "null"
-						}
-					]
-				}
-			},
-			{
-				"name": "prop4",
-				"type": "string",
-				"optional": true,
-				"description": "Description 4"
-			},
-			{
-				"name": "prop5",
-				"type": "() => void",
-				"optional": true,
-				"description": "Description 5"
-			}
-		],
-		"sourceLine": 1
-	}
-]
+			]
+		}
+	]
+}

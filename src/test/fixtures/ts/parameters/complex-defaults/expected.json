@@ -1,29 +1,34 @@
 {
-	"name": "fn",
-	"kind": "function",
-	"docComment": "A function with complex default values.",
-	"typeSignature": "(a?: { b: string; c: number; }, b?: Array<number>, c?: string): string",
-	"sourceLine": 9,
-	"parameters": [
+	"path": "input.ts",
+	"declarations": [
 		{
-			"name": "a",
-			"type": "{ b: string; c: number; }",
-			"description": "Description 1",
-			"defaultValue": "{ b: 'value', c: 1 }"
-		},
-		{
-			"name": "b",
-			"type": "Array<number>",
-			"description": "Description 2",
-			"defaultValue": "[1, 2, 3]"
-		},
-		{
-			"name": "c",
-			"type": "string",
-			"description": "Description 3",
-			"defaultValue": "`template`"
+			"name": "fn",
+			"kind": "function",
+			"docComment": "A function with complex default values.",
+			"typeSignature": "(a?: { b: string; c: number; }, b?: Array<number>, c?: string): string",
+			"sourceLine": 9,
+			"parameters": [
+				{
+					"name": "a",
+					"type": "{ b: string; c: number; }",
+					"description": "Description 1",
+					"defaultValue": "{ b: 'value', c: 1 }"
+				},
+				{
+					"name": "b",
+					"type": "Array<number>",
+					"description": "Description 2",
+					"defaultValue": "[1, 2, 3]"
+				},
+				{
+					"name": "c",
+					"type": "string",
+					"description": "Description 3",
+					"defaultValue": "`template`"
+				}
+			],
+			"returnType": "string",
+			"returnDescription": "Description 4"
 		}
-	],
-	"returnType": "string",
-	"returnDescription": "Description 4"
+	]
 }

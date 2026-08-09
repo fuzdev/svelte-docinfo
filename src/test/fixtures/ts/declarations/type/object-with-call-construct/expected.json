@@ -1,34 +1,39 @@
 {
-	"name": "A",
-	"kind": "type",
-	"typeSignature": "A",
-	"sourceLine": 1,
-	"members": [
+	"path": "input.ts",
+	"declarations": [
 		{
-			"name": "a",
-			"kind": "variable",
-			"typeSignature": "string"
-		},
-		{
-			"name": "(call)",
-			"kind": "function",
-			"typeSignature": "(a: number): void",
-			"parameters": [
+			"name": "A",
+			"kind": "type",
+			"typeSignature": "A",
+			"sourceLine": 1,
+			"members": [
 				{
 					"name": "a",
-					"type": "number"
-				}
-			],
-			"returnType": "void"
-		},
-		{
-			"name": "(construct)",
-			"kind": "constructor",
-			"typeSignature": "(a: string): object",
-			"parameters": [
+					"kind": "variable",
+					"typeSignature": "string"
+				},
 				{
-					"name": "a",
-					"type": "string"
+					"name": "(call)",
+					"kind": "function",
+					"typeSignature": "(a: number): void",
+					"parameters": [
+						{
+							"name": "a",
+							"type": "number"
+						}
+					],
+					"returnType": "void"
+				},
+				{
+					"name": "(construct)",
+					"kind": "constructor",
+					"typeSignature": "(a: string): object",
+					"parameters": [
+						{
+							"name": "a",
+							"type": "string"
+						}
+					]
 				}
 			]
 		}

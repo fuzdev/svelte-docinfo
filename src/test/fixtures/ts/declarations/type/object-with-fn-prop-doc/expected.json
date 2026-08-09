@@ -1,28 +1,33 @@
 {
-	"name": "A",
-	"kind": "type",
-	"typeSignature": "A",
-	"sourceLine": 1,
-	"members": [
+	"path": "input.ts",
+	"declarations": [
 		{
-			"name": "add",
-			"kind": "function",
-			"docComment": "Adds two numbers.",
-			"typeSignature": "(a: number, b: number): number",
-			"parameters": [
+			"name": "A",
+			"kind": "type",
+			"typeSignature": "A",
+			"sourceLine": 1,
+			"members": [
 				{
-					"name": "a",
-					"type": "number",
-					"description": "the first addend"
-				},
-				{
-					"name": "b",
-					"type": "number",
-					"description": "the second addend"
+					"name": "add",
+					"kind": "function",
+					"docComment": "Adds two numbers.",
+					"typeSignature": "(a: number, b: number): number",
+					"parameters": [
+						{
+							"name": "a",
+							"type": "number",
+							"description": "the first addend"
+						},
+						{
+							"name": "b",
+							"type": "number",
+							"description": "the second addend"
+						}
+					],
+					"returnType": "number",
+					"returnDescription": "the sum of `a` and `b`"
 				}
-			],
-			"returnType": "number",
-			"returnDescription": "the sum of `a` and `b`"
+			]
 		}
 	]
 }

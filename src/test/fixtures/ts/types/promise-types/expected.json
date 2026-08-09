@@ -1,24 +1,29 @@
 {
-	"name": "A",
-	"kind": "type",
-	"docComment": "Promise types.",
-	"typeSignature": "A",
-	"sourceLine": 4,
-	"members": [
+	"path": "input.ts",
+	"declarations": [
 		{
-			"name": "a",
-			"kind": "variable",
-			"typeSignature": "Promise<string>"
-		},
-		{
-			"name": "b",
-			"kind": "variable",
-			"typeSignature": "Promise<void>"
-		},
-		{
-			"name": "c",
-			"kind": "variable",
-			"typeSignature": "Promise<{ d: number; }>"
+			"name": "A",
+			"kind": "type",
+			"docComment": "Promise types.",
+			"typeSignature": "A",
+			"sourceLine": 4,
+			"members": [
+				{
+					"name": "a",
+					"kind": "variable",
+					"typeSignature": "Promise<string>"
+				},
+				{
+					"name": "b",
+					"kind": "variable",
+					"typeSignature": "Promise<void>"
+				},
+				{
+					"name": "c",
+					"kind": "variable",
+					"typeSignature": "Promise<{ d: number; }>"
+				}
+			]
 		}
 	]
 }

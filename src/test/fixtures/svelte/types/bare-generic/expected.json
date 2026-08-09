@@ -1,11 +1,14 @@
-[
-	{
-		"name": "TypesBareGeneric",
-		"kind": "component",
-		"intersects": [
-			"HTMLAttributes<HTMLDivElement>"
-		],
-		"acceptsChildren": true,
-		"sourceLine": 1
-	}
-]
+{
+	"path": "TypesBareGeneric.svelte",
+	"declarations": [
+		{
+			"name": "TypesBareGeneric",
+			"kind": "component",
+			"sourceLine": 1,
+			"intersects": [
+				"HTMLAttributes<HTMLDivElement>"
+			],
+			"acceptsChildren": true
+		}
+	]
+}

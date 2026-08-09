@@ -1,14 +1,19 @@
 {
-	"name": "Worker",
-	"kind": "class",
-	"sourceLine": 3,
-	"members": [
+	"path": "input.ts",
+	"declarations": [
 		{
-			"name": "status",
-			"kind": "variable",
-			"docComment": "Worker status.",
-			"typeSignature": "string",
-			"defaultValue": "'idle'"
+			"name": "Worker",
+			"kind": "class",
+			"sourceLine": 3,
+			"members": [
+				{
+					"name": "status",
+					"kind": "variable",
+					"docComment": "Worker status.",
+					"typeSignature": "string",
+					"defaultValue": "'idle'"
+				}
+			]
 		}
 	]
 }

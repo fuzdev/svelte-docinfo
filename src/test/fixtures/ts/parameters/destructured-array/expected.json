@@ -1,15 +1,32 @@
 {
-	"name": "fn",
-	"kind": "function",
-	"docComment": "A function with destructured array parameters.",
-	"typeSignature": "([a, b]: [string, number]): string",
-	"sourceLine": 7,
-	"parameters": [
+	"path": "input.ts",
+	"declarations": [
 		{
-			"name": "__0",
-			"type": "[string, number]"
+			"name": "fn",
+			"kind": "function",
+			"docComment": "A function with destructured array parameters.",
+			"typeSignature": "([a, b]: [string, number]): string",
+			"sourceLine": 7,
+			"parameters": [
+				{
+					"name": "__0",
+					"type": "[string, number]"
+				}
+			],
+			"returnType": "string",
+			"returnDescription": "Description 2"
 		}
 	],
-	"returnType": "string",
-	"returnDescription": "Description 2"
+	"diagnostics": [
+		{
+			"kind": "unknown_param",
+			"file": "src/lib/input.ts",
+			"line": 7,
+			"column": 1,
+			"message": "@param \"a\" on \"fn\" doesn't match any parameter (typo or stale doc?)",
+			"severity": "warning",
+			"paramName": "a",
+			"functionName": "fn"
+		}
+	]
 }

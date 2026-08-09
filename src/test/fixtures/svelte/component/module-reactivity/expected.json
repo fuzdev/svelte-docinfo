@@ -1,21 +1,24 @@
-[
-	{
-		"name": "ComponentModuleReactivity",
-		"kind": "component",
-		"sourceLine": 10
-	},
-	{
-		"name": "a",
-		"kind": "variable",
-		"sourceLine": 8,
-		"typeSignature": "number",
-		"reactivity": "$state"
-	},
-	{
-		"name": "b",
-		"kind": "variable",
-		"sourceLine": 9,
-		"typeSignature": "number",
-		"reactivity": "$state.raw"
-	}
-]
+{
+	"path": "ComponentModuleReactivity.svelte",
+	"declarations": [
+		{
+			"name": "ComponentModuleReactivity",
+			"kind": "component",
+			"sourceLine": 10
+		},
+		{
+			"name": "a",
+			"kind": "variable",
+			"typeSignature": "number",
+			"sourceLine": 8,
+			"reactivity": "$state"
+		},
+		{
+			"name": "b",
+			"kind": "variable",
+			"typeSignature": "number",
+			"sourceLine": 9,
+			"reactivity": "$state.raw"
+		}
+	]
+}

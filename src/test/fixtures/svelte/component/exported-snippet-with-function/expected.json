@@ -1,32 +1,35 @@
-[
-	{
-		"name": "ComponentExportedSnippetWithFunction",
-		"kind": "component",
-		"sourceLine": 4
-	},
-	{
-		"name": "greet",
-		"kind": "snippet",
-		"sourceLine": 6,
-		"typeSignature": "Snippet<[a: string]>",
-		"parameters": [
-			{
-				"name": "a",
-				"type": "string"
-			}
-		]
-	},
-	{
-		"name": "fn1",
-		"kind": "function",
-		"sourceLine": 3,
-		"typeSignature": "(a: string): number",
-		"returnType": "number",
-		"parameters": [
-			{
-				"name": "a",
-				"type": "string"
-			}
-		]
-	}
-]
+{
+	"path": "ComponentExportedSnippetWithFunction.svelte",
+	"declarations": [
+		{
+			"name": "ComponentExportedSnippetWithFunction",
+			"kind": "component",
+			"sourceLine": 4
+		},
+		{
+			"name": "greet",
+			"kind": "snippet",
+			"typeSignature": "Snippet<[a: string]>",
+			"sourceLine": 6,
+			"parameters": [
+				{
+					"name": "a",
+					"type": "string"
+				}
+			]
+		},
+		{
+			"name": "fn1",
+			"kind": "function",
+			"typeSignature": "(a: string): number",
+			"sourceLine": 3,
+			"parameters": [
+				{
+					"name": "a",
+					"type": "string"
+				}
+			],
+			"returnType": "number"
+		}
+	]
+}

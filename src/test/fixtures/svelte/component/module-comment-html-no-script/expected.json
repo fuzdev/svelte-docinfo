@@ -1,8 +1,12 @@
-[
-	{
-		"name": "ComponentModuleCommentHtmlNoScript",
-		"kind": "component",
-		"lang": "js",
-		"sourceLine": 1
-	}
-]
+{
+	"path": "ComponentModuleCommentHtmlNoScript.svelte",
+	"declarations": [
+		{
+			"name": "ComponentModuleCommentHtmlNoScript",
+			"kind": "component",
+			"sourceLine": 1,
+			"lang": "js"
+		}
+	],
+	"moduleComment": "A template-only component with module docs."
+}

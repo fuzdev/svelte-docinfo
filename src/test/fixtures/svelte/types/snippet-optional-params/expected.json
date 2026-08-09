@@ -1,51 +1,54 @@
-[
-	{
-		"name": "TypesSnippetOptionalParams",
-		"kind": "component",
-		"props": [
-			{
-				"name": "content",
-				"type": "Snippet<[a: string, b?: number | undefined]>",
-				"description": "Description 1",
-				"typeInfo": {
-					"kind": "reference",
-					"name": "Snippet",
-					"typeArgs": [
-						{
-							"kind": "tuple",
-							"elements": [
-								{
-									"name": "a",
-									"type": {
-										"kind": "intrinsic",
-										"text": "string"
-									}
-								},
-								{
-									"name": "b",
-									"type": {
-										"kind": "intrinsic",
-										"text": "number"
+{
+	"path": "TypesSnippetOptionalParams.svelte",
+	"declarations": [
+		{
+			"name": "TypesSnippetOptionalParams",
+			"kind": "component",
+			"sourceLine": 1,
+			"props": [
+				{
+					"name": "content",
+					"type": "Snippet<[a: string, b?: number | undefined]>",
+					"typeInfo": {
+						"kind": "reference",
+						"name": "Snippet",
+						"typeArgs": [
+							{
+								"kind": "tuple",
+								"elements": [
+									{
+										"name": "a",
+										"type": {
+											"kind": "intrinsic",
+											"text": "string"
+										}
 									},
-									"optional": true
-								}
-							]
+									{
+										"name": "b",
+										"type": {
+											"kind": "intrinsic",
+											"text": "number"
+										},
+										"optional": true
+									}
+								]
+							}
+						]
+					},
+					"description": "Description 1",
+					"parameters": [
+						{
+							"name": "a",
+							"type": "string"
+						},
+						{
+							"name": "b",
+							"type": "number",
+							"optional": true
 						}
 					]
-				},
-				"parameters": [
-					{
-						"name": "a",
-						"type": "string"
-					},
-					{
-						"name": "b",
-						"type": "number",
-						"optional": true
-					}
-				]
-			}
-		],
-		"sourceLine": 1
-	}
-]
+				}
+			]
+		}
+	]
+}

@@ -1,9 +1,14 @@
 {
-	"name": "fn",
-	"kind": "function",
-	"docComment": "Description.",
-	"typeSignature": "(): string",
-	"sourceLine": 6,
-	"deprecatedMessage": "",
-	"returnType": "string"
+	"path": "input.ts",
+	"declarations": [
+		{
+			"name": "fn",
+			"kind": "function",
+			"docComment": "Description.",
+			"typeSignature": "(): string",
+			"sourceLine": 6,
+			"deprecatedMessage": "",
+			"returnType": "string"
+		}
+	]
 }
