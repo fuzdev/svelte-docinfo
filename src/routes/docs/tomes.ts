@@ -118,8 +118,8 @@ export const tomes: Array<Tome> = [
 			'OverloadJson',
 			'GenericParamJson',
 			'compactReplacer',
-			'findTypeReferences',
-			'buildTypeReferencePatterns'
+			'typeJsonToTokens',
+			'typeJsonToText'
 		]
 	},
 	{

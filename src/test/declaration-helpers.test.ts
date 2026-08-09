@@ -6,20 +6,30 @@
  * - generateImport - generating TypeScript import statements
  * - compactReplacer - compact JSON serialization
  * - isKind - type narrowing for DeclarationJson and MemberJson
+ * - typeJsonToTokens - flattening TypeJson trees into render-ready tokens
+ * - typeJsonToText - the concatenated plain-text form
  */
 
 import { readFileSync } from 'node:fs';
+import { globSync } from 'tinyglobby';
 import { test, assert, describe } from 'vitest';
 import { ZodError } from 'zod';
 
-import { DeclarationJson, MemberJson, type ConstructorMemberJson, ModuleJson } from '$lib/types.ts';
+import {
+	DeclarationJson,
+	MemberJson,
+	type ConstructorMemberJson,
+	ModuleJson,
+	TypeJson
+} from '$lib/types.ts';
 import {
 	getDisplayName,
 	generateImport,
 	compactReplacer,
 	isKind,
-	findTypeReferences,
-	buildTypeReferencePatterns
+	typeJsonToTokens,
+	typeJsonToText,
+	type TypeJsonToken
 } from '$lib/declaration-helpers.ts';
 import { AnalyzeResultJson } from '$lib/analyze-core.ts';
 
@@ -939,198 +949,212 @@ describe('isKind', () => {
 	});
 });
 
-describe('findTypeReferences', () => {
-	const names = new Set(['ModuleJson', 'DeclarationJson', 'MemberJson', 'Foo', 'Bar']);
-
-	describe('basic matching', () => {
-		test('finds single reference', () => {
-			const result = findTypeReferences('Array<ModuleJson>', names);
-			assert.deepStrictEqual(result, ['ModuleJson']);
-		});
-
-		test('finds multiple references', () => {
-			const result = findTypeReferences('Map<DeclarationJson, MemberJson[]>', names);
-			assert.includeMembers(result, ['DeclarationJson', 'MemberJson']);
-			assert.strictEqual(result.length, 2);
-		});
-
-		test('returns empty for primitives only', () => {
-			const result = findTypeReferences('string | number | boolean', names);
-			assert.deepStrictEqual(result, []);
-		});
-
-		test('returns empty for empty string', () => {
-			const result = findTypeReferences('', names);
-			assert.deepStrictEqual(result, []);
-		});
-
-		test('returns empty for empty name set', () => {
-			const result = findTypeReferences('Array<ModuleJson>', new Set());
-			assert.deepStrictEqual(result, []);
-		});
+describe('typeJsonToTokens', () => {
+	test('a bare reference is a single name token', () => {
+		const tokens = typeJsonToTokens({ kind: 'reference', name: 'A' });
+		assert.deepStrictEqual(tokens, [{ kind: 'name', name: 'A' }]);
 	});
 
-	describe('type patterns', () => {
-		test('finds reference in generic type argument', () => {
-			const result = findTypeReferences('Array<Foo[]>', names);
-			assert.deepStrictEqual(result, ['Foo']);
-		});
-
-		test('finds reference in union type', () => {
-			const result = findTypeReferences('string | Foo | null', names);
-			assert.deepStrictEqual(result, ['Foo']);
-		});
-
-		test('finds reference in intersection type', () => {
-			const result = findTypeReferences('Foo & Bar', names);
-			assert.includeMembers(result, ['Foo', 'Bar']);
-			assert.strictEqual(result.length, 2);
-		});
-
-		test('finds reference in nested generics', () => {
-			const result = findTypeReferences('Map<string, Array<ModuleJson>>', names);
-			assert.deepStrictEqual(result, ['ModuleJson']);
-		});
-
-		test('finds reference in function type', () => {
-			const result = findTypeReferences('(a: Foo) => Bar', names);
-			assert.includeMembers(result, ['Foo', 'Bar']);
-			assert.strictEqual(result.length, 2);
-		});
-
-		test('finds reference in object literal type', () => {
-			const result = findTypeReferences('{ value: ModuleJson; count: number }', names);
-			assert.deepStrictEqual(result, ['ModuleJson']);
-		});
-
-		test('finds reference in utility type', () => {
-			const result = findTypeReferences('Pick<Foo, "a" | "b">', names);
-			assert.deepStrictEqual(result, ['Foo']);
-		});
-
-		test('finds reference appearing multiple times', () => {
-			const result = findTypeReferences('Map<Foo, Foo[]>', names);
-			assert.deepStrictEqual(result, ['Foo']);
-		});
+	test('a generic instantiation packs punctuation around recursive args', () => {
+		const node: TypeJson = {
+			kind: 'reference',
+			name: 'Map',
+			typeArgs: [
+				{ kind: 'intrinsic', text: 'string' },
+				{ kind: 'reference', name: 'A' }
+			]
+		};
+		const tokens = typeJsonToTokens(node);
+		assert.deepStrictEqual(tokens, [
+			{ kind: 'name', name: 'Map' },
+			{ kind: 'text', text: '<' },
+			{ kind: 'code', text: 'string' },
+			{ kind: 'text', text: ', ' },
+			{ kind: 'name', name: 'A' },
+			{ kind: 'text', text: '>' }
+		]);
+		assert.strictEqual(typeJsonToText(node), 'Map<string, A>');
 	});
 
-	describe('word boundary correctness', () => {
-		test('does not match substring of longer identifier', () => {
-			const result = findTypeReferences('FooBar', names);
-			assert.deepStrictEqual(result, []);
-		});
-
-		test('does not match prefix of longer identifier', () => {
-			const result = findTypeReferences('FooExtended | BarHelper', names);
-			assert.deepStrictEqual(result, []);
-		});
-
-		test('does not match with underscore prefix', () => {
-			const result = findTypeReferences('_Foo | internal_Bar', names);
-			assert.deepStrictEqual(result, []);
-		});
-
-		test('matches at string boundaries', () => {
-			const result = findTypeReferences('Foo', names);
-			assert.deepStrictEqual(result, ['Foo']);
-		});
-
-		test('matches adjacent to angle brackets', () => {
-			const result = findTypeReferences('<Foo>', names);
-			assert.deepStrictEqual(result, ['Foo']);
-		});
-
-		test('matches adjacent to square brackets', () => {
-			const result = findTypeReferences('Foo[]', names);
-			assert.deepStrictEqual(result, ['Foo']);
-		});
-
-		test('matches adjacent to parentheses', () => {
-			const result = findTypeReferences('(Foo)', names);
-			assert.deepStrictEqual(result, ['Foo']);
-		});
-
-		test('matches adjacent to pipe operator', () => {
-			const result = findTypeReferences('Foo|Bar', names);
-			assert.includeMembers(result, ['Foo', 'Bar']);
-		});
-
-		test('matches adjacent to ampersand operator', () => {
-			const result = findTypeReferences('Foo&Bar', names);
-			assert.includeMembers(result, ['Foo', 'Bar']);
-		});
+	test('union members separate with pipes and terminals stay code tokens', () => {
+		const node: TypeJson = {
+			kind: 'union',
+			members: [
+				{ kind: 'literal', value: 'a', text: '"a"' },
+				{ kind: 'literal', value: 'b', text: '"b"' },
+				{ kind: 'intrinsic', text: 'null' }
+			]
+		};
+		assert.strictEqual(typeJsonToText(node), '"a" | "b" | null');
 	});
 
-	describe('names with regex special characters', () => {
-		test('handles name with dollar sign', () => {
-			const result = findTypeReferences('Array<$state>', new Set(['$state']));
-			assert.deepStrictEqual(result, ['$state']);
-		});
-
-		test('does not match $state inside $stateSnapshot', () => {
-			const result = findTypeReferences('$stateSnapshot<Foo>', new Set(['$state', 'Foo']));
-			assert.deepStrictEqual(result, ['Foo']);
-		});
-
-		test('does not break on regex-special names', () => {
-			const result = findTypeReferences('string', new Set(['str.*']));
-			assert.deepStrictEqual(result, []);
-		});
+	test('an alias-carrying union renders as its bare name', () => {
+		const node: TypeJson = {
+			kind: 'union',
+			alias: 'E',
+			members: [
+				{ kind: 'literal', value: 'a', text: '"a"' },
+				{ kind: 'literal', value: 'b', text: '"b"' }
+			]
+		};
+		assert.deepStrictEqual(typeJsonToTokens(node), [{ kind: 'name', name: 'E' }]);
 	});
 
-	describe('edge cases', () => {
-		test('matches name with digits', () => {
-			const result = findTypeReferences('Array<Vec2>', new Set(['Vec2']));
-			assert.deepStrictEqual(result, ['Vec2']);
-		});
-
-		test('exact match (entire string is one name)', () => {
-			const result = findTypeReferences('Foo', names);
-			assert.deepStrictEqual(result, ['Foo']);
-		});
-
-		test('ignores empty names in set', () => {
-			const result = findTypeReferences('Foo', new Set(['', 'Foo']));
-			assert.deepStrictEqual(result, ['Foo']);
-		});
-
-		test('matches in comma-separated context', () => {
-			const result = findTypeReferences('Foo, Bar', names);
-			assert.includeMembers(result, ['Foo', 'Bar']);
-		});
-
-		test('matches in semicolon-separated context', () => {
-			const result = findTypeReferences('{ a: Foo; b: Bar }', names);
-			assert.includeMembers(result, ['Foo', 'Bar']);
-		});
+	test('a nested alias-carrying union composes without parens', () => {
+		const node: TypeJson = {
+			kind: 'union',
+			members: [
+				{
+					kind: 'union',
+					alias: 'E',
+					members: [{ kind: 'literal', value: 'a', text: '"a"' }]
+				},
+				{ kind: 'intrinsic', text: 'null' }
+			]
+		};
+		assert.strictEqual(typeJsonToText(node), 'E | null');
 	});
 
-	describe('pre-compiled patterns', () => {
-		test('works with buildTypeReferencePatterns', () => {
-			const patterns = buildTypeReferencePatterns(names);
-			const result = findTypeReferences('Map<string, ModuleJson[]>', patterns);
-			assert.deepStrictEqual(result, ['ModuleJson']);
-		});
+	test('function members parenthesize inside unions', () => {
+		const node: TypeJson = {
+			kind: 'union',
+			members: [
+				{ kind: 'function', text: '(x: string) => void' },
+				{ kind: 'intrinsic', text: 'null' }
+			]
+		};
+		assert.strictEqual(typeJsonToText(node), '((x: string) => void) | null');
+	});
 
-		test('same results as set-based call', () => {
-			const patterns = buildTypeReferencePatterns(names);
-			const typeString = 'Foo & Bar | Array<DeclarationJson>';
-			const fromSet = findTypeReferences(typeString, names);
-			const fromPatterns = findTypeReferences(typeString, patterns);
-			assert.deepStrictEqual(fromPatterns, fromSet);
-		});
+	test('arrays wrap union elements in parens and honor readonly', () => {
+		const union: TypeJson = {
+			kind: 'union',
+			members: [
+				{ kind: 'reference', name: 'A' },
+				{ kind: 'intrinsic', text: 'null' }
+			]
+		};
+		assert.strictEqual(typeJsonToText({ kind: 'array', element: union }), '(A | null)[]');
+		assert.strictEqual(
+			typeJsonToText({
+				kind: 'array',
+				element: { kind: 'intrinsic', text: 'string' },
+				readonly: true
+			}),
+			'readonly string[]'
+		);
+	});
 
-		test('pre-compiled patterns skip empty names', () => {
-			const patterns = buildTypeReferencePatterns(new Set(['', 'Foo']));
-			assert.strictEqual(patterns.length, 1);
-			assert.strictEqual(patterns[0]![0], 'Foo');
-		});
+	test('intersections separate with ampersands', () => {
+		const node: TypeJson = {
+			kind: 'intersection',
+			members: [
+				{ kind: 'reference', name: 'A' },
+				{ kind: 'reference', name: 'B' }
+			]
+		};
+		assert.strictEqual(typeJsonToText(node), 'A & B');
+	});
 
-		test('empty patterns returns empty results', () => {
-			const patterns = buildTypeReferencePatterns(new Set());
-			const result = findTypeReferences('Array<Foo>', patterns);
-			assert.deepStrictEqual(result, []);
-		});
+	test('tuples render labels, optional and rest markers', () => {
+		const node: TypeJson = {
+			kind: 'tuple',
+			elements: [
+				{ name: 'a', type: { kind: 'intrinsic', text: 'string' } },
+				{ name: 'b', type: { kind: 'intrinsic', text: 'number' }, optional: true },
+				{
+					name: 'rest',
+					type: { kind: 'array', element: { kind: 'intrinsic', text: 'boolean' } },
+					rest: true
+				}
+			]
+		};
+		assert.strictEqual(typeJsonToText(node), '[a: string, b?: number, ...rest: boolean[]]');
+	});
+
+	test('an unnamed optional tuple element takes the postfix marker', () => {
+		const node: TypeJson = {
+			kind: 'tuple',
+			elements: [{ type: { kind: 'intrinsic', text: 'string' }, optional: true }]
+		};
+		assert.strictEqual(typeJsonToText(node), '[string?]');
+	});
+
+	test('the empty tuple renders bare brackets', () => {
+		assert.strictEqual(typeJsonToText({ kind: 'tuple' }), '[]');
+	});
+
+	test('adjacent punctuation merges into single text tokens', () => {
+		// `A[][]` — the inner array's `[]` and the outer's `[]` share one token
+		const node: TypeJson = {
+			kind: 'array',
+			element: { kind: 'array', element: { kind: 'reference', name: 'A' } }
+		};
+		assert.deepStrictEqual(typeJsonToTokens(node), [
+			{ kind: 'name', name: 'A' },
+			{ kind: 'text', text: '[][]' }
+		]);
+	});
+});
+
+describe('typeJsonToText', () => {
+	test('concatenates tokens into the printed form', () => {
+		assert.strictEqual(
+			typeJsonToText({
+				kind: 'union',
+				members: [
+					{ kind: 'reference', name: 'A' },
+					{ kind: 'intrinsic', text: 'null' }
+				]
+			}),
+			'A | null'
+		);
+	});
+});
+
+describe('typeJsonToTokens over the fixture corpus', () => {
+	// every `typeInfo`/`returnTypeInfo` tree committed in the fixture baselines —
+	// binds the tokenizer to the shapes the analyzer actually emits, so a
+	// projection change the hand-built literals above miss still fails here.
+	// Roots only: nested nodes are exercised through tokenization recursion
+	const collectTrees = (value: unknown, out: Array<unknown>): void => {
+		if (Array.isArray(value)) {
+			for (const v of value) collectTrees(v, out);
+			return;
+		}
+		if (value === null || typeof value !== 'object') return;
+		for (const [key, v] of Object.entries(value)) {
+			if ((key === 'typeInfo' || key === 'returnTypeInfo') && v != null) out.push(v);
+			collectTrees(v, out);
+		}
+	};
+
+	test('every committed tree parses and tokenizes within invariants', () => {
+		const files = globSync('src/test/fixtures/**/expected.json');
+		const trees: Array<unknown> = [];
+		for (const file of files) {
+			collectTrees(JSON.parse(readFileSync(file, 'utf8')), trees);
+		}
+		// the walk finding nothing would pass vacuously — assert a floor
+		assert.isAtLeast(trees.length, 10, 'expected the corpus walk to find trees');
+		for (const raw of trees) {
+			const tree = TypeJson.parse(raw);
+			const tokens = typeJsonToTokens(tree);
+			assert.isAbove(tokens.length, 0);
+			let prev: TypeJsonToken | undefined;
+			for (const token of tokens) {
+				if (token.kind === 'text') {
+					assert.notStrictEqual(token.text, '', 'empty text token');
+					assert.notStrictEqual(prev?.kind, 'text', 'adjacent text tokens must merge');
+				} else if (token.kind === 'name') {
+					assert.notStrictEqual(token.name, '', 'empty name token');
+				} else {
+					assert.notStrictEqual(token.text, '', 'empty code token');
+				}
+				prev = token;
+			}
+			assert.notStrictEqual(typeJsonToText(tree), '', 'empty printed form');
+		}
 	});
 });
 

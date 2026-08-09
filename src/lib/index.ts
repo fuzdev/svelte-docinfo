@@ -66,9 +66,10 @@ export {
 	generateImport,
 	compactReplacer,
 	isKind,
-	findTypeReferences,
-	buildTypeReferencePatterns
+	typeJsonToTokens,
+	typeJsonToText
 } from './declaration-helpers.ts';
+export type { TypeJsonToken } from './declaration-helpers.ts';
 
 // Source types
 
