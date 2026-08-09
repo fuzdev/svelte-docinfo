@@ -130,6 +130,11 @@ export type GatedType = GBox['out'];
 export const gatedSeed: GatedType = { g: '' };
 `;
 
+// a rename re-export of the unrecoverable residue — synthesis re-analyzes the
+// canonical declaration, exercising the `alias_lost` dedupe
+const BARREL = `export { Id as PublicId } from './schemas.js';
+`;
+
 let result: AnalyzeResultJson;
 let schemas: ModuleJson;
 let consumers: ModuleJson;
@@ -145,7 +150,8 @@ beforeAll(async () => {
 	const files: Record<string, string> = {
 		'src/lib/schemas.ts': SCHEMAS,
 		'src/lib/consumers.ts': CONSUMERS,
-		'src/lib/internal/gated.ts': GATED
+		'src/lib/internal/gated.ts': GATED,
+		'src/lib/barrel.ts': BARREL
 	};
 	result = await analyze({
 		sourceFiles: Object.entries(files).map(([path, content]) => ({
@@ -288,7 +294,9 @@ describe('alias_lost diagnostic', () => {
 		// Category, TwinA), the recoverable twins suppressed by type identity
 		// (PointOutput, TwinB), `z.enum` literal unions (Kind), brand
 		// intersections (Uid), array-root shapes outside the predicate (Arr),
-		// and `@nodocs` (Hidden)
+		// and `@nodocs` (Hidden). Exactly-one also locks the synthesis dedupe:
+		// the barrel's rename re-analyzes `Id`'s declaration and must not
+		// warn a second time
 		const warnings = byKind(result.diagnostics, 'alias_lost');
 		assert.deepStrictEqual(
 			warnings.map((w) => w.aliasName),
@@ -299,5 +307,15 @@ describe('alias_lost diagnostic', () => {
 		assert.strictEqual(warning.file, 'src/lib/schemas.ts');
 		assert.ok(warning.line !== undefined && warning.line > 0);
 		assert.include(warning.message, '"Id"');
+	});
+
+	test('the rename synthesis the dedupe guards against actually ran', () => {
+		// keeps the exactly-one assertion above honest: if synthesis ever stops
+		// re-analyzing the canonical, the dedupe would be locking nothing
+		const barrel = result.modules.find((m) => m.path === 'barrel.ts');
+		assert.ok(barrel, 'expected the barrel module');
+		const publicId = barrel.declarations.find((d) => d.name === 'PublicId');
+		assert.ok(publicId, 'expected the synthesized rename alias');
+		assert.deepStrictEqual(publicId.aliasOf, { module: 'schemas.ts', name: 'Id' });
 	});
 });

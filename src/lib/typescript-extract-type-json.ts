@@ -213,6 +213,16 @@ export interface AliasRegistry {
 	 * survive by identity inside the widened union, so the set matches exactly.
 	 */
 	byMemberSet: Map<string, AliasRegistryEntry>;
+	/**
+	 * Alias declarations the `alias_lost` warning has fired for this cycle.
+	 * Re-export synthesis re-analyzes canonical declarations
+	 * (`synthesizeCrossFileAlias`, within-file renames), so one declaration can
+	 * reach `warnAliasLost` from several analyzing sites in a cycle — this set
+	 * dedupes to one warning per declaration. It rides on the registry because
+	 * the registry is the one cycle-scoped object every warn site already holds
+	 * (the warning is gated on a registry being in hand).
+	 */
+	warnedAliasLost: Set<ts.TypeAliasDeclaration>;
 }
 
 /** `ts.Type` with the internal `id` field (absent from the public declarations). */

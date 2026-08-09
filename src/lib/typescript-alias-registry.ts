@@ -226,5 +226,5 @@ export const buildAliasRegistry = (
 		if (key !== undefined) byMemberSet.set(key, entry);
 	}
 
-	return { byType, byMemberSet };
+	return { byType, byMemberSet, warnedAliasLost: new Set() };
 };

@@ -892,12 +892,16 @@ const ALIAS_LOST_RHS_KINDS: ReadonlySet<ts.SyntaxKind> = new Set([
  *   fix worth demanding
  *
  * The caller supplies the explicit `@nodocs` gate. One warning per alias
- * declaration; two non-recoverable aliases over one lost type still warn
+ * declaration per cycle — `registry.warnedAliasLost` dedupes, because
+ * re-export synthesis (`synthesizeCrossFileAlias`, within-file renames)
+ * re-analyzes canonical declarations and would otherwise warn once per
+ * analyzing site. Two non-recoverable aliases over one lost type still warn
  * separately (each names its own declaration site).
  */
 const warnAliasLost = (node: ts.TypeAliasDeclaration, name: string, ctx: ExtractContext): void => {
 	const registry = ctx.aliasRegistry;
 	if (!registry) return;
+	if (registry.warnedAliasLost.has(node)) return;
 	if (!ALIAS_LOST_RHS_KINDS.has(node.type.kind)) return;
 	let type: ts.Type;
 	try {
@@ -909,6 +913,7 @@ const warnAliasLost = (node: ts.TypeAliasDeclaration, name: string, ctx: Extract
 	if (!isAliasLostType(type)) return;
 	if (registry.byType.has(type)) return;
 	if (isLiteralOnlyUnion(type) || isBrandLikeIntersection(type)) return;
+	registry.warnedAliasLost.add(node);
 	const loc = getNodeLocation(node);
 	ctx.diagnostics.push({
 		kind: 'alias_lost',
