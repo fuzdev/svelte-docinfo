@@ -263,7 +263,9 @@
 				<li>
 					<code>"function"</code>: methods and call signatures. Adds <code>parameters</code>,
 					<code>returnType</code>, <code>returnTypeInfo</code>, <code>returnDescription</code>,
-					<code>overloads</code>
+					<code>overloads</code>, and optional <code>defaultValue</code> (from
+					<code>@default</code> — the documented behavior when a callable option is omitted; top-level
+					function declarations never carry one)
 				</li>
 				<li>
 					<code>"constructor"</code>: class constructors and construct signatures. Adds

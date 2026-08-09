@@ -51,9 +51,10 @@ applies — `a?: unknown` now reports `"unknown"` and a bare type parameter
 reports `"E"`), string/numeric-literal member names document unquoted on
 every container kind, `readonly` index signatures keep the modifier, a
 callable property classifies `kind: 'function'` with full signature fields
-(class fields stay `kind: 'variable'`), a generic callable property carries
-`genericParams`, and `@default` on a callable-classified property drops with
-a `misplaced_tag` warning instead of crashing `ModuleJson.parse`.
+(class fields stay `kind: 'variable'`), and a generic callable property
+carries `genericParams`. `@default` on a callable-classified member lands as
+`defaultValue` — function members carry the field (see the function-member
+`defaultValue` changeset in this release).
 
 Breaking: `isSnippetTypeString(typeString)` is replaced by the structural
 `isSnippetType(type, checker)`; an alias over a `Snippet` instantiation now

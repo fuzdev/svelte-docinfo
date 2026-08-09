@@ -63,7 +63,7 @@ export interface MemberJsonBuild {
 	partial?: boolean;
 	/** Whether the member has a `?` token in its declaration. Function and variable members only. */
 	optional?: boolean;
-	/** Default value documented via `@default`. Variable members only. */
+	/** Default value documented via `@default`. Variable and function members only. */
 	defaultValue?: string;
 	/** Structured type. Variable members only; see `TypeJson`. */
 	typeInfo?: TypeJson;

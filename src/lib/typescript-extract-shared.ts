@@ -479,9 +479,9 @@ export const memberNameText = (name: ts.PropertyName): string | undefined =>
  * signatures carry `genericParams` like method signatures do), everything
  * else gets the flat/structured pair (`typeSignature` + `typeInfo`) with the
  * optional-widening strip paired to `optional` like every checker-backed site.
- * TSDoc applies here, after the kind settles — `applyToDeclaration` gates
- * `@default` on `kind === 'variable'`, and a `@default` dropped by the
- * callable classification surfaces as a `misplaced_tag` warning.
+ * TSDoc applies here after the projection; members carry `@default` →
+ * `defaultValue` whatever kind the classification settles on (for a callable
+ * member it documents the behavior used when the callback is omitted).
  *
  * The one projection shared by the structural property sites — type-alias
  * properties and interface property signatures — so the same written shape
@@ -492,7 +492,7 @@ export const memberNameText = (name: ts.PropertyName): string | undefined =>
  *
  * @param annotation - the written type annotation, when one exists (feeds `typeInfo` name recovery)
  * @mutates member - sets kind, doc fields, and either the callable field set or typeSignature/typeInfo
- * @mutates diagnostics - via `populateCallableMember`, plus `misplaced_tag` for a dropped `@default`
+ * @mutates diagnostics - via `populateCallableMember`
  */
 export const populatePropertyMember = (
 	member: MemberJsonBuild,
@@ -526,30 +526,14 @@ export const populatePropertyMember = (
 		if (ts.isFunctionLike(sigDecl) && sigDecl.typeParameters?.length) {
 			member.genericParams = sigDecl.typeParameters.map(parseGenericParam);
 		}
-		if (tsdoc?.defaultValue !== undefined) {
-			// `@default` is schema-allowed on variable members only — surface the
-			// drop like symbol-scope tags on non-primary overloads, not silently
-			const loc = getNodeLocation(paramValidationNode);
-			diagnostics.push({
-				kind: 'misplaced_tag',
-				file: loc.file,
-				line: loc.line,
-				column: loc.column,
-				message: `@default on callable property "${name}" — a function member carries no defaultValue; document the default in the description instead`,
-				severity: 'warning',
-				tagName: 'default',
-				functionName: name
-			});
-		}
 	} else {
 		member.typeSignature = getTypeSignature(propType, checker, optional);
 		const typeInfo = resolveTypeInfo(propType, checker, optional, { writtenNode: annotation });
 		if (typeInfo) member.typeInfo = typeInfo;
 	}
-	// after the kind settles — `applyToDeclaration` gates `@default` on
-	// `kind === 'variable'`. Owning the apply here removes the call-site
-	// ordering footgun outright.
-	applyToDeclaration(member, tsdoc);
+	// owning the apply here keeps projection + docs a single call for both
+	// container kinds
+	applyToDeclaration(member, tsdoc, true);
 };
 
 /**
@@ -864,7 +848,7 @@ export const emitCallOrConstructSignature = (
 
 		const tsdocNode = resolveTsdocNode(sig);
 		const tsdoc = tsdocNode ? parseComment(tsdocNode, tsdocNode.getSourceFile()) : undefined;
-		applyToDeclaration(member, tsdoc);
+		applyToDeclaration(member, tsdoc, true);
 
 		member.parameters = extractSignatureParameters(sig, checker, tsdoc?.params);
 		validateParamKeys(

@@ -142,3 +142,34 @@ describe('parseComment module-comment filtering', () => {
 		assert.notOk(result.nodocs);
 	});
 });
+
+describe('parseComment tag spelling synonyms', () => {
+	const parseFirstStatement = (code: string) => {
+		const sourceFile = ts.createSourceFile(
+			'mod.ts',
+			code,
+			ts.ScriptTarget.Latest,
+			true,
+			ts.ScriptKind.TS
+		);
+		return parseComment(sourceFile.statements[0]!, sourceFile);
+	};
+
+	test('`@defaultValue` (TSDoc) and `@defaultvalue` (JSDoc synonym) parse like `@default`', () => {
+		for (const spelling of ['default', 'defaultValue', 'defaultvalue']) {
+			const result = parseFirstStatement(
+				`/**\n * Docs.\n *\n * @${spelling} 42\n */\nexport let foo = 42;\n`
+			);
+			assert.ok(result, `expected a parsed comment for @${spelling}`);
+			assert.strictEqual(result.defaultValue, '42', `@${spelling} did not populate defaultValue`);
+		}
+	});
+
+	test('`@return` (JSDoc synonym) parses like `@returns`', () => {
+		const result = parseFirstStatement(
+			'/**\n * Docs.\n *\n * @return the answer\n */\nexport const foo = (): number => 42;\n'
+		);
+		assert.ok(result);
+		assert.strictEqual(result.returns, 'the answer');
+	});
+});

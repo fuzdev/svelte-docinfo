@@ -13,8 +13,11 @@
  *
  * ## Tag support
  *
- * Supports a subset of standard TSDoc tags:
+ * Supports the common JSDoc/TSDoc doc tags as used across the TypeScript ecosystem:
  * `@param`, `@returns`, `@throws`, `@example`, `@deprecated`, `@see`, `@since`, `@default`, `@nodocs`.
+ * Where the two standards spell a tag differently, both spellings are accepted:
+ * `@return` (JSDoc synonym) parses like `@returns`, and `@defaultValue` (the TSDoc
+ * spelling, plus JSDoc's lowercase `@defaultvalue` synonym) parses like `@default`.
  *
  * The `@nodocs` tag excludes exports from documentation and flat namespace validation.
  * The declaration is still exported and usable, just not documented.
@@ -23,8 +26,6 @@
  * Uses same format as `@param`: `@mutates key - description of mutation`. The key is
  * unvalidated — typically a parameter name, but compound paths (`this.foo`, `obj.field`)
  * and external state references are accepted as-is.
- *
- * Only `@returns` is supported (not `@return`).
  *
  * The `@see` tag supports multiple formats: plain URLs (`https://...`), `{@link}` syntax, and module names.
  * Relative/absolute path support in `@see` is TBD.
@@ -65,7 +66,7 @@ export interface TsdocParsedComment {
 	text: string;
 	/** Parameter descriptions mapped by parameter name. */
 	params: Record<string, string>;
-	/** Return value description from `@returns`. */
+	/** Return value description from `@returns` (or its JSDoc `@return` synonym). */
 	returns?: string;
 	/** Thrown errors from `@throws`. */
 	throws?: Array<{ type?: string; description: string }>;
@@ -77,7 +78,7 @@ export interface TsdocParsedComment {
 	seeAlso?: Array<string>;
 	/** Version information from `@since`. */
 	since?: string;
-	/** Default value from `@default` tag. */
+	/** Default value from `@default` (or its `@defaultValue`/`@defaultvalue` spellings). */
 	defaultValue?: string;
 	/** Mutation documentation from `@mutates` (non-standard), mapped by parameter name. */
 	mutates?: Record<string, string>;
@@ -121,13 +122,13 @@ const belongsToModuleBlock = (node: ts.JSDoc | ts.JSDocTag): boolean =>
  * Extracts and parses all JSDoc tags including:
  *
  * - `@param` - parameter descriptions
- * - `@returns` - return value description
+ * - `@returns` - return value description (`@return` accepted as a synonym)
  * - `@throws` - error documentation
  * - `@example` - code examples
  * - `@deprecated` - deprecation warnings
  * - `@see` - related references
  * - `@since` - version information
- * - `@default` - default value
+ * - `@default` - default value (`@defaultValue`/`@defaultvalue` accepted as synonyms)
  * - `@mutates` - mutation documentation (non-standard)
  * - `@nodocs` - exclusion flag (non-standard)
  *
@@ -208,7 +209,7 @@ export const parseComment = (
 			if (paramName && tagText) {
 				params[paramName] = cleanTagDescription(tagText);
 			}
-		} else if (tagName === 'returns' && tagText) {
+		} else if ((tagName === 'returns' || tagName === 'return') && tagText) {
 			returns = tagText.trim();
 		} else if (tagName === 'throws' && tagText) {
 			// Try to extract error type and description
@@ -237,7 +238,10 @@ export const parseComment = (
 			}
 		} else if (tagName === 'since' && tagText) {
 			since = tagText.trim();
-		} else if (tagName === 'default' && tagText) {
+		} else if (
+			(tagName === 'default' || tagName === 'defaultValue' || tagName === 'defaultvalue') &&
+			tagText
+		) {
 			defaultValue = tagText.trim();
 		} else if (tagName === 'mutates' && tagText) {
 			// Extract parameter name and description (format: @mutates paramName - description)
@@ -298,11 +302,15 @@ export const hasDocContent = ({ text, params, ...tags }: TsdocParsedComment): bo
  *
  * @param declaration - declaration object to update
  * @param tsdoc - parsed TSDoc comment (if available)
+ * @param isMember - whether `declaration` is a member of a container; function
+ * *members* carry `defaultValue` (the documented behavior when a callback is
+ * omitted) while top-level function declarations never do
  * @mutates declaration - adds docComment, deprecatedMessage, examples, seeAlso, throws, since, mutates, defaultValue fields
  */
 export const applyToDeclaration = (
 	declaration: DeclarationJsonBuild | MemberJsonBuild,
-	tsdoc: TsdocParsedComment | undefined
+	tsdoc: TsdocParsedComment | undefined,
+	isMember: boolean = false
 ): void => {
 	if (!tsdoc) return;
 
@@ -329,10 +337,15 @@ export const applyToDeclaration = (
 	if (tsdoc.mutates && Object.keys(tsdoc.mutates).length > 0) {
 		declaration.mutates = tsdoc.mutates;
 	}
-	// `defaultValue` is schema-allowed on variable declarations/members only;
-	// `z.strictObject` would reject it on other kinds. Component props consume
-	// the parsed `defaultValue` directly in `svelte.ts` (not via this helper).
-	if (tsdoc.defaultValue !== undefined && declaration.kind === 'variable') {
+	// `defaultValue` is schema-allowed on variable declarations/members and
+	// function *members* — never top-level function declarations, overloads, or
+	// constructors; `z.strictObject` would reject it there. Component props
+	// consume the parsed `defaultValue` directly in `svelte.ts` (not via this
+	// helper).
+	if (
+		tsdoc.defaultValue !== undefined &&
+		(declaration.kind === 'variable' || (isMember && declaration.kind === 'function'))
+	) {
 		declaration.defaultValue = tsdoc.defaultValue;
 	}
 };

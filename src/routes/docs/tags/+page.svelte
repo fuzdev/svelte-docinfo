@@ -22,10 +22,15 @@
 		<p>
 			svelte-docinfo extracts TSDoc/JSDoc tags from source comments and surfaces them as structured
 			fields on the <TomeLink slug="output-format">output</TomeLink>. This page lists every tag that
-			is parsed, where its value lands, and the rules that decide which symbol receives it. It's
-			currently a subset of the <a href="https://tsdoc.org/">TSDoc spec</a> with the added custom
-			tags <code>@nodocs</code> and <code>@mutates</code> - please submit issues if it's missing something
-			you need or if any tags are off-spec.
+			is parsed, where its value lands, and the rules that decide which symbol receives it. The set
+			is the common doc tags of <a href="https://jsdoc.app/">JSDoc</a> and the
+			<a href="https://tsdoc.org/">TSDoc spec</a> as used across the TypeScript ecosystem — where
+			the two standards spell a tag differently (JSDoc <code>@default</code> vs TSDoc
+			<code>@defaultValue</code>, JSDoc's <code>@return</code> synonym vs <code>@returns</code>),
+			both spellings are accepted — plus the custom tags <code>@nodocs</code> and
+			<code>@mutates</code>. Inline tags like <code>{`{@link}`}</code> are not processed: they stay verbatim
+			in the extracted text, and rendering them is the consumer's concern. Please submit issues if it's
+			missing something you need or if any tags are off-spec.
 		</p>
 
 		<TomeSection>
@@ -51,7 +56,7 @@
 						<td><code>@returns</code></td>
 						<td>
 							<code>returnDescription</code> on functions, function members, and per-overload
-							<DeclarationLink name="OverloadJson" />. <code>@return</code> is not accepted
+							<DeclarationLink name="OverloadJson" />. <code>@return</code> (JSDoc synonym) parses identically
 						</td>
 					</tr>
 					<tr>
@@ -86,9 +91,12 @@
 					<tr>
 						<td><code>@default</code></td>
 						<td>
-							<code>defaultValue</code> on variable declarations and variable members; falls back
-							for <DeclarationLink name="ComponentPropJson" />.<code>defaultValue</code> when no destructuring
-							default is present
+							<code>defaultValue</code> on variable declarations and on members of both kinds — for
+							a function member it documents the behavior used when the callback is omitted; falls
+							back for <DeclarationLink name="ComponentPropJson" />.<code>defaultValue</code> when
+							no destructuring default is present. Never lands on top-level function declarations or
+							overloads. <code>@defaultValue</code> (TSDoc spelling) and
+							<code>@defaultvalue</code> (JSDoc synonym) parse identically
 						</td>
 					</tr>
 					<tr>
