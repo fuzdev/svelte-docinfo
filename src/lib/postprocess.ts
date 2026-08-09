@@ -42,6 +42,25 @@ const posixifyArray = (
 };
 
 /**
+ * Map `fn` over a module's declarations with structural sharing: when `fn`
+ * returns every declaration identity-unchanged, the module flows through
+ * `===`-equal; otherwise a module copy carries the new declarations array.
+ * The one owner of the copy-iff-changed rule for the phase-2 passes.
+ */
+const mapModuleDeclarations = (
+	mod: ModuleJson,
+	fn: (declaration: DeclarationJson) => DeclarationJson
+): ModuleJson => {
+	let changed = false;
+	const declarations = mod.declarations.map((declaration) => {
+		const next = fn(declaration);
+		if (next !== declaration) changed = true;
+		return next;
+	});
+	return changed ? { ...mod, declarations } : mod;
+};
+
+/**
  * A duplicate declaration with its full metadata and module path.
  */
 export interface DuplicateDeclaration {
@@ -263,8 +282,7 @@ export const mergeReExports = (modules: Array<ModuleJson>): Array<ModuleJson> =>
 		const moduleReExports = reExportMap.get(mod.path);
 		if (!moduleReExports) return mod;
 
-		let changed = false;
-		const declarations = mod.declarations.map((declaration) => {
+		return mapModuleDeclarations(mod, (declaration) => {
 			const reExporters = moduleReExports.get(declaration.name);
 			if (!reExporters?.length) return declaration;
 			// Union with existing entries, dedupe, sort — keeps the merge
@@ -274,10 +292,8 @@ export const mergeReExports = (modules: Array<ModuleJson>): Array<ModuleJson> =>
 			// The set is seeded from the existing entries, so equal size means
 			// no new back-link — keep the original object
 			if (merged.size === declaration.alsoExportedFrom.length) return declaration;
-			changed = true;
 			return { ...declaration, alsoExportedFrom: Array.from(merged).sort(compareStrings) };
 		});
-		return changed ? { ...mod, declarations } : mod;
 	});
 };
 
@@ -318,13 +334,11 @@ export const resolveComponentAliases = (modules: Array<ModuleJson>): Array<Modul
 		}
 	}
 
-	return modules.map((mod) => {
-		let changed = false;
-		const declarations = mod.declarations.map((decl) => {
+	return modules.map((mod) =>
+		mapModuleDeclarations(mod, (decl) => {
 			if (decl.kind !== 'component' || !decl.aliasOf) return decl;
 			const canonical = canonicalByModule.get(decl.aliasOf.module)?.get(decl.aliasOf.name);
 			if (!canonical) return decl;
-			changed = true;
 			// `filled` is freshly created — assigning below mutates the copy, not the input
 			const filled: ComponentDeclarationJson = {
 				...decl,
@@ -360,9 +374,8 @@ export const resolveComponentAliases = (modules: Array<ModuleJson>): Array<Modul
 			}
 			if (canonical.partial) filled.partial = true;
 			return filled;
-		});
-		return changed ? { ...mod, declarations } : mod;
-	});
+		})
+	);
 };
 
 /**
