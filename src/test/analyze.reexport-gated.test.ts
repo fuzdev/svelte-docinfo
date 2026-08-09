@@ -25,6 +25,7 @@ import { join } from 'node:path';
 import { test, assert, describe } from 'vitest';
 
 import { analyze, analyzeFromFiles } from '$lib/analyze.ts';
+import type { AnalyzeResultJson } from '$lib/analyze-core.ts';
 import { createSourceOptions } from '$lib/source-config.ts';
 import { findDuplicates, resolveExportSurface } from '$lib/postprocess.ts';
 
@@ -34,7 +35,7 @@ import { withTestProject } from './test-helpers.ts';
 const analyzeProject = async (
 	files: Record<string, string>,
 	inputPaths?: Array<string>
-): Promise<ReturnType<typeof analyze> extends Promise<infer R> ? R : never> =>
+): Promise<AnalyzeResultJson> =>
 	withTestProject(files, (projectRoot) =>
 		analyze({
 			sourceFiles: (inputPaths ?? Object.keys(files)).map((path) => ({

@@ -338,6 +338,21 @@ const isTypeOnlyLocalExport = (local: {
 	local.statement.isTypeOnly || (ts.isExportSpecifier(local.node) && local.node.isTypeOnly);
 
 /**
+ * Public name for a cross-file re-export: `default` re-keys to the
+ * component's filename-derived name when the canonical is a Svelte component
+ * (its declarations live in the svelte2tsx virtual), matching how the
+ * canonical documents — every other name passes through.
+ */
+const reExportPublicName = (
+	exportName: string,
+	canonicalVirtualFileName: string | undefined,
+	canonicalFile: string
+): string =>
+	exportName === 'default' && (canonicalVirtualFileName?.endsWith(SVELTE_VIRTUAL_SUFFIX) ?? false)
+		? getComponentName(canonicalFile)
+		: exportName;
+
+/**
  * Synthesize a cross-file alias declaration for a renamed or documented
  * same-name re-export.
  *
@@ -354,21 +369,6 @@ const isTypeOnlyLocalExport = (local: {
  * uniformly), the filename-derived component name for Svelte. `sourceLine`
  * is the local export specifier's line, not the canonical's location.
  */
-/**
- * Public name for a cross-file re-export: `default` re-keys to the
- * component's filename-derived name when the canonical is a Svelte component
- * (its declarations live in the svelte2tsx virtual), matching how the
- * canonical documents — every other name passes through.
- */
-const reExportPublicName = (
-	exportName: string,
-	canonicalVirtualFileName: string | undefined,
-	canonicalFile: string
-): string =>
-	exportName === 'default' && (canonicalVirtualFileName?.endsWith(SVELTE_VIRTUAL_SUFFIX) ?? false)
-		? getComponentName(canonicalFile)
-		: exportName;
-
 const synthesizeCrossFileAlias = (
 	publicName: string,
 	aliasedSymbol: ts.Symbol,
@@ -592,13 +592,37 @@ export const analyzeExports = (
 
 					// Check if this is a CROSS-FILE re-export (original in different file)
 					if (originalFileName !== currentFileName) {
-						// The local export statement, shared by the source and external
-						// arms. JSDoc on `/** Doc */ export {...} from './x'` lives on
-						// the ExportDeclaration, not on the canonical's declaration in
-						// the foreign file.
+						// The local export statement, shared by the source, gated, and
+						// external arms. JSDoc on `/** Doc */ export {...} from './x'`
+						// lives on the ExportDeclaration, not on the canonical's
+						// declaration in the foreign file.
 						const local = getLocalExportStatement(exportSymbol, sourceFile);
 						const specifierTypeOnly = local ? isTypeOnlyLocalExport(local) : false;
 						const specifierLine = local ? lineOf(local.node) : undefined;
+						const localTsdoc = local ? parseComment(local.statement, sourceFile) : undefined;
+
+						// Synthesize a full alias declaration under `publicName`
+						// pointing at `module` and record it. Local JSDoc overrides the
+						// canonical's (mirrors within-file branch semantics —
+						// `applyToDeclaration` only overwrites fields the local tsdoc
+						// actually populates, so canonical fields without a local
+						// override are preserved).
+						const pushSynthesizedAlias = (publicName: string, module: string): void => {
+							const decl = synthesizeCrossFileAlias(
+								publicName,
+								aliasedSymbol,
+								originalSource,
+								module,
+								specifierLine,
+								checker,
+								diagnostics,
+								isExternalFile
+							);
+							if (localTsdoc) {
+								applyToDeclaration(decl, localTsdoc);
+							}
+							declarations.push({ declaration: decl, nodocs: !!localTsdoc?.nodocs });
+						};
 
 						// Only track if the original is from a source module (not node_modules)
 						if (isSource(originalFileName, options)) {
@@ -611,29 +635,10 @@ export const analyzeExports = (
 							const immediateName = immediateAlias?.name ?? aliasedSymbol.name;
 							const isRenamed = exportSymbol.name !== immediateName;
 
-							const localTsdoc = local ? parseComment(local.statement, sourceFile) : undefined;
-
 							if (isRenamed) {
 								// Renamed re-export (`export {foo as bar}`, `export {default as
 								// Foo} from './X.svelte'`) — synthesize the alias declaration.
-								const decl = synthesizeCrossFileAlias(
-									exportSymbol.name,
-									aliasedSymbol,
-									originalSource,
-									originalModule,
-									specifierLine,
-									checker,
-									diagnostics,
-									isExternalFile
-								);
-								// Local JSDoc on the export statement overrides the canonical's
-								// (mirrors within-file branch semantics). `applyToDeclaration` only
-								// overwrites fields the local tsdoc actually populates, so canonical
-								// fields without a local override are preserved.
-								if (localTsdoc) {
-									applyToDeclaration(decl, localTsdoc);
-								}
-								declarations.push({ declaration: decl, nodocs: !!localTsdoc?.nodocs });
+								pushSynthesizedAlias(exportSymbol.name, originalModule);
 							} else {
 								// Same-name re-export — track for alsoExportedFrom on the
 								// canonical-for-this-name. The walk lands on the deepest
@@ -672,20 +677,7 @@ export const analyzeExports = (
 								// in the re-exporting module so the local content has a place to live.
 								// Without local content, fall through to the alsoExportedFrom link only.
 								if (localTsdoc || canonicalGated) {
-									const decl = synthesizeCrossFileAlias(
-										reExportName,
-										aliasedSymbol,
-										originalSource,
-										originalModule,
-										specifierLine,
-										checker,
-										diagnostics,
-										isExternalFile
-									);
-									if (localTsdoc) {
-										applyToDeclaration(decl, localTsdoc);
-									}
-									declarations.push({ declaration: decl, nodocs: !!localTsdoc?.nodocs });
+									pushSynthesizedAlias(reExportName, originalModule);
 								}
 
 								// `@nodocs` on a same-name re-export suppresses both the synthesized
@@ -721,21 +713,10 @@ export const analyzeExports = (
 						// re-key to the component's filename-derived name as in the
 						// source arm.
 						if (!isExternalPath(originalFileName)) {
-							const localTsdoc = local ? parseComment(local.statement, sourceFile) : undefined;
-							const decl = synthesizeCrossFileAlias(
+							pushSynthesizedAlias(
 								reExportPublicName(exportSymbol.name, originalSource.fileName, originalFileName),
-								aliasedSymbol,
-								originalSource,
-								extractPath(originalFileName, options),
-								specifierLine,
-								checker,
-								diagnostics,
-								isExternalFile
+								extractPath(originalFileName, options)
 							);
-							if (localTsdoc) {
-								applyToDeclaration(decl, localTsdoc);
-							}
-							declarations.push({ declaration: decl, nodocs: !!localTsdoc?.nodocs });
 							continue;
 						}
 
@@ -757,7 +738,7 @@ export const analyzeExports = (
 						if (!immediateExternalFile || !isExternalPath(immediateExternalFile)) continue;
 						if (!local?.statement.moduleSpecifier) continue;
 						if (!ts.isStringLiteral(local.statement.moduleSpecifier)) continue;
-						if (parseComment(local.statement, sourceFile)?.nodocs) continue;
+						if (localTsdoc?.nodocs) continue;
 						const originalName = ts.isExportSpecifier(local.node)
 							? local.node.propertyName?.text
 							: undefined;
