@@ -33,7 +33,6 @@ import type ts from 'typescript';
 
 import {
 	createAnalysisLanguageService,
-	loadTsconfig,
 	type AnalysisLanguageService,
 	type AnalysisLanguageServiceOptions
 } from './typescript-program.ts';
@@ -238,12 +237,14 @@ export interface AnalysisSession {
  * Options for `createAnalysisSession`.
  *
  * `documentRegistry` flows through to the underlying `LanguageService` only.
- * `tsconfig` and `compilerOptions` flow to both the LS *and* the lazy default
- * `ImportResolver` (`getDefaultResolver` re-invokes `loadTsconfig` with them
- * to produce a merged `ts.CompilerOptions` for module resolution). The two
- * paths share the same merge semantics — user-supplied `compilerOptions`
- * override parsed tsconfig keys, but never bypass the tsconfig.json file
- * requirement.
+ * `tsconfig` and `compilerOptions` drive the LS's construction-time
+ * `loadTsconfig` parse — the session's only tsconfig parse. The lazy default
+ * `ImportResolver` reuses the LS's merged options via `getCompilerOptions()`,
+ * so module resolution and the checker see the same merge semantics —
+ * user-supplied `compilerOptions` override parsed tsconfig keys, but never
+ * bypass the tsconfig.json file requirement. The parse is a construction-time
+ * snapshot: a tsconfig.json edit mid-session is not picked up — create a new
+ * session.
  *
  * `projectRoot` and `virtualFiles` from the LS options shape are excluded —
  * the session derives `projectRoot` from `sourceOptions` and manages
@@ -429,20 +430,13 @@ export const createAnalysisSession = (options: AnalysisSessionOptions): Analysis
 	// has at least one file lacking `dependencies`, the call doesn't supply a
 	// per-call override, and no session-default resolver was configured. Fully
 	// pre-resolved batches skip the construction entirely (see `needsResolver`
-	// gating below). The TS module-resolution cache is kept on the resolver so
-	// consecutive resolves share state.
+	// gating below). Compiler options come from the LS handle — the session's
+	// one tsconfig parse, at LS construction — so the resolver and the checker
+	// see the same merged config. The TS module-resolution cache is kept on
+	// the resolver so consecutive resolves share state.
 	let lazyDefault: ImportResolver | undefined;
 	const getDefaultResolver = (): ImportResolver => {
-		if (lazyDefault) return lazyDefault;
-		const { compilerOptions } = loadTsconfig(
-			{
-				projectRoot: sourceOptions.projectRoot,
-				tsconfig: options.tsconfig,
-				compilerOptions: options.compilerOptions
-			},
-			options.log
-		);
-		lazyDefault = createDefaultResolver(compilerOptions, sourceOptions.projectRoot);
+		lazyDefault ??= createDefaultResolver(ls.getCompilerOptions(), sourceOptions.projectRoot);
 		return lazyDefault;
 	};
 
@@ -661,8 +655,8 @@ export const createAnalysisSession = (options: AnalysisSessionOptions): Analysis
 		// `dependencies` (i.e., needs lex+resolve). For fully pre-resolved
 		// batches the resolver is never consulted, so we skip `pickResolver`
 		// entirely — that avoids constructing the lazy default
-		// (`loadTsconfig` + `createDefaultResolver`) for consumers like the
-		// Gro filer that always hand over pre-resolved deps.
+		// (`createDefaultResolver`) for consumers like the Gro filer that
+		// always hand over pre-resolved deps.
 		const needsResolver = files.some((f) => f.dependencies === undefined);
 		// Normalize the per-call override (bare fn → fresh identity each call).
 		const resolver: ImportResolver | null = needsResolver

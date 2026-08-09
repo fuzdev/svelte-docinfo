@@ -178,6 +178,19 @@ export interface AnalysisLanguageService {
 	 */
 	getProgram(): ts.Program;
 	/**
+	 * The merged compiler options the service was constructed with — parsed
+	 * tsconfig with the caller's `compilerOptions` overrides applied per-key.
+	 *
+	 * Cheap accessor over the construction-time `loadTsconfig` result; prefer
+	 * it over `getProgram().getCompilerOptions()` when only the options are
+	 * needed — `getProgram()` forces the LS to sync and parse every root file.
+	 *
+	 * Treat the returned object as read-only: it is the same reference the LS
+	 * host serves via `getCompilationSettings`, so mutating it would desync
+	 * consumers (e.g., the session's default import resolver) from the checker.
+	 */
+	getCompilerOptions(): ts.CompilerOptions;
+	/**
 	 * Set or replace a file's content (real path or virtual path).
 	 *
 	 * - New file: added to the owned map with version 1.
@@ -465,6 +478,8 @@ export const createAnalysisLanguageService = (
 		return program;
 	};
 
+	const getCompilerOptions = (): ts.CompilerOptions => compilerOptions;
+
 	const setFile = (path: string, entry: VirtualFileEntry): boolean => setFileInternal(path, entry);
 
 	const deleteFile = (path: string): boolean => {
@@ -481,7 +496,7 @@ export const createAnalysisLanguageService = (
 		ownedRoots.clear();
 	};
 
-	return { getProgram, setFile, deleteFile, hasFile, dispose };
+	return { getProgram, getCompilerOptions, setFile, deleteFile, hasFile, dispose };
 };
 
 /**

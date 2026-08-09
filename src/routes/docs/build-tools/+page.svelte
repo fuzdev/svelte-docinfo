@@ -252,9 +252,9 @@ const session = createAnalysisSession({
 		<p>
 			<code>identity</code> is the stable cache token. See the <TomeLink slug="session" /> guide for why
 			it's required and how to choose one. When omitted entirely, the session lazily constructs a TS +
-			tsconfig default on first use, but only if at least one file in any batch lacks
-			<code>dependencies</code>. Fully pre-resolved batches never trigger the default and skip the
-			<code>loadTsconfig</code> call entirely.
+			tsconfig default on first use — reusing the compiler options its <code>LanguageService</code>
+			already parsed — but only if at least one file in any batch lacks
+			<code>dependencies</code>. Fully pre-resolved batches never trigger the default at all.
 		</p>
 	</TomeSection>
 
