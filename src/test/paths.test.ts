@@ -12,7 +12,7 @@
 import { test, assert, describe } from 'vitest';
 import { join } from 'node:path';
 
-import { toPosixPath } from '$lib/paths.ts';
+import { toPosixPath, isAbsolutePosixPath } from '$lib/paths.ts';
 import {
 	createSourceOptions,
 	extractPath,
@@ -70,6 +70,33 @@ describe('toPosixPath', () => {
 
 	test('handles single backslash', () => {
 		assert.strictEqual(toPosixPath('\\'), '/');
+	});
+});
+
+describe('isAbsolutePosixPath', () => {
+	test('accepts rooted paths', () => {
+		assert.isTrue(isAbsolutePosixPath('/home/user/proj/foo.ts'));
+		assert.isTrue(isAbsolutePosixPath('/'));
+	});
+
+	test('accepts drive-qualified paths regardless of host platform', () => {
+		// The reason this isn't `node:path`'s `isAbsolute`: on Linux that reads a
+		// posixified Windows path as relative, and everything here is in POSIX
+		// form by contract.
+		assert.isTrue(isAbsolutePosixPath('C:/proj/foo.ts'));
+		assert.isTrue(isAbsolutePosixPath('d:/proj/foo.ts'));
+	});
+
+	test('rejects relative paths, including the out-of-root form', () => {
+		assert.isFalse(isAbsolutePosixPath('src/lib/foo.ts'));
+		assert.isFalse(isAbsolutePosixPath('./foo.ts'));
+		assert.isFalse(isAbsolutePosixPath('../sibling/foo.ts'));
+		assert.isFalse(isAbsolutePosixPath(''));
+	});
+
+	test('rejects a bare drive letter with no separator', () => {
+		// `C:foo` is drive-relative on Windows, not absolute.
+		assert.isFalse(isAbsolutePosixPath('C:foo.ts'));
 	});
 });
 

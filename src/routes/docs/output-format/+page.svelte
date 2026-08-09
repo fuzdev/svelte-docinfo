@@ -145,7 +145,23 @@
 					<code>name === "default"</code> (see Re-exports below)
 				</li>
 				<li><code>docComment</code>: JSDoc comment text</li>
-				<li><code>typeSignature</code>: full type as a string</li>
+				<li>
+					<code>typeSignature</code>: full type as a string. Where TypeScript embeds a module
+					reference — <code>typeof import("…")</code>, from an <code>import()</code> expression or a
+					<code>typeof</code>
+					over a namespace import — the path is normalized so output never carries an absolute path: a
+					module in this output is named by its
+					<code>ModuleJson.path</code>, so the string doubles as a lookup key (<code
+						>modules.find((m) =&gt; m.path === s)</code
+					>; a miss means it isn't a module here). A package is named by its path below
+					<code>node_modules/</code>, and everything else is relative to the project root —
+					root-relative for an in-project file that emits no module,
+					<code>../sibling/x.ts</code> for one outside it. The same applies to
+					<code>returnType</code>, member type signatures, and the <code>text</code>/<code
+						>name</code
+					>
+					of a <code>typeInfo</code> node.
+				</li>
 				<li>
 					<code>typeInfo</code>: structured <DeclarationLink name="TypeJson" /> tree beside the flat string
 					— on variable and type-alias declarations (plus type-alias, interface, and class members, component

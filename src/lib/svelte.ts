@@ -1215,7 +1215,9 @@ export const analyzeSvelteModule = (
 		diagnostics.push({
 			kind: 'module_skipped',
 			file: modulePath,
-			message: `Virtual file not found in program: ${virtualFile.virtualPath}`,
+			// `virtualPath` is absolute and carries the svelte2tsx suffix; `file`
+			// already holds the public path, so the message uses it instead.
+			message: `Virtual file not found in program: ${modulePath}`,
 			severity: 'warning',
 			reason: 'not_in_program'
 		});
