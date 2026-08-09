@@ -24,7 +24,7 @@
 import { join } from 'node:path';
 import { test, assert, describe } from 'vitest';
 
-import { analyze } from '$lib/analyze.ts';
+import { analyze, analyzeFromFiles } from '$lib/analyze.ts';
 import { createSourceOptions } from '$lib/source-config.ts';
 import { findDuplicates, resolveExportSurface } from '$lib/postprocess.ts';
 
@@ -83,6 +83,29 @@ describe('re-exports from gated internal modules', () => {
 		assert.strictEqual(secret.typeSignature, 'number');
 		assert.deepStrictEqual(secret.aliasOf, { module: 'internal/helper.ts', name: 'secret' });
 		assert.deepStrictEqual(api?.externalReExports, []);
+	});
+
+	test('a same-name chain through a gated rename hop synthesizes at the public site', async () => {
+		// The deep canonical (base.ts) is source, but the deepest *same-named*
+		// symbol lives in the gated hop (`export {y as x}`), so a link-only
+		// same-name edge has no declaration to land on — the name would vanish.
+		// Synthesis fires instead; `aliasOf` points at the deep canonical, a
+		// real declaration.
+		const result = await analyzeProject({
+			'src/lib/base.ts': `/** The width. */\nexport const y: number = 1;`,
+			'src/lib/internal/helper.ts': `export { y as x } from '../base.ts';`,
+			'src/lib/api.ts': `export { x } from './internal/helper.ts';`
+		});
+		const api = result.modules.find((m) => m.path === 'api.ts');
+		assert.ok(api);
+		const x = api.declarations.find((d) => d.name === 'x');
+		assert(x?.kind === 'variable');
+		assert.strictEqual(x.typeSignature, 'number');
+		assert.strictEqual(x.docComment, 'The width.');
+		assert.deepStrictEqual(x.aliasOf, { module: 'base.ts', name: 'y' });
+		// No edge: the walk canonical is gated, so there is nothing to back-link.
+		assert.deepStrictEqual(api.reExports, []);
+		assert.deepStrictEqual(api.externalReExports, []);
 	});
 
 	test('local JSDoc overrides the canonical docs; @nodocs suppresses', async () => {
@@ -148,8 +171,8 @@ describe('re-exports from gated internal modules', () => {
 			'src/lib/api.ts': `export { default as Widget } from './internal/Widget.svelte';`
 		};
 		// The internal component is passed as an input so its virtual exists in
-		// the program (owned context) — matching session context-closure
-		// behavior; one-shot resolution can't parse raw `.svelte` from disk.
+		// the program (owned context) — `analyze()` runs without the context
+		// closure, and one-shot resolution can't parse raw `.svelte` from disk.
 		const result = await analyzeProject(files);
 		const api = result.modules.find((m) => m.path === 'api.ts');
 		const widget = api?.declarations.find((d) => d.name === 'Widget');
@@ -161,6 +184,26 @@ describe('re-exports from gated internal modules', () => {
 			result.modules.map((m) => m.path),
 			['api.ts']
 		);
+	});
+
+	test('analyzeFromFiles resolves a gated Svelte re-export via the context closure', async () => {
+		// Discovery excludes the internal component, so the closure is the only
+		// way its virtual enters the program — without it the re-export
+		// degrades to an empty `kind: 'variable'` husk with no diagnostic.
+		const files: Record<string, string> = {
+			'src/lib/internal/Widget.svelte': `<script lang="ts">\n\tlet { label }: { label: string } = $props();\n</script>\n<div>{label}</div>`,
+			'src/lib/api.ts': `export { default as Widget } from './internal/Widget.svelte';`
+		};
+		const result = await withTestProject(files, (projectRoot) =>
+			analyzeFromFiles({ projectRoot, discovery: 'glob' })
+		);
+		assert.deepStrictEqual(
+			result.modules.map((m) => m.path),
+			['api.ts']
+		);
+		const widget = result.modules[0]?.declarations.find((d) => d.name === 'Widget');
+		assert(widget?.kind === 'component');
+		assert.deepStrictEqual(widget.aliasOf, { module: 'internal/Widget.svelte', name: 'Widget' });
 	});
 
 	test('genuinely external re-exports still record externalReExports', async () => {

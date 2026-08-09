@@ -36,7 +36,10 @@ part of the public surface. Three coordinated changes support the convention
 Plus the follow-through that keeps the convention live end-to-end:
 
 - **Sessions own the context closure** — new `AnalysisSessionOptions.contextClosure`
-  (default `true`; the one-shot wrappers opt out): after each ingest batch the
+  (default `true`; `analyze()` opts out — `analyzeFromFiles` and the CLI keep
+  it on, since a gated `.svelte` dependency's virtual exists only via the
+  closure and its re-export would otherwise degrade to an empty husk): after
+  each ingest batch the
   session reads from disk the in-root non-source files the batch's imports
   resolved to (transitively; `node_modules`/dot-dir segments and analyzer-less
   files excluded) and owns them as version-tracked context files. Output is
@@ -55,9 +58,11 @@ Plus the follow-through that keeps the convention live end-to-end:
   gate. Previously `export { x } from './internal/helper.js'` landed in
   `externalReExports` with a relative path as its "package" specifier and the
   public name vanished from docs; now the re-exporting module synthesizes a
-  full alias declaration (same-name, renamed, and import-then-export forms;
-  namespace re-exports classify as namespaces; star exports from gated
-  modules land in `starExports` and surface as `unresolvedStarExports`).
+  full alias declaration (same-name, renamed, and import-then-export forms —
+  including a same-name chain through a gated rename hop over a source
+  canonical; namespace re-exports classify as namespaces; star exports from
+  gated modules land in `starExports` and surface as
+  `unresolvedStarExports`).
   `aliasOf` is kept for provenance and duplicate dedupe; its `module` may
   reference a module absent from output — a documented margin.
 - **Fallback-array exports values parse** — `parsePackageExports` takes the

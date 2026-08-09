@@ -214,8 +214,9 @@ const flattenConditions = (value: unknown, prefix?: string): Record<string, stri
 /**
  * Split a pattern-ish string at its first `*` — the one star rule shared by
  * exports-key matching, glob widening, and specifier reconstruction. Any
- * further `*` sits in `after` and is treated literally, matching Node's
- * handling of exports keys. Returns `null` for a starless string.
+ * further `*` sits in `after` and is matched literally — Node instead skips
+ * multi-star keys outright, but a literal-`*` trailer matches no real
+ * specifier, so the outcomes coincide. Returns `null` for a starless string.
  */
 const splitAtFirstStar = (s: string): { before: string; after: string } | null => {
 	const star = s.indexOf('*');

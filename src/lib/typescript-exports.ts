@@ -656,11 +656,22 @@ export const analyzeExports = (
 									canonicalFile
 								);
 
+								// The walk canonical can be gated even though the deep
+								// canonical is source — a chain through a gated *rename* hop
+								// (`internal/helper.ts: export {y as x}` over a source
+								// `base.ts`). No declaration exists under the walk canonical's
+								// key, so link-only would drop the name entirely; synthesize
+								// unconditionally like the gated arm below (mirrors the
+								// namespace classifier's `canonicalGated`). `aliasOf` points at
+								// the deep canonical — a real declaration.
+								const canonicalGated =
+									!isExternalPath(canonicalFile) && !isSource(canonicalFile, options);
+
 								// Position 3 (content-conditional synthesis): if the local export
 								// statement carries JSDoc or @nodocs, synthesize an alias declaration
 								// in the re-exporting module so the local content has a place to live.
 								// Without local content, fall through to the alsoExportedFrom link only.
-								if (localTsdoc) {
+								if (localTsdoc || canonicalGated) {
 									const decl = synthesizeCrossFileAlias(
 										reExportName,
 										aliasedSymbol,
@@ -671,8 +682,10 @@ export const analyzeExports = (
 										diagnostics,
 										isExternalFile
 									);
-									applyToDeclaration(decl, localTsdoc);
-									declarations.push({ declaration: decl, nodocs: !!localTsdoc.nodocs });
+									if (localTsdoc) {
+										applyToDeclaration(decl, localTsdoc);
+									}
+									declarations.push({ declaration: decl, nodocs: !!localTsdoc?.nodocs });
 								}
 
 								// `@nodocs` on a same-name re-export suppresses both the synthesized

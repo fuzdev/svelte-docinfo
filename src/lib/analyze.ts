@@ -86,8 +86,11 @@ export const analyze = async (options: AnalyzeOptions): Promise<AnalyzeResultJso
 		sourceOptions: options.sourceOptions,
 		log: options.log,
 		resolveImport: options.resolveImport,
-		// One-shot: no watch loop, so context files are read exactly once via
-		// the LS disk fallback either way — closure ownership is pure overhead.
+		// One-shot with caller-provided inputs: no watch loop, so TS/JS context
+		// is read exactly once via the LS disk fallback either way — closure
+		// ownership is pure overhead. Gated *Svelte* dependencies are the
+		// exception (the LS can't serve raw `.svelte` from disk); callers pass
+		// them in `sourceFiles` — the query gate keeps them out of output.
 		contextClosure: false
 	});
 	try {
@@ -266,18 +269,25 @@ export const analyzeFromFiles = async (
 	const session: AnalysisSession = createAnalysisSession({
 		sourceOptions: resolvedSourceOptions,
 		log,
-		resolveImport: sessionResolver,
-		// One-shot: no watch loop, so context files are read exactly once via
-		// the LS disk fallback either way — closure ownership is pure overhead.
-		contextClosure: false
+		resolveImport: sessionResolver
+		// Closure stays on (the session default) despite being one-shot:
+		// discovery excludes gated files, so a gated `.svelte` dependency
+		// (`export {default as X} from './internal/X.svelte'`) exists nowhere
+		// else — the LS can't serve raw `.svelte` from disk, only the closure's
+		// ingest runs svelte2tsx. TS/JS context would be covered by the disk
+		// fallback either way; the closure's extra reads are the price of the
+		// Svelte case resolving.
 	});
 	let result: AnalyzeResultJson;
 	try {
-		const ingest = await session.setFiles(discoveredFiles);
+		await session.setFiles(discoveredFiles);
 		const query = session.query({ onDuplicates, log });
 		result = {
 			modules: query.modules,
-			diagnostics: [...ingest.diagnostics, ...query.diagnostics]
+			// Cumulative rather than the batch return: context-closure ingest
+			// diagnostics (e.g. a gated Svelte file whose transform failed)
+			// live only on entries.
+			diagnostics: [...session.allIngestDiagnostics(), ...query.diagnostics]
 		};
 	} finally {
 		session.dispose();

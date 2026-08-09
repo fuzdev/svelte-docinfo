@@ -310,10 +310,16 @@ export interface AnalysisSessionOptions extends Omit<
 	 * `setFiles` results stay keyed by the caller's input IDs. Unreadable
 	 * candidates are skipped silently (the LS disk fallback covers them).
 	 *
-	 * Set `false` for one-shot use (the internal `analyze()` /
-	 * `analyzeFromFiles()` wrappers do): without a watch loop, disk-resolved
-	 * context is read exactly once anyway, so closure ownership is pure
-	 * overhead.
+	 * Context files are never evicted: once owned they stay owned (and, under
+	 * the Vite plugin, watched) for the session's lifetime, even when no
+	 * importer remains.
+	 *
+	 * Set `false` only when the caller supplies every file the checker needs
+	 * (the internal `analyze()` wrapper does): TS/JS context is covered by the
+	 * LS disk fallback either way, but a gated `.svelte` dependency resolves
+	 * only through the closure's ingest (svelte2tsx runs there — the disk
+	 * fallback serves raw Svelte the checker can't parse), so
+	 * `analyzeFromFiles()` keeps the closure on despite being one-shot.
 	 */
 	contextClosure?: boolean;
 	/** Optional logger for session-level messages. */
