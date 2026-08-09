@@ -972,11 +972,22 @@ export const createAnalysisSession = (options: AnalysisSessionOptions): Analysis
 			);
 		}
 		const sourceFiles: Array<SourceFileInfo> = [];
+		const contextSvelteFiles: Array<SourceFileInfo> = [];
 		const svelteVirtualFiles = new Map<string, SvelteVirtualFile>();
 		const transformFailedIds = new Set<string>();
 
 		for (const [id, entry] of owned) {
-			if (!emittedIds.has(id)) continue;
+			if (!emittedIds.has(id)) {
+				// Gated Svelte file with a good virtual (context closure, or a
+				// caller-pushed input): offered to `analyzeCore` as canonical-fill
+				// context so a public re-export of a gated component documents
+				// with props. Analyzed only when referenced; never emits.
+				if (entry.virtual && !entry.transformFailed) {
+					contextSvelteFiles.push({ id, content: entry.content, dependencies: [] });
+					svelteVirtualFiles.set(id, entry.virtual);
+				}
+				continue;
+			}
 			const filteredDeps = entry.unfilteredDeps.filter((d) => emittedIds.has(d));
 			sourceFiles.push({ id, content: entry.content, dependencies: filteredDeps });
 			if (entry.virtual) svelteVirtualFiles.set(id, entry.virtual);
@@ -997,6 +1008,7 @@ export const createAnalysisSession = (options: AnalysisSessionOptions): Analysis
 			program,
 			svelteVirtualFiles,
 			transformFailedIds,
+			contextSvelteFiles,
 			onDuplicates: opts?.onDuplicates,
 			log
 		});

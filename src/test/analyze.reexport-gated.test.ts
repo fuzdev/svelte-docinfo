@@ -165,7 +165,7 @@ describe('re-exports from gated internal modules', () => {
 		assert.deepStrictEqual(api?.externalReExports, []);
 	});
 
-	test('a gated Svelte component re-export synthesizes the component placeholder', async () => {
+	test('a gated Svelte component re-export documents with filled props', async () => {
 		const files = {
 			'src/lib/internal/Widget.svelte': `<script lang="ts">\n\tlet { label }: { label: string } = $props();\n</script>\n<div>{label}</div>`,
 			'src/lib/api.ts': `export { default as Widget } from './internal/Widget.svelte';`
@@ -179,6 +179,11 @@ describe('re-exports from gated internal modules', () => {
 		assert(widget?.kind === 'component');
 		assert.deepStrictEqual(widget.aliasOf, { module: 'internal/Widget.svelte', name: 'Widget' });
 		assert.deepStrictEqual(api?.externalReExports, []);
+		// The gated canonical is analyzed as fill context, so the alias carries
+		// its props despite the canonical module emitting nothing.
+		assert.strictEqual(widget.props.length, 1);
+		assert.strictEqual(widget.props[0]?.name, 'label');
+		assert.strictEqual(widget.props[0]?.type, 'string');
 		// The gated canonical emits no module.
 		assert.deepStrictEqual(
 			result.modules.map((m) => m.path),
@@ -204,6 +209,10 @@ describe('re-exports from gated internal modules', () => {
 		const widget = result.modules[0]?.declarations.find((d) => d.name === 'Widget');
 		assert(widget?.kind === 'component');
 		assert.deepStrictEqual(widget.aliasOf, { module: 'internal/Widget.svelte', name: 'Widget' });
+		// Closure-owned canonical fills the alias end-to-end from disk discovery.
+		assert.strictEqual(widget.props.length, 1);
+		assert.strictEqual(widget.props[0]?.name, 'label');
+		assert.strictEqual(widget.props[0]?.type, 'string');
 	});
 
 	test('genuinely external re-exports still record externalReExports', async () => {

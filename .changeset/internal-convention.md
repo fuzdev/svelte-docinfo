@@ -64,7 +64,11 @@ Plus the follow-through that keeps the convention live end-to-end:
   gated modules land in `starExports` and surface as
   `unresolvedStarExports`).
   `aliasOf` is kept for provenance and duplicate dedupe; its `module` may
-  reference a module absent from output — a documented margin.
+  reference a module absent from output — a documented margin. Gated Svelte
+  component re-exports document with full props: gated Svelte virtuals are
+  analyzed as canonical-fill context at query time (`resolveComponentAliases`
+  gains an optional lookup-only `contextModules` argument), so the filled
+  alias tracks internal component edits live under the Vite plugin.
 - **Fallback-array exports values parse** — `parsePackageExports` takes the
   first usable element of an array target, so array-valued keys are real
   positive entries: discovered directly, and never out-matched by a broader

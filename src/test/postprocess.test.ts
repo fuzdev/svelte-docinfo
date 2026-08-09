@@ -791,6 +791,34 @@ describe('mergeReExports', () => {
 			);
 		});
 
+		test('contextModules extend the canonical lookup without joining the output', () => {
+			// The gated-canonical case: the canonical component's module is
+			// analyzed as fill context only (the `internal/` convention).
+			const gatedCanonical = m({
+				path: 'internal/A.svelte',
+				declarations: [{ name: 'A', kind: 'component', props: [{ name: 'p', type: 'string' }] }]
+			});
+			const alias = m({
+				path: 'index.ts',
+				declarations: [
+					{ name: 'B', kind: 'component', aliasOf: { module: 'internal/A.svelte', name: 'A' } }
+				]
+			});
+
+			const resolved = resolveComponentAliases([alias], [gatedCanonical]);
+
+			// Output carries only the input modules — the context module never emits
+			assert.deepStrictEqual(
+				resolved.map((mod) => mod.path),
+				['index.ts']
+			);
+			const filled = resolved[0]!.declarations[0]!;
+			assert(filled.kind === 'component');
+			const canonicalDecl = gatedCanonical.declarations[0]!;
+			assert(canonicalDecl.kind === 'component');
+			assert.strictEqual(filled.props, canonicalDecl.props);
+		});
+
 		test('does not mutate the input modules', () => {
 			const canonical = m({
 				path: 'src/A.svelte',

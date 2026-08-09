@@ -154,6 +154,50 @@ describe('session context closure', () => {
 		});
 	});
 
+	test('an internal component edit updates the filled re-export alias live', async () => {
+		const files: Record<string, string> = {
+			'src/lib/internal/Widget.svelte': `<script lang="ts">\n\tlet { label }: { label: string } = $props();\n</script>\n<div>{label}</div>`,
+			'src/lib/api.ts': `export { default as Widget } from './internal/Widget.svelte';`
+		};
+		await withTestProject(files, async (projectRoot) => {
+			const session = createAnalysisSession({
+				sourceOptions: createSourceOptions(projectRoot)
+			});
+			try {
+				const apiId = join(projectRoot, 'src/lib/api.ts');
+				const widgetId = join(projectRoot, 'src/lib/internal/Widget.svelte');
+				await session.setFiles([{ id: apiId, content: files['src/lib/api.ts']! }]);
+
+				const before = session.query();
+				const widgetBefore = before.modules[0]?.declarations.find((d) => d.name === 'Widget');
+				assert(widgetBefore?.kind === 'component');
+				assert.deepStrictEqual(
+					widgetBefore.props.map((p) => [p.name, p.type]),
+					[['label', 'string']]
+				);
+
+				// Watcher-style edit on the closure-owned internal component.
+				await session.setFile({
+					id: widgetId,
+					content: `<script lang="ts">\n\tlet { label, count }: { label: string; count: number } = $props();\n</script>\n<div>{label}{count}</div>`
+				});
+
+				const after = session.query();
+				const widgetAfter = after.modules[0]?.declarations.find((d) => d.name === 'Widget');
+				assert(widgetAfter?.kind === 'component');
+				assert.deepStrictEqual(
+					widgetAfter.props.map((p) => [p.name, p.type]),
+					[
+						['label', 'string'],
+						['count', 'number']
+					]
+				);
+			} finally {
+				session.dispose();
+			}
+		});
+	});
+
 	test('a gated Svelte dependency is ingested with its virtual', async () => {
 		const files: Record<string, string> = {
 			'src/lib/internal/Widget.svelte': `<script lang="ts" module>\n\texport type Size = 'sm' | 'lg';\n</script>\n<div>widget</div>`,
