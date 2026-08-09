@@ -19,6 +19,11 @@
  * - `throwOnDuplicates` — convenience callback paired with `OnDuplicates`.
  * - `normalizeDiagnosticPaths` — boundary helper for build-tool integrations
  *   that bypass the session and collect their own diagnostics.
+ * - `normalizeModulePathsInTypes` — output pass rewriting the absolute module
+ *   paths the checker embeds in printed type text. Runs inside `analyzeCore`;
+ *   exposed for the same reason as `normalizeDiagnosticPaths`, so a caller
+ *   assembling modules itself through `analyzeModule` can meet the same
+ *   output contract.
  *
  * @internal — module split is implementation detail; consumers go through
  * `analyze.ts` / `session.ts` for the stable surface.
@@ -26,6 +31,7 @@
  * @module
  */
 
+import { relative } from 'node:path';
 import ts from 'typescript';
 import { z } from 'zod';
 
@@ -35,9 +41,14 @@ import { Diagnostic } from './diagnostics.ts';
 import type { AnalysisLog } from './log.ts';
 import { analyzeTypescriptModule } from './typescript-exports.ts';
 import { analyzeSvelteModule, type SvelteVirtualFile } from './svelte.ts';
-import { stripVirtualSuffix, type SourceFileInfo, getComponentName } from './source.ts';
+import {
+	stripVirtualSuffix,
+	SVELTE_VIRTUAL_SUFFIX,
+	type SourceFileInfo,
+	getComponentName
+} from './source.ts';
 import { type ModuleSourceOptions, extractPath, extractDependencies } from './source-config.ts';
-import { toPosixPath } from './paths.ts';
+import { toPosixPath, isAbsolutePosixPath } from './paths.ts';
 import {
 	sortModules,
 	findDuplicates,
@@ -311,7 +322,10 @@ export const analyzeModule = (
 			diagnostics.push({
 				kind: 'module_skipped',
 				file: modulePath,
-				message: `Could not get source file from program: ${sourceFile.id}`,
+				// `file` already carries the path, so the message doesn't repeat the
+				// absolute id. The log line below keeps it — logs are for
+				// developers, diagnostics ship.
+				message: `Could not get source file from program: ${modulePath}`,
 				severity: 'warning',
 				reason: 'not_in_program'
 			});
@@ -342,7 +356,7 @@ export const analyzeModule = (
 		diagnostics.push({
 			kind: 'module_skipped',
 			file: modulePath,
-			message: `No analyzer for file type: ${sourceFile.id}`,
+			message: `No analyzer for file type: ${modulePath}`,
 			severity: 'warning',
 			reason: 'no_analyzer'
 		});
@@ -540,6 +554,7 @@ export const analyzeCore = (inputs: AnalyzeCoreInputs): AnalyzeResultJson => {
 		dispatchOnDuplicates(onDuplicates, duplicates, log);
 	}
 
+	normalizeModulePathsInTypes(sortedModules, sourceOptions, program);
 	normalizeDiagnosticPaths(diagnostics, sourceOptions.projectRoot);
 
 	return {
@@ -549,36 +564,323 @@ export const analyzeCore = (inputs: AnalyzeCoreInputs): AnalyzeResultJson => {
 };
 
 /**
- * Normalize `Diagnostic.file` to project-root-relative form, in place.
+ * Normalize the paths a `Diagnostic` carries to project-root-relative form,
+ * in place.
  *
  * Producers inside the analysis pipeline can write absolute paths or virtual
  * paths (svelte2tsx output like `Foo.svelte.__svelte2tsx__.ts`). This pass
  * collapses both to the public contract: a path relative to `projectRoot`
- * with no leading slash and no `./` prefix.
+ * with no leading slash and no `./` prefix. A file outside the root gets the
+ * `../` form, matching module paths in printed type text — and making the
+ * documented "rejoin with `projectRoot` to get an absolute path" actually
+ * hold for it, which dropping the leading slash did not.
+ *
+ * `message` gets the same treatment as `file`, by textual substitution. A
+ * message is free-form, and not every path in one comes from a field this
+ * pass can see — `import_parse_failed` wraps an es-module-lexer error that
+ * embeds the file name itself. Scrubbing here means the contract holds for
+ * the whole record rather than one field, so a producer can't reintroduce an
+ * absolute path through prose.
  *
  * Exposed for build-tool integrations that bypass the session and collect
  * their own discovery/dep diagnostics — they need the same normalization to
  * match the public contract.
  *
- * @mutates diagnostics — rewrites each diagnostic's `file` field
+ * @mutates diagnostics — rewrites each diagnostic's `file` and `message`
  */
 export const normalizeDiagnosticPaths = (
 	diagnostics: Array<Diagnostic>,
 	projectRoot: string
 ): void => {
-	const prefix = projectRoot.endsWith('/') ? projectRoot : projectRoot + '/';
+	const root = projectRoot.endsWith('/') ? projectRoot.slice(0, -1) : projectRoot;
+	const prefix = root + '/';
 	for (const d of diagnostics) {
+		if (d.message.includes(prefix) || d.message.includes(SVELTE_VIRTUAL_SUFFIX)) {
+			d.message = d.message.split(prefix).join('').split(SVELTE_VIRTUAL_SUFFIX).join('');
+		}
 		// Posixify so producers that emitted native-separator paths (e.g., a
 		// custom discovery layer building `path.relative` results on Windows)
 		// match the POSIX prefix derived from the normalized projectRoot.
 		let file = toPosixPath(stripVirtualSuffix(d.file));
 		if (file.startsWith(prefix)) {
 			file = file.slice(prefix.length);
-		} else if (file.startsWith('/')) {
-			// Absolute path outside projectRoot — drop leading slash so display
-			// stays consistent.
-			file = file.slice(1);
+		} else if (isAbsolutePosixPath(file)) {
+			// Outside the root. Relativize rather than dropping the leading slash,
+			// which produced a string that reads as root-relative but resolves
+			// somewhere else entirely. A path already relative is left alone —
+			// `relative` would resolve it against `cwd`.
+			file = toPosixPath(relative(root, file));
 		}
 		d.file = file;
+	}
+};
+
+/**
+ * Extensions TypeScript elides when it prints a module specifier inside a type
+ * (`typeof import("…/dep")` for `…/dep.ts`), in module-resolution preference
+ * order.
+ *
+ * Order encodes preference, not match order: `elidedExtensionOf` takes the
+ * *longest* match, so `.d.ts` beats `.ts` on `b.d.ts` regardless of position.
+ * That frees the order to break the tie when two program files elide to the
+ * same path — which is the only thing standing between this pass and a
+ * dependence on `program.getSourceFiles()` iteration order, in a pass whose
+ * whole purpose is output that doesn't vary between machines.
+ */
+const ELIDED_MODULE_EXTENSIONS = [
+	'.ts',
+	'.tsx',
+	'.mts',
+	'.cts',
+	'.d.ts',
+	'.d.mts',
+	'.d.cts',
+	'.js',
+	'.jsx',
+	'.mjs',
+	'.cjs'
+];
+
+/** The longest elided extension `path` ends with, or `undefined`. */
+const elidedExtensionOf = (path: string): string | undefined => {
+	let longest: string | undefined;
+	for (const ext of ELIDED_MODULE_EXTENSIONS) {
+		if (path.endsWith(ext) && (longest === undefined || ext.length > longest.length)) {
+			longest = ext;
+		}
+	}
+	return longest;
+};
+
+const stripElidedExtension = (path: string): string => {
+	const ext = elidedExtensionOf(path);
+	return ext === undefined ? path : path.slice(0, -ext.length);
+};
+
+/** Lower wins. Ranks two files that elide to the same path by resolution preference. */
+const elidedExtensionRank = (path: string): number => {
+	const ext = elidedExtensionOf(path);
+	return ext === undefined
+		? ELIDED_MODULE_EXTENSIONS.length
+		: ELIDED_MODULE_EXTENSIONS.indexOf(ext);
+};
+
+/**
+ * Matches a double-quoted absolute path inside printed type text.
+ *
+ * Two shapes carry one: the checker's `import("…")` form, and a `TypeJson`
+ * reference whose `name` is the module symbol's own quoted path.
+ *
+ * The absolute-path alternation mirrors `isAbsolutePosixPath` — same rule, but
+ * this one has to match *inside* a larger string rather than test a whole one.
+ */
+const QUOTED_ABSOLUTE_PATH_RE = /"((?:\/|[A-Za-z]:\/)[^"\n]*)"/g;
+
+/**
+ * Keys holding author-written text or already-relative paths, never printed
+ * type text. Skipped by the walk so a doc comment, a raw `defaultValue`, or a
+ * written heritage clause (`extends`, `implements`, `intersects` — all
+ * `getText()` of the written node) can't be rewritten.
+ *
+ * A denylist rather than an allowlist of type-bearing keys, deliberately: the
+ * failure this pass exists to prevent is a *missed* type field, so it should
+ * fail open. A new author-text field added later gets walked, but the rewrite
+ * still only fires on a quoted absolute path resolving to a loaded file — the
+ * resolution check, not this list, is the real guard.
+ */
+const NON_TYPE_TEXT_KEYS: ReadonlySet<string> = new Set([
+	'dependencies',
+	'dependents',
+	'deprecatedMessage',
+	'description',
+	'defaultValue',
+	'docComment',
+	'examples',
+	'extends',
+	'externalStarExports',
+	'implements',
+	'intersects',
+	'module',
+	'moduleComment',
+	'mutates',
+	'path',
+	'propertyDescriptions',
+	'returnDescription',
+	'seeAlso',
+	'since',
+	'specifier',
+	'starExports',
+	'throws'
+]);
+
+/**
+ * Build the printed-path → public-path mapper for one analysis run.
+ *
+ * Tiers, in order: a module in this output emits its `ModuleJson.path`; a
+ * package emits the tail after the last `node_modules/`; everything else is
+ * relative to `projectRoot`, which covers both an in-project file that emits
+ * no module and an out-of-project one (`../sibling/src/x.ts`).
+ *
+ * The relative form is not *guaranteed* stable across machines — a target with
+ * no near common ancestor gets a `../` run whose length tracks how deep
+ * `projectRoot` happens to sit. It's still strictly better than the absolute
+ * path it replaces: stable whenever the layout is (the sibling-repo and
+ * monorepo cases this actually arises from), and it never carries a home
+ * directory.
+ */
+const createModulePathNormalizer = (
+	modules: ReadonlyArray<ModuleJson>,
+	options: ModuleSourceOptions,
+	program: ts.Program
+): ((printed: string) => string) => {
+	const modulePaths = new Set(modules.map((m) => m.path));
+	const programFiles = new Set<string>();
+	// Recovers the extension the checker elided. Two program files can elide to
+	// the same path (`a.ts` beside `a.d.ts`), and picking the wrong one costs
+	// more than it looks: `byModule` is keyed on the resolved path, so a wrong
+	// pick *misses* tier 1 and silently degrades to a root-relative path. Ranked
+	// by resolution preference rather than first-wins, so the choice doesn't
+	// ride on `getSourceFiles()` order.
+	const byElidedExtension = new Map<string, string>();
+	// Resolved absolute → `ModuleJson.path`, built from the program files that
+	// actually became modules. Keyed on the *resolved* path — the same form the
+	// lookup computes — so no extension guess enters tier 1. Keying on the
+	// elided form instead would collide `Foo.svelte` with a sibling
+	// `Foo.svelte.ts` (the Svelte 5 rune-module idiom), and let a non-module
+	// `.d.ts` sibling claim a module's key.
+	const byModule = new Map<string, string>();
+	for (const sourceFile of program.getSourceFiles()) {
+		const fileName = toPosixPath(sourceFile.fileName);
+		programFiles.add(fileName);
+		const elided = stripElidedExtension(fileName);
+		const incumbent = byElidedExtension.get(elided);
+		if (incumbent === undefined || elidedExtensionRank(fileName) < elidedExtensionRank(incumbent)) {
+			byElidedExtension.set(elided, fileName);
+		}
+		const real = toPosixPath(stripVirtualSuffix(fileName));
+		const modulePath = extractPath(real, options);
+		if (modulePaths.has(modulePath)) byModule.set(real, modulePath);
+	}
+
+	const cache = new Map<string, string>();
+
+	return (printed) => {
+		const cached = cache.get(printed);
+		if (cached !== undefined) return cached;
+
+		const posix = toPosixPath(printed);
+		// Only rewrite a path naming a file this program actually loaded. A
+		// string-literal type that happens to look like one (`type P = "/usr/bin"`)
+		// resolves to nothing and is left alone.
+		const resolved = programFiles.has(posix) ? posix : byElidedExtension.get(posix);
+		if (resolved === undefined) {
+			cache.set(printed, printed);
+			return printed;
+		}
+		// Strip after resolving: the checker elides the virtual's `.ts`, so the
+		// printed form (`Foo.svelte.__svelte2tsx__`) doesn't carry the full suffix.
+		const real = toPosixPath(stripVirtualSuffix(resolved));
+
+		const modulePath = byModule.get(real);
+		// Last, not first: pnpm nests the real package under its store entry
+		// (`node_modules/.pnpm/pkg@1/node_modules/pkg/…`), and a hoisted monorepo
+		// dep can sit above `projectRoot` — both want the innermost segment. This
+		// tier running before the `projectRoot` one is what covers out-of-root
+		// dependencies, leaving only out-of-root *source* to fall through.
+		const packageIndex = real.lastIndexOf('/node_modules/');
+		let normalized: string;
+		if (modulePath !== undefined) {
+			normalized = modulePath;
+		} else if (packageIndex !== -1) {
+			normalized = real.slice(packageIndex + '/node_modules/'.length);
+		} else {
+			// One `relative` covers both remaining tiers: in-project files come
+			// back root-relative, out-of-project ones as `../…`. The `../` prefix
+			// is a usable marker — a `ModuleJson.path` can never start with it
+			// (out-of-root source paths throw in `normalizeSourceOptions`) and
+			// neither can a package specifier, so it reads unambiguously as
+			// "outside this project."
+			normalized = toPosixPath(relative(options.projectRoot, real));
+		}
+
+		cache.set(printed, normalized);
+		return normalized;
+	};
+};
+
+/**
+ * Idempotent: a rewritten string no longer matches, because every tier but the
+ * out-of-project one emits a relative path and the pattern requires a leading
+ * `/` (or drive letter). Load-bearing — phase 2 shares structure between
+ * modules (`mergeReExports`, `resolveComponentAliases` copy only what changes),
+ * so one array can be reached through more than one declaration.
+ */
+const replaceQuotedPaths = (text: string, rewrite: (printed: string) => string): string => {
+	if (!text.includes('"')) return text;
+	return text.replace(QUOTED_ABSOLUTE_PATH_RE, (match, path: string) => {
+		const normalized = rewrite(path);
+		return normalized === path ? match : `"${normalized}"`;
+	});
+};
+
+const rewriteTypeText = (value: unknown, rewrite: (printed: string) => string): void => {
+	if (Array.isArray(value)) {
+		for (let i = 0; i < value.length; i++) {
+			const entry: unknown = value[i];
+			if (typeof entry === 'string') {
+				value[i] = replaceQuotedPaths(entry, rewrite);
+			} else {
+				rewriteTypeText(entry, rewrite);
+			}
+		}
+		return;
+	}
+	if (value === null || typeof value !== 'object') return;
+	const record = value as Record<string, unknown>;
+	// A `TypeJson` literal node's `text`/`value` are the author's literal type,
+	// not a printed module reference.
+	if (record.kind === 'literal') return;
+	for (const key of Object.keys(record)) {
+		if (NON_TYPE_TEXT_KEYS.has(key)) continue;
+		const entry = record[key];
+		if (typeof entry === 'string') {
+			record[key] = replaceQuotedPaths(entry, rewrite);
+		} else {
+			rewriteTypeText(entry, rewrite);
+		}
+	}
+};
+
+/**
+ * Normalize the absolute module paths TypeScript embeds in printed type text,
+ * in place.
+ *
+ * The checker prints a module object as `typeof import("<absolute path>")`,
+ * which reaches output through every checker-printed field — `typeSignature`
+ * on declarations and members, `returnType`, and the `text`/`name` of a
+ * `TypeJson` node. Left alone it makes output machine-dependent (two checkouts
+ * of the same source produce different bytes), publishes local filesystem
+ * paths on any site that renders `typeSignature`, and exposes the svelte2tsx
+ * virtual suffix that `stripVirtualSuffix` exists to hide.
+ *
+ * A path that resolves to a module in this output is rewritten to that
+ * module's `ModuleJson.path`, so the string doubles as a lookup key: a
+ * consumer linkifies with `modules.find((m) => m.path === s)` and reads a miss
+ * as "not a module here." See `createModulePathNormalizer` for the remaining
+ * tiers.
+ *
+ * Runs as a whole-output pass rather than at the ~20 `typeToString` /
+ * `signatureToString` call sites, so a new printing site can't miss it.
+ *
+ * @mutates modules — rewrites printed type text on declarations and members
+ */
+export const normalizeModulePathsInTypes = (
+	modules: Array<ModuleJson>,
+	options: ModuleSourceOptions,
+	program: ts.Program
+): void => {
+	const rewrite = createModulePathNormalizer(modules, options, program);
+	for (const mod of modules) {
+		rewriteTypeText(mod, rewrite);
 	}
 };

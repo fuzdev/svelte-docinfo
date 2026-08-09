@@ -66,13 +66,18 @@
 				<li><code>severity</code>: <code>"error"</code> or <code>"warning"</code></li>
 				<li>
 					<code>file</code>: POSIX-form, project-relative (no leading <code>./</code>). Rejoin with
-					<code>projectRoot</code> for absolute paths.
+					<code>projectRoot</code> for absolute paths — including a file outside the project, which
+					takes the <code>../</code> form so the rejoin still recovers it.
 				</li>
 				<li>
 					<code>line</code>, <code>column</code>: 1-based, optional. Absent when there's no precise
 					AST node (e.g., a module-level skip)
 				</li>
-				<li><code>message</code>: human-readable description</li>
+				<li>
+					<code>message</code>: human-readable description. Scrubbed of project-root paths and
+					svelte2tsx virtual suffixes like <code>file</code>, so no diagnostic carries an absolute
+					path.
+				</li>
 				<li>
 					additional fields specific to the variant: <code>symbolName</code>,
 					<code>className</code>, <code>tagName</code>, etc.
