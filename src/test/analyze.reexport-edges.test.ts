@@ -5,8 +5,8 @@
  * **Multi-hop chains** — all topologies covered (same-name N-hop,
  * rename-then-rename, rename-then-same-name, same-name-then-rename, deep).
  * **Svelte component re-exports** — covered by the phase-2 fixup in
- * `mergeReExports` (`src/lib/postprocess.ts`) that copies fields from the
- * canonical component declaration onto component-aliased synthesized
+ * `resolveComponentAliases` (`src/lib/postprocess.ts`) that fills fields from
+ * the canonical component declaration onto component-aliased synthesized
  * declarations.
  * **JSDoc on re-export statements** — Position-3 alias synthesis for local
  * JSDoc, `@nodocs` suppression, and default-slot (`name === 'default'`)

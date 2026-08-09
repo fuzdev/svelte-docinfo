@@ -8,6 +8,10 @@
  *    `computeDependents` builds bidirectional dependency graphs
  * 3. **Output** — `sortModules` prepares deterministic output
  *
+ * Every function here is pure — transformation passes return new arrays with
+ * structural sharing (unchanged objects flow through `===`-equal) and never
+ * mutate their input.
+ *
  * @see `analyze.ts` for the main analysis entry point
  *
  * @module
@@ -35,6 +39,25 @@ const posixifyArray = (
 		}
 	}
 	return changed ?? arr;
+};
+
+/**
+ * Map `fn` over a module's declarations with structural sharing: when `fn`
+ * returns every declaration identity-unchanged, the module flows through
+ * `===`-equal; otherwise a module copy carries the new declarations array.
+ * The one owner of the copy-iff-changed rule for the phase-2 passes.
+ */
+const mapModuleDeclarations = (
+	mod: ModuleJson,
+	fn: (declaration: DeclarationJson) => DeclarationJson
+): ModuleJson => {
+	let changed = false;
+	const declarations = mod.declarations.map((declaration) => {
+		const next = fn(declaration);
+		if (next !== declaration) changed = true;
+		return next;
+	});
+	return changed ? { ...mod, declarations } : mod;
 };
 
 /**
@@ -210,12 +233,17 @@ export const sortModules = (modules: Array<ModuleJson>): Array<ModuleJson> => {
  * — call it after this function. They split because they touch disjoint fields
  * and have different inputs.
  *
- * @param modules - the modules array with all modules (will be mutated).
- *   Must be parsed `ModuleJson`s — wire JSON strips empty arrays, so run
- *   raw JSON through `AnalyzeResultJson.parse` first or `reExports` may be
- *   `undefined`
- * @mutates modules - unions re-exporters into `declaration.alsoExportedFrom`
- *   (deduped + sorted), so a second call with the same inputs is a no-op
+ * Pure: the input array and its objects are never mutated. Modules and
+ * declarations that gain no back-link flow through `===`-equal (structural
+ * sharing), so a re-run over already-merged output returns the same object
+ * references. New re-exporters union with existing `alsoExportedFrom` entries
+ * (deduped + sorted), keeping repeated merges idempotent by content.
+ *
+ * @param modules - the analyzed modules. Must be parsed `ModuleJson`s — wire
+ *   JSON strips empty arrays, so run raw JSON through
+ *   `AnalyzeResultJson.parse` first or `reExports` may be `undefined`
+ * @returns a new array; declarations with new back-links are copies with
+ *   `alsoExportedFrom` unioned, everything else is the input object
  *
  * @example
  * ```ts
@@ -224,12 +252,12 @@ export const sortModules = (modules: Array<ModuleJson>): Array<ModuleJson> => {
  * // (so index.ts's ModuleJson carries reExports:
  * //   [{name: 'foo', module: 'helpers.ts'}, {name: 'bar', module: 'helpers.ts'}])
  * //
- * // After processing:
+ * const merged = mergeReExports(modules);
  * // - helpers.ts foo declaration gets: alsoExportedFrom: ['index.ts']
  * // - helpers.ts bar declaration gets: alsoExportedFrom: ['index.ts']
  * ```
  */
-export const mergeReExports = (modules: Array<ModuleJson>): void => {
+export const mergeReExports = (modules: Array<ModuleJson>): Array<ModuleJson> => {
 	// Group edges by `(canonical module, name)`. The default slot keys as
 	// `'default'` like any other name — each module owns its own default slot,
 	// so the per-module map prevents cross-module collisions naturally.
@@ -248,22 +276,25 @@ export const mergeReExports = (modules: Array<ModuleJson>): void => {
 		}
 	}
 
-	// Merge into original declarations
-	for (const mod of modules) {
+	// Merge into copies of the canonical declarations; untouched declarations
+	// and modules keep their identity
+	return modules.map((mod) => {
 		const moduleReExports = reExportMap.get(mod.path);
-		if (!moduleReExports) continue;
+		if (!moduleReExports) return mod;
 
-		for (const declaration of mod.declarations) {
+		return mapModuleDeclarations(mod, (declaration) => {
 			const reExporters = moduleReExports.get(declaration.name);
-			if (reExporters?.length) {
-				// Union with existing entries, dedupe, sort — keeps the function idempotent
-				// when re-run on already-merged modules
-				const merged = new Set(declaration.alsoExportedFrom);
-				for (const reExporter of reExporters) merged.add(reExporter);
-				declaration.alsoExportedFrom = Array.from(merged).sort(compareStrings);
-			}
-		}
-	}
+			if (!reExporters?.length) return declaration;
+			// Union with existing entries, dedupe, sort — keeps the merge
+			// idempotent by content when re-run on already-merged output
+			const merged = new Set(declaration.alsoExportedFrom);
+			for (const reExporter of reExporters) merged.add(reExporter);
+			// The set is seeded from the existing entries, so equal size means
+			// no new back-link — keep the original object
+			if (merged.size === declaration.alsoExportedFrom.length) return declaration;
+			return { ...declaration, alsoExportedFrom: Array.from(merged).sort(compareStrings) };
+		});
+	});
 };
 
 /**
@@ -279,9 +310,16 @@ export const mergeReExports = (modules: Array<ModuleJson>): void => {
  * Call this *after* `mergeReExports` — both walk the same modules array but
  * read/write disjoint fields, so order between them only matters for clarity.
  *
- * @mutates modules - fills component-only fields on aliased component declarations
+ * Pure: the input array and its objects are never mutated. Aliases with a
+ * resolvable canonical are replaced by filled copies (canonical field values
+ * are shared by reference, not cloned); everything else flows through
+ * `===`-equal.
+ *
+ * @param modules - the analyzed modules (parsed `ModuleJson`s)
+ * @returns a new array with component-only fields filled on aliased component
+ *   declarations
  */
-export const resolveComponentAliases = (modules: Array<ModuleJson>): void => {
+export const resolveComponentAliases = (modules: Array<ModuleJson>): Array<ModuleJson> => {
 	// Build {modulePath → {componentName → ComponentDeclarationJson}} for canonical lookups
 	const canonicalByModule = new Map<string, Map<string, ComponentDeclarationJson>>();
 	for (const mod of modules) {
@@ -296,43 +334,48 @@ export const resolveComponentAliases = (modules: Array<ModuleJson>): void => {
 		}
 	}
 
-	for (const mod of modules) {
-		for (const decl of mod.declarations) {
-			if (decl.kind !== 'component' || !decl.aliasOf) continue;
+	return modules.map((mod) =>
+		mapModuleDeclarations(mod, (decl) => {
+			if (decl.kind !== 'component' || !decl.aliasOf) return decl;
 			const canonical = canonicalByModule.get(decl.aliasOf.module)?.get(decl.aliasOf.name);
-			if (!canonical) continue;
-			decl.props = canonical.props;
-			decl.acceptsChildren = canonical.acceptsChildren;
-			decl.intersects = canonical.intersects;
-			decl.genericParams = canonical.genericParams;
-			if (canonical.lang !== undefined) decl.lang = canonical.lang;
+			if (!canonical) return decl;
+			// `filled` is freshly created — assigning below mutates the copy, not the input
+			const filled: ComponentDeclarationJson = {
+				...decl,
+				props: canonical.props,
+				acceptsChildren: canonical.acceptsChildren,
+				intersects: canonical.intersects,
+				genericParams: canonical.genericParams
+			};
+			if (canonical.lang !== undefined) filled.lang = canonical.lang;
 			if (canonical.docComment !== undefined && decl.docComment === undefined) {
-				decl.docComment = canonical.docComment;
+				filled.docComment = canonical.docComment;
 			}
 			if (canonical.typeSignature !== undefined && decl.typeSignature === undefined) {
-				decl.typeSignature = canonical.typeSignature;
+				filled.typeSignature = canonical.typeSignature;
 			}
 			if (canonical.examples.length > 0 && decl.examples.length === 0) {
-				decl.examples = canonical.examples;
+				filled.examples = canonical.examples;
 			}
 			if (canonical.seeAlso.length > 0 && decl.seeAlso.length === 0) {
-				decl.seeAlso = canonical.seeAlso;
+				filled.seeAlso = canonical.seeAlso;
 			}
 			if (canonical.throws.length > 0 && decl.throws.length === 0) {
-				decl.throws = canonical.throws;
+				filled.throws = canonical.throws;
 			}
 			if (canonical.deprecatedMessage !== undefined && decl.deprecatedMessage === undefined) {
-				decl.deprecatedMessage = canonical.deprecatedMessage;
+				filled.deprecatedMessage = canonical.deprecatedMessage;
 			}
 			if (canonical.since !== undefined && decl.since === undefined) {
-				decl.since = canonical.since;
+				filled.since = canonical.since;
 			}
 			if (canonical.mutates !== undefined && decl.mutates === undefined) {
-				decl.mutates = canonical.mutates;
+				filled.mutates = canonical.mutates;
 			}
-			if (canonical.partial) decl.partial = true;
-		}
-	}
+			if (canonical.partial) filled.partial = true;
+			return filled;
+		})
+	);
 };
 
 /**

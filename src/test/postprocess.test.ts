@@ -489,12 +489,17 @@ describe('mergeReExports', () => {
 				})
 			];
 
-			mergeReExports(modules);
+			const merged = mergeReExports(modules);
 
-			const helpersModule = modules.find((m) => m.path === 'helpers.ts')!;
+			const helpersModule = merged.find((m) => m.path === 'helpers.ts')!;
 			const helperDecl = helpersModule.declarations.find((d) => d.name === 'helper')!;
 
 			assert.deepStrictEqual(helperDecl.alsoExportedFrom, ['index.ts']);
+			// Pure: the input declaration is untouched
+			assert.deepStrictEqual(
+				modules.find((m) => m.path === 'helpers.ts')!.declarations[0]!.alsoExportedFrom,
+				[]
+			);
 		});
 
 		test('merges multiple re-exports for same declaration', () => {
@@ -513,9 +518,9 @@ describe('mergeReExports', () => {
 				})
 			];
 
-			mergeReExports(modules);
+			const merged = mergeReExports(modules);
 
-			const coreModule = modules.find((m) => m.path === 'core.ts')!;
+			const coreModule = merged.find((m) => m.path === 'core.ts')!;
 			const utilDecl = coreModule.declarations.find((d) => d.name === 'util')!;
 
 			// Should be sorted alphabetically
@@ -540,9 +545,9 @@ describe('mergeReExports', () => {
 				})
 			];
 
-			mergeReExports(modules);
+			const merged = mergeReExports(modules);
 
-			const helpersModule = modules.find((m) => m.path === 'helpers.ts')!;
+			const helpersModule = merged.find((m) => m.path === 'helpers.ts')!;
 			const fooDecl = helpersModule.declarations.find((d) => d.name === 'foo')!;
 			const barDecl = helpersModule.declarations.find((d) => d.name === 'bar')!;
 
@@ -560,20 +565,20 @@ describe('mergeReExports', () => {
 				})
 			];
 
-			// Should not throw
-			mergeReExports(modules);
+			const merged = mergeReExports(modules);
 
-			const helpersModule = modules.find((m) => m.path === 'helpers.ts')!;
+			const helpersModule = merged.find((m) => m.path === 'helpers.ts')!;
 			const helperDecl = helpersModule.declarations.find((d) => d.name === 'helper')!;
 
 			assert.deepStrictEqual(helperDecl.alsoExportedFrom, []);
+			// Identity-preserving fast path: nothing changed, same object reference
+			assert.strictEqual(helpersModule, modules[0]);
 		});
 
 		test('handles empty modules array', () => {
 			const modules: Array<ModuleJson> = [];
 
-			// Should not throw
-			mergeReExports(modules);
+			assert.deepStrictEqual(mergeReExports(modules), []);
 		});
 
 		test('ignores edges whose canonical module is absent', () => {
@@ -589,9 +594,9 @@ describe('mergeReExports', () => {
 			];
 
 			// Should not throw — the dangling forward edge stays without a back-link
-			mergeReExports(modules);
+			const merged = mergeReExports(modules);
 
-			const helpersModule = modules.find((m) => m.path === 'helpers.ts')!;
+			const helpersModule = merged.find((m) => m.path === 'helpers.ts')!;
 			assert.deepStrictEqual(helpersModule.declarations[0]!.alsoExportedFrom, []);
 		});
 
@@ -608,10 +613,10 @@ describe('mergeReExports', () => {
 			];
 
 			// Should not throw
-			mergeReExports(modules);
+			const merged = mergeReExports(modules);
 
 			// Original declaration should not be affected
-			const helpersModule = modules.find((m) => m.path === 'helpers.ts')!;
+			const helpersModule = merged.find((m) => m.path === 'helpers.ts')!;
 			assert.deepStrictEqual(helpersModule.declarations[0]!.alsoExportedFrom, []);
 		});
 
@@ -627,9 +632,9 @@ describe('mergeReExports', () => {
 				m({ path: 'beta.ts', reExports: [{ name: 'util', module: 'core.ts' }] })
 			];
 
-			mergeReExports(modules);
+			const merged = mergeReExports(modules);
 
-			const coreModule = modules.find((m) => m.path === 'core.ts')!;
+			const coreModule = merged.find((m) => m.path === 'core.ts')!;
 			const utilDecl = coreModule.declarations.find((d) => d.name === 'util')!;
 
 			assert.deepStrictEqual(utilDecl.alsoExportedFrom, ['alpha.ts', 'beta.ts', 'zebra.ts']);
@@ -645,13 +650,16 @@ describe('mergeReExports', () => {
 				m({ path: 'public.ts', reExports: [{ name: 'util', module: 'core.ts' }] })
 			];
 
-			mergeReExports(modules);
-			const afterFirst = JSON.parse(JSON.stringify(modules));
-			mergeReExports(modules);
+			const first = mergeReExports(modules);
+			const second = mergeReExports(first);
 
-			assert.deepStrictEqual(modules, afterFirst);
+			assert.deepStrictEqual(second, first);
+			// Nothing new to merge on the second run — same object references throughout
+			for (let i = 0; i < first.length; i++) {
+				assert.strictEqual(second[i], first[i]);
+			}
 
-			const utilDecl = modules[0]!.declarations.find((d) => d.name === 'util')!;
+			const utilDecl = first[0]!.declarations.find((d) => d.name === 'util')!;
 			assert.deepStrictEqual(utilDecl.alsoExportedFrom, ['index.ts', 'public.ts']);
 		});
 
@@ -664,14 +672,36 @@ describe('mergeReExports', () => {
 				m({ path: 'index.ts', reExports: [{ name: 'util', module: 'core.ts' }] })
 			];
 
-			mergeReExports(modules);
+			const first = mergeReExports(modules);
 
 			// A module added between calls — existing back-links should be preserved
-			modules.push(m({ path: 'public.ts', reExports: [{ name: 'util', module: 'core.ts' }] }));
-			mergeReExports(modules);
+			const second = mergeReExports([
+				...first,
+				m({ path: 'public.ts', reExports: [{ name: 'util', module: 'core.ts' }] })
+			]);
 
-			const utilDecl = modules[0]!.declarations.find((d) => d.name === 'util')!;
+			const utilDecl = second[0]!.declarations.find((d) => d.name === 'util')!;
 			assert.deepStrictEqual(utilDecl.alsoExportedFrom, ['index.ts', 'public.ts']);
+		});
+
+		test('does not mutate the input modules', () => {
+			const modules = [
+				m({
+					path: 'core.ts',
+					declarations: [{ name: 'util', kind: 'function' }]
+				}),
+				m({ path: 'index.ts', reExports: [{ name: 'util', module: 'core.ts' }] })
+			];
+			const snapshot = JSON.parse(JSON.stringify(modules));
+
+			const merged = mergeReExports(modules);
+
+			assert.deepStrictEqual(JSON.parse(JSON.stringify(modules)), snapshot);
+			// The changed module and declaration are copies; the untouched module
+			// keeps its identity
+			assert.notStrictEqual(merged[0], modules[0]);
+			assert.notStrictEqual(merged[0]!.declarations[0], modules[0]!.declarations[0]);
+			assert.strictEqual(merged[1], modules[1]);
 		});
 	});
 
@@ -735,10 +765,9 @@ describe('mergeReExports', () => {
 
 			// `mergeReExports` only handles alsoExportedFrom; component-only field
 			// inheritance is `resolveComponentAliases`'s job. Both run in `analyzeCore`.
-			mergeReExports([canonical, alias]);
-			resolveComponentAliases([canonical, alias]);
+			const resolved = resolveComponentAliases(mergeReExports([canonical, alias]));
 
-			const aliasDecl = alias.declarations[0]!;
+			const aliasDecl = resolved.find((mod) => mod.path === 'src/index.ts')!.declarations[0]!;
 			assert.strictEqual(aliasDecl.kind, 'component');
 			if (aliasDecl.kind !== 'component') return; // narrow
 
@@ -760,6 +789,35 @@ describe('mergeReExports', () => {
 					`Either add them to the copy logic in postprocess.ts:resolveComponentAliases ` +
 					`or add them to NOT_INHERITED with a reason.`
 			);
+		});
+
+		test('does not mutate the input modules', () => {
+			const canonical = m({
+				path: 'src/A.svelte',
+				declarations: [{ name: 'A', kind: 'component', props: [{ name: 'p', type: 'string' }] }]
+			});
+			const alias = m({
+				path: 'src/index.ts',
+				declarations: [
+					{ name: 'B', kind: 'component', aliasOf: { module: 'src/A.svelte', name: 'A' } }
+				]
+			});
+
+			const resolved = resolveComponentAliases([canonical, alias]);
+
+			// The input alias is untouched; the filled copy lives in the result
+			const inputAliasDecl = alias.declarations[0]!;
+			assert(inputAliasDecl.kind === 'component');
+			assert.deepStrictEqual(inputAliasDecl.props, []);
+			const resolvedAliasDecl = resolved[1]!.declarations[0]!;
+			assert(resolvedAliasDecl.kind === 'component');
+			const canonicalDecl = canonical.declarations[0]!;
+			assert(canonicalDecl.kind === 'component');
+			// Filled fields share the canonical's values by reference
+			assert.strictEqual(resolvedAliasDecl.props, canonicalDecl.props);
+			// The untouched canonical module keeps its identity; the alias module is a copy
+			assert.strictEqual(resolved[0], canonical);
+			assert.notStrictEqual(resolved[1], alias);
 		});
 	});
 });
