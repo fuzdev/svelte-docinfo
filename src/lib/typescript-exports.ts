@@ -35,12 +35,21 @@ import {
 	extractPath,
 	isSource
 } from './source-config.ts';
+import { createIsExternalFile, createIsExternalPath } from './typescript-program.ts';
 import {
-	type IsExternalFile,
-	createIsExternalFile,
-	createIsExternalPath
-} from './typescript-program.ts';
-import { inferDeclarationKind, selectDeclarationNode } from './typescript-extract-shared.ts';
+	getLocalExportStatement,
+	getNodeLocation,
+	inferDeclarationKind,
+	isDeclaredInFile,
+	selectDeclarationNode,
+	type ExtractContext
+} from './typescript-extract-shared.ts';
+import {
+	isAliasLostType,
+	isBrandLikeIntersection,
+	isLiteralOnlyUnion,
+	type AliasRegistry
+} from './typescript-extract-type-json.ts';
 import { extractFunctionInfo, extractVariableInfo } from './typescript-extract-function.ts';
 import { extractTypeInfo, extractEnumInfo } from './typescript-extract-type.ts';
 import { extractClassInfo } from './typescript-extract-class.ts';
@@ -60,6 +69,7 @@ import { extractClassInfo } from './typescript-extract-class.ts';
  * @param checker - TypeScript type checker
  * @param options - module source options for path extraction
  * @param diagnostics - diagnostics collector for non-fatal issues
+ * @param aliasRegistry - the analyzed set's alias registry (see `buildAliasRegistry`), or `undefined` when no pre-pass ran
  * @returns module metadata and re-export information
  */
 export const analyzeTypescriptModule = (
@@ -68,7 +78,8 @@ export const analyzeTypescriptModule = (
 	modulePath: string,
 	checker: ts.TypeChecker,
 	options: ModuleSourceOptions,
-	diagnostics: Array<Diagnostic>
+	diagnostics: Array<Diagnostic>,
+	aliasRegistry?: AliasRegistry
 ): ModuleAnalysis => {
 	// Use the mid-level helper for core analysis
 	const {
@@ -78,7 +89,7 @@ export const analyzeTypescriptModule = (
 		starExports,
 		externalReExports,
 		externalStarExports
-	} = analyzeExports(tsSourceFile, checker, options, diagnostics);
+	} = analyzeExports(tsSourceFile, checker, options, diagnostics, aliasRegistry);
 
 	// Extract dependencies and dependents if provided
 	const { dependencies, dependents } = extractDependencies(sourceFileInfo, options);
@@ -258,22 +269,6 @@ const classifyNamespaceReExport = (
 };
 
 /**
- * Whether any of the symbol's declarations lives in `fileName`
- * (virtual-suffix-normalized).
- *
- * Merged symbols (module augmentation, declaration merging) can have
- * declarations in several files — a symbol counts as declared in the file
- * when at least one declaration is, so checking a single declaration node
- * would drop locally-declared exports depending on bind order. Symbols
- * without declarations are treated as declared in the file (permissive).
- */
-const isDeclaredInFile = (symbol: ts.Symbol, fileName: string): boolean => {
-	const decls = symbol.declarations;
-	if (!decls?.length) return true;
-	return decls.some((d) => stripVirtualSuffix(d.getSourceFile().fileName) === fileName);
-};
-
-/**
  * The source file of a symbol's primary declaration (`valueDeclaration`,
  * else the first declaration), or `undefined` for declaration-less symbols.
  *
@@ -293,37 +288,6 @@ const getPrimaryDeclarationSourceFile = (symbol: ts.Symbol): ts.SourceFile | und
 const getPrimaryDeclarationFile = (symbol: ts.Symbol): string | undefined => {
 	const source = getPrimaryDeclarationSourceFile(symbol);
 	return source && stripVirtualSuffix(source.fileName);
-};
-
-/**
- * The local export statement and binding node for an alias export symbol —
- * `{node, statement}` where `node` is the `ExportSpecifier` (or, for
- * `export * as ns`, the `NamespaceExport`) and `statement` its
- * `ExportDeclaration`.
- *
- * Returns `undefined` when the statement isn't in `sourceFile`: merged
- * symbols can put a foreign declaration first, and parsing JSDoc or
- * positions there would attribute another module's content here.
- */
-const getLocalExportStatement = (
-	exportSymbol: ts.Symbol,
-	sourceFile: ts.SourceFile
-):
-	| { node: ts.ExportSpecifier | ts.NamespaceExport; statement: ts.ExportDeclaration }
-	| undefined => {
-	const node = exportSymbol.declarations?.[0];
-	if (!node) return undefined;
-	if (ts.isExportSpecifier(node)) {
-		const statement = node.parent.parent;
-		if (statement.getSourceFile() !== sourceFile) return undefined;
-		return { node, statement };
-	}
-	if (ts.isNamespaceExport(node)) {
-		const statement = node.parent;
-		if (statement.getSourceFile() !== sourceFile) return undefined;
-		return { node, statement };
-	}
-	return undefined;
 };
 
 /**
@@ -375,9 +339,7 @@ const synthesizeCrossFileAlias = (
 	originalSource: ts.SourceFile,
 	originalModule: string,
 	specifierLine: number | undefined,
-	checker: ts.TypeChecker,
-	diagnostics: Array<Diagnostic>,
-	isExternalFile: IsExternalFile
+	ctx: ExtractContext
 ): DeclarationJsonBuild => {
 	if (originalSource.fileName.endsWith(SVELTE_VIRTUAL_SUFFIX)) {
 		return {
@@ -387,13 +349,7 @@ const synthesizeCrossFileAlias = (
 			sourceLine: specifierLine
 		};
 	}
-	const { declaration: analyzed } = analyzeDeclaration(
-		aliasedSymbol,
-		originalSource,
-		checker,
-		diagnostics,
-		isExternalFile
-	);
+	const { declaration: analyzed } = analyzeDeclaration(aliasedSymbol, originalSource, ctx);
 	const canonicalName = analyzed.name!;
 	analyzed.name = publicName;
 	analyzed.aliasOf = { module: originalModule, name: canonicalName };
@@ -422,19 +378,26 @@ const synthesizeCrossFileAlias = (
  * @param checker - the TypeScript type checker
  * @param options - module source options for path extraction in re-exports
  * @param diagnostics - diagnostics collector for non-fatal issues
+ * @param aliasRegistry - the analyzed set's alias registry (see `buildAliasRegistry`), or `undefined` when no pre-pass ran (registry recovery and the `alias_lost` diagnostic are then disabled)
  * @returns module comment, declarations, re-exports (source + external), and star exports (source + external)
  */
 export const analyzeExports = (
 	sourceFile: ts.SourceFile,
 	checker: ts.TypeChecker,
 	options: ModuleSourceOptions,
-	diagnostics: Array<Diagnostic>
+	diagnostics: Array<Diagnostic>,
+	aliasRegistry?: AliasRegistry
 ): ModuleExportsAnalysis => {
 	const declarations: Array<DeclarationAnalysis> = [];
 	const reExports: Array<ReExportJsonInput> = [];
 	const externalReExports: Array<ExternalReExportJsonInput> = [];
 
-	const isExternalFile = createIsExternalFile(options);
+	const ctx: ExtractContext = {
+		checker,
+		diagnostics,
+		isExternalFile: createIsExternalFile(options),
+		aliasRegistry
+	};
 	// Externality by path, for the re-export arms and star extraction below.
 	// Not the same axis as `isSource`: a project-local file can be gated from
 	// output (`internal/` convention, user excludes) without being external —
@@ -614,9 +577,7 @@ export const analyzeExports = (
 								originalSource,
 								module,
 								specifierLine,
-								checker,
-								diagnostics,
-								isExternalFile
+								ctx
 							);
 							if (localTsdoc) {
 								applyToDeclaration(decl, localTsdoc);
@@ -769,13 +730,7 @@ export const analyzeExports = (
 			// the aliased symbol so that inferDeclarationKind sees the actual declaration
 			// node (e.g., VariableDeclaration with ArrowFunction) instead of the ExportSpecifier.
 			const symbolToAnalyze = isAlias ? checker.getAliasedSymbol(exportSymbol) : exportSymbol;
-			const analysisResult = analyzeDeclaration(
-				symbolToAnalyze,
-				sourceFile,
-				checker,
-				diagnostics,
-				isExternalFile
-			);
+			const analysisResult = analyzeDeclaration(symbolToAnalyze, sourceFile, ctx);
 			const { declaration } = analysisResult;
 			let { nodocs } = analysisResult;
 			// Preserve the export name for within-file renames (export { x as y }).
@@ -823,17 +778,13 @@ export const analyzeExports = (
  *
  * @param symbol - the TypeScript symbol to analyze
  * @param sourceFile - the source file containing the symbol
- * @param checker - the TypeScript type checker
- * @param diagnostics - diagnostics collector for non-fatal issues
- * @param isExternalFile - predicate for determining whether a source file is external to the project
+ * @param ctx - the extraction pass's context (checker, diagnostics, externality predicate, alias registry)
  * @returns complete declaration metadata including docs, types, and parameters, plus nodocs flag
  */
 export const analyzeDeclaration = (
 	symbol: ts.Symbol,
 	sourceFile: ts.SourceFile,
-	checker: ts.TypeChecker,
-	diagnostics: Array<Diagnostic>,
-	isExternalFile: IsExternalFile
+	ctx: ExtractContext
 ): DeclarationAnalysis => {
 	const declNode = selectDeclarationNode(symbol);
 	// Pass the symbol's name through verbatim. Default-slot symbols
@@ -884,22 +835,95 @@ export const analyzeDeclaration = (
 
 	// Extract type-specific info
 	if (result.kind === 'function') {
-		extractFunctionInfo(declNode, symbol, checker, result, tsdoc, diagnostics);
+		extractFunctionInfo(declNode, symbol, result, tsdoc, ctx);
 	} else if (result.kind === 'type' || result.kind === 'interface') {
 		// A merged value+type symbol: the type meaning won the declaration slot,
 		// but the name is also importable as a runtime value — mark it so
 		// consumers (e.g. generateImport) don't render a type-only import
 		if (mergedValueNode) result.mergedValue = true;
-		extractTypeInfo(declNode, checker, result, diagnostics, isExternalFile);
+		extractTypeInfo(declNode, result, ctx);
+		// the nodocs gate is explicit because extraction runs before the nodocs
+		// filter in analyze-core — an excluded alias must not warn
+		if (!nodocs && ts.isTypeAliasDeclaration(declNode)) {
+			warnAliasLost(declNode, name, ctx);
+		}
 	} else if (result.kind === 'enum') {
-		extractEnumInfo(declNode, checker, result, diagnostics);
+		extractEnumInfo(declNode, result, ctx);
 	} else if (result.kind === 'class') {
-		extractClassInfo(declNode, checker, result, diagnostics);
+		extractClassInfo(declNode, result, ctx);
 	} else if (result.kind === 'variable') {
-		extractVariableInfo(declNode, symbol, checker, result, diagnostics);
+		extractVariableInfo(declNode, symbol, result, ctx);
 	}
 
 	return { declaration: result, nodocs };
+};
+
+/**
+ * Written right-hand-side node kinds that can produce an alias-lost type — the
+ * positive syntactic co-gate for the `alias_lost` diagnostic. Indexed access
+ * and conditionals are the `z.infer`-class losses, `TypeQuery` covers
+ * `typeof DEFAULTS`, and `TypeReference` covers both `z.infer<typeof S>`
+ * itself and `type A = B` over a lost `B`. Everything else — template
+ * literals, `keyof` (`TypeOperator`), and exotic future forms — stays quiet:
+ * those print origin-preserving text despite the semantic predicate matching,
+ * and fail-quiet is right for a warning.
+ */
+const ALIAS_LOST_RHS_KINDS: ReadonlySet<ts.SyntaxKind> = new Set([
+	ts.SyntaxKind.IndexedAccessType,
+	ts.SyntaxKind.ConditionalType,
+	ts.SyntaxKind.TypeQuery,
+	ts.SyntaxKind.TypeReference
+]);
+
+/**
+ * Emit the `alias_lost` warning for a type-alias declaration whose name the
+ * checker dropped, gated to fire only where the docs actually degrade and
+ * nothing self-heals:
+ *
+ * - a registry must be in hand (`ctx.aliasRegistry` — without the pre-pass,
+ *   recoverability is unknowable and direct extractor callers stay quiet)
+ * - the written right-hand side is a loss-capable form (`ALIAS_LOST_RHS_KINDS`)
+ * - the resolved type is alias-lost (`isAliasLostType`)
+ * - the registry cannot recover it (`byType` covers ambiguity twins too — a
+ *   lost alias identity-equal to a registered winner recovers at use sites
+ *   under the winner's name, so warning on it would be noise)
+ * - it isn't a literal-only union (`z.enum` outputs) or a brand-like
+ *   intersection (`.brand()`) — both degrade readably and have no author-side
+ *   fix worth demanding
+ *
+ * The caller supplies the explicit `@nodocs` gate. One warning per alias
+ * declaration per cycle — `registry.warnedAliasLost` dedupes, because
+ * re-export synthesis (`synthesizeCrossFileAlias`, within-file renames)
+ * re-analyzes canonical declarations and would otherwise warn once per
+ * analyzing site. Two non-recoverable aliases over one lost type still warn
+ * separately (each names its own declaration site).
+ */
+const warnAliasLost = (node: ts.TypeAliasDeclaration, name: string, ctx: ExtractContext): void => {
+	const registry = ctx.aliasRegistry;
+	if (!registry) return;
+	if (registry.warnedAliasLost.has(node)) return;
+	if (!ALIAS_LOST_RHS_KINDS.has(node.type.kind)) return;
+	let type: ts.Type;
+	try {
+		type = ctx.checker.getTypeAtLocation(node);
+	} catch {
+		// extraction already diagnosed the failure (`type_extraction_failed`)
+		return;
+	}
+	if (!isAliasLostType(type)) return;
+	if (registry.byType.has(type)) return;
+	if (isLiteralOnlyUnion(type) || isBrandLikeIntersection(type)) return;
+	registry.warnedAliasLost.add(node);
+	const loc = getNodeLocation(node);
+	ctx.diagnostics.push({
+		kind: 'alias_lost',
+		file: loc.file,
+		line: loc.line,
+		column: loc.column,
+		message: `Type alias "${name}" loses its name at use sites — the right-hand side resolves to a type the checker has no name for, so unannotated positions document its structure instead of the alias.`,
+		severity: 'warning',
+		aliasName: name
+	});
 };
 
 /**

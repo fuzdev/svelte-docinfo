@@ -49,6 +49,8 @@ import {
 } from './source.ts';
 import { type ModuleSourceOptions, extractPath, extractDependencies } from './source-config.ts';
 import { toPosixPath, isAbsolutePosixPath } from './paths.ts';
+import { buildAliasRegistry, type AliasRegistrySource } from './typescript-alias-registry.ts';
+import type { AliasRegistry } from './typescript-extract-type-json.ts';
 import {
 	sortModules,
 	findDuplicates,
@@ -291,13 +293,18 @@ const toModuleJson = (raw: ModuleAnalysis): ModuleJson => {
  * `alsoExportedFrom` on returned declarations is always empty from this path —
  * cross-module re-export resolution requires all modules (`mergeReExports`
  * consumes the returned module's `reExports` in phase 2).
+ *
+ * `aliasRegistry` is optional at this boundary: direct callers assembling
+ * modules themselves get written-name recovery only, while `analyzeCore`
+ * passes the registry its pre-pass built (see `buildAliasRegistry`).
  */
 export const analyzeModule = (
 	sourceFile: SourceFileInfo & { dependents?: ReadonlyArray<string> },
 	program: ts.Program,
 	options: ModuleSourceOptions,
 	diagnostics: Array<Diagnostic>,
-	log?: AnalysisLog
+	log?: AnalysisLog,
+	aliasRegistry?: AliasRegistry
 ): ModuleJson | undefined => {
 	const checker = program.getTypeChecker();
 	const modulePath = extractPath(sourceFile.id, options);
@@ -338,7 +345,8 @@ export const analyzeModule = (
 			modulePath,
 			checker,
 			options,
-			diagnostics
+			diagnostics,
+			aliasRegistry
 		);
 	} else if (analyzerType === 'css' || analyzerType === 'json') {
 		const { dependencies, dependents } = extractDependencies(sourceFile, options);
@@ -428,7 +436,8 @@ export interface AnalyzeCoreInputs {
 const analyzeContextComponents = (
 	contextSvelteFiles: ReadonlyArray<SourceFileInfo>,
 	emittedModules: ReadonlyArray<ModuleJson>,
-	inputs: AnalyzeCoreInputs
+	inputs: AnalyzeCoreInputs,
+	aliasRegistry: AliasRegistry
 ): Array<ModuleJson> => {
 	const { sourceOptions, program, svelteVirtualFiles } = inputs;
 	const referenced = new Set<string>();
@@ -452,7 +461,8 @@ const analyzeContextComponents = (
 			sourceOptions,
 			droppedDiagnostics,
 			program,
-			virtualFile
+			virtualFile,
+			aliasRegistry
 		);
 		if (raw) contextModules.push(toModuleJson(raw));
 	}
@@ -473,6 +483,30 @@ export const analyzeCore = (inputs: AnalyzeCoreInputs): AnalyzeResultJson => {
 
 	const checker = program.getTypeChecker();
 	const diagnostics: Array<Diagnostic> = [];
+
+	// Registry pre-pass: register the emitted set's exported lost aliases
+	// before any extraction, so every `resolveTypeInfo` call this cycle can
+	// consult a complete registry. Svelte modules are reached through their
+	// svelte2tsx virtuals (`program.getSourceFile(<.svelte id>)` is undefined);
+	// CSS/JSON have no exports and analyzer-less files no program file. Gated
+	// context files are deliberately absent — their aliases must not register
+	// (emitted references always have a doc page to link).
+	const registrySources: Array<AliasRegistrySource> = [];
+	for (const sourceFile of sourceFiles) {
+		if (transformFailedIds?.has(sourceFile.id)) continue;
+		const virtualFile = svelteVirtualFiles.get(sourceFile.id);
+		const programFile = virtualFile
+			? program.getSourceFile(virtualFile.virtualPath)
+			: sourceOptions.getAnalyzerType(sourceFile.id) === 'typescript'
+				? program.getSourceFile(sourceFile.id)
+				: undefined;
+		if (!programFile) continue;
+		registrySources.push({
+			sourceFile: programFile,
+			modulePath: extractPath(sourceFile.id, sourceOptions)
+		});
+	}
+	const aliasRegistry = buildAliasRegistry(registrySources, checker);
 
 	const modules: Array<ModuleJson> = [];
 
@@ -512,7 +546,8 @@ export const analyzeCore = (inputs: AnalyzeCoreInputs): AnalyzeResultJson => {
 				sourceOptions,
 				diagnostics,
 				program,
-				virtualFile
+				virtualFile,
+				aliasRegistry
 			);
 			if (raw) {
 				mod = toModuleJson(raw);
@@ -520,7 +555,7 @@ export const analyzeCore = (inputs: AnalyzeCoreInputs): AnalyzeResultJson => {
 				log?.error(`Svelte module analysis failed: ${sourceFile.id}`);
 			}
 		} else {
-			mod = analyzeModule(sourceFile, program, sourceOptions, diagnostics, log);
+			mod = analyzeModule(sourceFile, program, sourceOptions, diagnostics, log, aliasRegistry);
 		}
 
 		if (!mod) continue;
@@ -532,7 +567,7 @@ export const analyzeCore = (inputs: AnalyzeCoreInputs): AnalyzeResultJson => {
 	// `mergeReExports` (their edges would back-link modules absent from
 	// output) and out of the emitted set.
 	const contextModules = contextSvelteFiles?.length
-		? analyzeContextComponents(contextSvelteFiles, modules, inputs)
+		? analyzeContextComponents(contextSvelteFiles, modules, inputs, aliasRegistry)
 		: [];
 
 	// Phase 2a: build alsoExportedFrom arrays from the modules' forward edges

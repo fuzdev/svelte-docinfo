@@ -186,11 +186,17 @@
 					<code>members</code> already covers. An alias TypeScript dropped (an indexed-access or
 					conditional right-hand side — <code>z.infer&lt;typeof S&gt;</code>, valibot's
 					<code>InferOutput</code> — loses its alias symbol, so the checker expands the structure
-					everywhere) is recovered from the written annotation where one exists: each bare written
-					type reference resolves by checker type identity, and a nameless type it matches emits
-					<code>{`{kind: "reference", name}`}</code> instead of expanding — including at the root, where
-					the flat string carries the anonymous expansion, not the name. Names the checker has are never
-					overridden, and import renames recover the importable name
+					everywhere) is recovered as
+					<code>{`{kind: "reference", name}`}</code> instead of expanding, through two channels
+					consulted only at nameless positions. The written annotation where one exists: each bare
+					written type reference resolves by checker type identity. And the alias registry — the
+					analyzed set's exported lost aliases, keyed by type identity — which also covers
+					<em>unannotated</em> positions: inferred returns and variables, nested tree positions,
+					<code>null</code>-bearing optionals. Recovery applies at the root too, where the flat
+					string carries the anonymous expansion, not the name. Names the checker has are never
+					overridden; import renames recover the importable name; two aliases over one lost type
+					resolve to a single winner everywhere; and a loss the registry can't recover surfaces as
+					an <code>alias_lost</code> warning (see <TomeLink slug="diagnostics" />)
 				</li>
 				<li><code>sourceLine</code>: line number in the source file</li>
 				<li>

@@ -1369,21 +1369,37 @@ export const f = (): schemas.Inferred => ({ a: '', b: 0 });`
 	});
 
 	test('typeof, import-type, and inline-literal annotations never trigger recovery', async () => {
+		// the *written* channel contributes nothing for these forms; the alias
+		// registry is a separate channel — `viaImportType`'s return is
+		// identity-equal to the exported `Inferred`, so the registry names it
+		// (the point of composing the channels), while `@nodocs` on the twin
+		// setup keeps that alias out of the registry and shows the written
+		// channel's decline unmasked
 		const { modules } = await analyzeTestProject({
 			'src/lib/dep.ts': INFERRED_SETUP,
+			'src/lib/dep-nodocs.ts': `interface GatedBox {
+	out: { c: boolean };
+}
+/** @nodocs */
+export type GatedInferred = GatedBox['out'];
+`,
 			'src/lib/a.ts': `const value = { a: '', b: 0 };
 
 export const viaTypeof = (): typeof value => value;
 export const viaImportType = (): import('./dep.js').Inferred => ({ a: '', b: 0 });
+export const viaGatedImportType = (): import('./dep-nodocs.js').GatedInferred => ({ c: true });
 export const viaLiteral = (): Promise<{ a: string }> => Promise.resolve({ a: '' });`
 		});
 		const module = modules.find((m) => m.path === 'a.ts');
-		for (const name of ['viaTypeof', 'viaImportType']) {
+		for (const name of ['viaTypeof', 'viaGatedImportType']) {
 			const decl = module?.declarations.find((d) => d.name === name);
 			assert(decl?.kind === 'function', `expected a function declaration for ${name}`);
 			// an anonymous object at the root with nothing recovered stays absent
 			assert.strictEqual(decl.returnTypeInfo, undefined, `expected no recovery for ${name}`);
 		}
+		const viaImportType = module?.declarations.find((d) => d.name === 'viaImportType');
+		assert(viaImportType?.kind === 'function', 'expected a function declaration');
+		assert.deepStrictEqual(viaImportType.returnTypeInfo, { kind: 'reference', name: 'Inferred' });
 		const viaLiteral = module?.declarations.find((d) => d.name === 'viaLiteral');
 		assert(viaLiteral?.kind === 'function', 'expected a function declaration');
 		assert.deepStrictEqual(viaLiteral.returnTypeInfo, {
@@ -1395,7 +1411,10 @@ export const viaLiteral = (): Promise<{ a: string }> => Promise.resolve({ a: '' 
 
 	test('an argument-carrying written annotation never recovers by its bare name', async () => {
 		// `Get<Box>` loses its alias like `z.infer<typeof S>`, and like it the
-		// bare symbol name misrepresents the instantiation — excluded by design
+		// bare symbol name misrepresents the instantiation — excluded by design.
+		// The instantiation is identity-equal to the exported `Inferred`, so the
+		// registry names it *that* — the recovered name is the identity-exact
+		// alias, never the written instantiation's own head
 		const module = await analyzeFile(
 			'src/lib/a.ts',
 			`${INFERRED_SETUP}
@@ -1407,8 +1426,8 @@ export const f = (): Promise<Get<Box>> => Promise.resolve({ a: '', b: 0 });`
 		assert(f?.kind === 'function', 'expected a function declaration');
 		assert(f.returnTypeInfo?.kind === 'reference', 'expected the Promise reference');
 		assert.deepStrictEqual(f.returnTypeInfo.typeArgs?.[0], {
-			kind: 'object',
-			text: '{ a: string; b: number; }'
+			kind: 'reference',
+			name: 'Inferred'
 		});
 	});
 

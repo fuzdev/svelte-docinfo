@@ -6,8 +6,8 @@ declare const seed: Inferred;
 
 /**
  * An inferred (unannotated) return of an alias-lost type: no written return
- * annotation exists, so the flat string prints the expansion and
- * `returnTypeInfo` is absent.
+ * annotation exists, so the flat string prints the expansion while
+ * `returnTypeInfo` recovers the exported alias's name through the registry.
  */
 export const make = () => seed;
 

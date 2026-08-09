@@ -15,7 +15,7 @@ import {
 	extractDeclarationFromSource,
 	type TsFixture
 } from './fixtures/ts/ts-test-helpers.ts';
-import { normalizeJson } from './test-helpers.ts';
+import { mockExtractContext, normalizeJson } from './test-helpers.ts';
 import {
 	testSourceOptions,
 	createTestSourceOptions,
@@ -1591,7 +1591,7 @@ describe('extractSignatureParameters', () => {
 		const fnType = checker.getTypeOfSymbolAtLocation(fnSymbol, sourceFile.statements[0]!);
 		const sig = fnType.getCallSignatures()[0]!;
 
-		const params = extractSignatureParameters(sig, checker, undefined);
+		const params = extractSignatureParameters(sig, mockExtractContext(checker), undefined);
 
 		assert.strictEqual(params.length, 2);
 		assert.strictEqual(params[0]!.name, 'name');
@@ -1611,7 +1611,7 @@ describe('extractSignatureParameters', () => {
 		const fnType = checker.getTypeOfSymbolAtLocation(fnSymbol, sourceFile.statements[0]!);
 		const sig = fnType.getCallSignatures()[0]!;
 
-		const params = extractSignatureParameters(sig, checker, undefined);
+		const params = extractSignatureParameters(sig, mockExtractContext(checker), undefined);
 
 		assert.strictEqual(params.length, 2);
 		assert.strictEqual(params[0]!.optional, false); // not optional
@@ -1629,7 +1629,7 @@ describe('extractSignatureParameters', () => {
 		const fnType = checker.getTypeOfSymbolAtLocation(fnSymbol, sourceFile.statements[0]!);
 		const sig = fnType.getCallSignatures()[0]!;
 
-		const params = extractSignatureParameters(sig, checker, undefined);
+		const params = extractSignatureParameters(sig, mockExtractContext(checker), undefined);
 
 		assert.strictEqual(params.length, 1);
 		assert.strictEqual(params[0]!.defaultValue, 'true');
@@ -1647,7 +1647,7 @@ describe('extractSignatureParameters', () => {
 		const sig = fnType.getCallSignatures()[0]!;
 
 		const tsdocParams = { name: 'The user name' };
-		const params = extractSignatureParameters(sig, checker, tsdocParams);
+		const params = extractSignatureParameters(sig, mockExtractContext(checker), tsdocParams);
 
 		assert.strictEqual(params[0]!.description, 'The user name');
 	});
@@ -1663,7 +1663,7 @@ describe('extractSignatureParameters', () => {
 		const fnType = checker.getTypeOfSymbolAtLocation(fnSymbol, sourceFile.statements[0]!);
 		const sig = fnType.getCallSignatures()[0]!;
 
-		const params = extractSignatureParameters(sig, checker, undefined);
+		const params = extractSignatureParameters(sig, mockExtractContext(checker), undefined);
 
 		assert.ok(Array.isArray(params));
 		assert.strictEqual(params.length, 0);

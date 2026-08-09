@@ -9,7 +9,7 @@ import { compactReplacer } from '$lib/declaration-helpers.ts';
 import { createSourceOptions } from '$lib/source-config.ts';
 
 import { discoverFixtureDirs } from '../../test-helpers.ts';
-import { fixtureNameToComponentName } from './svelte-test-helpers.ts';
+import { buildSvelteFixtureRegistry, fixtureNameToComponentName } from './svelte-test-helpers.ts';
 
 export const task: Task = {
 	summary: 'generate expected.json files for svelte fixtures',
@@ -44,6 +44,14 @@ export const task: Task = {
 		);
 		const program = createAnalysisProgram({ virtualFiles: allVirtualFiles });
 		const checker = program.getTypeChecker();
+		// one registry over the whole fixture set, mirroring analyzeCore's pre-pass
+		const aliasRegistry = buildSvelteFixtureRegistry(
+			program,
+			fixtureData.map((d) => ({
+				virtualFile: d.virtualFile,
+				modulePath: `${fixtureNameToComponentName(d.name)}.svelte`
+			}))
+		);
 
 		let generatedCount = 0;
 		let skippedCount = 0;
@@ -59,7 +67,8 @@ export const task: Task = {
 				sourceOptions,
 				diagnostics,
 				program,
-				virtualFile
+				virtualFile,
+				aliasRegistry
 			);
 			if (!result) throw new Error(`Analysis returned undefined for ${modulePath}`);
 

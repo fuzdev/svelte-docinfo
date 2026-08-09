@@ -5,9 +5,9 @@ interface Box {
 const seed: Inferred = { a: 'x', b: 1 };
 
 /**
- * An unannotated variable of an alias-lost type: with no written annotation
- * to recover a name from, the flat string prints the expansion and the tree
- * is absent (an object root has no structure beyond the flat string).
+ * An unannotated variable of an alias-lost type: the flat string prints the
+ * expansion, and the tree recovers the exported alias's name through the
+ * registry (`{kind: 'reference', name: 'Inferred'}`).
  */
 export const derived = seed;
 

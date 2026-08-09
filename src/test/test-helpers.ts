@@ -7,9 +7,11 @@
 import { readdir, readFile, writeFile, mkdir, rm } from 'node:fs/promises';
 import { join, relative } from 'node:path';
 import { tmpdir } from 'node:os';
+import type ts from 'typescript';
 
 import { compareStrings } from '$lib/postprocess.ts';
 import type { AnalysisLog } from '$lib/log.ts';
+import type { ExtractContext } from '$lib/typescript-extract-shared.ts';
 
 /**
  * Create an `AnalysisLog` that collects info messages for assertions.
@@ -21,6 +23,22 @@ export const collectingLog = (): { infos: Array<string>; log: AnalysisLog } => {
 	const infos: Array<string> = [];
 	return { infos, log: { info: (msg) => infos.push(msg), warn: () => {}, error: () => {} } };
 };
+
+/**
+ * A minimal `ExtractContext` for tests driving extractors directly: fresh
+ * diagnostics array, nothing external, no alias registry (written-name
+ * recovery only). Override per test via `overrides`.
+ */
+export const mockExtractContext = (
+	checker: ts.TypeChecker,
+	overrides?: Partial<ExtractContext>
+): ExtractContext => ({
+	checker,
+	diagnostics: [],
+	isExternalFile: () => false,
+	aliasRegistry: undefined,
+	...overrides
+});
 
 /**
  * Result of creating a test project.

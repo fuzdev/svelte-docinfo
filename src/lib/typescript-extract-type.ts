@@ -21,10 +21,8 @@
 import ts from 'typescript';
 
 import type { DeclarationJsonBuild, MemberJsonBuild } from './declaration-build.ts';
-import { type Diagnostic } from './diagnostics.ts';
 import { to_error_message } from './error.ts';
 import { parseComment, applyToDeclaration } from './tsdoc.ts';
-import { type IsExternalFile } from './typescript-program.ts';
 import {
 	emitCallOrConstructSignature,
 	extractModifiers,
@@ -33,7 +31,8 @@ import {
 	memberNameText,
 	parseGenericParam,
 	populateCallableMember,
-	populatePropertyMember
+	populatePropertyMember,
+	type ExtractContext
 } from './typescript-extract-shared.ts';
 import { resolveTypeInfo } from './typescript-extract-type-json.ts';
 import { extractTypeAliasProperties } from './typescript-extract-type-properties.ts';
@@ -44,19 +43,17 @@ import { extractTypeAliasProperties } from './typescript-extract-type-properties
  * @internal Used by `analyzeDeclaration` — not part of the public barrel export.
  *
  * @param node - the declaration AST node
- * @param checker - TypeScript type checker
  * @param declaration - the declaration to populate
- * @param diagnostics - diagnostics collector for non-fatal issues
+ * @param ctx - the extraction pass's context
  * @mutates declaration - adds typeSignature, genericParams, extends, intersects, members (and `partial: true` on extraction failure)
- * @mutates diagnostics - adds `type_extraction_failed` / `signature_analysis_failed` diagnostics on checker errors
+ * @mutates ctx.diagnostics - adds `type_extraction_failed` / `signature_analysis_failed` diagnostics on checker errors
  */
 export const extractTypeInfo = (
 	node: ts.Node,
-	checker: ts.TypeChecker,
 	declaration: DeclarationJsonBuild,
-	diagnostics: Array<Diagnostic>,
-	isExternalFile: IsExternalFile
+	ctx: ExtractContext
 ): void => {
+	const { checker, diagnostics } = ctx;
 	let nodeType: ts.Type | undefined;
 	try {
 		nodeType = checker.getTypeAtLocation(node);
@@ -64,9 +61,10 @@ export const extractTypeInfo = (
 		// structured type on type aliases only — an interface is an object shape,
 		// terminal by the `TypeJson` absence contract, and its variant has no field.
 		// The right-hand side is the written node: an alias *over* an alias-lost
-		// name recovers it (`type B = Inferred` references `Inferred`)
+		// name recovers it (`type B = Inferred` references `Inferred`).
+		// `ownAliasName` doubles as the registry self-skip — see `resolveTypeInfo`
 		if (ts.isTypeAliasDeclaration(node)) {
-			const typeInfo = resolveTypeInfo(nodeType, checker, false, {
+			const typeInfo = resolveTypeInfo(nodeType, checker, ctx.aliasRegistry, false, {
 				ownAliasName: node.name.text,
 				writtenNode: node.type
 			});
@@ -93,7 +91,7 @@ export const extractTypeInfo = (
 	}
 
 	if (ts.isTypeAliasDeclaration(node) && nodeType) {
-		extractTypeAliasProperties(node, nodeType, checker, declaration, diagnostics, isExternalFile);
+		extractTypeAliasProperties(node, nodeType, declaration, ctx);
 	}
 
 	if (ts.isInterfaceDeclaration(node)) {
@@ -144,12 +142,11 @@ export const extractTypeInfo = (
 						populatePropertyMember(
 							propDeclaration,
 							propType,
-							checker,
+							ctx,
 							optional,
 							propTsdoc,
 							member,
 							propName,
-							diagnostics,
 							member.type
 						);
 					} else {
@@ -215,11 +212,10 @@ export const extractTypeInfo = (
 						populateCallableMember(
 							methodDeclaration,
 							callableType.getCallSignatures(),
-							checker,
+							ctx,
 							methodTsdoc,
 							member,
-							methodName,
-							diagnostics
+							methodName
 						);
 					}
 				} catch (err) {
@@ -257,7 +253,7 @@ export const extractTypeInfo = (
 							const indexType = checker.getTypeFromTypeNode(member.type);
 							// no optional strip on either output — `optional` is N/A for index signatures
 							indexDeclaration.typeSignature = checker.typeToString(indexType);
-							const typeInfo = resolveTypeInfo(indexType, checker, false, {
+							const typeInfo = resolveTypeInfo(indexType, checker, ctx.aliasRegistry, false, {
 								writtenNode: member.type
 							});
 							if (typeInfo) indexDeclaration.typeInfo = typeInfo;
@@ -295,8 +291,7 @@ export const extractTypeInfo = (
 			() => node.members.find(ts.isCallSignatureDeclaration),
 			node,
 			declaration,
-			checker,
-			diagnostics,
+			ctx,
 			errorContext
 		);
 
@@ -306,8 +301,7 @@ export const extractTypeInfo = (
 			() => node.members.find(ts.isConstructSignatureDeclaration),
 			node,
 			declaration,
-			checker,
-			diagnostics,
+			ctx,
 			errorContext
 		);
 	}
@@ -325,10 +319,10 @@ export const extractTypeInfo = (
  */
 export const extractEnumInfo = (
 	node: ts.Node,
-	checker: ts.TypeChecker,
 	declaration: DeclarationJsonBuild,
-	diagnostics: Array<Diagnostic>
+	ctx: ExtractContext
 ): void => {
+	const { checker, diagnostics } = ctx;
 	// Extract type signature
 	try {
 		const nodeType = checker.getTypeAtLocation(node);

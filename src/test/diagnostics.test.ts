@@ -747,6 +747,7 @@ describe('diagnostic type discrimination', () => {
 				case 'duplicate_declaration':
 				case 'transform_failed':
 				case 'resolver_failed':
+				case 'alias_lost':
 					assert.fail('unreachable');
 			}
 		}

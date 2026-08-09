@@ -136,6 +136,16 @@
 						</td>
 					</tr>
 					<tr>
+						<td><code>legacy_props</code></td>
+						<td>
+							<strong>Trigger:</strong> a component declares props with legacy
+							<code>export let</code> syntax — still-legal Svelte 5, but prop extraction anchors on
+							<code>$props()</code>, so nothing was extracted. <code>propNames</code> lists the
+							detected props. <strong>Consequence:</strong> the component emits with empty
+							<code>props</code>; migrate to <code>$props()</code>.
+						</td>
+					</tr>
+					<tr>
 						<td><code>module_skipped</code></td>
 						<td>
 							<strong>Trigger:</strong> whole module skipped during the analysis pass.
@@ -190,6 +200,22 @@
 						<td>
 							<strong>Trigger:</strong> <code>@param</code> key didn't match any actual parameter
 							(typo or stale doc after a rename). <strong>Consequence:</strong> the description is dropped.
+						</td>
+					</tr>
+					<tr>
+						<td><code>alias_lost</code></td>
+						<td>
+							<strong>Trigger:</strong> an exported type alias's right-hand side (an indexed access
+							or conditional — <code>z.infer&lt;typeof S&gt;</code> and friends) resolves to a type
+							the checker keeps no name for, and nothing self-heals: losses the alias registry
+							recovers are suppressed (their <code>typeInfo</code> emits
+							<code>&#123;kind: 'reference', name&#125;</code> at use sites), as are literal-only
+							unions (<code>z.enum</code> outputs) and brand intersections — readable degradations
+							with no author-side fix. <code>aliasName</code> names the alias.
+							<strong>Consequence:</strong> unannotated positions document the alias's structure
+							instead of its name; where applicable, an author-side nominal symbol (<code
+								>interface Foo extends z.infer&lt;typeof S&gt; &#123;&#125;</code
+							>) restores it.
 						</td>
 					</tr>
 					<tr>

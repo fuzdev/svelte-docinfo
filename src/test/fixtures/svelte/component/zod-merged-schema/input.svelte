@@ -5,7 +5,7 @@
 	export const Point = z.strictObject({ x: z.number(), y: z.number() });
 	export type Point = z.infer<typeof Point>;
 
-	/** An inferred (unannotated) return of the lost type. */
+	/** An inferred (unannotated) return of the lost type — the registry recovers the name. */
 	export const parsePoint = (input: unknown) => Point.parse(input);
 </script>
 

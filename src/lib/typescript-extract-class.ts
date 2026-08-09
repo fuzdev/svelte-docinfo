@@ -16,7 +16,6 @@ import ts from 'typescript';
 
 import type { MemberKind, DeclarationModifier } from './types.ts';
 import type { DeclarationJsonBuild, MemberJsonBuild } from './declaration-build.ts';
-import { type Diagnostic } from './diagnostics.ts';
 import { to_error_message } from './error.ts';
 import { parseComment, applyToDeclaration } from './tsdoc.ts';
 import { resolveTypeInfo } from './typescript-extract-type-json.ts';
@@ -27,7 +26,8 @@ import {
 	getTypeSignature,
 	memberNameText,
 	parseGenericParam,
-	populateCallableMember
+	populateCallableMember,
+	type ExtractContext
 } from './typescript-extract-shared.ts';
 
 /**
@@ -36,18 +36,17 @@ import {
  * @internal Used by `analyzeDeclaration` — not part of the public barrel export.
  *
  * @param node - the declaration AST node
- * @param checker - TypeScript type checker
  * @param declaration - the declaration to populate
- * @param diagnostics - diagnostics collector for non-fatal issues
+ * @param ctx - the extraction pass's context
  * @mutates declaration - adds extends, implements, genericParams, members
  */
 export const extractClassInfo = (
 	node: ts.Node,
-	checker: ts.TypeChecker,
 	declaration: DeclarationJsonBuild,
-	diagnostics: Array<Diagnostic>
+	ctx: ExtractContext
 ): void => {
 	if (!ts.isClassDeclaration(node)) return;
+	const { checker, diagnostics } = ctx;
 
 	if (node.heritageClauses) {
 		const extendsClause = node.heritageClauses.find(
@@ -141,7 +140,7 @@ export const extractClassInfo = (
 						const t = checker.getTypeOfSymbolAtLocation(memberSymbol, member);
 						const optional = !!member.questionToken;
 						memberDeclaration.typeSignature = getTypeSignature(t, checker, optional);
-						const typeInfo = resolveTypeInfo(t, checker, optional, {
+						const typeInfo = resolveTypeInfo(t, checker, ctx.aliasRegistry, optional, {
 							writtenNode: member.type
 						});
 						if (typeInfo) memberDeclaration.typeInfo = typeInfo;
@@ -176,11 +175,10 @@ export const extractClassInfo = (
 					populateCallableMember(
 						memberDeclaration,
 						signatures,
-						checker,
+						ctx,
 						memberTsdoc,
 						member,
 						memberName,
-						diagnostics,
 						!isConstructor
 					);
 				}
@@ -272,7 +270,7 @@ export const extractClassInfo = (
 				if (getterSymbol) {
 					const getterType = checker.getTypeOfSymbolAtLocation(getterSymbol, getter);
 					accessorDeclaration.typeSignature = checker.typeToString(getterType);
-					const typeInfo = resolveTypeInfo(getterType, checker, false, {
+					const typeInfo = resolveTypeInfo(getterType, checker, ctx.aliasRegistry, false, {
 						writtenNode: getter.type
 					});
 					if (typeInfo) accessorDeclaration.typeInfo = typeInfo;
@@ -285,7 +283,7 @@ export const extractClassInfo = (
 				if (setterSymbol) {
 					const setterType = checker.getTypeOfSymbolAtLocation(setterSymbol, setter);
 					accessorDeclaration.typeSignature = checker.typeToString(setterType);
-					const typeInfo = resolveTypeInfo(setterType, checker, false, {
+					const typeInfo = resolveTypeInfo(setterType, checker, ctx.aliasRegistry, false, {
 						writtenNode: setter.parameters[0]?.type
 					});
 					if (typeInfo) accessorDeclaration.typeInfo = typeInfo;
