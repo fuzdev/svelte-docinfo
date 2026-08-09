@@ -3,6 +3,7 @@
 	"kind": "interface",
 	"docComment": "An interface with properties and call signature.",
 	"typeSignature": "A",
+	"sourceLine": 4,
 	"members": [
 		{
 			"name": "a",

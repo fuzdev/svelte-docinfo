@@ -3,5 +3,6 @@
 	"kind": "function",
 	"docComment": "Test kind inference for function declarations.",
 	"typeSignature": "(): void",
+	"sourceLine": 4,
 	"returnType": "void"
 }

@@ -2,5 +2,6 @@
 	"name": "a",
 	"kind": "variable",
 	"docComment": "A simple constant variable.",
-	"typeSignature": "number"
+	"typeSignature": "number",
+	"sourceLine": 4
 }

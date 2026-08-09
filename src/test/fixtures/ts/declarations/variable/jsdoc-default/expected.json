@@ -3,5 +3,6 @@
 	"kind": "variable",
 	"docComment": "Maximum number of retries before giving up.",
 	"typeSignature": "number",
+	"sourceLine": 5,
 	"defaultValue": "3"
 }

@@ -3,6 +3,7 @@
 	"kind": "type",
 	"docComment": "Literal types.",
 	"typeSignature": "A",
+	"sourceLine": 4,
 	"members": [
 		{
 			"name": "a",

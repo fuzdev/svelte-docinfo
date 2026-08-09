@@ -3,6 +3,7 @@
 	"kind": "type",
 	"docComment": "A tuple type.",
 	"typeSignature": "A",
+	"sourceLine": 4,
 	"typeInfo": {
 		"kind": "tuple",
 		"elements": [

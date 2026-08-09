@@ -1,0 +1,20 @@
+{
+	"name": "Merged",
+	"kind": "type",
+	"docComment": "Merged const+type pair — the type alias's structure wins.",
+	"typeSignature": "{ a: string; b: number; }",
+	"sourceLine": 11,
+	"members": [
+		{
+			"name": "a",
+			"kind": "variable",
+			"typeSignature": "string"
+		},
+		{
+			"name": "b",
+			"kind": "variable",
+			"typeSignature": "number"
+		}
+	],
+	"mergedValue": true
+}

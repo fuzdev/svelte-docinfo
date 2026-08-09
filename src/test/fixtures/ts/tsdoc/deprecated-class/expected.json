@@ -2,6 +2,7 @@
 	"name": "A",
 	"kind": "class",
 	"docComment": "Description.",
+	"sourceLine": 6,
 	"deprecatedMessage": "Description 1",
 	"members": [
 		{

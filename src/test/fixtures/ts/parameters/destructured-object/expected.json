@@ -3,6 +3,7 @@
 	"kind": "function",
 	"docComment": "A function with destructured object parameters.",
 	"typeSignature": "({ a, b }: { a: string; b: number; }): string",
+	"sourceLine": 7,
 	"parameters": [
 		{
 			"name": "__0",

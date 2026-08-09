@@ -3,6 +3,7 @@
 	"kind": "function",
 	"docComment": "A function with overloads.",
 	"typeSignature": "(a: string): string",
+	"sourceLine": 7,
 	"parameters": [
 		{
 			"name": "a",

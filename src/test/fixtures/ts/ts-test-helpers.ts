@@ -1,19 +1,12 @@
 import ts from 'typescript';
 
 import { DeclarationJson, type DeclarationJsonInput } from '$lib/types.ts';
-import type { DeclarationJsonBuild } from '$lib/declaration-build.ts';
-import { inferDeclarationKind } from '$lib/typescript-extract-shared.ts';
-import { extractFunctionInfo, extractVariableInfo } from '$lib/typescript-extract-function.ts';
-import { extractTypeInfo, extractEnumInfo } from '$lib/typescript-extract-type.ts';
-import { extractClassInfo } from '$lib/typescript-extract-class.ts';
-import { extractModuleComment } from '$lib/typescript-exports.ts';
-import { parseComment, applyToDeclaration } from '$lib/tsdoc.ts';
+import { analyzeDeclaration, extractModuleComment } from '$lib/typescript-exports.ts';
 import type { Diagnostic } from '$lib/diagnostics.ts';
 
 import { loadFixturesGeneric } from '../../test-helpers.ts';
 
-export type TsFixtureCategory =
-	'function' | 'class' | 'type' | 'variable' | 'enum' | 'moduleComment' | 'inferKind';
+export type TsFixtureCategory = 'declaration' | 'moduleComment';
 
 export interface TsFixture {
 	name: string;
@@ -201,116 +194,68 @@ export const findTypeAlias = (
 };
 
 /**
- * Extract a declaration from a TypeScript source file based on the fixture category.
+ * Extract a declaration from a TypeScript source file for fixture comparison.
  * Used by both test files and update tasks to ensure consistent behavior.
+ *
+ * Routes through the production `analyzeDeclaration` — the statement walk here
+ * only locates the first exported symbol; node selection, kind dispatch, and
+ * TSDoc handling (merged value+type selection and doc fallback included) are
+ * production code, so the fixtures can't drift from real output. Diagnostics
+ * are discarded (the fixture harness doesn't model them).
  *
  * @param sourceFile - The TypeScript source file to analyze
  * @param checker - The TypeScript type checker
- * @param category - The fixture category (function, class, type, etc.)
- * @returns The extracted declaration, or null if not found
+ * @param category - The fixture category (declaration or moduleComment)
+ * @returns The extracted declaration (null for `@nodocs`), or the module
+ * comment string (null when absent) for the moduleComment category
  */
 export const extractDeclarationFromSource = (
 	sourceFile: ts.SourceFile,
 	checker: ts.TypeChecker,
 	category: TsFixtureCategory
 ): DeclarationJson | string | null => {
-	// Handle moduleComment category differently (returns string, not IdentifierJson)
+	// Handle moduleComment category differently (returns string, not DeclarationJson)
 	if (category === 'moduleComment') {
 		return extractModuleComment(sourceFile) ?? null;
 	}
 
-	// Find the exported declaration
+	// Find the first exported declaration's symbol
 	for (const statement of sourceFile.statements) {
-		// Check if this statement type can have modifiers
-		if (
-			!ts.isFunctionDeclaration(statement) &&
-			!ts.isClassDeclaration(statement) &&
-			!ts.isInterfaceDeclaration(statement) &&
-			!ts.isTypeAliasDeclaration(statement) &&
-			!ts.isEnumDeclaration(statement) &&
-			!ts.isVariableStatement(statement)
-		) {
-			continue;
-		}
-
-		const modifiers = ts.getModifiers(statement);
+		const modifiers = ts.canHaveModifiers(statement) ? ts.getModifiers(statement) : undefined;
 		const isExported = modifiers?.some((mod) => mod.kind === ts.SyntaxKind.ExportKeyword);
-
 		if (!isExported) continue;
 
-		// Get symbol and node
-		let symbol: ts.Symbol | undefined;
-		let node: ts.Node | undefined;
-
-		if (ts.isFunctionDeclaration(statement) && statement.name) {
-			node = statement;
-			symbol = checker.getSymbolAtLocation(statement.name);
-		} else if (ts.isClassDeclaration(statement) && statement.name) {
-			node = statement;
-			symbol = checker.getSymbolAtLocation(statement.name);
-		} else if (ts.isInterfaceDeclaration(statement)) {
-			node = statement;
-			symbol = checker.getSymbolAtLocation(statement.name);
-		} else if (ts.isTypeAliasDeclaration(statement)) {
-			node = statement;
-			symbol = checker.getSymbolAtLocation(statement.name);
-		} else if (ts.isEnumDeclaration(statement)) {
-			node = statement;
-			symbol = checker.getSymbolAtLocation(statement.name);
+		let nameNode: ts.Identifier | undefined;
+		if (
+			(ts.isFunctionDeclaration(statement) ||
+				ts.isClassDeclaration(statement) ||
+				ts.isInterfaceDeclaration(statement) ||
+				ts.isTypeAliasDeclaration(statement) ||
+				ts.isEnumDeclaration(statement)) &&
+			statement.name
+		) {
+			nameNode = statement.name;
 		} else if (ts.isVariableStatement(statement)) {
 			// Get the first declaration
 			const decl = statement.declarationList.declarations[0];
 			if (decl && ts.isIdentifier(decl.name)) {
-				node = decl;
-				symbol = checker.getSymbolAtLocation(decl.name);
+				nameNode = decl.name;
 			}
 		}
+		if (!nameNode) continue;
 
-		if (!symbol || !node) continue;
+		const symbol = checker.getSymbolAtLocation(nameNode);
+		if (!symbol) continue;
 
-		const name = symbol.name;
-
-		// For inferKind category, just test kind inference
-		if (category === 'inferKind') {
-			const kind = inferDeclarationKind(symbol, node);
-			return DeclarationJson.parse({ name, kind });
-		}
-
-		// Create base declaration (plain object, not .parse(), to match production code's key insertion order)
-		const declaration: DeclarationJsonBuild = {
-			name,
-			kind: inferDeclarationKind(symbol, node)
-		};
-
-		// Extract TSDoc — parseComment filters @module blocks (handled by extractModuleComment)
-		const tsdoc = parseComment(node, sourceFile);
-
-		// Check for @nodocs tag (excludes from documentation)
-		const nodocs = tsdoc?.nodocs ?? false;
-		if (nodocs) return null;
-
-		// Apply TSDoc to declaration (adds docComment, deprecatedMessage, examples, etc.)
-		applyToDeclaration(declaration, tsdoc);
-
-		// Apply appropriate extraction based on category
 		const diagnostics: Array<Diagnostic> = [];
-		switch (category) {
-			case 'function':
-				extractFunctionInfo(node, symbol, checker, declaration, tsdoc, diagnostics);
-				break;
-			case 'class':
-				extractClassInfo(node, checker, declaration, diagnostics);
-				break;
-			case 'type':
-				extractTypeInfo(node, checker, declaration, diagnostics, () => false);
-				break;
-			case 'enum':
-				extractEnumInfo(node, checker, declaration, diagnostics);
-				break;
-			case 'variable':
-				extractVariableInfo(node, symbol, checker, declaration, diagnostics);
-				break;
-		}
+		const { declaration, nodocs } = analyzeDeclaration(
+			symbol,
+			sourceFile,
+			checker,
+			diagnostics,
+			() => false
+		);
+		if (nodocs) return null;
 
 		return DeclarationJson.parse(declaration);
 	}
@@ -321,61 +266,13 @@ export const extractDeclarationFromSource = (
 /**
  * Infer the fixture category from its path based on directory structure.
  *
- * New hierarchical structure:
- * - declarations/class/* → class
- * - declarations/interface/* → type
- * - declarations/type/* → type
- * - declarations/function/* → function
- * - declarations/variable/* → variable
- * - parameters/* → function
- * - types/* → type
- * - members/class-* → class
- * - members/interface-* → type
- * - generics/* → type
- * - module/comment/* → moduleComment
- * - tsdoc/comprehensive → function
- * - tsdoc/deprecated-class → class
- * - tsdoc/see-on-interface → type
- * - tsdoc/example-on-type → type
- * - tsdoc/mutates-on-method → class
- * - tsdoc/nodocs-filtering → function
+ * `module/comment/*` fixtures capture the module comment string; everything
+ * else captures a `DeclarationJson` through the production `analyzeDeclaration`
+ * (which dispatches on inferred kind — the per-kind extractor is no longer a
+ * fixture-side choice).
  */
-export const inferCategoryFromName = (name: string): TsFixtureCategory => {
-	// Handle hierarchical structure (new format)
-	if (name.includes('/')) {
-		if (name.startsWith('declarations/class/')) return 'class';
-		if (name.startsWith('declarations/interface/')) return 'type';
-		if (name.startsWith('declarations/type/')) return 'type';
-		if (name.startsWith('declarations/function/')) return 'function';
-		if (name.startsWith('declarations/variable/')) return 'variable';
-		if (name.startsWith('declarations/enum/')) return 'enum';
-		if (name.startsWith('parameters/')) return 'function';
-		if (name.startsWith('types/')) return 'type';
-		if (name.startsWith('members/class-')) return 'class';
-		if (name.startsWith('members/interface-')) return 'type';
-		if (name.startsWith('generics/')) return 'type';
-		if (name.startsWith('module/comment/')) return 'moduleComment';
-		// TSDoc fixtures - map by specific fixture name to declaration type
-		if (name === 'tsdoc/comprehensive') return 'function';
-		if (name === 'tsdoc/deprecated-bare') return 'function';
-		if (name === 'tsdoc/deprecated-class') return 'class';
-		if (name === 'tsdoc/see-on-interface') return 'type';
-		if (name === 'tsdoc/example-on-type') return 'type';
-		if (name === 'tsdoc/mutates-on-method') return 'class';
-		if (name === 'tsdoc/nodocs-filtering') return 'function';
-		if (name === 'tsdoc/module-tag-excluded') return 'function';
-	}
-
-	// Fallback for old flat structure (for backwards compatibility during migration)
-	if (name.startsWith('class-')) return 'class';
-	if (name.startsWith('function-') || name.startsWith('params_')) return 'function';
-	if (name.startsWith('interface-') || name.startsWith('type-')) return 'type';
-	if (name.startsWith('variable-')) return 'variable';
-	if (name.startsWith('inferKind-')) return 'inferKind';
-	if (name.startsWith('module-')) return 'moduleComment';
-
-	throw new Error(`Cannot infer category from fixture name: ${name}`);
-};
+export const inferCategoryFromName = (name: string): TsFixtureCategory =>
+	name.startsWith('module/comment/') ? 'moduleComment' : 'declaration';
 
 /**
  * Load all fixtures from the ts fixtures directory (flat structure).
@@ -391,99 +288,4 @@ export const loadFixtures = async (): Promise<Array<TsFixture>> => {
 		...f,
 		category: inferCategoryFromName(f.name)
 	}));
-};
-
-/**
- * Validate that a `DeclarationJsonInput` (wire-form) has the expected structure.
- * Accepts both loaded JSON and `.parse()` results since Output is assignable to Input.
- */
-export const validateDeclarationStructure = (declaration: DeclarationJsonInput): void => {
-	if (!declaration) {
-		throw new Error('Expected declaration to be defined');
-	}
-
-	// Must have name and kind
-	if (typeof declaration.name !== 'string') {
-		throw new Error('Expected declaration.name to be a string');
-	}
-
-	if (typeof declaration.kind !== 'string') {
-		throw new Error('Expected declaration.kind to be a string');
-	}
-
-	// Validate kind is one of the allowed values
-	const validKinds = ['function', 'class', 'type', 'interface', 'enum', 'variable', 'component'];
-	if (!validKinds.includes(declaration.kind)) {
-		throw new Error(`Expected declaration.kind to be one of ${validKinds.join(', ')}`);
-	}
-
-	// Validate optional fields based on kind
-	if (declaration.kind === 'function') {
-		if (declaration.parameters !== undefined && !Array.isArray(declaration.parameters)) {
-			throw new Error('Expected parameters to be an array');
-		}
-		if (declaration.returnType !== undefined && typeof declaration.returnType !== 'string') {
-			throw new Error('Expected returnType to be a string');
-		}
-	}
-
-	if (declaration.kind === 'class') {
-		if (declaration.members !== undefined && !Array.isArray(declaration.members)) {
-			throw new Error('Expected members to be an array');
-		}
-	}
-
-	if (declaration.kind === 'type' || declaration.kind === 'interface') {
-		if (declaration.members !== undefined && !Array.isArray(declaration.members)) {
-			throw new Error('Expected members to be an array');
-		}
-	}
-
-	// Validate genericParams if present
-	if (declaration.genericParams !== undefined) {
-		if (!Array.isArray(declaration.genericParams)) {
-			throw new Error('Expected genericParams to be an array');
-		}
-		for (const param of declaration.genericParams) {
-			if (typeof param.name !== 'string') {
-				throw new Error('Expected generic param name to be a string');
-			}
-		}
-	}
-
-	// Validate overloads if present (function kind)
-	if (declaration.kind === 'function') {
-		if (declaration.overloads !== undefined) {
-			if (!Array.isArray(declaration.overloads)) {
-				throw new Error('Expected overloads to be an array');
-			}
-			for (const overload of declaration.overloads) {
-				if (typeof overload.typeSignature !== 'string') {
-					throw new Error('Expected overload typeSignature to be a string');
-				}
-			}
-		}
-	}
-
-	// Validate overloads on class members if present
-	if (declaration.kind === 'class') {
-		if (declaration.members !== undefined) {
-			for (const member of declaration.members) {
-				if (member.kind === 'function' || member.kind === 'constructor') {
-					if (member.overloads !== undefined) {
-						if (!Array.isArray(member.overloads)) {
-							throw new Error(`Expected overloads on member "${member.name}" to be an array`);
-						}
-						for (const overload of member.overloads) {
-							if (typeof overload.typeSignature !== 'string') {
-								throw new Error(
-									`Expected overload typeSignature on member "${member.name}" to be a string`
-								);
-							}
-						}
-					}
-				}
-			}
-		}
-	}
 };

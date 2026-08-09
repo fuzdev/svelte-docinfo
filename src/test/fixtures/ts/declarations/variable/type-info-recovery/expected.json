@@ -3,6 +3,7 @@
 	"kind": "variable",
 	"docComment": "Root recovery: the flat string prints the expansion, the tree carries the\nrecovered bare reference (the relaxed absence contract).",
 	"typeSignature": "\"x\" | { y: number; }",
+	"sourceLine": 12,
 	"typeInfo": {
 		"kind": "reference",
 		"name": "LostUnion"

@@ -3,6 +3,7 @@
 	"kind": "function",
 	"docComment": "Description 1",
 	"typeSignature": "(a: string): string",
+	"sourceLine": 2,
 	"parameters": [
 		{
 			"name": "a",

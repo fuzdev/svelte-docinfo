@@ -3,6 +3,7 @@
 	"kind": "function",
 	"docComment": "A generic arrow function with generics on the type annotation.",
 	"typeSignature": "<T extends { id: number; }>(a: Array<T>): T | undefined",
+	"sourceLine": 7,
 	"genericParams": [
 		{
 			"name": "T",

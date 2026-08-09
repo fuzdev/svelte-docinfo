@@ -3,6 +3,7 @@
 	"kind": "interface",
 	"docComment": "A generic type with constraints and defaults.",
 	"typeSignature": "A<T, E>",
+	"sourceLine": 4,
 	"genericParams": [
 		{
 			"name": "T",

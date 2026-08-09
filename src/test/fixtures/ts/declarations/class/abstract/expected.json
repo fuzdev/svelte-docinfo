@@ -2,6 +2,7 @@
 	"name": "A",
 	"kind": "class",
 	"docComment": "An abstract class with abstract methods.",
+	"sourceLine": 4,
 	"members": [
 		{
 			"name": "a",

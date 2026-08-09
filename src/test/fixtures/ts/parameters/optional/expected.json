@@ -3,6 +3,7 @@
 	"kind": "function",
 	"docComment": "A function with optional and default parameters.",
 	"typeSignature": "(a: string, b?: number | undefined, c?: boolean): void",
+	"sourceLine": 8,
 	"parameters": [
 		{
 			"name": "a",

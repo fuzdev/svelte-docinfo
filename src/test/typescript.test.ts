@@ -1,7 +1,7 @@
 import { test, assert, describe, beforeAll } from 'vitest';
 import ts from 'typescript';
 
-import { DeclarationJson, type DeclarationJsonInput } from '$lib/types.ts';
+import { DeclarationJson } from '$lib/types.ts';
 import { createAnalysisProgram } from '$lib/typescript-program.ts';
 import { detectReactivity, extractSignatureParameters } from '$lib/typescript-extract-shared.ts';
 import { analyzeExports, analyzeTypescriptModule } from '$lib/typescript-exports.ts';
@@ -9,7 +9,6 @@ import { type Diagnostic, hasErrors, hasWarnings } from '$lib/diagnostics.ts';
 
 import {
 	loadFixtures,
-	validateDeclarationStructure,
 	createTestProgram,
 	createMultiFileProgram,
 	createFixtureProgram,
@@ -42,7 +41,7 @@ describe('TypeScript helpers (fixture-based)', () => {
 			assert.deepEqual(
 				normalizeJson(result),
 				normalizeJson(fixture.expected),
-				`Fixture "${fixture.category}/${fixture.name}" failed`
+				`Fixture "${fixture.name}" failed`
 			);
 		}
 	});
@@ -64,14 +63,15 @@ describe('TypeScript helpers (fixture-based)', () => {
 				continue; // Skip structure validation for null
 			}
 
-			// Validate declaration structure
-			validateDeclarationStructure(fixture.expected as DeclarationJsonInput);
+			// Validate through the Zod schema — strictly stronger than any
+			// hand-rolled structural check and can't fall behind the data model
+			DeclarationJson.parse(fixture.expected);
 		}
 	});
 
 	test('class fixtures correctly exclude private fields', () => {
 		const privateFieldsFixture = fixtures.find(
-			(f) => f.category === 'class' && f.name === 'declarations/class/private-excluded'
+			(f) => f.name === 'declarations/class/private-excluded'
 		);
 
 		if (!privateFieldsFixture) {
@@ -110,9 +110,7 @@ describe('TypeScript helpers (fixture-based)', () => {
 	});
 
 	test('class fixtures correctly extract getters and setters', () => {
-		const accessorsFixture = fixtures.find(
-			(f) => f.category === 'class' && f.name === 'members/class-accessors'
-		);
+		const accessorsFixture = fixtures.find((f) => f.name === 'members/class-accessors');
 
 		if (!accessorsFixture) {
 			throw new Error('members/class-accessors fixture not found');

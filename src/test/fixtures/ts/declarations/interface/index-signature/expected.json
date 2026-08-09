@@ -3,6 +3,7 @@
 	"kind": "interface",
 	"docComment": "An interface with index signatures.",
 	"typeSignature": "A",
+	"sourceLine": 4,
 	"members": [
 		{
 			"name": "a",

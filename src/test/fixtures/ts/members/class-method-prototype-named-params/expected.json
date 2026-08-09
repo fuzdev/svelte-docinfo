@@ -2,6 +2,7 @@
 	"name": "A",
 	"kind": "class",
 	"docComment": "A class whose method parameters are named after `Object.prototype` keys.\n\nRegression: with a plain-object `@param` map these undocumented params would\nresolve to inherited prototype values (e.g. `Object.prototype.constructor`)\ninstead of `undefined`, producing a non-string `description`.",
+	"sourceLine": 8,
 	"members": [
 		{
 			"name": "fn1",

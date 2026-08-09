@@ -368,6 +368,51 @@
 			"dependents": ["Calculator.svelte", "index.ts"]
 		},
 		{
+			"path": "schema.ts",
+			"declarations": [
+				{
+					"name": "Parser",
+					"kind": "interface",
+					"docComment": "Minimal stand-in for a schema library's parser type.",
+					"typeSignature": "Parser<O>",
+					"sourceLine": 10,
+					"genericParams": [{ "name": "O" }],
+					"members": [
+						{
+							"name": "parse",
+							"kind": "function",
+							"docComment": "Parse unknown input, returning the output type.",
+							"typeSignature": "(input: unknown): O",
+							"parameters": [{ "name": "input", "type": "unknown" }],
+							"returnType": "O"
+						}
+					]
+				},
+				{
+					"name": "Infer",
+					"kind": "type",
+					"docComment": "Extract a parser's output type — the `z.infer` analogue.",
+					"typeSignature": "Infer<P>",
+					"sourceLine": 16,
+					"genericParams": [{ "name": "P", "constraint": "Parser<unknown>" }],
+					"typeInfo": { "kind": "other", "text": "P extends Parser<infer O> ? O : never" }
+				},
+				{
+					"name": "Point",
+					"kind": "type",
+					"docComment": "A 2D point schema — parse values with `Point.parse(input)`, type them as\n`Point`. Documented on the const; the merged declaration falls back to it.",
+					"typeSignature": "{ x: number; y: number; }",
+					"sourceLine": 27,
+					"members": [
+						{ "name": "x", "kind": "variable", "typeSignature": "number" },
+						{ "name": "y", "kind": "variable", "typeSignature": "number" }
+					],
+					"mergedValue": true
+				}
+			],
+			"moduleComment": "The merged value+type pattern: a runtime schema and its inferred type\nsharing one exported name (`z.strictObject` + `z.infer` in real code).\nThe declaration documents the type meaning with full structure, and\n`mergedValue: true` marks the name as also importable as a runtime value."
+		},
+		{
 			"path": "shapes.ts",
 			"declarations": [
 				{
@@ -598,6 +643,7 @@
 		"has-issues.ts": "/**\n * This file exists to exercise the `analyze-diagnostics.js` example —\n * the `@param` below intentionally names a parameter that doesn't exist,\n * so the analyzer emits an `unknown_param` warning. Real code shouldn't\n * have this issue, but documentation slips happen, and the `diagnostics`\n * field lets consumers surface them without halting analysis.\n * @module\n */\n\n/**\n * Demonstrates a documentation mistake the analyzer catches.\n * @param missing - this name doesn't match any real parameter\n * @returns the input doubled\n */\nexport const demonstrate_typo = (value: number): number => value * 2;\n",
 		"index.ts": "/**\n * Public entry point demonstrating the re-export forms svelte-docinfo tracks.\n * @module\n */\n\n// same-name re-exports — recorded as `reExports` here\n// and `alsoExportedFrom` on the canonical declarations\nexport { add, multiply, type MathConfig } from './math.js';\nexport { Counter } from './counter.svelte.js';\nexport { default as Calculator } from './Calculator.svelte';\nexport { default as Card } from './Card.svelte';\n\n// renamed re-export — synthesizes an alias declaration with `aliasOf`\nexport { add_vector as vector_add } from './math.js';\n\n// namespace re-export — synthesizes a `namespace` declaration projecting shapes.ts\nexport * as shapes from './shapes.js';\n\n// direct external re-export — recorded on `externalReExports`, no declaration synthesized\nexport type { Snippet } from 'svelte';\n",
 		"math.ts": "/**\n * Math utilities for demonstrating svelte-docinfo analysis.\n * @module\n */\n\n/**\n * Add two numbers.\n * @param a - first number\n * @param b - second number\n * @returns the sum\n * @example\n * ```ts\n * add(2, 3) // 5\n * ```\n */\nexport const add = (a: number, b: number): number => a + b;\n\n/**\n * Multiply two numbers.\n * @param a - first number\n * @param b - second number\n * @returns the product\n */\nexport const multiply = (a: number, b: number): number => a * b;\n\n/** Configuration for math operations. */\nexport interface MathConfig {\n\t/** Decimal precision. */\n\tprecision: number;\n\t/** Round results? */\n\tround: boolean;\n}\n\n/** A 2D vector. */\nexport interface Vector2 {\n\tx: number;\n\ty: number;\n}\n\n/**\n * Add vectors in place.\n * @param target - vector to mutate\n * @param source - vector to add\n * @mutates target - modifies x and y fields\n */\nexport const add_vector = (target: Vector2, source: Vector2): void => {\n\ttarget.x += source.x;\n\ttarget.y += source.y;\n};\n",
+		"schema.ts": "/**\n * The merged value+type pattern: a runtime schema and its inferred type\n * sharing one exported name (`z.strictObject` + `z.infer` in real code).\n * The declaration documents the type meaning with full structure, and\n * `mergedValue: true` marks the name as also importable as a runtime value.\n * @module\n */\n\n/** Minimal stand-in for a schema library's parser type. */\nexport interface Parser<O> {\n\t/** Parse unknown input, returning the output type. */\n\tparse(input: unknown): O;\n}\n\n/** Extract a parser's output type — the `z.infer` analogue. */\nexport type Infer<P extends Parser<unknown>> = P extends Parser<infer O> ? O : never;\n\nconst create_parser = <O>(): Parser<O> => ({\n\tparse: (input) => input as O\n});\n\n/**\n * A 2D point schema — parse values with `Point.parse(input)`, type them as\n * `Point`. Documented on the const; the merged declaration falls back to it.\n */\nexport const Point: Parser<{ x: number; y: number }> = create_parser();\nexport type Point = Infer<typeof Point>;\n",
 		"shapes.ts": "/**\n * Geometric shapes demonstrating classes, interfaces, enums, function\n * overloads, const assertions, and richer JSDoc tags.\n * @module\n */\n\n/** Supported shape categories. */\nexport enum ShapeKind {\n\tCircle = 'circle',\n\tRectangle = 'rectangle'\n}\n\n/** Cardinal directions as a const enum (inlined at use sites). */\nexport const enum Direction {\n\tNorth,\n\tEast,\n\tSouth,\n\tWest\n}\n\n/** Anything with a computable area. */\nexport interface HasArea {\n\t/** Area in square units. */\n\treadonly area: number;\n}\n\n/** Options for drawing a shape outline. */\nexport interface DrawOptions {\n\t/**\n\t * Stroke color as a CSS color string.\n\t * @default 'black'\n\t */\n\tstroke?: string;\n\t/** Line width in pixels. */\n\twidth?: number;\n}\n\n/**\n * An axis-aligned rectangle.\n * @since 0.6.0\n * @see `shape_area`\n */\nexport class Rectangle implements HasArea {\n\t/** Shared kind tag for all rectangles. */\n\tstatic readonly kind = ShapeKind.Rectangle;\n\n\t/** Width in units. */\n\twidth: number;\n\t/** Height in units. */\n\theight: number;\n\n\t// private state is excluded from extraction\n\t#draw_count = 0;\n\n\t/**\n\t * @param width - initial width\n\t * @param height - initial height\n\t * @throws `RangeError` when either dimension is negative\n\t */\n\tconstructor(width: number, height: number) {\n\t\tif (width < 0 || height < 0) throw new RangeError('dimensions must be non-negative');\n\t\tthis.width = width;\n\t\tthis.height = height;\n\t}\n\n\t/** Area in square units. */\n\tget area(): number {\n\t\treturn this.width * this.height;\n\t}\n\n\t/** Longest side; setting it makes the rectangle a square. */\n\tget size(): number {\n\t\treturn Math.max(this.width, this.height);\n\t}\n\tset size(value: number) {\n\t\tthis.width = value;\n\t\tthis.height = value;\n\t}\n\n\t/**\n\t * Scale both dimensions in place.\n\t * @param factor - multiplier applied to width and height\n\t * @mutates `this`\n\t */\n\tscale(factor: number): void {\n\t\tthis.width *= factor;\n\t\tthis.height *= factor;\n\t}\n\n\t/** Number of times this rectangle has been drawn, for subclasses. */\n\tprotected count_draw(): number {\n\t\treturn ++this.#draw_count;\n\t}\n}\n\n/**\n * Compute the area of a shape.\n * @param shape - the shape to measure\n * @returns the shape's area\n * @example\n * ```ts\n * shape_area(new Rectangle(2, 3)) // 6\n * shape_area(1) // Math.PI\n * ```\n */\nexport function shape_area(shape: HasArea): number;\n/**\n * Compute the area of a circle from its radius.\n * @param radius - circle radius in units\n * @returns the circle's area\n */\nexport function shape_area(radius: number): number;\nexport function shape_area(shape_or_radius: HasArea | number): number {\n\treturn typeof shape_or_radius === 'number'\n\t\t? Math.PI * shape_or_radius ** 2\n\t\t: shape_or_radius.area;\n}\n\n/**\n * Describe a shape for display.\n * @param shape - the shape to describe\n * @param options - formatting options\n * @param options.precision - decimal places for the area\n * @param options.label - prefix for the description\n * @returns a human-readable description\n */\nexport const describe_shape = (\n\tshape: HasArea,\n\toptions: { precision?: number; label?: string } = {}\n): string => `${options.label ?? 'shape'}: area ${shape.area.toFixed(options.precision ?? 2)}`;\n\n/** Unit square corners as a readonly tuple (const assertion). */\nexport const UNIT_SQUARE = [\n\t{ x: 0, y: 0 },\n\t{ x: 1, y: 0 },\n\t{ x: 1, y: 1 },\n\t{ x: 0, y: 1 }\n] as const;\n"
 	}
 }

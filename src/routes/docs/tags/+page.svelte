@@ -229,6 +229,11 @@ export function double(n: number | bigint): number | bigint {
 					statement drops both the <code>alsoExportedFrom</code> link and any synthesized alias declaration.
 					The canonical entry stays untouched.
 				</li>
+				<li>
+					<strong>Merged value+type pairs honor it from either side</strong>: a
+					<code>const Foo</code> + <code>type Foo</code> pair is one merged symbol, so the tag on either
+					declaration excludes the pair's single declaration.
+				</li>
 			</ul>
 		</TomeSection>
 

@@ -2,6 +2,7 @@
 	"name": "A",
 	"kind": "class",
 	"docComment": "Description 1.",
+	"sourceLine": 4,
 	"members": [
 		{
 			"name": "a",

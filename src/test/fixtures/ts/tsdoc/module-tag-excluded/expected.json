@@ -2,5 +2,6 @@
 	"name": "fn",
 	"kind": "function",
 	"typeSignature": "(): void",
+	"sourceLine": 6,
 	"returnType": "void"
 }

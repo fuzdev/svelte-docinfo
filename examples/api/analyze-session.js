@@ -10,6 +10,7 @@ const dir = dirname(fileURLToPath(import.meta.url));
 
 const mathPath = join(dir, 'src/lib/math.ts');
 const shapesPath = join(dir, 'src/lib/shapes.ts');
+const schemaPath = join(dir, 'src/lib/schema.ts');
 const counterPath = join(dir, 'src/lib/counter.svelte.ts');
 const issuesPath = join(dir, 'src/lib/has-issues.ts');
 const componentPath = join(dir, 'src/lib/Calculator.svelte');
@@ -34,6 +35,7 @@ const session = createAnalysisSession({
 const buildFiles = async () => [
 	{ id: mathPath, content: await readFile(mathPath, 'utf-8'), dependencies: [] },
 	{ id: shapesPath, content: await readFile(shapesPath, 'utf-8'), dependencies: [] },
+	{ id: schemaPath, content: await readFile(schemaPath, 'utf-8'), dependencies: [] },
 	{ id: counterPath, content: await readFile(counterPath, 'utf-8'), dependencies: [] },
 	{ id: issuesPath, content: await readFile(issuesPath, 'utf-8'), dependencies: [] },
 	{

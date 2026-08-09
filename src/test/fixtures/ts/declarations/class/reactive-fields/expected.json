@@ -2,6 +2,7 @@
 	"name": "A",
 	"kind": "class",
 	"docComment": "A class with reactive rune fields.",
+	"sourceLine": 4,
 	"members": [
 		{
 			"name": "a",

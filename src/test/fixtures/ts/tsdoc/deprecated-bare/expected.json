@@ -3,6 +3,7 @@
 	"kind": "function",
 	"docComment": "Description.",
 	"typeSignature": "(): string",
+	"sourceLine": 6,
 	"deprecatedMessage": "",
 	"returnType": "string"
 }

@@ -3,6 +3,7 @@
 	"kind": "type",
 	"docComment": "Test kind inference for type aliases.",
 	"typeSignature": "A",
+	"sourceLine": 4,
 	"typeInfo": {
 		"kind": "union",
 		"alias": "A",

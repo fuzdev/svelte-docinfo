@@ -363,6 +363,30 @@ describe('generateImport', () => {
 		});
 	});
 
+	describe('merged value+type declarations', () => {
+		test('merged type gets a value import, not import type', () => {
+			assert.strictEqual(
+				generateImport(
+					d({ name: 'Config', kind: 'type', mergedValue: true }),
+					'config.ts',
+					'@my/lib'
+				),
+				"import {Config} from '@my/lib/config.js';"
+			);
+		});
+
+		test('merged interface gets a value import, not import type', () => {
+			assert.strictEqual(
+				generateImport(
+					d({ name: 'Config', kind: 'interface', mergedValue: true }),
+					'config.ts',
+					'@my/lib'
+				),
+				"import {Config} from '@my/lib/config.js';"
+			);
+		});
+	});
+
 	describe('default exports', () => {
 		test.each(DEFAULT_EXPORT_CASES)('%s', (_label, kind, modulePath, lib, expected) => {
 			// Default-slot entries are named `'default'` (the symbol's actual name in

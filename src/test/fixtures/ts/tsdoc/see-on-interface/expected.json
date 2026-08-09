@@ -3,6 +3,7 @@
 	"kind": "interface",
 	"docComment": "Description.",
 	"typeSignature": "A",
+	"sourceLine": 7,
 	"seeAlso": [
 		"{@link https://fuz.dev}",
 		"B"

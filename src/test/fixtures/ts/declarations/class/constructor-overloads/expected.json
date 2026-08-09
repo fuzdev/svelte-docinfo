@@ -2,6 +2,7 @@
 	"name": "A",
 	"kind": "class",
 	"docComment": "A class with constructor overloads.",
+	"sourceLine": 4,
 	"members": [
 		{
 			"name": "a",

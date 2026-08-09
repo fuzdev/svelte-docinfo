@@ -3,6 +3,7 @@
 	"kind": "function",
 	"docComment": "A generic function with type constraints.",
 	"typeSignature": "<T extends { id: number; }>(a: Array<T>, b: (x: T) => boolean): T | undefined",
+	"sourceLine": 8,
 	"genericParams": [
 		{
 			"name": "T",

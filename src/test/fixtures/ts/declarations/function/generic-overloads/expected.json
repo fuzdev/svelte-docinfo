@@ -3,6 +3,7 @@
 	"kind": "function",
 	"docComment": "Description.",
 	"typeSignature": "<T>(a: T): T",
+	"sourceLine": 2,
 	"genericParams": [
 		{
 			"name": "T"

@@ -22,7 +22,7 @@ import type {
 } from './declaration-build.ts';
 import type { ReExportJsonInput, ExternalReExportJsonInput } from './types.ts';
 import type { Diagnostic } from './diagnostics.ts';
-import { parseComment, applyToDeclaration, cleanComment } from './tsdoc.ts';
+import { parseComment, applyToDeclaration, cleanComment, hasDocContent } from './tsdoc.ts';
 import {
 	type SourceFileInfo,
 	stripVirtualSuffix,
@@ -40,7 +40,7 @@ import {
 	createIsExternalFile,
 	createIsExternalPath
 } from './typescript-program.ts';
-import { inferDeclarationKind } from './typescript-extract-shared.ts';
+import { inferDeclarationKind, selectDeclarationNode } from './typescript-extract-shared.ts';
 import { extractFunctionInfo, extractVariableInfo } from './typescript-extract-function.ts';
 import { extractTypeInfo, extractEnumInfo } from './typescript-extract-type.ts';
 import { extractClassInfo } from './typescript-extract-class.ts';
@@ -835,7 +835,7 @@ export const analyzeDeclaration = (
 	diagnostics: Array<Diagnostic>,
 	isExternalFile: IsExternalFile
 ): DeclarationAnalysis => {
-	const declNode = symbol.valueDeclaration || symbol.declarations?.[0];
+	const declNode = selectDeclarationNode(symbol);
 	// Pass the symbol's name through verbatim. Default-slot symbols
 	// (`export default ...`, `export {x as default}`) carry `symbol.name === 'default'`
 	// — that's the actual export-object key in JS (`ns.default`,
@@ -858,8 +858,23 @@ export const analyzeDeclaration = (
 	// Extract TSDoc — `parseComment` filters `@module` blocks (handled by
 	// `extractModuleComment`), so a first declaration under a module comment
 	// keeps its own JSDoc
-	const tsdoc = parseComment(declNode, sourceFile);
-	const nodocs = tsdoc?.nodocs ?? false;
+	let tsdoc = parseComment(declNode, sourceFile);
+	let nodocs = tsdoc?.nodocs ?? false;
+	// Merged value+type symbol with the type-space node selected: the schema
+	// convention often documents the const, so fall back to the value
+	// declaration's JSDoc when the selected node carries none. `@nodocs` on
+	// either declaration suppresses.
+	const mergedValueNode =
+		symbol.valueDeclaration && symbol.valueDeclaration !== declNode
+			? symbol.valueDeclaration
+			: undefined;
+	if (mergedValueNode) {
+		const valueTsdoc = parseComment(mergedValueNode, sourceFile);
+		if (valueTsdoc?.nodocs) nodocs = true;
+		if ((!tsdoc || !hasDocContent(tsdoc)) && valueTsdoc && hasDocContent(valueTsdoc)) {
+			tsdoc = valueTsdoc;
+		}
+	}
 	applyToDeclaration(result, tsdoc);
 
 	// Extract source line
@@ -871,6 +886,10 @@ export const analyzeDeclaration = (
 	if (result.kind === 'function') {
 		extractFunctionInfo(declNode, symbol, checker, result, tsdoc, diagnostics);
 	} else if (result.kind === 'type' || result.kind === 'interface') {
+		// A merged value+type symbol: the type meaning won the declaration slot,
+		// but the name is also importable as a runtime value — mark it so
+		// consumers (e.g. generateImport) don't render a type-only import
+		if (mergedValueNode) result.mergedValue = true;
 		extractTypeInfo(declNode, checker, result, diagnostics, isExternalFile);
 	} else if (result.kind === 'enum') {
 		extractEnumInfo(declNode, checker, result, diagnostics);

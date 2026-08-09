@@ -3,6 +3,7 @@
 	"kind": "interface",
 	"docComment": "A basic interface.",
 	"typeSignature": "A",
+	"sourceLine": 4,
 	"members": [
 		{
 			"name": "a",

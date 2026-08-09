@@ -3,5 +3,6 @@
 	"kind": "variable",
 	"docComment": "A reference-only reactive state variable.",
 	"typeSignature": "number",
+	"sourceLine": 4,
 	"reactivity": "$state.raw"
 }

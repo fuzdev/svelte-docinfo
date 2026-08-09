@@ -2,6 +2,7 @@
 	"name": "A",
 	"kind": "class",
 	"docComment": "A class with only public members.",
+	"sourceLine": 4,
 	"members": [
 		{
 			"name": "a",
