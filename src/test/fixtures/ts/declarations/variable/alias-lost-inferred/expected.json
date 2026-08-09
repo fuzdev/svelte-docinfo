@@ -6,6 +6,7 @@
 	"sourceLine": 12,
 	"typeInfo": {
 		"kind": "reference",
-		"name": "Inferred"
+		"name": "Inferred",
+		"module": "declarations/variable/alias-lost-inferred.ts"
 	}
 }

@@ -1399,7 +1399,12 @@ export const viaLiteral = (): Promise<{ a: string }> => Promise.resolve({ a: '' 
 		}
 		const viaImportType = module?.declarations.find((d) => d.name === 'viaImportType');
 		assert(viaImportType?.kind === 'function', 'expected a function declaration');
-		assert.deepStrictEqual(viaImportType.returnTypeInfo, { kind: 'reference', name: 'Inferred' });
+		// a registry hit carries `module`, unlike written-channel recoveries
+		assert.deepStrictEqual(viaImportType.returnTypeInfo, {
+			kind: 'reference',
+			name: 'Inferred',
+			module: 'dep.ts'
+		});
 		const viaLiteral = module?.declarations.find((d) => d.name === 'viaLiteral');
 		assert(viaLiteral?.kind === 'function', 'expected a function declaration');
 		assert.deepStrictEqual(viaLiteral.returnTypeInfo, {
@@ -1427,7 +1432,8 @@ export const f = (): Promise<Get<Box>> => Promise.resolve({ a: '', b: 0 });`
 		assert(f.returnTypeInfo?.kind === 'reference', 'expected the Promise reference');
 		assert.deepStrictEqual(f.returnTypeInfo.typeArgs?.[0], {
 			kind: 'reference',
-			name: 'Inferred'
+			name: 'Inferred',
+			module: 'a.ts'
 		});
 	});
 

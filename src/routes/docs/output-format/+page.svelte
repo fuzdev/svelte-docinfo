@@ -192,11 +192,14 @@
 					written type reference resolves by checker type identity. And the alias registry — the
 					analyzed set's exported lost aliases, keyed by type identity — which also covers
 					<em>unannotated</em> positions: inferred returns and variables, nested tree positions,
-					<code>null</code>-bearing optionals. Recovery applies at the root too, where the flat
-					string carries the anonymous expansion, not the name. Names the checker has are never
-					overridden; import renames recover the importable name; two aliases over one lost type
-					resolve to a single winner everywhere; and a loss the registry can't recover surfaces as
-					an <code>alias_lost</code> warning (see <TomeLink slug="diagnostics" />)
+					<code>null</code>-bearing optionals. A registry-recovered reference additionally carries
+					<code>module</code> — the declaring module's <code>ModuleJson.path</code>, always one the
+					output emits, so a <code>(module, name)</code> lookup can't dangle; written-channel
+					recoveries and checker-named references never carry it. Recovery applies at the root too,
+					where the flat string carries the anonymous expansion, not the name. Names the checker has
+					are never overridden; import renames recover the importable name; two aliases over one
+					lost type resolve to a single winner everywhere; and a loss the registry can't recover
+					surfaces as an <code>alias_lost</code> warning (see <TomeLink slug="diagnostics" />)
 				</li>
 				<li><code>sourceLine</code>: line number in the source file</li>
 				<li>

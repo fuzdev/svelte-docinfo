@@ -44,7 +44,8 @@
 		"returnType": "{ x: number; y: number; }",
 		"returnTypeInfo": {
 			"kind": "reference",
-			"name": "Point"
+			"name": "Point",
+			"module": "ComponentZodMergedSchema.svelte"
 		},
 		"parameters": [
 			{

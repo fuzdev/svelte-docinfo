@@ -399,4 +399,41 @@ describe('what normalization must not touch', () => {
 		// `extends` is AST text of what was written, not checker output.
 		assert.strictEqual(decl.extends, "(await import('./dep.ts')).C");
 	});
+
+	test('a registry-recovered reference keeps its `module` key', async () => {
+		// `module` is already a `ModuleJson.path` when `recoveredReference` emits
+		// it — the pass must leave it alone (it's on the author-text/relative-path
+		// denylist), not re-relativize or otherwise rewrite it
+		const result = await withTestProject(
+			{
+				'src/lib/dep.ts': `
+					interface Box {
+						out: { a: string };
+					}
+					export type Inferred = Box['out'];
+					export const seed: Inferred = { a: '' };
+				`,
+				'src/lib/index.ts': `
+					import { seed } from './dep.ts';
+
+					export const derived = seed;
+					export const m = import('./dep.ts');
+				`
+			},
+			(projectRoot) => analyzeFromFiles({ projectRoot })
+		);
+
+		// the pass genuinely ran on this output: the sibling declaration's
+		// printed module object was rewritten to the `ModuleJson.path` form
+		const m = findDeclaration(result.modules, 'index.ts', 'm');
+		assert.strictEqual(m.typeSignature, 'Promise<typeof import("dep.ts")>');
+
+		const derived = findDeclaration(result.modules, 'index.ts', 'derived');
+		if (derived.kind !== 'variable') throw new Error(`expected a variable, got ${derived.kind}`);
+		assert.deepStrictEqual(derived.typeInfo, {
+			kind: 'reference',
+			name: 'Inferred',
+			module: 'dep.ts'
+		});
+	});
 });
