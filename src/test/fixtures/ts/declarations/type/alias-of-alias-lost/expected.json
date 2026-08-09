@@ -1,0 +1,18 @@
+{
+	"name": "AliasOfLost",
+	"kind": "type",
+	"docComment": "An alias over an alias-lost alias is itself lost — the flat string prints\nthe expansion, `members` carries the structure, and the tree recovers the\nwritten right-hand-side name.",
+	"typeSignature": "{ a: string; }",
+	"sourceLine": 13,
+	"typeInfo": {
+		"kind": "reference",
+		"name": "Inferred"
+	},
+	"members": [
+		{
+			"name": "a",
+			"kind": "variable",
+			"typeSignature": "string"
+		}
+	]
+}

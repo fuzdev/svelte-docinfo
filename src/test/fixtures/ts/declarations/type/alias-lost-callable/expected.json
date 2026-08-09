@@ -1,0 +1,41 @@
+{
+	"name": "CallableHolder",
+	"kind": "type",
+	"docComment": "An alias-lost callable: a callable property projects as a function member\n(signature fields, no `typeInfo`), and inside a union the callable branch\nemits a terminal function node — the written name never recovers on\neither path.",
+	"typeSignature": "CallableHolder",
+	"sourceLine": 15,
+	"members": [
+		{
+			"name": "direct",
+			"kind": "function",
+			"docComment": "Direct callable property — projects as a function member.",
+			"typeSignature": "(x: string): { a: string; }",
+			"parameters": [
+				{
+					"name": "x",
+					"type": "string"
+				}
+			],
+			"returnType": "{ a: string; }"
+		},
+		{
+			"name": "handler",
+			"kind": "variable",
+			"docComment": "Nullable callable — the union member stays a terminal function node.",
+			"typeSignature": "((x: string) => { a: string; }) | null",
+			"typeInfo": {
+				"kind": "union",
+				"members": [
+					{
+						"kind": "function",
+						"text": "(x: string) => { a: string; }"
+					},
+					{
+						"kind": "intrinsic",
+						"text": "null"
+					}
+				]
+			}
+		}
+	]
+}
