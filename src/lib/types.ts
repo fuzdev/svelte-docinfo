@@ -543,6 +543,10 @@ const declarationSharedFields = {
 	 * A marker, not an exclusion: `@internal` means "not stable public API"
 	 * (TSDoc semantics) while the declaration stays documented — unlike
 	 * `@nodocs`, which removes it from output entirely.
+	 *
+	 * Deliberately here rather than in `docFields`: declarations and members
+	 * only, not `ComponentPropJson` (widen to props as a separate additive
+	 * change if demand appears).
 	 */
 	internalMessage: z.string().optional(),
 	/**
