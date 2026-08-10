@@ -153,7 +153,8 @@ export type GenericParamJson = z.infer<typeof GenericParamJson>;
  * type); both mark `readonly` when written so (`readonly Tome[]`,
  * `ReadonlyArray<Tome>`, `readonly [a, b]`). Everything else is terminal:
  * object literals, function types, and
- * unclassified types (type parameters, conditional types) carry only
+ * unclassified types (type parameters, conditional types, module objects)
+ * carry only
  * `text`. Object property maps are deliberately not expanded. Recursion is
  * depth-capped; nodes past the cap degrade to `{kind: 'other', text}`.
  *
@@ -284,7 +285,12 @@ export type TypeJson =
 	| { kind: 'function'; text: string }
 	/** An anonymous object type, terminal: `text` only, no property structure. */
 	| { kind: 'object'; text: string }
-	/** Anything unclassified (type parameters, conditional types) or past the depth cap. */
+	/**
+	 * Anything unclassified — type parameters, conditional types, module
+	 * objects (`typeof import("dep.ts")`, whose symbol name is the quoted
+	 * specifier and so is never emitted as a `reference`) — or past the depth
+	 * cap.
+	 */
 	| { kind: 'other'; text: string };
 
 /**

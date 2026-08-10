@@ -154,6 +154,22 @@ export const namedSymbolName = (type: ts.Type): string | undefined => {
 };
 
 /**
+ * Whether a type is a module object — `typeof import("./dep.ts")`, from an
+ * `import()` expression or `typeof` over a namespace import. Mirrors the
+ * checker's own external-module test: the `ValueModule` flag plus a quoted
+ * symbol name (a source file's symbol is named by its quoted specifier; a
+ * `namespace Foo {}` symbol carries the flag with a plain name and stays out).
+ */
+const isModuleObjectType = (type: ts.Type): boolean => {
+	const symbol: ts.Symbol | undefined = type.symbol;
+	return (
+		symbol !== undefined &&
+		(symbol.flags & ts.SymbolFlags.ValueModule) !== 0 &&
+		symbol.name.startsWith('"')
+	);
+};
+
+/**
  * Whether the checker kept no name for a type-alias declaration's resolved
  * type: no alias symbol (the checker still prints `type A = B` as `B`), no
  * nominal symbol (interfaces/classes/enums print their own name), and not an
@@ -858,7 +874,14 @@ const buildTypeJson = (
 		}
 
 		const symbolName = namedSymbolName(type);
-		if (symbolName !== undefined) return { kind: 'reference', name: symbolName };
+		if (symbolName !== undefined) {
+			// a module object is not a named type reference — its symbol name is
+			// the quoted specifier, which would ride into `name` quotes and all —
+			// so it stays terminal, printing the flat string's `typeof import(…)`
+			return isModuleObjectType(type)
+				? { kind: 'other', text: printType(type, checker) }
+				: { kind: 'reference', name: symbolName };
+		}
 
 		return { kind: 'object', text: printType(type, checker) };
 	}

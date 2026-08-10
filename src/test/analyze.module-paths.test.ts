@@ -90,12 +90,13 @@ describe('module paths in printed type text', () => {
 
 		const decl = findDeclaration(result.modules, 'index.ts', 'm');
 		if (decl.kind !== 'variable') throw new Error(`expected a variable, got ${decl.kind}`);
-		// `typeInfo` carries the path as a reference *name*, quotes included —
-		// a distinct site from the `import("…")` form in the flat string.
+		// the module object is a terminal `other` node (never a reference — its
+		// symbol name is the quoted specifier), so the path rides in `text` in
+		// the same `import("…")` form as the flat string, rewritten in step.
 		assert.deepStrictEqual(decl.typeInfo, {
 			kind: 'reference',
 			name: 'Promise',
-			typeArgs: [{ kind: 'reference', name: '"dep.ts"' }]
+			typeArgs: [{ kind: 'other', text: 'typeof import("dep.ts")' }]
 		});
 	});
 
@@ -131,6 +132,13 @@ describe('module paths in printed type text', () => {
 		// Not `Wid.svelte.__svelte2tsx__` — the suffix `stripVirtualSuffix`
 		// exists to hide would otherwise ship in a public type string.
 		assert.strictEqual(decl.typeSignature, 'Promise<typeof import("Wid.svelte")>');
+		// the tree's terminal `other` text is the same normalized form
+		if (decl.kind !== 'variable') throw new Error(`expected a variable, got ${decl.kind}`);
+		assert.deepStrictEqual(decl.typeInfo, {
+			kind: 'reference',
+			name: 'Promise',
+			typeArgs: [{ kind: 'other', text: 'typeof import("Wid.svelte")' }]
+		});
 	});
 
 	test('a component and its `.svelte.ts` sibling stay distinct', async () => {

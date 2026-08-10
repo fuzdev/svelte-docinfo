@@ -736,10 +736,10 @@ const elidedExtensionRank = (path: string): number => {
 };
 
 /**
- * Matches a double-quoted absolute path inside printed type text.
- *
- * Two shapes carry one: the checker's `import("…")` form, and a `TypeJson`
- * reference whose `name` is the module symbol's own quoted path.
+ * Matches a double-quoted absolute path inside printed type text — the
+ * checker's `import("…")` form. Deliberately not anchored to the `import(`
+ * wrapper: the pass fails open, and the resolution check downstream is the
+ * real guard.
  *
  * The absolute-path alternation mirrors `isAbsolutePosixPath` — same rule, but
  * this one has to match *inside* a larger string rather than test a whole one.

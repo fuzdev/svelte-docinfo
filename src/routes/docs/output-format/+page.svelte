@@ -157,10 +157,10 @@
 					<code>node_modules/</code>, and everything else is relative to the project root —
 					root-relative for an in-project file that emits no module,
 					<code>../sibling/x.ts</code> for one outside it. The same applies to
-					<code>returnType</code>, member type signatures, and the <code>text</code>/<code
-						>name</code
-					>
-					of a <code>typeInfo</code> node.
+					<code>returnType</code>, member type signatures, and the <code>text</code> of a
+					<code>typeInfo</code> node — in the tree a module object is a terminal
+					<code>{`{kind: "other"}`}</code> node carrying the same <code>typeof import("…")</code>
+					text, never a <code>reference</code> (its symbol name is the quoted specifier, not a type name).
 				</li>
 				<li>
 					<code>typeInfo</code>: structured <DeclarationLink name="TypeJson" /> tree beside the flat string

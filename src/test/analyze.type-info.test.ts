@@ -3,7 +3,9 @@
  * source-order prop emission that landed with it.
  *
  * Exercises the whole `analyze` pipeline: the absence contract (terminal roots
- * carry no `typeInfo`) and its type-alias-root exception, alias preservation
+ * carry no `typeInfo`) and its type-alias-root exception, the module-object
+ * terminal (`typeof import` classifies `other`, never a quoted-path
+ * reference), alias preservation
  * through the optional-widening strip, the origin walk (flat-string member
  * order with nullish last, written sub-aliases as nested union nodes, the
  * null-bearing optional alias surviving), enum `{value, text}` pairs,
@@ -127,6 +129,41 @@ export type O = {
 				`expected no typeInfo on terminal member ${member.name}`
 			);
 		}
+	});
+
+	test('a module object is a terminal other node, never a quoted-path reference', async () => {
+		const { modules } = await analyzeTestProject({
+			'src/lib/dep.ts': `export const a = 1;`,
+			'src/lib/entry.ts': `
+				import * as dep from './dep.ts';
+				export const lazy = import('./dep.ts');
+				export const eager = dep;
+				export const arr = [dep];
+			`
+		});
+		const entry = modules.find((m) => m.path === 'entry.ts');
+		assert.ok(entry);
+		const lazy = entry.declarations.find((d) => d.name === 'lazy');
+		assert(lazy?.kind === 'variable');
+		// the module object's symbol name is its quoted specifier — a reference
+		// would carry `name: '"dep.ts"'`, quotes and all, pointing at a module
+		// rather than a type; it classifies as terminal `other` instead
+		assert.deepStrictEqual(lazy.typeInfo, {
+			kind: 'reference',
+			name: 'Promise',
+			typeArgs: [{ kind: 'other', text: 'typeof import("dep.ts")' }]
+		});
+		// at the root the terminal defers to the flat string (absence contract)
+		const eager = entry.declarations.find((d) => d.name === 'eager');
+		assert(eager?.kind === 'variable');
+		assert.strictEqual(eager.typeSignature, 'typeof import("dep.ts")');
+		assert.strictEqual(eager.typeInfo, undefined);
+		// an array over one stays absent too — the terminal element doesn't
+		// qualify the container the way the old bogus reference node did
+		const arr = entry.declarations.find((d) => d.name === 'arr');
+		assert(arr?.kind === 'variable');
+		assert.strictEqual(arr.typeSignature, 'typeof import("dep.ts")[]');
+		assert.strictEqual(arr.typeInfo, undefined);
 	});
 
 	test('the boolean collapse folds the checkers `true | false` pair back', async () => {
