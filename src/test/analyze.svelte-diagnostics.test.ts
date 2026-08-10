@@ -1,18 +1,33 @@
 /**
- * Tests for diagnostic positions on Svelte modules: query-time diagnostics
- * emitted against a svelte2tsx virtual (`<script module>` extraction) must
- * carry original `.svelte` positions, not the virtual's
- * (`remapVirtualDiagnosticPositions`). Markup above the script makes the two
- * diverge, so a passing exact-line assertion proves the remap ran.
+ * Tests for diagnostic positions on Svelte modules: a published position must
+ * be an original `.svelte` one, never the svelte2tsx virtual's, and absent
+ * when it can't be mapped. Markup above the script makes the two coordinate
+ * systems diverge, so a passing exact-line assertion proves a mapping ran.
+ *
+ * Two mechanisms, split by which file the diagnostic names: those emitted
+ * against the virtual (`<script module>` extraction) remap in batch via
+ * `remapVirtualDiagnosticPositions`, while `svelte_prop_failed` names the
+ * original `.svelte` and maps at its emission site.
  */
 
 import { test, assert, describe } from 'vitest';
 import ts from 'typescript';
+import { TraceMap } from '@jridgewell/trace-mapping';
+import { dirname, join } from 'node:path';
 
 import { byKind, type Diagnostic } from '$lib/diagnostics.ts';
-import { remapVirtualDiagnosticPositions, type SvelteVirtualFile } from '$lib/svelte.ts';
+import {
+	analyzeSvelteModule,
+	remapVirtualDiagnosticPositions,
+	type SvelteVirtualFile
+} from '$lib/svelte.ts';
 
-import { analyzeTestProject } from './test-module-helpers.ts';
+import {
+	analyzeTestProject,
+	createCachedAnalysisProgram,
+	createTestSourceOptions,
+	transformOrThrow
+} from './test-module-helpers.ts';
 
 /** 1-based line of the first line of `content` containing `needle`. */
 const lineOf = (content: string, needle: string): number => {
@@ -116,6 +131,83 @@ export const fn = (a: string): string => a;
 		const diagnostic = unknownParams[0]!;
 		assert.strictEqual(diagnostic.file, 'src/lib/a.ts');
 		assert.strictEqual(diagnostic.line, lineOf(source, 'export const fn'));
+	});
+});
+
+describe('svelte_prop_failed positions', () => {
+	// Markup above the script so the original line and the virtual line (where
+	// svelte2tsx hoists the interface) can't coincide.
+	const SOURCE = `<div>text</div>
+<div>text</div>
+
+<script lang="ts">
+	interface Props {
+		a: string;
+	}
+	let {a}: Props = $props();
+</script>
+`;
+	// rooted in the repo so the component's own props aren't judged external
+	const ID = join(process.cwd(), 'src/lib/PropProbe.svelte');
+
+	/**
+	 * A checker that throws when asked for the named prop's type, driving
+	 * `extractPropsViaChecker`'s catch — the only route to the diagnostic, and
+	 * one no real component reaches (all three emission sites are catch
+	 * branches).
+	 */
+	const throwingChecker = (checker: ts.TypeChecker, propName: string): ts.TypeChecker =>
+		new Proxy(checker, {
+			get(target, key, receiver) {
+				if (key === 'getTypeOfSymbolAtLocation') {
+					return (symbol: ts.Symbol, node: ts.Node) => {
+						if (symbol.name === propName) throw new Error('synthetic resolution failure');
+						return target.getTypeOfSymbolAtLocation(symbol, node);
+					};
+				}
+				const value = Reflect.get(target, key, receiver);
+				return typeof value === 'function' ? value.bind(target) : value;
+			}
+		});
+
+	/** Analyze `SOURCE`, optionally with every virtual position made unmappable. */
+	const analyzeWithFailingProp = (unmappable: boolean): Array<Diagnostic> => {
+		const sourceFile = { id: ID, content: SOURCE };
+		const virtual = transformOrThrow(sourceFile);
+		const program = createCachedAnalysisProgram(new Map([[virtual.virtualPath, virtual]]));
+		const diagnostics: Array<Diagnostic> = [];
+		analyzeSvelteModule(
+			sourceFile,
+			'PropProbe.svelte',
+			throwingChecker(program.getTypeChecker(), 'a'),
+			createTestSourceOptions(dirname(ID)),
+			diagnostics,
+			program,
+			// a mappings-less map stands in for a node svelte2tsx synthesized:
+			// present, but resolving nothing
+			unmappable
+				? {
+						...virtual,
+						sourceMap: new TraceMap({ version: 3, sources: [ID], names: [], mappings: '' })
+					}
+				: virtual
+		);
+		return byKind(diagnostics, 'svelte_prop_failed');
+	};
+
+	test('a mappable prop declaration carries the original .svelte line', () => {
+		const failures = analyzeWithFailingProp(false);
+		assert.strictEqual(failures.length, 1);
+		assert.strictEqual(failures[0]!.line, lineOf(SOURCE, 'a: string;'));
+	});
+
+	test('an unmappable prop declaration drops line/column instead of publishing a virtual line', () => {
+		const failures = analyzeWithFailingProp(true);
+		assert.strictEqual(failures.length, 1);
+		const diagnostic = failures[0]!;
+		assert.strictEqual(diagnostic.file, ID);
+		assert.strictEqual(diagnostic.line, undefined);
+		assert.strictEqual(diagnostic.column, undefined);
 	});
 });
 

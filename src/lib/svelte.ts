@@ -319,23 +319,63 @@ const mapSourcePosition = (
 };
 
 /**
+ * Map a virtual file node's position back to the original `.svelte` file.
+ *
+ * Diagnostics take this form: publishing the virtual's own coordinates under
+ * the original-source `file` is actively misleading, the same rule
+ * `remapVirtualDiagnosticPositions` applies to extractor diagnostics. Callers
+ * populating `sourceLine` take `mapVirtualPositionWithFallback` instead.
+ *
+ * @returns mapped `{line, column}` (1-based), or `undefined` when there is no
+ *   source map or the position is unmappable (a node svelte2tsx synthesized)
+ */
+const mapVirtualPosition = (
+	node: ts.Node,
+	sourceFile: ts.SourceFile,
+	sourceMap: SourceMap | null
+): { line: number; column: number } | undefined => {
+	if (!sourceMap) return undefined;
+	const { line, character } = sourceFile.getLineAndCharacterOfPosition(node.getStart());
+	return mapSourcePosition(sourceMap, line + 1, character);
+};
+
+/**
+ * `mapVirtualPosition` with the virtual's own coordinates as the fallback.
+ *
+ * `sourceLine` has no absent form — an unmapped one keeps the virtual line
+ * `analyzeExports` already assigned — so the fallback re-states what the field
+ * would hold anyway and the assignment stays unconditional. Diagnostics want
+ * the opposite (absence over a misleading line) and take
+ * `mapVirtualPosition`.
+ *
+ * @returns mapped `{line, column}` (1-based), else the virtual's own
+ */
+const mapVirtualPositionWithFallback = (
+	node: ts.Node,
+	sourceFile: ts.SourceFile,
+	sourceMap: SourceMap | null
+): { line: number; column: number } => {
+	const mapped = mapVirtualPosition(node, sourceFile, sourceMap);
+	if (mapped) return mapped;
+	const { line, character } = sourceFile.getLineAndCharacterOfPosition(node.getStart());
+	return { line: line + 1, column: character + 1 };
+};
+
+/**
  * Extract the original source line for the component's `<script>` tag.
  *
  * Maps the `$$render` function's position back to the original `.svelte` file
  * via the source map. Falls back to line 1 when no source map is available or
- * the mapping fails.
+ * the mapping fails — the component declaration's own line, so an unmappable
+ * one points at the top of the file rather than into the virtual.
  */
 const extractComponentSourceLine = (
 	nodes: ComponentNodes,
 	virtualSource: ts.SourceFile,
 	sourceMap: SourceMap | null
 ): number => {
-	if (sourceMap && nodes.renderFunction) {
-		const pos = virtualSource.getLineAndCharacterOfPosition(nodes.renderFunction.getStart());
-		const mapped = mapSourcePosition(sourceMap, pos.line + 1, pos.character);
-		if (mapped) return mapped.line;
-	}
-	return 1;
+	if (!nodes.renderFunction) return 1;
+	return mapVirtualPosition(nodes.renderFunction, virtualSource, sourceMap)?.line ?? 1;
 };
 
 /**
@@ -691,24 +731,6 @@ const findComponentTsdoc = (
 
 	visit(root);
 	return foundTsdoc;
-};
-
-/**
- * Map a virtual file position back to the original `.svelte` file via source map.
- *
- * @returns mapped `{line, column}` (1-based), falling back to virtual file positions when unmappable
- */
-const mapVirtualPosition = (
-	node: ts.Node,
-	sourceFile: ts.SourceFile,
-	sourceMap: SourceMap | null
-): { line: number | undefined; column: number | undefined } => {
-	const { line, character } = sourceFile.getLineAndCharacterOfPosition(node.getStart());
-	if (sourceMap) {
-		const mapped = mapSourcePosition(sourceMap, line + 1, character);
-		if (mapped) return mapped;
-	}
-	return { line: line + 1, column: character + 1 };
 };
 
 /**
@@ -1075,9 +1097,10 @@ const extractPropsViaChecker = (
 	acceptsChildren: boolean;
 } => {
 	const { checker, diagnostics } = ctx;
-	// Resolve the $props() declaration's type via the checker
-	let propsType: ts.Type | undefined;
-	let propsTypeNode: ts.Node | undefined;
+	// Resolve the $props() declaration's type via the checker. Type and node
+	// are both-or-neither — the node is what `filterExternalProperties` and
+	// snippet extraction walk, so a resolved type without one is useless
+	let resolvedProps: { type: ts.Type; node: ts.Node } | undefined;
 	let propsTypeName: string | undefined;
 
 	if (metadata.propsDeclaration) {
@@ -1097,15 +1120,14 @@ const extractPropsViaChecker = (
 				propsTypeName = typeNode.typeName.text;
 			}
 			try {
-				propsType = checker.getTypeAtLocation(typeNode);
-				propsTypeNode = typeNode;
+				resolvedProps = { type: checker.getTypeAtLocation(typeNode), node: typeNode };
 			} catch (_) {
-				// Fall through — propsType stays undefined
+				// Fall through — resolvedProps stays undefined
 			}
 		}
 	}
 
-	if (!propsType || !propsTypeNode) {
+	if (!resolvedProps) {
 		// If $props() was used with a type name but the checker threw resolving
 		// it, emit a diagnostic
 		if (propsTypeName) {
@@ -1120,6 +1142,7 @@ const extractPropsViaChecker = (
 		}
 		return { props: [], acceptsChildren: false };
 	}
+	const { type: propsType, node: propsTypeNode } = resolvedProps;
 
 	// Detect `acceptsChildren` via type inference: `children` must resolve to a
 	// `Snippet<...>` type. Checking the symbol name alone (the previous approach)
@@ -1211,17 +1234,17 @@ const extractPropsViaChecker = (
 				);
 			}
 		} catch (err) {
-			// Map position if possible
+			// Map position if possible. A prop declared outside the virtual (an
+			// imported props type) and an unmappable one both leave the position
+			// absent — `file` is the original `.svelte` path, so anything but an
+			// original-source line misreports where the failure lives.
 			let finalLine: number | undefined;
 			let finalColumn: number | undefined;
-			if (propDecl && sourceMap) {
+			if (propDecl) {
 				const propSource = propDecl.getSourceFile();
 				if (propSource.fileName === virtualSource.fileName) {
-					({ line: finalLine, column: finalColumn } = mapVirtualPosition(
-						propDecl,
-						propSource,
-						sourceMap
-					));
+					const mapped = mapVirtualPosition(propDecl, propSource, sourceMap);
+					if (mapped) ({ line: finalLine, column: finalColumn } = mapped);
 				}
 			}
 			diagnostics.push({
@@ -1361,6 +1384,9 @@ export const analyzeSvelteModule = (
 				virtualTsSource.getLineAndCharacterOfPosition(node.getStart(virtualTsSource)).line + 1;
 			if (!exportNodesByLine.has(line)) exportNodesByLine.set(line, node);
 		};
+		/** Both remaps below target this virtual and its map. */
+		const originalLineOf = (node: ts.Node): number =>
+			mapVirtualPositionWithFallback(node, virtualTsSource, virtualFile.sourceMap).line;
 		for (const stmt of virtualTsSource.statements) {
 			if (ts.isVariableStatement(stmt)) {
 				for (const decl of stmt.declarationList.declarations) {
@@ -1398,24 +1424,14 @@ export const analyzeSvelteModule = (
 			const node = fromExportStatement
 				? exportNodesByName.get(d.declaration.name)
 				: nodesByName.get(d.declaration.name);
-			if (node) {
-				const mapped = mapVirtualPosition(node, virtualTsSource, virtualFile.sourceMap);
-				if (mapped.line !== undefined) {
-					d.declaration.sourceLine = mapped.line;
-				}
-			}
+			if (node) d.declaration.sourceLine = originalLineOf(node);
 		}
 
 		// Remap edge lines by virtual line (name-independent — see above)
 		for (const edge of [...reExports, ...externalReExports]) {
 			if (edge.sourceLine === undefined) continue;
 			const node = exportNodesByLine.get(edge.sourceLine);
-			if (node) {
-				const mapped = mapVirtualPosition(node, virtualTsSource, virtualFile.sourceMap);
-				if (mapped.line !== undefined) {
-					edge.sourceLine = mapped.line;
-				}
-			}
+			if (node) edge.sourceLine = originalLineOf(node);
 		}
 	}
 
