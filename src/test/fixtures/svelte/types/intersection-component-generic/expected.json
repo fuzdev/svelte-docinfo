@@ -1,0 +1,27 @@
+{
+	"path": "TypesIntersectionComponentGeneric.svelte",
+	"declarations": [
+		{
+			"name": "TypesIntersectionComponentGeneric",
+			"kind": "component",
+			"sourceLine": 1,
+			"genericParams": [
+				{
+					"name": "T",
+					"constraint": "EventTarget"
+				}
+			],
+			"intersects": [
+				"HTMLAttributes<T>"
+			],
+			"props": [
+				{
+					"name": "prop1",
+					"type": "string",
+					"description": "Description 1"
+				}
+			],
+			"acceptsChildren": true
+		}
+	]
+}

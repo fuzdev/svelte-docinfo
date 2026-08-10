@@ -1,0 +1,21 @@
+{
+	"path": "TypesInterfaceExtendsGenericBaseOnly.svelte",
+	"declarations": [
+		{
+			"name": "TypesInterfaceExtendsGenericBaseOnly",
+			"kind": "component",
+			"sourceLine": 1,
+			"intersects": [
+				"A<HTMLDivElement>"
+			],
+			"props": [
+				{
+					"name": "prop1",
+					"type": "string",
+					"description": "Description 1"
+				}
+			],
+			"acceptsChildren": true
+		}
+	]
+}

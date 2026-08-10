@@ -1,0 +1,21 @@
+{
+	"path": "TypesInterfaceExtendsGeneric.svelte",
+	"declarations": [
+		{
+			"name": "TypesInterfaceExtendsGeneric",
+			"kind": "component",
+			"sourceLine": 1,
+			"intersects": [
+				"HTMLAttributes<HTMLDivElement>"
+			],
+			"props": [
+				{
+					"name": "prop1",
+					"type": "string",
+					"description": "Description 1"
+				}
+			],
+			"acceptsChildren": true
+		}
+	]
+}
