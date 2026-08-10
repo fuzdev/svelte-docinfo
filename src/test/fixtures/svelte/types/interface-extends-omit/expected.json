@@ -1,0 +1,21 @@
+{
+	"path": "TypesInterfaceExtendsOmit.svelte",
+	"declarations": [
+		{
+			"name": "TypesInterfaceExtendsOmit",
+			"kind": "component",
+			"sourceLine": 1,
+			"intersects": [
+				"Omit<HTMLAttributes<HTMLDivElement>, 'onclick'>"
+			],
+			"props": [
+				{
+					"name": "prop1",
+					"type": "string",
+					"description": "Description 1"
+				}
+			],
+			"acceptsChildren": true
+		}
+	]
+}

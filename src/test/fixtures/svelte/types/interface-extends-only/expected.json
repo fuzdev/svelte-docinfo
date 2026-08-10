@@ -1,0 +1,14 @@
+{
+	"path": "TypesInterfaceExtendsOnly.svelte",
+	"declarations": [
+		{
+			"name": "TypesInterfaceExtendsOnly",
+			"kind": "component",
+			"sourceLine": 1,
+			"intersects": [
+				"HTMLButtonAttributes"
+			],
+			"acceptsChildren": true
+		}
+	]
+}

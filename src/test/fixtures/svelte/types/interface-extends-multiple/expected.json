@@ -1,0 +1,22 @@
+{
+	"path": "TypesInterfaceExtendsMultiple.svelte",
+	"declarations": [
+		{
+			"name": "TypesInterfaceExtendsMultiple",
+			"kind": "component",
+			"sourceLine": 1,
+			"intersects": [
+				"AriaAttributes",
+				"DOMAttributes<HTMLDivElement>"
+			],
+			"props": [
+				{
+					"name": "prop1",
+					"type": "string",
+					"description": "Description 1"
+				}
+			],
+			"acceptsChildren": true
+		}
+	]
+}

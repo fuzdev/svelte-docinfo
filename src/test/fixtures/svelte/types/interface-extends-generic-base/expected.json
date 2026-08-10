@@ -1,0 +1,24 @@
+{
+	"path": "TypesInterfaceExtendsGenericBase.svelte",
+	"declarations": [
+		{
+			"name": "TypesInterfaceExtendsGenericBase",
+			"kind": "component",
+			"sourceLine": 1,
+			"props": [
+				{
+					"name": "prop1",
+					"type": "string",
+					"optional": true,
+					"description": "Description 1"
+				},
+				{
+					"name": "prop2",
+					"type": "number",
+					"description": "Description 2"
+				}
+			],
+			"acceptsChildren": true
+		}
+	]
+}

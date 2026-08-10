@@ -820,7 +820,17 @@ export const TypeDeclarationJson = z.strictObject({
 	...declarationTopLevelFields,
 	kind: z.literal('type'),
 	/**
-	 * Types from intersection branches whose properties are all external (filtered out of `members`).
+	 * External types whose properties are filtered out of `members`.
+	 *
+	 * Covers every composition the written type reaches: an intersection or
+	 * union branch, a bare or indexed-access reference, and a type composed
+	 * behind a project-local name (`type Base = Bag & {…}`, a local interface's
+	 * `extends`). Entries carry the written form, so a generic base keeps its
+	 * arguments; each distinct contributor appears once, in source order. A
+	 * local name is used only when it hides a definition the walk cannot
+	 * traverse — a mapped or conditional type, or a local generic base whose
+	 * heritage text names its own type parameters (text that would dangle at
+	 * this site is never emitted).
 	 *
 	 * @see `ComponentDeclarationJson.intersects`, `ClassDeclarationJson.extends`,
 	 *   `ClassDeclarationJson.implements`, `InterfaceDeclarationJson.extends`
@@ -888,7 +898,19 @@ export const ComponentDeclarationJson = z.strictObject({
 	...declarationTopLevelFields,
 	kind: z.literal('component'),
 	/**
-	 * Types from intersection branches whose properties are all external (filtered out of `props`).
+	 * External types whose properties are filtered out of `props` — the
+	 * attribute bags a component forwards, such as `HTMLButtonAttributes` or
+	 * `SvelteHTMLElements['button']`.
+	 *
+	 * Covers every way props compose them: an intersection or union branch, a
+	 * bare or indexed-access annotation, and `interface Props extends Bag`
+	 * (directly or through a local base). Entries carry the written form, so a
+	 * generic base keeps its arguments; each distinct bag appears once, in
+	 * source order. A local name is used only when it hides a definition the
+	 * walk cannot traverse — a mapped or conditional type, or a local generic
+	 * base whose heritage text names its own type parameters (text that would
+	 * dangle at this site is never emitted; the component's own generics stay
+	 * in scope and do emit).
 	 *
 	 * @see `TypeDeclarationJson.intersects`, `ClassDeclarationJson.extends`,
 	 *   `ClassDeclarationJson.implements`, `InterfaceDeclarationJson.extends`

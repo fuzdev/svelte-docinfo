@@ -708,10 +708,11 @@ export const resolveIntersectionTypeNode = (
 };
 
 /**
- * Determine whether a type-reference / indexed-access node names a type whose
- * properties all come from external files (e.g. `SvelteHTMLElements['li']`,
- * `HTMLAttributes<HTMLDivElement>`). Such a node is an external attribute "bag"
- * that should be summarized in `intersects` rather than enumerated as members.
+ * Determine whether a type-reference / indexed-access / heritage node names a
+ * type whose properties all come from external files (e.g.
+ * `SvelteHTMLElements['li']`, `HTMLAttributes<HTMLDivElement>`). Such a node is
+ * an external attribute "bag" that should be summarized in `intersects` rather
+ * than enumerated as members.
  *
  * Mirrors the per-property origin test used for membership: external only when
  * the node has at least one property and every property is external. A
@@ -728,31 +729,189 @@ const isExternalTypeRefNode = (
 };
 
 /**
+ * Append an external type's source text, ignoring a repeat.
+ *
+ * Two local branches composing one bag reach the same text twice (`interface
+ * Props extends A, B` where both extend it). `intersects` is a display list of
+ * distinct contributors, so the first occurrence wins and source order holds.
+ *
+ * @mutates out - appends `text` when not already present
+ */
+const pushExternalTypeRef = (out: Array<string>, text: string): void => {
+	if (!out.includes(text)) out.push(text);
+};
+
+/**
+ * Determine whether a node's written text references a type parameter bound
+ * inside the current descent — declared by a declaration on the `seen` path.
+ *
+ * Descent collects verbatim text from *definition* sites, and a generic
+ * definition's text can name its own type parameters: `interface A<T> extends
+ * ExtG<T> {}` reached via `Props extends A<string>` puts `ExtG<T>` in hand,
+ * where `T` resolves to nothing at the documented annotation site. Such text is
+ * malformed there, worse than no entry, so emission skips it and recovery
+ * degrades to the nearest enclosing reference whose text is well-formed.
+ *
+ * A type parameter declared *outside* the descent stays emittable: a generic
+ * component's own param in `interface Props extends HTMLAttributes<T>` is in
+ * scope at the annotation site (documented in `genericParams`), and its
+ * declaring node is never on the `seen` path.
+ */
+// TODO: substitute written type args through the descent (or move to a
+// checker `getBaseTypes()` walk) so `A<string>` over `extends ExtG<T>` can
+// emit the instantiated `ExtG<string>` instead of degrading to the outer name
+const referencesTypeParamBoundInDescent = (
+	node: ts.Node,
+	checker: ts.TypeChecker,
+	seen: ReadonlySet<ts.Declaration>
+): boolean => {
+	if (seen.size === 0) return false;
+	let found = false;
+	const visit = (n: ts.Node): void => {
+		if (found) return;
+		if (ts.isIdentifier(n)) {
+			const paramDecl = checker
+				.getSymbolAtLocation(n)
+				?.getDeclarations()
+				?.find(ts.isTypeParameterDeclaration);
+			const owner = paramDecl?.parent;
+			if (
+				owner &&
+				(ts.isInterfaceDeclaration(owner) || ts.isTypeAliasDeclaration(owner)) &&
+				seen.has(owner)
+			) {
+				found = true;
+				return;
+			}
+		}
+		ts.forEachChild(n, visit);
+	};
+	visit(node);
+	return found;
+};
+
+/**
+ * Walk the composition a project-local name hides behind it, collecting the
+ * external references it reaches.
+ *
+ * A local interface composes through its heritage entries — `interface Props
+ * extends HTMLButtonAttributes` inherits the bag's properties, and membership
+ * filtering drops them exactly like an intersection branch's, so the bag belongs
+ * in `intersects` the same way. A local type alias composes through its
+ * right-hand side, for the same reason one level down. Merged interface
+ * declarations each contribute.
+ *
+ * External declarations contribute nothing: an external name reads as a single
+ * bag rather than leaking its node_modules-internal definition, which is what
+ * the caller emits for it when this walk comes back empty.
+ *
+ * `seen` is scoped to the current path — a declaration is released once its own
+ * composition is walked — so a name can't contain itself (cyclic `extends`
+ * terminates) while two branches sharing an intermediate each still reach
+ * through it.
+ *
+ * @mutates out - appends each external reference's source text, deduplicated by text
+ * @mutates seen - holds the declarations on the current path for the duration of their walk
+ */
+const collectFromLocalComposition = (
+	node: ts.TypeNode,
+	checker: ts.TypeChecker,
+	isExternalFile: IsExternalFile,
+	out: Array<string>,
+	seen: Set<ts.Declaration>
+): void => {
+	// a type reference names its type through `typeName` and a heritage entry
+	// through `expression`; an indexed access has no name to resolve
+	const nameNode = ts.isTypeReferenceNode(node)
+		? node.typeName
+		: ts.isExpressionWithTypeArguments(node)
+			? node.expression
+			: undefined;
+	if (!nameNode) return;
+	// an imported name resolves to its `ImportSpecifier` first — follow the alias
+	// so the declaration inspected below is the type's own, in its own file
+	let symbol = checker.getSymbolAtLocation(nameNode);
+	if (symbol && symbol.flags & ts.SymbolFlags.Alias) symbol = checker.getAliasedSymbol(symbol);
+	const decls = symbol?.getDeclarations();
+	if (!decls) return;
+
+	for (const decl of decls) {
+		if (isExternalFile(decl.getSourceFile()) || seen.has(decl)) continue;
+		seen.add(decl);
+		if (ts.isTypeAliasDeclaration(decl)) {
+			collectExternalTypeRefs(decl.type, checker, isExternalFile, out, seen);
+		} else if (ts.isInterfaceDeclaration(decl)) {
+			// an interface's only heritage clause kind is `extends`
+			for (const clause of decl.heritageClauses ?? []) {
+				for (const base of clause.types) {
+					collectExternalTypeRefs(base, checker, isExternalFile, out, seen);
+				}
+			}
+		}
+		seen.delete(decl);
+	}
+};
+
+/**
  * Walk a written type node and collect, in source order, the verbatim text of
  * every external type reference it composes.
  *
  * Structure is read from the AST rather than the inferred type because
  * inference erases it: `(A | B) & C` normalizes to a union and `X['k']`
  * flattens to a property bag, both losing the `&`/`|`/index-access shape the
- * author wrote. Composition nodes (intersection, union, parenthesized) recurse;
- * leaf references (`TypeReference`, `IndexedAccessType`) are tested with
- * `isExternalTypeRefNode` and, when external, emitted via `getText()`. Inline
- * object literals and other local shapes contribute no entry.
+ * author wrote. Composition nodes (intersection, union, parenthesized) recurse.
+ * Inline object literals and other local shapes contribute no entry.
  *
- * @mutates out - appends each external reference's source text
+ * A leaf reference (`TypeReference`, `IndexedAccessType`, or an interface
+ * heritage entry) descends first: whatever bags its *local* composition reaches
+ * are what it contributes, so a bag behind `interface Props extends Bag` or
+ * behind a local alias is recorded like an inline `Bag & {…}` branch. The
+ * property filtering this pairs with is inheritance-blind, so the label
+ * collection has to be too. Only when that descent comes back empty — an
+ * external name, or a local one whose definition is a shape the walk can't
+ * traverse (mapped, conditional, an instantiated utility type) — does the leaf
+ * fall back to emitting its own text, and then only if it is wholly external
+ * (`isExternalTypeRefNode`) and free of type parameters bound inside the
+ * descent (`referencesTypeParamBoundInDescent` — a generic base's heritage
+ * text can name the base's own params, which dangle at the documented site).
+ *
+ * Descending in preference to the name is what keeps a *local* name out of a
+ * field documented as naming external contributors: an attribute-forwarding
+ * `interface Props extends Bag {}` records `Bag`, not `Props`.
+ *
+ * @mutates out - appends each external reference's source text, deduplicated by text
+ * @mutates seen - holds the declarations on the current path for the duration of their walk
  */
 const collectExternalTypeRefs = (
 	node: ts.TypeNode,
 	checker: ts.TypeChecker,
 	isExternalFile: IsExternalFile,
-	out: Array<string>
+	out: Array<string>,
+	seen: Set<ts.Declaration>
 ): void => {
 	if (ts.isParenthesizedTypeNode(node)) {
-		collectExternalTypeRefs(node.type, checker, isExternalFile, out);
+		collectExternalTypeRefs(node.type, checker, isExternalFile, out, seen);
 	} else if (ts.isIntersectionTypeNode(node) || ts.isUnionTypeNode(node)) {
-		for (const branch of node.types) collectExternalTypeRefs(branch, checker, isExternalFile, out);
-	} else if (ts.isTypeReferenceNode(node) || ts.isIndexedAccessTypeNode(node)) {
-		if (isExternalTypeRefNode(node, checker, isExternalFile)) out.push(node.getText());
+		for (const branch of node.types) {
+			collectExternalTypeRefs(branch, checker, isExternalFile, out, seen);
+		}
+	} else if (
+		ts.isTypeReferenceNode(node) ||
+		ts.isIndexedAccessTypeNode(node) ||
+		ts.isExpressionWithTypeArguments(node)
+	) {
+		// collected apart from `out` so "the descent found nothing" stays
+		// distinguishable from "it found only what a sibling branch already did"
+		const descended: Array<string> = [];
+		collectFromLocalComposition(node, checker, isExternalFile, descended, seen);
+		if (descended.length) {
+			for (const text of descended) pushExternalTypeRef(out, text);
+		} else if (
+			!referencesTypeParamBoundInDescent(node, checker, seen) &&
+			isExternalTypeRefNode(node, checker, isExternalFile)
+		) {
+			pushExternalTypeRef(out, node.getText());
+		}
 	}
 };
 
@@ -766,6 +925,10 @@ const collectExternalTypeRefs = (
  * alias references are left intact so they read as a single named bag rather than
  * leaking their node_modules-internal definition. Type-alias callers pass the
  * written node directly, so for them this is a no-op.
+ *
+ * `collectExternalTypeRefs` descends through local names on its own, so this is
+ * belt-and-braces for the root position rather than the only way a generated
+ * alias is seen through.
  */
 const resolveAnnotationTypeNode = (
 	typeNode: ts.Node,
@@ -794,7 +957,9 @@ const resolveAnnotationTypeNode = (
  * `OmitStrict`) too. A property with no declarations (synthesized) is treated as
  * local and kept. The external-type labels for `intersects` come from an AST
  * walk (`collectExternalTypeRefs`) — the authoritative source for the
- * `&`/`|`/index-access shape inference would otherwise erase.
+ * `&`/`|`/index-access shape inference would otherwise erase — which descends
+ * through project-local names so a bag inherited via `interface Props extends
+ * Bag` is labeled like an inline `Bag & {…}` branch.
  */
 export const filterExternalProperties = (
 	type: ts.Type,
@@ -808,7 +973,9 @@ export const filterExternalProperties = (
 
 	const externalTypes: Array<string> = [];
 	const annotation = resolveAnnotationTypeNode(typeNode, checker, isExternalFile);
-	if (annotation) collectExternalTypeRefs(annotation, checker, isExternalFile, externalTypes);
+	if (annotation) {
+		collectExternalTypeRefs(annotation, checker, isExternalFile, externalTypes, new Set());
+	}
 
 	return { properties, externalTypes };
 };
