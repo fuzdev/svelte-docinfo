@@ -214,11 +214,11 @@ export const extractTypeAliasProperties = (
 	const { checker, isExternalFile } = ctx;
 
 	// Drop properties contributed by external types (node_modules / declaration
-	// files) and surface those external types in the `intersects` field. Applies
+	// files) and surface those external types in the `externalTypes` field. Applies
 	// to the property-bearing shapes that pass `hasExtractableProperties` above —
 	// intersections, bare references, indexed-access. Unions are gated out here
 	// (the Svelte prop path calls `filterExternalProperties` directly, so unions
-	// still surface `intersects` there, just not for plain type aliases).
+	// still surface `externalTypes` there, just not for plain type aliases).
 	const { properties: filteredProperties, externalTypes } = filterExternalProperties(
 		nodeType,
 		node.type,
@@ -226,7 +226,7 @@ export const extractTypeAliasProperties = (
 		isExternalFile
 	);
 	if (externalTypes.length) {
-		declaration.intersects = externalTypes;
+		declaration.externalTypes = externalTypes;
 	}
 
 	// Detect mapped-type-level readonly (e.g., Readonly<T>, { readonly [K in ...]: ... })

@@ -743,7 +743,7 @@ describe('mergeReExports', () => {
 						since: 'CANONICAL_SINCE',
 						mutates: { arg: 'CANONICAL_MUT' },
 						partial: true,
-						intersects: ['CANONICAL_INT'],
+						externalTypes: ['CANONICAL_INT'],
 						props: [{ name: 'p', type: 'string' }],
 						acceptsChildren: true,
 						lang: 'js'

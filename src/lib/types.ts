@@ -689,7 +689,7 @@ export type ConstructorMemberJson = z.infer<typeof ConstructorMemberJson>;
  * `declaration-helpers.ts`) to narrow, or check `member.kind` directly.
  *
  * Does not include fields that exist on declarations but not on members
- * (`extends`, `intersects`, `implements`, `props`, `alsoExportedFrom`, `aliasOf`).
+ * (`extends`, `externalTypes`, `implements`, `props`, `alsoExportedFrom`, `aliasOf`).
  *
  * Nesting is exactly one level deep — members never contain their own members.
  */
@@ -769,8 +769,13 @@ export const ClassDeclarationJson = z.strictObject({
 	/**
 	 * Extended base class (single; TypeScript allows only one).
 	 *
+	 * Verbatim text of this declaration's own heritage clause (as is
+	 * `implements`), so it is spelled as this module wrote it and resolves in
+	 * its scope — a local rename stays the local name, where `externalTypes`
+	 * resolves renames because its walk crosses modules.
+	 *
 	 * @see `implements` (this variant), `InterfaceDeclarationJson.extends`,
-	 *   `TypeDeclarationJson.intersects`, `ComponentDeclarationJson.intersects`
+	 *   `TypeDeclarationJson.externalTypes`, `ComponentDeclarationJson.externalTypes`
 	 *   for sibling "related type identifiers" fields. Field shapes mirror TS syntax.
 	 */
 	extends: z.string().optional(),
@@ -791,8 +796,14 @@ export const InterfaceDeclarationJson = z.strictObject({
 	/**
 	 * Extended interfaces.
 	 *
+	 * Verbatim text of this declaration's own heritage clause, so entries are
+	 * spelled as this module wrote them and resolve in its scope — a local
+	 * rename (`import type {Bag as B}`) stays `B`. Unlike `externalTypes`,
+	 * whose walk crosses modules and therefore resolves renames back to the
+	 * exported name, this clause never leaves the declaring file.
+	 *
 	 * @see `ClassDeclarationJson.extends`, `ClassDeclarationJson.implements`,
-	 *   `TypeDeclarationJson.intersects`, `ComponentDeclarationJson.intersects`
+	 *   `TypeDeclarationJson.externalTypes`, `ComponentDeclarationJson.externalTypes`
 	 *   for sibling "related type identifiers" fields. Field shapes mirror TS syntax.
 	 */
 	extends: z.array(z.string()).default([]),
@@ -814,7 +825,7 @@ export const InterfaceDeclarationJson = z.strictObject({
 });
 export type InterfaceDeclarationJson = z.infer<typeof InterfaceDeclarationJson>;
 
-/** A type alias declaration. Has `members`, `intersects`. */
+/** A type alias declaration. Has `members`, `externalTypes`. */
 export const TypeDeclarationJson = z.strictObject({
 	...declarationSharedFields,
 	...declarationTopLevelFields,
@@ -832,11 +843,20 @@ export const TypeDeclarationJson = z.strictObject({
 	 * heritage text names its own type parameters (text that would dangle at
 	 * this site is never emitted).
 	 *
-	 * @see `ComponentDeclarationJson.intersects`, `ClassDeclarationJson.extends`,
+	 * The written form is taken at the *definition* site, which may be another
+	 * module, so an identifier bound by an import rename there
+	 * (`import type {Bag as B}`) is resolved back to the name its module
+	 * exports — entries name something importable wherever they surface, and
+	 * one bag spelled two ways across two files is one entry. Names carry no
+	 * module, so the dedupe is by name alone: two *distinct* external types
+	 * sharing an exported name (one from each of two packages) collapse to a
+	 * single entry.
+	 *
+	 * @see `ComponentDeclarationJson.externalTypes`, `ClassDeclarationJson.extends`,
 	 *   `ClassDeclarationJson.implements`, `InterfaceDeclarationJson.extends`
 	 *   for sibling "related type identifiers" fields. Field shapes mirror TS syntax.
 	 */
-	intersects: z.array(z.string()).default([]),
+	externalTypes: z.array(z.string()).default([]),
 	/**
 	 * Structured type; absent when `typeSignature` is the whole story (see
 	 * `TypeJson`). The headline case: a union alias's `typeSignature` prints as
@@ -892,7 +912,7 @@ export const EnumDeclarationJson = z.strictObject({
 });
 export type EnumDeclarationJson = z.infer<typeof EnumDeclarationJson>;
 
-/** A Svelte component declaration. Has `props`, `intersects`, `acceptsChildren`. */
+/** A Svelte component declaration. Has `props`, `externalTypes`, `acceptsChildren`. */
 export const ComponentDeclarationJson = z.strictObject({
 	...declarationSharedFields,
 	...declarationTopLevelFields,
@@ -912,11 +932,18 @@ export const ComponentDeclarationJson = z.strictObject({
 	 * dangle at this site is never emitted; the component's own generics stay
 	 * in scope and do emit).
 	 *
-	 * @see `TypeDeclarationJson.intersects`, `ClassDeclarationJson.extends`,
+	 * The written form is taken at the *definition* site — for the dominant
+	 * library shape, a props type imported from a sibling module — so an
+	 * identifier bound by an import rename there (`import type {Bag as B}`) is
+	 * resolved back to the name its module exports. Names carry no module, so
+	 * two distinct bags sharing an exported name collapse to one entry
+	 * (see `TypeDeclarationJson.externalTypes`).
+	 *
+	 * @see `TypeDeclarationJson.externalTypes`, `ClassDeclarationJson.extends`,
 	 *   `ClassDeclarationJson.implements`, `InterfaceDeclarationJson.extends`
 	 *   for sibling "related type identifiers" fields. Field shapes mirror TS syntax.
 	 */
-	intersects: z.array(z.string()).default([]),
+	externalTypes: z.array(z.string()).default([]),
 	/** Svelte component props. */
 	props: z.array(ComponentPropJson).default([]),
 	/** Whether the component accepts children (explicit `children` prop, inherited, or implicit template usage). */

@@ -111,12 +111,12 @@
 					<code>mergedValue</code>
 				</li>
 				<li>
-					<code>"type"</code>: adds <code>members</code>, <code>intersects</code>,
+					<code>"type"</code>: adds <code>members</code>, <code>externalTypes</code>,
 					<code>mergedValue</code>
 				</li>
 				<li><code>"enum"</code>: adds <code>members</code> (enum values)</li>
 				<li>
-					<code>"component"</code>: adds <code>props</code>, <code>intersects</code>,
+					<code>"component"</code>: adds <code>props</code>, <code>externalTypes</code>,
 					<code>acceptsChildren</code>, <code>lang</code> (Svelte components)
 				</li>
 				<li>

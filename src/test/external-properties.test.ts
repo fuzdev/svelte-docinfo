@@ -1,3 +1,14 @@
+/**
+ * Unit tests for `filterExternalProperties` — the partition of a type's
+ * properties into local (kept as `members` / `props`) and external (dropped),
+ * and the `externalTypes` labels naming what contributed the dropped ones.
+ *
+ * A multi-file program is what these need and what the fixture harnesses can't
+ * give: `ts` fixtures are single-file, so nothing in one is ever external.
+ * Behavior-level coverage lives in the `svelte/types/*` fixtures and
+ * `analyze.props-cross-module.test.ts`.
+ */
+
 import { test, assert, describe } from 'vitest';
 
 import { filterExternalProperties } from '$lib/typescript-extract-shared.ts';
@@ -47,6 +58,42 @@ const memberNames = (declaration: DeclarationJsonBuild): Array<string> =>
 		.map((m: MemberJsonBuild) => m.name ?? '')
 		.filter((n): n is string => n !== '')
 		.sort();
+
+/**
+ * Drive the filter with an alias's right-hand side as the annotation — the
+ * same `(type, typeNode)` pair the Svelte props path passes, where a
+ * `$props()` annotation is likewise a reference to a locally declared type.
+ *
+ * Shared by the descent describes below, which differ in what they compose,
+ * not in how they ask.
+ */
+const runFilter = (
+	files: Array<{ path: string; content: string }>,
+	aliasName: string,
+	isExternal: IsExternalFile
+): { propNames: Array<string>; externalTypes: Array<string> } => {
+	const { checker, sourceFiles } = createProgram(files);
+	const sf = sourceFiles.get('/src/lib/test.ts')!;
+	const alias = findTypeAlias(sf, checker, aliasName)!;
+	const result = filterExternalProperties(alias.type, alias.node.type, checker, isExternal);
+	return {
+		propNames: result.properties.map((p) => p.name).sort(),
+		externalTypes: result.externalTypes
+	};
+};
+
+/** The external module the descent describes below compose against. */
+const EXT = {
+	path: '/src/lib/external/ext.ts',
+	content: `
+		export interface Ext { e1: string; e2?: number }
+		export interface Ext2 { e3: boolean }
+		export interface ExtChild extends Ext { e4: string }
+		export interface ExtG<T> { attr?: T; other?: string }
+		export interface ExtBags { div: Ext; span: Ext2 }
+		export default interface ExtDefault { d1: string }
+	`
+};
 
 describe('filterExternalProperties', () => {
 	test('keeps all properties for a local non-intersection type, no external types', () => {
@@ -196,7 +243,7 @@ describe('filterExternalProperties', () => {
 		assert.deepEqual(result.externalTypes, ['LibType']);
 	});
 
-	test('inline object literal branches produce no intersects entry', () => {
+	test('inline object literal branches produce no externalTypes entry', () => {
 		const { checker, sourceFiles } = createProgram([
 			{
 				path: '/src/lib/ext.ts',
@@ -218,7 +265,7 @@ describe('filterExternalProperties', () => {
 		const result = filterExternalProperties(alias.type, alias.node.type, checker, isExternal);
 		const propNames = result.properties.map((p) => p.name).sort();
 		assert.deepEqual(propNames, ['own']);
-		// inline object literal is not a TypeReferenceNode, so no intersects entry for it
+		// inline object literal is not a TypeReferenceNode, so no externalTypes entry for it
 		assert.deepEqual(result.externalTypes, ['External']);
 	});
 
@@ -421,7 +468,7 @@ describe('filterExternalProperties', () => {
 		// merged symbol carries the local declaration too, so `isExternalProperty`
 		// (external only when *every* declaration is external) keeps it. `extOnly`
 		// (declared solely on the external branch) is dropped; `Ext` is still summarized
-		// in `intersects`. Order-independent — both branch orders behave the same.
+		// in `externalTypes`. Order-independent — both branch orders behave the same.
 		//
 		// Caveat: an *incompatible* override whose property type collapses to `never`
 		// (e.g. external `string` & local `boolean`) is dropped, not kept — the degenerate
@@ -461,37 +508,7 @@ describe('filterExternalProperties', () => {
 });
 
 describe('filterExternalProperties: composition behind a local name', () => {
-	/**
-	 * Drive the filter with an alias's right-hand side as the annotation — the
-	 * same `(type, typeNode)` pair the Svelte props path passes, where a
-	 * `$props()` annotation is likewise a reference to a locally declared type.
-	 */
-	const runFilter = (
-		files: Array<{ path: string; content: string }>,
-		aliasName: string,
-		isExternal: IsExternalFile
-	): { propNames: Array<string>; externalTypes: Array<string> } => {
-		const { checker, sourceFiles } = createProgram(files);
-		const sf = sourceFiles.get('/src/lib/test.ts')!;
-		const alias = findTypeAlias(sf, checker, aliasName)!;
-		const result = filterExternalProperties(alias.type, alias.node.type, checker, isExternal);
-		return {
-			propNames: result.properties.map((p) => p.name).sort(),
-			externalTypes: result.externalTypes
-		};
-	};
-
 	const isExternal: IsExternalFile = (f) => f.fileName.includes('/external/');
-
-	const EXT = {
-		path: '/src/lib/external/ext.ts',
-		content: `
-			export interface Ext { e1: string; e2?: number }
-			export interface Ext2 { e3: boolean }
-			export interface ExtChild extends Ext { e4: string }
-			export interface ExtG<T> { attr?: T; other?: string }
-		`
-	};
 
 	test('interface heritage surfaces the external base, like an inline intersection', () => {
 		// The community-standard Svelte props form. Inherited properties are
@@ -906,6 +923,291 @@ describe('filterExternalProperties: composition behind a local name', () => {
 		);
 		assert.deepEqual(externalTypes, ['Ext']);
 	});
+
+	/**
+	 * A chain of distinct local aliases, each re-exporting the next, ending at
+	 * the external bag. No cycle terminates it, so `MAX_COMPOSITION_DEPTH` is
+	 * the only bound.
+	 */
+	const aliasChain = (length: number): Array<{ path: string; content: string }> =>
+		Array.from({ length }, (_, i) => ({
+			path: `/src/lib/a${i}.ts`,
+			content:
+				i === length - 1
+					? `import type {Ext} from './external/ext.js';\nexport type A${i} = Ext;`
+					: `import type {A${i + 1}} from './a${i + 1}.js';\nexport type A${i} = A${i + 1};`
+		}));
+
+	const chainHead = {
+		path: '/src/lib/test.ts',
+		content: `
+			import type {A0} from './a0.js';
+			export type P = A0 & { own: boolean };
+		`
+	};
+
+	test('a long alias chain within the depth cap still reaches the bag', () => {
+		const { propNames, externalTypes } = runFilter(
+			[EXT, ...aliasChain(5), chainHead],
+			'P',
+			isExternal
+		);
+		assert.deepEqual(propNames, ['own']);
+		assert.deepEqual(externalTypes, ['Ext']);
+	});
+
+	test('past the depth cap the deepest reference reached is what gets recorded', () => {
+		// `depth` counts declaration boundaries crossed, so `A11` — reached after
+		// eleven crossings, one past `MAX_COMPOSITION_DEPTH` — is the first
+		// reference not descended into. It is wholly external by property origin,
+		// so it emits its own text: a *local* alias name from partway down the
+		// chain, not the bag behind it. Membership is unaffected either way.
+		const { propNames, externalTypes } = runFilter(
+			[EXT, ...aliasChain(13), chainHead],
+			'P',
+			isExternal
+		);
+		assert.deepEqual(propNames, ['own']);
+		assert.deepEqual(externalTypes, ['A11']);
+	});
+});
+
+/**
+ * The descent collects text from *definition* sites, which spell imported
+ * names however that file chose to. A name bound by an import rename there is
+ * resolved back to the name its module exports, so an entry means the same
+ * thing at the documented site as it did where it was written.
+ */
+describe('filterExternalProperties: import renames at the definition site', () => {
+	const isExternal: IsExternalFile = (f) => f.fileName.includes('/external/');
+
+	test('a renamed import records the exported name, not the local binding', () => {
+		// `B` is bound only inside base.ts — at the documented site it names
+		// nothing, so recording it would hand consumers a dangling identifier.
+		const { propNames, externalTypes } = runFilter(
+			[
+				EXT,
+				{
+					path: '/src/lib/base.ts',
+					content: `
+						import type {Ext as B} from './external/ext.js';
+						export interface Base extends B { own: boolean }
+					`
+				},
+				{
+					path: '/src/lib/test.ts',
+					content: `
+						import type {Base} from './base.js';
+						export type P = Base;
+					`
+				}
+			],
+			'P',
+			isExternal
+		);
+		assert.deepEqual(propNames, ['own']);
+		assert.deepEqual(externalTypes, ['Ext']);
+	});
+
+	test('one bag spelled two ways across two modules is one entry', () => {
+		// Dedupe is by text, so without resolution the same contributor reads
+		// as two.
+		const { externalTypes } = runFilter(
+			[
+				EXT,
+				{
+					path: '/src/lib/one.ts',
+					content: `
+						import type {Ext} from './external/ext.js';
+						export interface One extends Ext { a: string }
+					`
+				},
+				{
+					path: '/src/lib/two.ts',
+					content: `
+						import type {Ext as B} from './external/ext.js';
+						export interface Two extends B { b: string }
+					`
+				},
+				{
+					path: '/src/lib/test.ts',
+					content: `
+						import type {One} from './one.js';
+						import type {Two} from './two.js';
+						export type P = One & Two;
+					`
+				}
+			],
+			'P',
+			isExternal
+		);
+		assert.deepEqual(externalTypes, ['Ext']);
+	});
+
+	test('a renamed generic keeps its written arguments', () => {
+		// Substitution is textual and identifier-scoped, so the argument list
+		// the definition site wrote survives intact.
+		const { externalTypes } = runFilter(
+			[
+				EXT,
+				{
+					path: '/src/lib/base.ts',
+					content: `
+						import type {ExtG as G} from './external/ext.js';
+						export interface Base extends G<string> { own: boolean }
+					`
+				},
+				{
+					path: '/src/lib/test.ts',
+					content: `
+						import type {Base} from './base.js';
+						export type P = Base;
+					`
+				}
+			],
+			'P',
+			isExternal
+		);
+		assert.deepEqual(externalTypes, ['ExtG<string>']);
+	});
+
+	test('a default import is left alone', () => {
+		// The other end of a default import is the meaningless name `default`;
+		// the local binding is the only usable spelling.
+		const { externalTypes } = runFilter(
+			[
+				EXT,
+				{
+					path: '/src/lib/base.ts',
+					content: `
+						import type D from './external/ext.js';
+						export interface Base extends D { own: boolean }
+					`
+				},
+				{
+					path: '/src/lib/test.ts',
+					content: `
+						import type {Base} from './base.js';
+						export type P = Base;
+					`
+				}
+			],
+			'P',
+			isExternal
+		);
+		assert.deepEqual(externalTypes, ['D']);
+	});
+
+	test('a local re-export chain keeps the name that module exports', () => {
+		// `R` is what base.ts can import and what a reader can look up, so
+		// resolving further — to the declaration's own `Ext` — would name
+		// something `hop.ts` does not export.
+		const { externalTypes } = runFilter(
+			[
+				EXT,
+				{
+					path: '/src/lib/hop.ts',
+					content: `export type {Ext as R} from './external/ext.js';`
+				},
+				{
+					path: '/src/lib/base.ts',
+					content: `
+						import type {R} from './hop.js';
+						export interface Base extends R { own: boolean }
+					`
+				},
+				{
+					path: '/src/lib/test.ts',
+					content: `
+						import type {Base} from './base.js';
+						export type P = Base;
+					`
+				}
+			],
+			'P',
+			isExternal
+		);
+		assert.deepEqual(externalTypes, ['R']);
+	});
+
+	test('a rename written at the documented site itself resolves too', () => {
+		// No descent involved — the leaf is the annotation. Consistent either
+		// way, and the exported name is the one a reader can look up.
+		const { externalTypes } = runFilter(
+			[
+				EXT,
+				{
+					path: '/src/lib/test.ts',
+					content: `
+						import type {Ext as B} from './external/ext.js';
+						export type P = B & { own: boolean };
+					`
+				}
+			],
+			'P',
+			isExternal
+		);
+		assert.deepEqual(externalTypes, ['Ext']);
+	});
+
+	test('an indexed access under a renamed import keeps its written key', () => {
+		// Substitution is identifier-scoped, so only the object name moves —
+		// the index-access shape the field carries verbatim is untouched.
+		const { externalTypes } = runFilter(
+			[
+				EXT,
+				{
+					path: '/src/lib/test.ts',
+					content: `
+						import type {ExtBags as E} from './external/ext.js';
+						export type P = E['div'] & { own: boolean };
+					`
+				}
+			],
+			'P',
+			isExternal
+		);
+		assert.deepEqual(externalTypes, ["ExtBags['div']"]);
+	});
+
+	test('two distinct bags sharing an exported name collapse to one entry', () => {
+		// The cost of resolving renames: entries carry no module, so dedupe is by
+		// name alone and two unrelated `Bag`s read as one contributor. Documented
+		// on the schema — membership filtering is unaffected, both bags'
+		// properties are dropped either way.
+		const { propNames, externalTypes } = runFilter(
+			[
+				{ path: '/src/lib/external/one.ts', content: `export interface Bag { a: string }` },
+				{ path: '/src/lib/external/two.ts', content: `export interface Bag { b: string }` },
+				{
+					path: '/src/lib/one.ts',
+					content: `
+						import type {Bag} from './external/one.js';
+						export interface One extends Bag { o: string }
+					`
+				},
+				{
+					path: '/src/lib/two.ts',
+					content: `
+						import type {Bag as B} from './external/two.js';
+						export interface Two extends B { t: string }
+					`
+				},
+				{
+					path: '/src/lib/test.ts',
+					content: `
+						import type {One} from './one.js';
+						import type {Two} from './two.js';
+						export type P = One & Two;
+					`
+				}
+			],
+			'P',
+			isExternal
+		);
+		assert.deepEqual(propNames, ['o', 't']);
+		assert.deepEqual(externalTypes, ['Bag']);
+	});
 });
 
 describe('extractTypeInfo: index-signature filtering on intersections', () => {
@@ -939,15 +1241,15 @@ describe('extractTypeInfo: index-signature filtering on intersections', () => {
 			!declaration.members?.some((m) => m.name === '[key: string]'),
 			'external string index sig must not leak onto local type'
 		);
-		// `intersects` lists only branches with named external properties
+		// `externalTypes` lists only branches with named external properties
 		// (per `filterExternalProperties`). A pure-index-sig external branch
 		// has zero named props and is intentionally not surfaced there.
-		assert.equal(declaration.intersects, undefined);
+		assert.equal(declaration.externalTypes, undefined);
 	});
 
 	test('external branch with named props + index sig (HTMLAttributes-shaped) — both filtered', () => {
 		// External branch has both named props and a string index sig. Named
-		// props go to `intersects`; the index sig is filtered out.
+		// props go to `externalTypes`; the index sig is filtered out.
 		const { declaration } = runExtractTypeInfo(
 			[
 				{
@@ -975,7 +1277,7 @@ describe('extractTypeInfo: index-signature filtering on intersections', () => {
 		);
 
 		assert.deepEqual(memberNames(declaration), ['a']);
-		assert.deepEqual(declaration.intersects, ['Ext']);
+		assert.deepEqual(declaration.externalTypes, ['Ext']);
 		assert.ok(
 			!declaration.members?.some((m) => m.name === '[key: string]'),
 			'external string index sig must not leak through HTMLAttributes-shaped branches'
@@ -1009,8 +1311,8 @@ describe('extractTypeInfo: index-signature filtering on intersections', () => {
 		// The local branch has `[key: string]: number | string` — `a: string` widens
 		// the value type. We just verify it's NOT the external `boolean`.
 		assert.notMatch(stringIndex.typeSignature ?? '', /boolean/);
-		// External Ext is pure-index-sig; `intersects` tracks only named-external branches.
-		assert.equal(declaration.intersects, undefined);
+		// External Ext is pure-index-sig; `externalTypes` tracks only named-external branches.
+		assert.equal(declaration.externalTypes, undefined);
 	});
 
 	test('non-intersection types still emit their own index signatures', () => {
@@ -1037,6 +1339,6 @@ describe('extractTypeInfo: index-signature filtering on intersections', () => {
 		assert.ok(names.includes('a'), 'named property kept');
 		assert.ok(names.includes('[key: string]'), 'string index sig kept');
 		assert.ok(names.includes('[key: number]'), 'number index sig kept');
-		assert.deepEqual(declaration.intersects, undefined);
+		assert.deepEqual(declaration.externalTypes, undefined);
 	});
 });

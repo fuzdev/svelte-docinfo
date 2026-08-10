@@ -1312,6 +1312,47 @@ export const f = (): Promise<Renamed> => Promise.resolve({ a: '', b: 0 });`
 		});
 	});
 
+	test('a module that renames on the way out keeps its public name', async () => {
+		// recovery stops at the name `hop.ts` exports. Resolving the whole alias
+		// chain would reach the declaration's own `Inferred`, which `hop.ts` does
+		// not export — a name no consumer of `a.ts` can import.
+		const { modules } = await analyzeTestProject({
+			'src/lib/dep.ts': INFERRED_SETUP,
+			'src/lib/hop.ts': `export type { Inferred as Public } from './dep.js';`,
+			'src/lib/a.ts': `import type { Public } from './hop.js';
+
+export const f = (): Promise<Public> => Promise.resolve({ a: '', b: 0 });`
+		});
+		const module = modules.find((m) => m.path === 'a.ts');
+		const f = module?.declarations.find((d) => d.name === 'f');
+		assert(f?.kind === 'function', 'expected a function declaration');
+		assert.deepStrictEqual(f.returnTypeInfo, {
+			kind: 'reference',
+			name: 'Promise',
+			typeArgs: [{ kind: 'reference', name: 'Public' }]
+		});
+	});
+
+	test('a rename of a re-exported name resolves one hop, to the exported name', async () => {
+		// both rules at once: the local `R` resolves to what `hop.ts` exports
+		// (`Public`), and stops there rather than continuing to `Inferred`.
+		const { modules } = await analyzeTestProject({
+			'src/lib/dep.ts': INFERRED_SETUP,
+			'src/lib/hop.ts': `export type { Inferred as Public } from './dep.js';`,
+			'src/lib/a.ts': `import type { Public as R } from './hop.js';
+
+export const f = (): Promise<R> => Promise.resolve({ a: '', b: 0 });`
+		});
+		const module = modules.find((m) => m.path === 'a.ts');
+		const f = module?.declarations.find((d) => d.name === 'f');
+		assert(f?.kind === 'function', 'expected a function declaration');
+		assert.deepStrictEqual(f.returnTypeInfo, {
+			kind: 'reference',
+			name: 'Promise',
+			typeArgs: [{ kind: 'reference', name: 'Public' }]
+		});
+	});
+
 	test('recovery holds at depth through checker rewrites', async () => {
 		// the checker collapses `Array<Inferred>` to `{...}[]`; identity lookup
 		// still finds the element two levels down
@@ -1403,6 +1444,24 @@ export const f = (): schemas.Inferred => ({ a: '', b: 0 });`
 		const f = module?.declarations.find((d) => d.name === 'f');
 		assert(f?.kind === 'function', 'expected a function declaration');
 		assert.deepStrictEqual(f.returnTypeInfo, { kind: 'reference', name: 'Inferred' });
+	});
+
+	test('a namespace-qualified annotation stops at a renaming re-export too', async () => {
+		// the qualifier drops as above, but the name behind it is the re-export's,
+		// not the declaration's — `ns.Public` reaches the `ExportSpecifier`
+		// directly rather than through an import binding, and it publishes
+		// `Public` the same way an import binding names what it imported
+		const { modules } = await analyzeTestProject({
+			'src/lib/dep.ts': INFERRED_SETUP,
+			'src/lib/hop.ts': `export type {Inferred as Public} from './dep.js';`,
+			'src/lib/a.ts': `import type * as ns from './hop.js';
+
+export const f = (): ns.Public => ({ a: '', b: 0 });`
+		});
+		const module = modules.find((m) => m.path === 'a.ts');
+		const f = module?.declarations.find((d) => d.name === 'f');
+		assert(f?.kind === 'function', 'expected a function declaration');
+		assert.deepStrictEqual(f.returnTypeInfo, { kind: 'reference', name: 'Public' });
 	});
 
 	test('typeof, import-type, and inline-literal annotations never trigger recovery', async () => {

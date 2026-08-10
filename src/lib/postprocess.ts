@@ -352,7 +352,7 @@ export const resolveComponentAliases = (
 				...decl,
 				props: canonical.props,
 				acceptsChildren: canonical.acceptsChildren,
-				intersects: canonical.intersects,
+				externalTypes: canonical.externalTypes,
 				genericParams: canonical.genericParams
 			};
 			if (canonical.lang !== undefined) filled.lang = canonical.lang;

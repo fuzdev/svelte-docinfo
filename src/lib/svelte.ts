@@ -1160,7 +1160,7 @@ const extractPropsViaChecker = (
 
 	// Drop properties contributed by external types (node_modules / svelte's
 	// element-attribute bags like `SvelteHTMLElements['li']`); those external
-	// types are summarized in `intersects` rather than enumerated as props.
+	// types are summarized in `externalTypes` rather than enumerated as props.
 	const { properties, externalTypes } = filterExternalProperties(
 		propsType,
 		propsTypeNode,
@@ -1481,7 +1481,7 @@ export const analyzeSvelteModule = (
 	}
 
 	if (externalTypes?.length) {
-		componentDecl.intersects = externalTypes;
+		componentDecl.externalTypes = externalTypes;
 	}
 
 	// Legacy (runes-less) components declare props with `export let`, which

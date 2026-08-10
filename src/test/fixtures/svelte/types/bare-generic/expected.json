@@ -5,7 +5,7 @@
 			"name": "TypesBareGeneric",
 			"kind": "component",
 			"sourceLine": 1,
-			"intersects": [
+			"externalTypes": [
 				"HTMLAttributes<HTMLDivElement>"
 			],
 			"acceptsChildren": true

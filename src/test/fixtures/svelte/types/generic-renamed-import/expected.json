@@ -1,12 +1,18 @@
 {
-	"path": "TypesInterfaceExtendsGenericBaseOnly.svelte",
+	"path": "TypesGenericRenamedImport.svelte",
 	"declarations": [
 		{
-			"name": "TypesInterfaceExtendsGenericBaseOnly",
+			"name": "TypesGenericRenamedImport",
 			"kind": "component",
 			"sourceLine": 1,
+			"genericParams": [
+				{
+					"name": "T",
+					"constraint": "EventTarget"
+				}
+			],
 			"externalTypes": [
-				"A<HTMLDivElement>"
+				"HTMLAttributes<T>"
 			],
 			"props": [
 				{

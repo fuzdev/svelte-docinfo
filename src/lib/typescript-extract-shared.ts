@@ -31,6 +31,7 @@ import { to_error_message } from './error.ts';
 import { stripVirtualSuffix } from './source.ts';
 import { applyToDeclaration, parseComment, type TsdocParsedComment } from './tsdoc.ts';
 import {
+	specifierExportedName,
 	optionalWideningTarget,
 	resolveTypeInfo,
 	type AliasRegistry
@@ -711,7 +712,7 @@ export const resolveIntersectionTypeNode = (
  * Determine whether a type-reference / indexed-access / heritage node names a
  * type whose properties all come from external files (e.g.
  * `SvelteHTMLElements['li']`, `HTMLAttributes<HTMLDivElement>`). Such a node is
- * an external attribute "bag" that should be summarized in `intersects` rather
+ * an external attribute "bag" that should be summarized in `externalTypes` rather
  * than enumerated as members.
  *
  * Mirrors the per-property origin test used for membership: external only when
@@ -729,16 +730,78 @@ const isExternalTypeRefNode = (
 };
 
 /**
- * Append an external type's source text, ignoring a repeat.
+ * Append an external type's text, ignoring a repeat.
  *
  * Two local branches composing one bag reach the same text twice (`interface
- * Props extends A, B` where both extend it). `intersects` is a display list of
- * distinct contributors, so the first occurrence wins and source order holds.
+ * Props extends A, B` where both extend it). `externalTypes` is a display list
+ * of distinct contributors, so the first occurrence wins and source order holds.
  *
  * @mutates out - appends `text` when not already present
  */
 const pushExternalTypeRef = (out: Array<string>, text: string): void => {
 	if (!out.includes(text)) out.push(text);
+};
+
+/**
+ * Resolve an identifier written as an *import rename* to the name its module
+ * exports, or `undefined` when the spelling is already the importable one —
+ * an unrenamed import, a default or namespace import (no exported name to
+ * recover), or anything that isn't an import at all.
+ *
+ * The exported name comes from `specifierExportedName`, shared with the
+ * written-name recovery channel in `typescript-extract-type-json.ts`; the
+ * difference here is only that a substitution has nothing to do when the
+ * spelling already matches. That is also why the shared rule's export-specifier
+ * arm never fires here: it answers with the specifier's own published name,
+ * which is what an identifier reaching it was already spelled as.
+ */
+const importedNameOf = (id: ts.Identifier, checker: ts.TypeChecker): string | undefined => {
+	const symbol = checker.getSymbolAtLocation(id);
+	if (!symbol) return undefined;
+	const name = specifierExportedName(symbol);
+	return name === undefined || name === id.text ? undefined : name;
+};
+
+/**
+ * Render a leaf reference node as text that means the same thing at the
+ * documented site as it does where it was written.
+ *
+ * Descent collects verbatim text from *definition* sites, which spell imported
+ * names however that file chose to: `import type {Bag as B} from 'pkg'` beside
+ * `interface Props extends B` puts `B` in hand, a name bound nowhere the
+ * documented declaration can see. Each renamed identifier is substituted back
+ * to the name its module exports, so entries are resolvable wherever they
+ * surface — and one bag spelled two ways across two files (`Bag` here, `B`
+ * there) collapses to one entry under `pushExternalTypeRef`'s dedupe rather
+ * than reading as two contributors.
+ *
+ * Substitution is textual rather than a reprint of the type: the written form
+ * is what `externalTypes` carries (generic arguments and index-access shape
+ * included), and inference erases exactly that.
+ */
+const externalTypeRefText = (node: ts.TypeNode, checker: ts.TypeChecker): string => {
+	const text = node.getText();
+	const offset = node.getStart();
+	// collected in source order, applied back to front so earlier edits keep
+	// their offsets
+	const edits: Array<{ start: number; end: number; name: string }> = [];
+	const visit = (n: ts.Node): void => {
+		if (ts.isIdentifier(n)) {
+			const name = importedNameOf(n, checker);
+			if (name !== undefined) {
+				edits.push({ start: n.getStart() - offset, end: n.getEnd() - offset, name });
+			}
+		}
+		ts.forEachChild(n, visit);
+	};
+	visit(node);
+	if (edits.length === 0) return text;
+	let out = text;
+	for (let i = edits.length - 1; i >= 0; i--) {
+		const edit = edits[i]!;
+		out = out.slice(0, edit.start) + edit.name + out.slice(edit.end);
+	}
+	return out;
 };
 
 /**
@@ -791,13 +854,20 @@ const referencesTypeParamBoundInDescent = (
 };
 
 /**
+ * Declaration boundaries the local-composition descent crosses before giving
+ * up. `seen` already terminates cycles; this bounds a long acyclic chain of
+ * distinct local aliases, matching the alias registry's containment walk.
+ */
+const MAX_COMPOSITION_DEPTH = 10;
+
+/**
  * Walk the composition a project-local name hides behind it, collecting the
  * external references it reaches.
  *
  * A local interface composes through its heritage entries — `interface Props
  * extends HTMLButtonAttributes` inherits the bag's properties, and membership
  * filtering drops them exactly like an intersection branch's, so the bag belongs
- * in `intersects` the same way. A local type alias composes through its
+ * in `externalTypes` the same way. A local type alias composes through its
  * right-hand side, for the same reason one level down. Merged interface
  * declarations each contribute.
  *
@@ -808,9 +878,14 @@ const referencesTypeParamBoundInDescent = (
  * `seen` is scoped to the current path — a declaration is released once its own
  * composition is walked — so a name can't contain itself (cyclic `extends`
  * terminates) while two branches sharing an intermediate each still reach
- * through it.
+ * through it. `depth` counts declaration boundaries crossed and bounds a chain
+ * no cycle terminates (each hop a distinct declaration). Past the cap the
+ * reference in hand is treated as untraversable, so it falls back to its own
+ * text — for a long chain of local aliases that means a local name from
+ * partway down rather than the external bag behind it, the same degradation a
+ * mapped or conditional definition gets.
  *
- * @mutates out - appends each external reference's source text, deduplicated by text
+ * @mutates out - appends each external reference's text, deduplicated by text
  * @mutates seen - holds the declarations on the current path for the duration of their walk
  */
 const collectFromLocalComposition = (
@@ -818,8 +893,10 @@ const collectFromLocalComposition = (
 	checker: ts.TypeChecker,
 	isExternalFile: IsExternalFile,
 	out: Array<string>,
-	seen: Set<ts.Declaration>
+	seen: Set<ts.Declaration>,
+	depth: number
 ): void => {
+	if (depth > MAX_COMPOSITION_DEPTH) return;
 	// a type reference names its type through `typeName` and a heritage entry
 	// through `expression`; an indexed access has no name to resolve
 	const nameNode = ts.isTypeReferenceNode(node)
@@ -839,12 +916,12 @@ const collectFromLocalComposition = (
 		if (isExternalFile(decl.getSourceFile()) || seen.has(decl)) continue;
 		seen.add(decl);
 		if (ts.isTypeAliasDeclaration(decl)) {
-			collectExternalTypeRefs(decl.type, checker, isExternalFile, out, seen);
+			collectExternalTypeRefs(decl.type, checker, isExternalFile, out, seen, depth + 1);
 		} else if (ts.isInterfaceDeclaration(decl)) {
 			// an interface's only heritage clause kind is `extends`
 			for (const clause of decl.heritageClauses ?? []) {
 				for (const base of clause.types) {
-					collectExternalTypeRefs(base, checker, isExternalFile, out, seen);
+					collectExternalTypeRefs(base, checker, isExternalFile, out, seen, depth + 1);
 				}
 			}
 		}
@@ -879,7 +956,10 @@ const collectFromLocalComposition = (
  * field documented as naming external contributors: an attribute-forwarding
  * `interface Props extends Bag {}` records `Bag`, not `Props`.
  *
- * @mutates out - appends each external reference's source text, deduplicated by text
+ * A leaf's text is emitted through `externalTypeRefText`, which resolves the
+ * import renames its definition site may have spelled it with.
+ *
+ * @mutates out - appends each external reference's text, deduplicated by text
  * @mutates seen - holds the declarations on the current path for the duration of their walk
  */
 const collectExternalTypeRefs = (
@@ -887,13 +967,14 @@ const collectExternalTypeRefs = (
 	checker: ts.TypeChecker,
 	isExternalFile: IsExternalFile,
 	out: Array<string>,
-	seen: Set<ts.Declaration>
+	seen: Set<ts.Declaration>,
+	depth: number
 ): void => {
 	if (ts.isParenthesizedTypeNode(node)) {
-		collectExternalTypeRefs(node.type, checker, isExternalFile, out, seen);
+		collectExternalTypeRefs(node.type, checker, isExternalFile, out, seen, depth);
 	} else if (ts.isIntersectionTypeNode(node) || ts.isUnionTypeNode(node)) {
 		for (const branch of node.types) {
-			collectExternalTypeRefs(branch, checker, isExternalFile, out, seen);
+			collectExternalTypeRefs(branch, checker, isExternalFile, out, seen, depth);
 		}
 	} else if (
 		ts.isTypeReferenceNode(node) ||
@@ -903,21 +984,21 @@ const collectExternalTypeRefs = (
 		// collected apart from `out` so "the descent found nothing" stays
 		// distinguishable from "it found only what a sibling branch already did"
 		const descended: Array<string> = [];
-		collectFromLocalComposition(node, checker, isExternalFile, descended, seen);
+		collectFromLocalComposition(node, checker, isExternalFile, descended, seen, depth);
 		if (descended.length) {
 			for (const text of descended) pushExternalTypeRef(out, text);
 		} else if (
 			!referencesTypeParamBoundInDescent(node, checker, seen) &&
 			isExternalTypeRefNode(node, checker, isExternalFile)
 		) {
-			pushExternalTypeRef(out, node.getText());
+			pushExternalTypeRef(out, externalTypeRefText(node, checker));
 		}
 	}
 };
 
 /**
  * Resolve a props/type-alias annotation node to the written type node whose
- * structure drives `intersects` extraction.
+ * structure drives `externalTypes` extraction.
  *
  * The svelte2tsx props annotation is a reference to a generated `$$ComponentProps`
  * alias; unwrap one level of *local* type-alias reference so the underlying
@@ -955,7 +1036,7 @@ const resolveAnnotationTypeNode = (
  * TypeScript preserves original declaration sources on derived properties, so
  * the test gives the right answer through utility-type wrappers (Partial, Pick,
  * `OmitStrict`) too. A property with no declarations (synthesized) is treated as
- * local and kept. The external-type labels for `intersects` come from an AST
+ * local and kept. The labels naming the dropped contributors come from an AST
  * walk (`collectExternalTypeRefs`) — the authoritative source for the
  * `&`/`|`/index-access shape inference would otherwise erase — which descends
  * through project-local names so a bag inherited via `interface Props extends
@@ -974,7 +1055,7 @@ export const filterExternalProperties = (
 	const externalTypes: Array<string> = [];
 	const annotation = resolveAnnotationTypeNode(typeNode, checker, isExternalFile);
 	if (annotation) {
-		collectExternalTypeRefs(annotation, checker, isExternalFile, externalTypes, new Set());
+		collectExternalTypeRefs(annotation, checker, isExternalFile, externalTypes, new Set(), 0);
 	}
 
 	return { properties, externalTypes };

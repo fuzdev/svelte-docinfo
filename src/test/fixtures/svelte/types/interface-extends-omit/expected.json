@@ -5,7 +5,7 @@
 			"name": "TypesInterfaceExtendsOmit",
 			"kind": "component",
 			"sourceLine": 1,
-			"intersects": [
+			"externalTypes": [
 				"Omit<HTMLAttributes<HTMLDivElement>, 'onclick'>"
 			],
 			"props": [

@@ -5,7 +5,7 @@
 			"name": "TypesInterfaceExtendsGeneric",
 			"kind": "component",
 			"sourceLine": 1,
-			"intersects": [
+			"externalTypes": [
 				"HTMLAttributes<HTMLDivElement>"
 			],
 			"props": [

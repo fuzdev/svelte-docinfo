@@ -1,8 +1,8 @@
 {
-	"path": "TypesBareHtml.svelte",
+	"path": "TypesBareRenamedImport.svelte",
 	"declarations": [
 		{
-			"name": "TypesBareHtml",
+			"name": "TypesBareRenamedImport",
 			"kind": "component",
 			"sourceLine": 1,
 			"externalTypes": [

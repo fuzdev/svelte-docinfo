@@ -11,7 +11,7 @@
 					"constraint": "EventTarget"
 				}
 			],
-			"intersects": [
+			"externalTypes": [
 				"HTMLAttributes<T>"
 			],
 			"props": [

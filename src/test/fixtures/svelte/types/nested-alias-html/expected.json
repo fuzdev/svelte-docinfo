@@ -5,7 +5,7 @@
 			"name": "TypesNestedAliasHtml",
 			"kind": "component",
 			"sourceLine": 1,
-			"intersects": [
+			"externalTypes": [
 				"HTMLButtonAttributes"
 			],
 			"props": [

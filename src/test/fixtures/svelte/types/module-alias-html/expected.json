@@ -1,0 +1,80 @@
+{
+	"path": "TypesModuleAliasHtml.svelte",
+	"declarations": [
+		{
+			"name": "TypesModuleAliasHtml",
+			"kind": "component",
+			"sourceLine": 14,
+			"externalTypes": [
+				"SvelteHTMLElements['div']",
+				"SvelteHTMLElements['span']"
+			],
+			"acceptsChildren": true
+		},
+		{
+			"name": "ButtonProps",
+			"kind": "type",
+			"docComment": "An intersection over an external bag — the type-alias path records the bag.",
+			"typeSignature": "ButtonProps",
+			"sourceLine": 5,
+			"externalTypes": [
+				"HTMLButtonAttributes"
+			],
+			"typeInfo": {
+				"kind": "intersection",
+				"alias": "ButtonProps",
+				"members": [
+					{
+						"kind": "reference",
+						"name": "HTMLButtonAttributes"
+					},
+					{
+						"kind": "object",
+						"text": "{ prop1: string; }"
+					}
+				]
+			},
+			"members": [
+				{
+					"name": "prop1",
+					"kind": "variable",
+					"docComment": "Description 1",
+					"typeSignature": "string"
+				}
+			]
+		},
+		{
+			"name": "EitherProps",
+			"kind": "type",
+			"docComment": "A union of external bags — the type-alias path skips unions, so this records nothing.",
+			"typeSignature": "EitherProps",
+			"sourceLine": 11,
+			"typeInfo": {
+				"kind": "union",
+				"alias": "EitherProps",
+				"members": [
+					{
+						"kind": "reference",
+						"name": "HTMLAttributes",
+						"typeArgs": [
+							{
+								"kind": "reference",
+								"name": "HTMLDivElement"
+							}
+						]
+					},
+					{
+						"kind": "reference",
+						"name": "HTMLAttributes",
+						"typeArgs": [
+							{
+								"kind": "reference",
+								"name": "HTMLSpanElement"
+							}
+						]
+					}
+				]
+			}
+		}
+	]
+}

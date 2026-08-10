@@ -276,17 +276,55 @@ export const unionMemberSetKey = (type: ts.UnionType): string | undefined => {
 type WrittenNameLookup = (type: ts.Type) => string | undefined;
 
 /**
+ * The name a module exports an aliased symbol under, or `undefined` when the
+ * alias names no export (a default or namespace import, a star re-export).
+ *
+ * The one rule shared by both name-recovery channels — this file's written-name
+ * lookup and `externalTypeRefText`'s textual substitution
+ * (`typescript-extract-shared.ts`). Both specifier kinds carry the name, on
+ * opposite sides of their own `as`: an `ImportSpecifier` takes the module's
+ * side, its `propertyName` (`import type {Bag as B}` → `Bag`, `B` being this
+ * file's private spelling), while an `ExportSpecifier` *is* the module's side,
+ * so its `name` is what it publishes (`export {Internal as Public}` → `Public`,
+ * `Internal` being the other module's). Unrenamed, both collapse to the one
+ * name written.
+ *
+ * Stopping at a specifier rather than resolving the whole alias chain is what
+ * makes the result importable: the chain ends at the *declaration's* name,
+ * which a module renaming on the way out never exports — recovering `Internal`
+ * there names something no consumer of that module can reach.
+ */
+export const specifierExportedName = (symbol: ts.Symbol): string | undefined => {
+	if (!(symbol.flags & ts.SymbolFlags.Alias)) return undefined;
+	const decls = symbol.getDeclarations();
+	if (!decls) return undefined;
+	// an import binding is the nearer hop when a symbol carries both, and the
+	// only one whose local spelling can differ from what it names
+	const imported = decls.find(ts.isImportSpecifier);
+	if (imported) return (imported.propertyName ?? imported.name).text;
+	return decls.find(ts.isExportSpecifier)?.name.text;
+};
+
+/**
  * The importable name a written type reference resolves to — through import
  * aliases (`import {Original as Renamed}` yields `Original`), so the recovered
  * name is the one a consumer can look up, not a file-local spelling.
+ *
+ * A specifier stops the walk at the name its module exports
+ * (`specifierExportedName`), whether the reference reaches it through an import
+ * binding or namespace-qualified through the re-export itself. Only an alias
+ * naming no export — a default or namespace import — falls through to the whole
+ * chain, where the declaration's own name is the only name there is.
  */
 const referenceNodeName = (
 	node: ts.TypeReferenceNode,
 	checker: ts.TypeChecker
 ): string | undefined => {
-	let symbol = checker.getSymbolAtLocation(node.typeName);
-	if (symbol && symbol.flags & ts.SymbolFlags.Alias) symbol = checker.getAliasedSymbol(symbol);
-	return symbol?.name;
+	const symbol = checker.getSymbolAtLocation(node.typeName);
+	if (!symbol) return undefined;
+	const exported = specifierExportedName(symbol);
+	if (exported !== undefined) return exported;
+	return symbol.flags & ts.SymbolFlags.Alias ? checker.getAliasedSymbol(symbol).name : symbol.name;
 };
 
 /**
