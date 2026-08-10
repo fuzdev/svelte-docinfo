@@ -254,8 +254,9 @@
 						<td>
 							<strong>Trigger:</strong> source map parsing failed for a Svelte virtual file.
 							<strong>Consequence:</strong> analysis continues without position mapping — query-time
-							diagnostics from the virtual drop <code>line</code>/<code>column</code>, and
-							declaration <code>sourceLine</code>s fall back to virtual positions.
+							diagnostics drop <code>line</code>/<code>column</code> rather than point into the
+							generated TS, while declaration <code>sourceLine</code>s fall back to virtual
+							positions.
 							<strong>Ingest-time.</strong>
 						</td>
 					</tr>

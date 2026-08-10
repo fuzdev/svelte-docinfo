@@ -184,6 +184,13 @@ export type ClassMemberDiagnostic = z.infer<typeof ClassMemberDiagnostic>;
 
 /**
  * Svelte prop type resolution failed.
+ *
+ * `file` is the original `.svelte` path, so `line`/`column` are present only
+ * when the prop's declaration lives in the component's own virtual *and* maps
+ * back to the original source — an imported props type or a node svelte2tsx
+ * synthesized leaves the position absent rather than publishing a virtual
+ * line, the rule `remapVirtualDiagnosticPositions` applies to extractor
+ * diagnostics.
  */
 export const SveltePropDiagnostic = z.strictObject({
 	kind: z.literal('svelte_prop_failed'),
@@ -361,11 +368,12 @@ export type DuplicateDeclarationDiagnostic = z.infer<typeof DuplicateDeclaration
 /**
  * Source map parsing failed for a Svelte virtual file.
  *
- * Analysis continues without position mapping: query-time diagnostics emitted
- * against the virtual drop `line`/`column` (`remapVirtualDiagnosticPositions`
- * prefers absence over a line pointing into svelte2tsx-generated TS), and
- * declaration `sourceLine`s fall back to virtual positions. Rare; usually
- * signals a malformed or incompatible svelte2tsx output.
+ * Analysis continues without position mapping: query-time diagnostics drop
+ * `line`/`column` rather than point into svelte2tsx-generated TS — those
+ * emitted against the virtual via `remapVirtualDiagnosticPositions`,
+ * `svelte_prop_failed` at its own emission site — while declaration
+ * `sourceLine`s fall back to virtual positions. Rare; usually signals a
+ * malformed or incompatible svelte2tsx output.
  *
  * Emitted at ingest time by `transformSvelteSource` (in `svelte.ts`); flows
  * through `setFile`/`setFiles` ingest diagnostics rather than the analysis
