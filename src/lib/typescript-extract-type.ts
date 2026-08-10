@@ -24,6 +24,7 @@ import type { DeclarationJsonBuild, MemberJsonBuild } from './declaration-build.
 import { to_error_message } from './error.ts';
 import { parseComment, applyToDeclaration } from './tsdoc.ts';
 import {
+	collectExternalTypesFromHeritage,
 	emitCallOrConstructSignature,
 	extractModifiers,
 	getNodeLocation,
@@ -96,9 +97,19 @@ export const extractTypeInfo = (
 
 	if (ts.isInterfaceDeclaration(node)) {
 		if (node.heritageClauses) {
-			declaration.extends = node.heritageClauses
+			const heritageTypes = node.heritageClauses
 				.filter((hc) => hc.token === ts.SyntaxKind.ExtendsKeyword)
-				.flatMap((hc) => hc.types.map((t) => t.getText()));
+				.flatMap((hc) => hc.types);
+			declaration.extends = heritageTypes.map((t) => t.getText());
+			// members are own-only, so the external types the heritage composition
+			// reaches are never enumerated — record them like the alias/component
+			// paths record what filtering drops
+			const externalTypes = collectExternalTypesFromHeritage(
+				heritageTypes,
+				checker,
+				ctx.isExternalFile
+			);
+			if (externalTypes.length) declaration.externalTypes = externalTypes;
 		}
 
 		// Extract properties and method signatures with full metadata
@@ -278,15 +289,26 @@ export const extractTypeInfo = (
 			}
 		}
 
-		// Extract call and construct signatures from interface type. TSDoc comes
-		// from inline signature declarations on this interface — inherited
-		// signatures resolve through `getCallSignatures()` but their docs are
-		// intentionally not surfaced here.
+		// Extract call and construct signatures from interface type, own-only
+		// like every other interface member kind: `getCallSignatures()` resolves
+		// inherited signatures too, but props and index signatures come from
+		// `node.members`, so an inherited `(call)` — local base or external bag
+		// alike — would be the one member enumerating inheritance. A signature is
+		// own when its declaration sits in any declaration of this interface
+		// symbol (merged blocks included).
 		const interfaceType = nodeType ?? checker.getTypeAtLocation(node);
+		const ownDecls: Set<ts.Node> = new Set(
+			checker.getSymbolAtLocation(node.name)?.getDeclarations() ?? [node]
+		);
+		const ownOnly = (sigs: ReadonlyArray<ts.Signature>): ReadonlyArray<ts.Signature> =>
+			sigs.filter((sig) => {
+				const decl: ts.SignatureDeclaration | undefined = sig.getDeclaration();
+				return decl !== undefined && ownDecls.has(decl.parent);
+			});
 		const errorContext = { node, kindLabel: 'interface' };
 
 		emitCallOrConstructSignature(
-			() => interfaceType.getCallSignatures(),
+			() => ownOnly(interfaceType.getCallSignatures()),
 			'call',
 			() => node.members.find(ts.isCallSignatureDeclaration),
 			node,
@@ -296,7 +318,7 @@ export const extractTypeInfo = (
 		);
 
 		emitCallOrConstructSignature(
-			() => interfaceType.getConstructSignatures(),
+			() => ownOnly(interfaceType.getConstructSignatures()),
 			'construct',
 			() => node.members.find(ts.isConstructSignatureDeclaration),
 			node,

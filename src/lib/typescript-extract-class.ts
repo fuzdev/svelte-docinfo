@@ -20,6 +20,7 @@ import { to_error_message } from './error.ts';
 import { parseComment, applyToDeclaration } from './tsdoc.ts';
 import { resolveTypeInfo } from './typescript-extract-type-json.ts';
 import {
+	collectExternalTypesFromHeritage,
 	detectReactivity,
 	extractModifiers,
 	getNodeLocation,
@@ -54,6 +55,16 @@ export const extractClassInfo = (
 		);
 		if (extendsClause?.types[0]) {
 			declaration.extends = extendsClause.types[0].getText();
+			// members are own-only, so external content inherited through the
+			// extends chain is never enumerated — record its contributors like the
+			// interface path does. `implements` adds no members and contributes
+			// nothing here
+			const externalTypes = collectExternalTypesFromHeritage(
+				[extendsClause.types[0]],
+				checker,
+				ctx.isExternalFile
+			);
+			if (externalTypes.length) declaration.externalTypes = externalTypes;
 		}
 
 		declaration.implements = node.heritageClauses

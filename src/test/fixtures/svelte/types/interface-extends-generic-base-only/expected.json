@@ -6,7 +6,7 @@
 			"kind": "component",
 			"sourceLine": 1,
 			"externalTypes": [
-				"A<HTMLDivElement>"
+				"HTMLAttributes<HTMLDivElement>"
 			],
 			"props": [
 				{

@@ -5,6 +5,9 @@
 			"name": "TypesInterfaceExtendsGenericBase",
 			"kind": "component",
 			"sourceLine": 1,
+			"externalTypes": [
+				"HTMLAttributes<HTMLDivElement>"
+			],
 			"props": [
 				{
 					"name": "prop1",

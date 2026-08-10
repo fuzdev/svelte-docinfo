@@ -774,15 +774,27 @@ export const ClassDeclarationJson = z.strictObject({
 	 * its scope — a local rename stays the local name, where `externalTypes`
 	 * resolves renames because its walk crosses modules.
 	 *
-	 * @see `implements` (this variant), `InterfaceDeclarationJson.extends`,
-	 *   `TypeDeclarationJson.externalTypes`, `ComponentDeclarationJson.externalTypes`
-	 *   for sibling "related type identifiers" fields. Field shapes mirror TS syntax.
+	 * @see `implements` (this variant), `InterfaceDeclarationJson.extends`
+	 *   for the other verbatim heritage fields, `externalTypes` (this variant)
+	 *   for the resolved external reach. Field shapes mirror TS syntax.
 	 */
 	extends: z.string().optional(),
+	/**
+	 * External types the `extends` chain reaches whose contributions `members`
+	 * never enumerates — the class counterpart of
+	 * `InterfaceDeclarationJson.externalTypes`, descending through local base
+	 * classes. `implements` contributes nothing: an implemented interface adds
+	 * no members, the class declares its own.
+	 *
+	 * Entry normalization (rename resolution, type-parameter substitution,
+	 * text-dedupe, source order) matches `TypeDeclarationJson.externalTypes`.
+	 */
+	externalTypes: z.array(z.string()).default([]),
 	/** Implemented interfaces. */
 	implements: z.array(z.string()).default([]),
 	/**
-	 * Class members: methods, properties, constructors, getters/setters.
+	 * Class members: methods, properties, constructors, getters/setters — own
+	 * members only, inherited members excluded whatever their origin.
 	 */
 	members: z.array(MemberJson).default([])
 });
@@ -802,14 +814,34 @@ export const InterfaceDeclarationJson = z.strictObject({
 	 * whose walk crosses modules and therefore resolves renames back to the
 	 * exported name, this clause never leaves the declaring file.
 	 *
-	 * @see `ClassDeclarationJson.extends`, `ClassDeclarationJson.implements`,
-	 *   `TypeDeclarationJson.externalTypes`, `ComponentDeclarationJson.externalTypes`
-	 *   for sibling "related type identifiers" fields. Field shapes mirror TS syntax.
+	 * @see `ClassDeclarationJson.extends`, `ClassDeclarationJson.implements`
+	 *   for the other verbatim heritage fields, `externalTypes` (this variant)
+	 *   for the resolved external reach. Field shapes mirror TS syntax.
 	 */
 	extends: z.array(z.string()).default([]),
 	/**
-	 * Interface members: property signatures, method signatures, index signatures,
-	 * call/construct signatures.
+	 * External types the heritage composition reaches whose contributions
+	 * `members` never enumerates.
+	 *
+	 * Interface members are own-only, so nothing is *filtered* — inherited
+	 * content simply isn't listed. This field names the external types behind
+	 * that absence: `interface Props extends HTMLButtonAttributes` records the
+	 * bag directly, and `interface Props extends LocalBase` (where `LocalBase`
+	 * reaches a bag) records it transitively — the same answer the component
+	 * annotated with this interface gets, where `extends` alone dead-ends at a
+	 * possibly-unexported local name. Inherited *local* content is the
+	 * `extends` field's business: the base is documented at its own
+	 * declaration.
+	 *
+	 * Entry normalization (rename resolution, type-parameter substitution,
+	 * text-dedupe, source order) matches `TypeDeclarationJson.externalTypes`.
+	 */
+	externalTypes: z.array(z.string()).default([]),
+	/**
+	 * Interface members: property signatures, method signatures, index
+	 * signatures, call/construct signatures — own members only, inherited
+	 * members excluded whatever their origin (call/construct signatures
+	 * included: a base interface's `(call)` is not enumerated here).
 	 */
 	members: z.array(MemberJson).default([]),
 	/**
@@ -831,30 +863,40 @@ export const TypeDeclarationJson = z.strictObject({
 	...declarationTopLevelFields,
 	kind: z.literal('type'),
 	/**
-	 * External types whose properties are filtered out of `members`.
+	 * External types whose contributions are filtered out of `members`.
+	 *
+	 * Filtering is by declaration origin at every granularity — named
+	 * properties, index signatures, call/construct signatures — so a purely
+	 * structural external branch (an index-signature-only or callable-only
+	 * interface) is recorded here exactly like a named-property bag. A
+	 * declaration-less contribution (the index signature the checker
+	 * synthesizes for a mapped-type instantiation like `Record<string, X>` or
+	 * `Partial<Indexed>`) is kept in `members` and records nothing here.
 	 *
 	 * Covers every composition the written type reaches: an intersection or
 	 * union branch, a bare or indexed-access reference, and a type composed
-	 * behind a project-local name (`type Base = Bag & {…}`, a local interface's
-	 * `extends`). Entries carry the written form, so a generic base keeps its
-	 * arguments; each distinct contributor appears once, in source order. A
-	 * local name is used only when it hides a definition the walk cannot
-	 * traverse — a mapped or conditional type, or a local generic base whose
-	 * heritage text names its own type parameters (text that would dangle at
-	 * this site is never emitted).
+	 * behind a project-local name (`type Base = Bag & {…}`, a local
+	 * interface's `extends`, a local container's accessed property
+	 * `LocalMap['a']`). Entries carry the written form with two
+	 * normalizations: an identifier bound by an import rename at the
+	 * definition site (`import type {Bag as B}`) resolves back to the name its
+	 * module exports, and a type parameter bound inside the descent
+	 * substitutes its written argument (`interface A<T> extends ExtG<T>`
+	 * reached via `extends A<string>` records `ExtG<string>`). Each distinct
+	 * contributor appears once, in source order; a generic reference keeps its
+	 * arguments. A local name is used only when it hides a definition the walk
+	 * cannot traverse — a mapped or conditional type.
 	 *
-	 * The written form is taken at the *definition* site, which may be another
-	 * module, so an identifier bound by an import rename there
-	 * (`import type {Bag as B}`) is resolved back to the name its module
-	 * exports — entries name something importable wherever they surface, and
-	 * one bag spelled two ways across two files is one entry. Names carry no
-	 * module, so the dedupe is by name alone: two *distinct* external types
-	 * sharing an exported name (one from each of two packages) collapse to a
-	 * single entry.
+	 * Names carry no module, so the dedupe is by name alone: two *distinct*
+	 * external types sharing an exported name (one from each of two packages)
+	 * collapse to a single entry.
 	 *
-	 * @see `ComponentDeclarationJson.externalTypes`, `ClassDeclarationJson.extends`,
-	 *   `ClassDeclarationJson.implements`, `InterfaceDeclarationJson.extends`
-	 *   for sibling "related type identifiers" fields. Field shapes mirror TS syntax.
+	 * @see `ComponentDeclarationJson.externalTypes`,
+	 *   `InterfaceDeclarationJson.externalTypes`,
+	 *   `ClassDeclarationJson.externalTypes` for the same field on the other
+	 *   kinds, and `ClassDeclarationJson.extends`, `ClassDeclarationJson.implements`,
+	 *   `InterfaceDeclarationJson.extends` for the verbatim own-clause heritage
+	 *   fields. Field shapes mirror TS syntax.
 	 */
 	externalTypes: z.array(z.string()).default([]),
 	/**
@@ -924,24 +966,22 @@ export const ComponentDeclarationJson = z.strictObject({
 	 *
 	 * Covers every way props compose them: an intersection or union branch, a
 	 * bare or indexed-access annotation, and `interface Props extends Bag`
-	 * (directly or through a local base). Entries carry the written form, so a
-	 * generic base keeps its arguments; each distinct bag appears once, in
-	 * source order. A local name is used only when it hides a definition the
-	 * walk cannot traverse — a mapped or conditional type, or a local generic
-	 * base whose heritage text names its own type parameters (text that would
-	 * dangle at this site is never emitted; the component's own generics stay
-	 * in scope and do emit).
+	 * (directly or through a local base). Entries carry the written form with
+	 * the same normalizations as `TypeDeclarationJson.externalTypes`: import
+	 * renames at the definition site resolve to the exported name, and a type
+	 * parameter bound inside the descent substitutes its written argument —
+	 * `interface A<T> extends HTMLAttributes<T>` reached via `Props extends
+	 * A<HTMLDivElement>` records `HTMLAttributes<HTMLDivElement>`. The
+	 * component's *own* generics stay in scope and emit as written
+	 * (`HTMLAttributes<T>` beside the `genericParams` documenting `T`). Each
+	 * distinct bag appears once, in source order; a local name is used only
+	 * when it hides a definition the walk cannot traverse (a mapped or
+	 * conditional type). Names carry no module, so two distinct bags sharing
+	 * an exported name collapse to one entry.
 	 *
-	 * The written form is taken at the *definition* site — for the dominant
-	 * library shape, a props type imported from a sibling module — so an
-	 * identifier bound by an import rename there (`import type {Bag as B}`) is
-	 * resolved back to the name its module exports. Names carry no module, so
-	 * two distinct bags sharing an exported name collapse to one entry
-	 * (see `TypeDeclarationJson.externalTypes`).
-	 *
-	 * @see `TypeDeclarationJson.externalTypes`, `ClassDeclarationJson.extends`,
-	 *   `ClassDeclarationJson.implements`, `InterfaceDeclarationJson.extends`
-	 *   for sibling "related type identifiers" fields. Field shapes mirror TS syntax.
+	 * @see `TypeDeclarationJson.externalTypes` for the full entry contract,
+	 *   `InterfaceDeclarationJson.externalTypes` for the field on the props
+	 *   interface itself. Field shapes mirror TS syntax.
 	 */
 	externalTypes: z.array(z.string()).default([]),
 	/** Svelte component props. */
