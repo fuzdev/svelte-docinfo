@@ -1,0 +1,50 @@
+{
+	"modules": [
+		{
+			"path": "input.ts",
+			"declarations": [
+				{
+					"name": "A",
+					"kind": "interface",
+					"docComment": "Description 1",
+					"typeSignature": "A",
+					"sourceLine": 4,
+					"extends": [
+						"B"
+					],
+					"externalTypes": [
+						"B"
+					],
+					"members": [
+						{
+							"name": "a1",
+							"kind": "variable",
+							"docComment": "Description 2",
+							"typeSignature": "string"
+						}
+					]
+				},
+				{
+					"name": "C",
+					"kind": "interface",
+					"docComment": "Description 3",
+					"typeSignature": "C",
+					"sourceLine": 10,
+					"extends": [
+						"A"
+					],
+					"externalTypes": [
+						"B"
+					],
+					"members": [
+						{
+							"name": "c1",
+							"kind": "variable",
+							"typeSignature": "number"
+						}
+					]
+				}
+			]
+		}
+	]
+}

@@ -1,0 +1,62 @@
+{
+	"modules": [
+		{
+			"path": "dep.ts",
+			"declarations": [
+				{
+					"name": "a",
+					"kind": "variable",
+					"docComment": "Description 1",
+					"typeSignature": "1",
+					"sourceLine": 2,
+					"alsoExportedFrom": [
+						"input.ts"
+					]
+				},
+				{
+					"name": "b",
+					"kind": "variable",
+					"typeSignature": "2",
+					"sourceLine": 4,
+					"alsoExportedFrom": [
+						"input.ts"
+					]
+				}
+			],
+			"dependents": [
+				"input.ts"
+			]
+		},
+		{
+			"path": "input.ts",
+			"declarations": [
+				{
+					"name": "b",
+					"kind": "variable",
+					"docComment": "Description 2",
+					"typeSignature": "2",
+					"sourceLine": 4,
+					"aliasOf": {
+						"module": "dep.ts",
+						"name": "b"
+					}
+				}
+			],
+			"dependencies": [
+				"dep.ts"
+			],
+			"reExports": [
+				{
+					"name": "a",
+					"module": "dep.ts",
+					"sourceLine": 1
+				},
+				{
+					"name": "b",
+					"module": "dep.ts",
+					"sourceLine": 4
+				}
+			]
+		}
+	]
+}

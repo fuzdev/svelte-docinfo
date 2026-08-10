@@ -1,0 +1,34 @@
+{
+	"modules": [
+		{
+			"path": "input.ts",
+			"externalReExports": [
+				{
+					"name": "a",
+					"specifier": "extpkg",
+					"sourceLine": 1
+				},
+				{
+					"name": "C",
+					"specifier": "extpkg",
+					"typeOnly": true,
+					"sourceLine": 5
+				},
+				{
+					"name": "fn2",
+					"specifier": "extpkg",
+					"originalName": "fn1",
+					"sourceLine": 3
+				},
+				{
+					"name": "ns",
+					"specifier": "extpkg",
+					"sourceLine": 7
+				}
+			],
+			"externalStarExports": [
+				"otherpkg"
+			]
+		}
+	]
+}
