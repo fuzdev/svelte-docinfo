@@ -51,9 +51,14 @@
  * ## File Path Contract
  *
  * `Diagnostic.file` is always project-root-relative — no leading slash,
- * no `./` prefix. `analyze` / `analyzeFromFiles` normalize paths from all
- * sources (extraction, discovery, dependency resolution) before returning.
- * Consumers that need an absolute path can rejoin with `projectRoot`.
+ * no `./` prefix. `analyze` / `analyzeFromFiles` and the session
+ * (`setFile`/`setFiles` at ingest, `query` at analysis) normalize paths from
+ * all sources (extraction, discovery, dependency resolution) before
+ * returning. Consumers that need an absolute path can rejoin with
+ * `projectRoot`.
+ *
+ * It names a *file*, not a module: `ModuleJson.path` is relative to
+ * `sourceRoot`, so `file` is not a lookup key into `modules`.
  *
  * @module
  */
@@ -116,6 +121,21 @@ const baseDiagnosticFields = {
 	 * pipeline may write absolute or virtual paths (e.g.,
 	 * `Foo.svelte.__svelte2tsx__.ts`); normalization rewrites them to
 	 * project-relative form before they reach consumers.
+	 *
+	 * The exception is **discovery** — `discoverSourceFiles` /
+	 * `discoverFromExports` return their diagnostics unnormalized, since they
+	 * run before any session exists. Their `file` is already
+	 * project-root-relative, but `message` can embed an absolute path (an fs
+	 * error names the file it failed on), so a consumer wiring discovery up
+	 * itself owns the `normalizeDiagnosticPaths` call — `analyzeFromFiles` and
+	 * the Vite plugin both make it before merging.
+	 *
+	 * **The absolute form is the one to write.** Normalization deliberately
+	 * leaves an already-relative path alone (relativizing it would resolve
+	 * against `cwd`), so a producer writing a `ModuleJson.path` — relative to
+	 * `sourceRoot`, a different base — passes through untouched and publishes
+	 * the same file under a second name. Absolute is what the pass can
+	 * actually correct.
 	 */
 	file: z.string(),
 	/** Line number (1-based), absent if location unavailable. */
@@ -326,7 +346,14 @@ export const DuplicateDeclarationDiagnostic = z.strictObject({
 	...baseDiagnosticFields,
 	/** The duplicated declaration name. */
 	declarationName: z.string(),
-	/** Module paths where the name was defined (>= 2). */
+	/**
+	 * Module paths where the name was defined (>= 2).
+	 *
+	 * `ModuleJson.path` values — relative to `sourceRoot`, so a different base
+	 * than the record's `file` (project-root-relative, like every diagnostic).
+	 * The two disagree textually whenever `sourceRoot` is non-empty; each names
+	 * what it says it names, a module vs. a file.
+	 */
 	modules: z.array(z.string()).min(2)
 });
 export type DuplicateDeclarationDiagnostic = z.infer<typeof DuplicateDeclarationDiagnostic>;

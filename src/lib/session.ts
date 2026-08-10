@@ -123,7 +123,13 @@ export interface SetFilesResult {
 	changedIds: ReadonlySet<string>;
 	/**
 	 * Pre-flattened union of every file's `ingestDiagnostics`. Consumers
-	 * can group by `Diagnostic.file` for per-file publish.
+	 * can group by `Diagnostic.file` for per-file publish — already
+	 * project-root-relative, normalized at rest before the entry was stored.
+	 *
+	 * The array is fresh but its elements are the *stored* diagnostic objects,
+	 * so mutating one (re-running `normalizeDiagnosticPaths` against a
+	 * different root, say) corrupts the session's own state. Copy before
+	 * mutating.
 	 */
 	diagnostics: Array<Diagnostic>;
 	/**
@@ -744,6 +750,10 @@ export const createAnalysisSession = (options: AnalysisSessionOptions): Analysis
 		const tasks: Array<ResolveTask> = [];
 		for (let pi = 0; pi < pendings.length; pi++) {
 			const p = pendings[pi]!;
+			// Load-bearing beyond the wasted work it avoids: a cache hit's
+			// `ingestDiagnostics` is the *stored* array, already normalized at
+			// rest, and phase 3 skips it — so a `resolver_failed` pushed here
+			// would never be normalized and would ship an absolute path.
 			if (p.cacheHit) continue;
 			for (let si = 0; si < p.specifiers.length; si++) {
 				// Skip Node builtins — never a source file, and routing them

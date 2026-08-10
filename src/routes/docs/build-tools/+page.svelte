@@ -139,8 +139,12 @@ const {files, diagnostics} = await discoverSourceFiles({
 		</p>
 		<p>
 			<code>module_unreadable</code> is the discovery-time diagnostic; the session doesn't run
-			discovery, so direct session consumers own it. <code>analyzeFromFiles</code> merges discovery diagnostics
-			into the final return before handing back to the caller.
+			discovery, so direct session consumers own it. <code>analyzeFromFiles</code> merges discovery
+			diagnostics into the final return before handing back to the caller. Discovery is also the one
+			diagnostic source that doesn't normalize its own paths — its <code>message</code> wraps the fs
+			error, which embeds an absolute path — so call
+			<DeclarationLink name="normalizeDiagnosticPaths" /> on them before publishing anywhere a developer's
+			filesystem shouldn't go.
 		</p>
 	</TomeSection>
 
@@ -303,8 +307,9 @@ const customOpts = createSourceOptions(process.cwd(), {
 			<code>sourcePaths</code> entries and <code>sourceRoot</code> are projectRoot-relative;
 			absolute entries inside the root are accepted and stored root-relative, while an entry
 			resolving outside the root throws at options creation — out-of-root modules are
-			unrepresentable, since module paths and diagnostics are project-root-relative. The same
-			accept-or-throw rule covers absolute
+			unrepresentable, since <code>ModuleJson.path</code> is <code>sourceRoot</code>-relative and
+			<code>Diagnostic.file</code> project-root-relative, and neither can reach outside the root.
+			The same accept-or-throw rule covers absolute
 			<code>exclude</code> globs (and <code>include</code> patterns at the discovery entry points), so
 			discovery and analysis always see the same relative pattern.
 		</p>

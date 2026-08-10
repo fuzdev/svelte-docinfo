@@ -476,8 +476,11 @@ describe(
 	{ timeout: 30_000 },
 	() => {
 		test('Svelte SourceFileInfo with backslash id analyzes successfully and outputs POSIX paths', async () => {
+			// The legacy `export let` earns its keep: it forces a `legacy_props`
+			// warning, so the diagnostic loop below observes a Svelte-layer
+			// diagnostic instead of running over an empty array.
 			const content =
-				'<script lang="ts">let { label }: { label: string } = $props();</script><button>{label}</button>';
+				'<script lang="ts">export let label: string;</script><button>{label}</button>';
 			await withTestProject({ 'src/lib/Button.svelte': content }, async (projectRoot) => {
 				const sourceOptions = createSourceOptions(projectRoot);
 				const posixId = join(projectRoot, 'src/lib/Button.svelte');
@@ -496,7 +499,10 @@ describe(
 				assert.ok(decl, 'expected one declaration on Button.svelte');
 				assert.strictEqual(decl.kind, 'component');
 
-				// All diagnostic file paths POSIX.
+				// All diagnostic file paths POSIX. The `legacy_props` warning is
+				// what makes this loop non-vacuous — assert it so a future edit to
+				// the component can't quietly empty the array.
+				assert.isNotEmpty(result.diagnostics);
 				for (const d of result.diagnostics) {
 					assert.notInclude(d.file, '\\', `diagnostic.file should be POSIX, got: ${d.file}`);
 				}

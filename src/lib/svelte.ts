@@ -1024,7 +1024,7 @@ const detectChildrenSnippet = (
 	propsTypeNode: ts.Node,
 	ctx: ExtractContext,
 	componentName: string,
-	filePath: string
+	diagnosticFile: string
 ): boolean => {
 	const { checker } = ctx;
 	const childrenSym = propsType.getProperty('children');
@@ -1045,7 +1045,7 @@ const detectChildrenSnippet = (
 	} catch (err) {
 		ctx.diagnostics.push({
 			kind: 'svelte_prop_failed',
-			file: filePath,
+			file: diagnosticFile,
 			message: `Failed to resolve type for "children" in ${componentName} while detecting acceptsChildren: ${to_error_message(err)}`,
 			severity: 'warning',
 			componentName,
@@ -1066,7 +1066,7 @@ const extractPropsViaChecker = (
 	virtualSource: ts.SourceFile,
 	ctx: ExtractContext,
 	componentName: string,
-	filePath: string,
+	diagnosticFile: string,
 	sourceMap: SourceMap | null,
 	metadata: PropsMetadata
 ): {
@@ -1111,7 +1111,7 @@ const extractPropsViaChecker = (
 		if (propsTypeName) {
 			diagnostics.push({
 				kind: 'svelte_prop_failed',
-				file: filePath,
+				file: diagnosticFile,
 				message: `Component "${componentName}" uses $props() with type "${propsTypeName}" but the checker could not resolve it. This may indicate an incompatible svelte2tsx version.`,
 				severity: 'warning',
 				componentName,
@@ -1132,7 +1132,7 @@ const extractPropsViaChecker = (
 		propsTypeNode,
 		ctx,
 		componentName,
-		filePath
+		diagnosticFile
 	);
 
 	// Drop properties contributed by external types (node_modules / svelte's
@@ -1226,7 +1226,7 @@ const extractPropsViaChecker = (
 			}
 			diagnostics.push({
 				kind: 'svelte_prop_failed',
-				file: filePath,
+				file: diagnosticFile,
 				line: finalLine,
 				column: finalColumn,
 				message: `Failed to resolve type for prop "${prop.name}" in ${componentName}, falling back to 'any': ${to_error_message(err)}`,
@@ -1254,7 +1254,9 @@ const extractPropsViaChecker = (
  * - Star exports and re-exports from Svelte files
  *
  * @param sourceFile - the original Svelte source file
- * @param modulePath - module path relative to source root
+ * @param modulePath - module path relative to source root; feeds
+ *   `ModuleJson.path` and the component name, never `Diagnostic.file` (which
+ *   is project-root-relative — a different base)
  * @param checker - TypeScript type checker (from the program containing virtual files)
  * @param options - module source options for path extraction
  * @param diagnostics - diagnostics collector for non-fatal issues
@@ -1274,15 +1276,22 @@ export const analyzeSvelteModule = (
 	virtualFile: SvelteVirtualFile,
 	aliasRegistry?: AliasRegistry
 ): ModuleAnalysis | undefined => {
+	// Every diagnostic below carries the absolute `.svelte` id, never
+	// `modulePath` — see the `Diagnostic.file` schema doc for why the absolute
+	// form is the one a producer writes. Posixified defensively for direct
+	// callers, like `transformSvelteSource`'s `posixId`.
+	const diagnosticFile = toPosixPath(sourceFile.id);
+
 	// Look up the virtual source file in the program
 	const virtualTsSource = program.getSourceFile(virtualFile.virtualPath);
 	if (!virtualTsSource) {
 		diagnostics.push({
 			kind: 'module_skipped',
-			file: modulePath,
-			// `virtualPath` is absolute and carries the svelte2tsx suffix; `file`
-			// already holds the public path, so the message uses it instead.
-			message: `Virtual file not found in program: ${modulePath}`,
+			file: diagnosticFile,
+			// `virtualPath` would leak the svelte2tsx suffix; interpolating the
+			// same id as `file` keeps the two from disagreeing, since the message
+			// gets the same project-root scrub.
+			message: `Virtual file not found in program: ${diagnosticFile}`,
 			severity: 'warning',
 			reason: 'not_in_program'
 		});
@@ -1447,7 +1456,7 @@ export const analyzeSvelteModule = (
 		virtualTsSource,
 		ctx,
 		componentName,
-		modulePath,
+		diagnosticFile,
 		virtualFile.sourceMap,
 		propsMetadata
 	);
@@ -1469,7 +1478,7 @@ export const analyzeSvelteModule = (
 			const propNames = legacyProps.map((p) => p.name);
 			diagnostics.push({
 				kind: 'legacy_props',
-				file: modulePath,
+				file: diagnosticFile,
 				// the first legacy export's line in the original source
 				line: lineOfOffset(sourceFile.content, instanceScript.start + legacyProps[0]!.pos),
 				message: `Component "${componentName}" declares props with legacy export let syntax (${propNames.join(', ')}). Legacy props are not extracted — migrate to $props().`,
@@ -1522,7 +1531,7 @@ export const analyzeSvelteModule = (
 		diagnostics.push({
 			kind: 'duplicate_comment',
 			commentType: 'doc_comment',
-			file: modulePath,
+			file: diagnosticFile,
 			message:
 				'Both HTML @component comment and JSDoc in <script> provide component documentation. Using JSDoc.',
 			severity: 'warning'
@@ -1542,9 +1551,9 @@ export const analyzeSvelteModule = (
 	const moduleComment = instanceModuleComment ?? scriptModuleComment ?? htmlModuleComment;
 
 	// @nodocs has no module-level meaning — warn per misplaced comment
-	warnModuleCommentNodocs(instanceModuleComment, modulePath, diagnostics);
-	warnModuleCommentNodocs(scriptModuleComment, modulePath, diagnostics);
-	warnModuleCommentNodocs(htmlModuleComment, modulePath, diagnostics);
+	warnModuleCommentNodocs(instanceModuleComment, diagnosticFile, diagnostics);
+	warnModuleCommentNodocs(scriptModuleComment, diagnosticFile, diagnostics);
+	warnModuleCommentNodocs(htmlModuleComment, diagnosticFile, diagnostics);
 
 	// Warn if multiple @module sources exist
 	const moduleCommentSources = [
@@ -1556,7 +1565,7 @@ export const analyzeSvelteModule = (
 		diagnostics.push({
 			kind: 'duplicate_comment',
 			commentType: 'module_comment',
-			file: modulePath,
+			file: diagnosticFile,
 			message: `Multiple @module comments found (${[instanceModuleComment && 'JSDoc in <script>', scriptModuleComment && 'JSDoc in <script module>', htmlModuleComment && 'HTML comment'].filter(Boolean).join(', ')}). Using first found.`,
 			severity: 'warning'
 		});

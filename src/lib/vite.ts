@@ -42,7 +42,7 @@ import { readFile } from 'node:fs/promises';
 import type { Logger as ViteLogger, Plugin, ViteDevServer } from 'vite';
 
 import { createAnalysisSession, type AnalysisSession } from './session.ts';
-import type { OnDuplicates } from './analyze-core.ts';
+import { normalizeDiagnosticPaths, type OnDuplicates } from './analyze-core.ts';
 import { discoverSourceFiles, type Discovery } from './discovery.ts';
 import type { SourceFileInfo } from './source.ts';
 import type { Diagnostic } from './diagnostics.ts';
@@ -310,6 +310,13 @@ const svelteDocinfo = (options: VitePluginSvelteDocinfoOptions = {}): Plugin => 
 			distDir,
 			log: logger ?? undefined
 		});
+		// Discovery is the one source that doesn't normalize its own diagnostics
+		// (the session normalizes ingest at rest, `analyzeCore` normalizes query),
+		// and these get published verbatim on `virtual:svelte-docinfo` — so an
+		// unscrubbed `module_unreadable` message would ship the developer's
+		// absolute path into the client bundle. `analyzeFromFiles` does the same
+		// before merging.
+		normalizeDiagnosticPaths(diagnostics, resolvedSourceOptions.projectRoot);
 		discoveryDiagnostics = diagnostics;
 
 		await session.setFiles(files);

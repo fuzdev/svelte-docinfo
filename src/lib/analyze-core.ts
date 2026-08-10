@@ -140,16 +140,29 @@ const formatDuplicates = (duplicates: Map<string, Array<DuplicateDeclaration>>):
 	);
 };
 
+/**
+ * Emit one `duplicate_declaration` per colliding name.
+ *
+ * The record carries both path bases on purpose: `file` names a file
+ * (project-root-relative, like every diagnostic) while `modules` and the
+ * message name modules (`ModuleJson.path`, relative to `sourceRoot`).
+ *
+ * @param sourceIdsByModulePath - `ModuleJson.path` → absolute source id, since
+ *   `DuplicateDeclaration` carries only the module path. Covers every module
+ *   `duplicates` can name by construction — `findDuplicates` reports paths of
+ *   the modules handed to it — so the lookup's fallback never fires.
+ */
 const emitDuplicateDiagnostics = (
 	diagnostics: Array<Diagnostic>,
-	duplicates: Map<string, Array<DuplicateDeclaration>>
+	duplicates: Map<string, Array<DuplicateDeclaration>>,
+	sourceIdsByModulePath: ReadonlyMap<string, string>
 ): void => {
 	for (const [name, occurrences] of duplicates) {
 		const first = occurrences[0]!;
 		const modules = occurrences.map((o) => o.module);
 		diagnostics.push({
 			kind: 'duplicate_declaration',
-			file: first.module,
+			file: sourceIdsByModulePath.get(first.module) ?? first.module,
 			line: first.declaration.sourceLine,
 			message: `Duplicate declaration "${name}" defined in: ${modules.join(', ')}`,
 			severity: 'warning',
@@ -315,6 +328,9 @@ export const analyzeModule = (
 ): ModuleJson | undefined => {
 	const checker = program.getTypeChecker();
 	const modulePath = extractPath(sourceFile.id, options);
+	// diagnostics carry the absolute id (see the `Diagnostic.file` schema doc);
+	// the returned `ModuleJson` keeps `modulePath`, a different base
+	const diagnosticFile = toPosixPath(sourceFile.id);
 	const analyzerType = options.getAnalyzerType(sourceFile.id);
 
 	let raw: ModuleAnalysis | undefined;
@@ -322,7 +338,7 @@ export const analyzeModule = (
 	if (analyzerType === 'svelte') {
 		diagnostics.push({
 			kind: 'module_skipped',
-			file: modulePath,
+			file: diagnosticFile,
 			message:
 				'Svelte files require program integration. Use createAnalysisSession or analyze()/analyzeFromFiles() instead.',
 			severity: 'warning',
@@ -335,11 +351,12 @@ export const analyzeModule = (
 		if (!tsSourceFile) {
 			diagnostics.push({
 				kind: 'module_skipped',
-				file: modulePath,
-				// `file` already carries the path, so the message doesn't repeat the
-				// absolute id. The log line below keeps it — logs are for
-				// developers, diagnostics ship.
-				message: `Could not get source file from program: ${modulePath}`,
+				file: diagnosticFile,
+				// interpolating the same id as `file` keeps the two from naming the
+				// file differently — the message gets the same project-root scrub.
+				// The log line below keeps the raw id: logs are for developers,
+				// diagnostics ship.
+				message: `Could not get source file from program: ${diagnosticFile}`,
 				severity: 'warning',
 				reason: 'not_in_program'
 			});
@@ -370,8 +387,8 @@ export const analyzeModule = (
 	} else {
 		diagnostics.push({
 			kind: 'module_skipped',
-			file: modulePath,
-			message: `No analyzer for file type: ${modulePath}`,
+			file: diagnosticFile,
+			message: `No analyzer for file type: ${diagnosticFile}`,
 			severity: 'warning',
 			reason: 'no_analyzer'
 		});
@@ -516,6 +533,19 @@ export const analyzeCore = (inputs: AnalyzeCoreInputs): AnalyzeResultJson => {
 	const aliasRegistry = buildAliasRegistry(registrySources, checker);
 
 	const modules: Array<ModuleJson> = [];
+	// `ModuleJson.path` → the absolute id it was extracted from, so a
+	// module-path-keyed pass can still report a project-root-relative
+	// `Diagnostic.file` (`emitDuplicateDiagnostics` is the consumer). The two
+	// bases differ, and the reverse direction isn't reconstructible:
+	// `extractPath`'s no-prefix fallback returns the absolute path, so
+	// prepending `sourceRoot` to a module path can concatenate into nonsense.
+	// Recording the id the loop already holds keeps them exact.
+	const sourceIdsByModulePath: Map<string, string> = new Map();
+	// the one way to add a module, so a new branch can't record only half of it
+	const pushModule = (mod: ModuleJson, sourceId: string): void => {
+		sourceIdsByModulePath.set(mod.path, toPosixPath(sourceId));
+		modules.push(mod);
+	};
 
 	// Phase 1: analyze every module (forward re-export edges land on `ModuleJson.reExports`)
 	for (const sourceFile of sourceFiles) {
@@ -527,7 +557,7 @@ export const analyzeCore = (inputs: AnalyzeCoreInputs): AnalyzeResultJson => {
 			const modulePath = extractPath(sourceFile.id, sourceOptions);
 			const componentName = getComponentName(modulePath);
 			const { dependencies, dependents } = extractDependencies(sourceFile, sourceOptions);
-			modules.push(
+			pushModule(
 				ModuleJson.parse({
 					path: modulePath,
 					declarations: [],
@@ -535,7 +565,8 @@ export const analyzeCore = (inputs: AnalyzeCoreInputs): AnalyzeResultJson => {
 					dependents,
 					starExports: [],
 					partial: true
-				})
+				}),
+				sourceFile.id
 			);
 			log?.warn(`Svelte component ${componentName} marked partial (transform failed at ingest)`);
 			continue;
@@ -567,7 +598,7 @@ export const analyzeCore = (inputs: AnalyzeCoreInputs): AnalyzeResultJson => {
 
 		if (!mod) continue;
 
-		modules.push(mod);
+		pushModule(mod, sourceFile.id);
 	}
 
 	// Phase 1.5: gated Svelte canonicals as fill context — kept out of
@@ -591,7 +622,7 @@ export const analyzeCore = (inputs: AnalyzeCoreInputs): AnalyzeResultJson => {
 	// callback/shortcut still fires for callers that want fail-fast or custom
 	// handling — diagnostics is the data, `onDuplicates` is the action.
 	const duplicates = findDuplicates(sortedModules);
-	emitDuplicateDiagnostics(diagnostics, duplicates);
+	emitDuplicateDiagnostics(diagnostics, duplicates, sourceIdsByModulePath);
 	if (onDuplicates) {
 		dispatchOnDuplicates(onDuplicates, duplicates, log);
 	}
@@ -651,7 +682,10 @@ export const finalizeDiagnostics = (
  *
  * Exposed for build-tool integrations that bypass the session and collect
  * their own discovery/dep diagnostics — they need the same normalization to
- * match the public contract.
+ * match the public contract. **Hand it absolute paths.** An already-relative
+ * `file` is left alone (relativizing it would resolve against `cwd`), so this
+ * pass can only correct the absolute form — a relative path on a base other
+ * than the project root passes through and ships as-is.
  *
  * @mutates diagnostics — rewrites each diagnostic's `file` and `message`
  * @see `finalizeDiagnostics` — when Svelte virtuals are in play, the position

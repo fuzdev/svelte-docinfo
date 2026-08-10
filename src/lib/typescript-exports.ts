@@ -998,19 +998,28 @@ export const extractModuleComment = (sourceFile: ts.SourceFile): string | undefi
  * Same line-start detection as `extractModuleComment`'s `@module` test, so a
  * backticked or mid-prose mention doesn't trigger.
  *
- * @internal Shared by `analyzeExports` (TS files and Svelte `<script module>`
- * virtuals) and `analyzeSvelteModule` (instance-script and HTML module
- * comments, which `analyzeExports` never sees).
+ * @param diagnosticFile - absolute source id, the form
+ *   `normalizeDiagnosticPaths` rewrites to the project-root-relative
+ *   `Diagnostic.file` contract. Not a module path — those are relative to
+ *   `sourceRoot`, and normalization passes an already-relative path through
+ *   untouched, so a module path here ships as a second base for the same file.
+ *
+ * @internal Split by source, not by file type: `analyzeExports` covers TS
+ * files only — it passes `undefined` for a svelte2tsx virtual, where hoisted
+ * instance-script comments would read as module comments — so
+ * `analyzeSvelteModule` owns all three Svelte sources (instance script,
+ * `<script module>`, HTML comment), reading each from the original file.
+ * Those are the two callers this parameter's base once disagreed across.
  */
 export const warnModuleCommentNodocs = (
 	moduleComment: string | undefined,
-	file: string,
+	diagnosticFile: string,
 	diagnostics: Array<Diagnostic>
 ): void => {
 	if (!moduleComment || !/(?:^|\n)@nodocs\b/.test(moduleComment)) return;
 	diagnostics.push({
 		kind: 'misplaced_tag',
-		file,
+		file: diagnosticFile,
 		message:
 			'@nodocs in a module comment has no effect — it applies to declarations and export statements; to omit a module from analysis, use exclude patterns',
 		severity: 'warning',

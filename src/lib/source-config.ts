@@ -349,8 +349,9 @@ export const normalizeSourceOptions = (options: ModuleSourceOptions): ModuleSour
 	// resolve inside the project root by storing them root-relative (matching
 	// `loadFile`'s treatment of path inputs). An entry that resolves outside
 	// the project root throws: out-of-root modules are unrepresentable
-	// (`ModuleJson.path` and `Diagnostic.file` are project-root-relative by
-	// contract), so the config would be silently dead — discovery finds the
+	// (`ModuleJson.path` is relative to `sourceRoot` and `Diagnostic.file` to
+	// the project root — different bases, neither able to reach outside the
+	// root), so the config would be silently dead — discovery finds the
 	// files, ingest accepts them, the query-time source gate drops every one
 	// with no trace beyond its info log. Include-pattern widening re-runs
 	// `createSourceOptions`, so an out-of-root include base fails here too.

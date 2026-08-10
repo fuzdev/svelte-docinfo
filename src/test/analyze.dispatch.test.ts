@@ -71,6 +71,11 @@ let {name}: {name: string} = $props();
 		assert.strictEqual(moduleSkipped.length, 1);
 		assert.include(moduleSkipped[0]!.message, 'Svelte files require program integration');
 		assert.strictEqual(moduleSkipped[0]!.reason, 'requires_program');
+		// `analyzeModule` is a producer, not a boundary — a direct caller gets
+		// the absolute id and owns `finalizeDiagnostics`. Not `Test.svelte`:
+		// a module path here would survive normalization unchanged and publish
+		// a second base for the same file.
+		assert.strictEqual(moduleSkipped[0]!.file, '/project/src/lib/Test.svelte');
 	});
 
 	test('derives modulePath correctly from sourceFile.id', () => {

@@ -9,7 +9,7 @@
  */
 
 import { test, assert, describe } from 'vitest';
-import { mkdtemp, rm, writeFile, mkdir } from 'node:fs/promises';
+import { mkdtemp, rm, writeFile, mkdir, chmod } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -189,5 +189,53 @@ describe('svelteDocinfo', () => {
 			assert.include(code, 'export const modules = [];');
 			assert.notInclude(code, 'export const modules = undefined;');
 		});
+	});
+
+	test('published discovery diagnostics carry no absolute path', async () => {
+		// Discovery is the one diagnostic source that doesn't normalize itself —
+		// the session normalizes ingest at rest and `analyzeCore` normalizes
+		// query, so only this stream can reach `virtual:svelte-docinfo` raw. A
+		// `module_unreadable` message wraps the fs error, which embeds the
+		// absolute path, so an unnormalized one ships the developer's home
+		// directory into the client bundle.
+		await withTempProject(
+			{
+				'tsconfig.json': '{}',
+				'package.json': JSON.stringify({
+					name: 'fixture',
+					exports: { '.': './dist/index.js', './util': './dist/util.js' }
+				}),
+				'src/lib/index.ts': 'export const a = 1;\n',
+				'src/lib/util.ts': 'export const b = 2;\n'
+			},
+			async (dir) => {
+				// exists but unreadable, so discovery's `readFile` throws
+				const unreadable = join(dir, 'src/lib/util.ts');
+				await chmod(unreadable, 0o111);
+				try {
+					const plugin = svelteDocinfo({ projectRoot: dir, resolveDependencies: false });
+					const configResolved = plugin.configResolved as unknown as (cfg: {
+						root: string;
+						command: string;
+						logger: { info: () => void; warn: () => void; error: () => void };
+					}) => void;
+					const noopLogger = { info: () => {}, warn: () => {}, error: () => {} };
+					configResolved({ root: dir, command: 'build', logger: noopLogger });
+
+					const buildStart = plugin.buildStart as unknown as (this: {
+						resolve: () => Promise<null>;
+					}) => Promise<void>;
+					await buildStart.call({ resolve: async () => null });
+
+					const load = plugin.load as (id: string) => Promise<string | undefined>;
+					const code = await load('\0virtual:svelte-docinfo');
+					assert.ok(code, 'expected virtual module code');
+					assert.include(code, 'module_unreadable', 'expected the diagnostic to be published');
+					assert.notInclude(code, dir, 'the published virtual module leaked an absolute path');
+				} finally {
+					await chmod(unreadable, 0o644).catch(() => undefined);
+				}
+			}
+		);
 	});
 });

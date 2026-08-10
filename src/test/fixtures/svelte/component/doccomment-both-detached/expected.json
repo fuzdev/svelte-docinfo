@@ -18,7 +18,7 @@
 		{
 			"kind": "duplicate_comment",
 			"commentType": "doc_comment",
-			"file": "ComponentDoccommentBothDetached.svelte",
+			"file": "src/lib/ComponentDoccommentBothDetached.svelte",
 			"message": "Both HTML @component comment and JSDoc in <script> provide component documentation. Using JSDoc.",
 			"severity": "warning"
 		}

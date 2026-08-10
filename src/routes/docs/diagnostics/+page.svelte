@@ -67,7 +67,11 @@
 				<li>
 					<code>file</code>: POSIX-form, project-relative (no leading <code>./</code>). Rejoin with
 					<code>projectRoot</code> for absolute paths — including a file outside the project, which
-					takes the <code>../</code> form so the rejoin still recovers it.
+					takes the <code>../</code> form so the rejoin still recovers it. It names a
+					<em>file</em>, not a module:
+					<code>ModuleJson.path</code> is relative to <code>sourceRoot</code>, so
+					<code>modules.find((m) =&gt; m.path === d.file)</code> is not a valid lookup (that idiom applies
+					to module paths in printed type text, which are a different string).
 				</li>
 				<li>
 					<code>line</code>, <code>column</code>: 1-based, optional. Absent when there's no precise
@@ -226,7 +230,10 @@
 						<td>
 							<strong>Trigger:</strong> a declaration name appears in more than one module, so the
 							flat-namespace assumption collides. <code>declarationName</code> and
-							<code>modules</code> name the conflict. <strong>Consequence:</strong> always emitted;
+							<code>modules</code> name the conflict — <code>modules</code> holds
+							<code>ModuleJson.path</code> values, so it is on a different base than this record's
+							<code>file</code> and the two read differently for the same module.
+							<strong>Consequence:</strong> always emitted;
 							<code>onDuplicates</code> only controls whether to additionally throw, log, or invoke a
 							callback.
 						</td>

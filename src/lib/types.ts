@@ -740,6 +740,12 @@ const declarationTopLevelFields = {
 	 */
 	aliasOf: z
 		.strictObject({
+			/**
+			 * The canonical's `ModuleJson.path` — relative to `sourceRoot`, like
+			 * every module reference in the schema and unlike `Diagnostic.file`.
+			 * May name a module absent from output when the canonical is gated
+			 * (the `internal/` convention) — a documented margin.
+			 */
 			module: z.string(),
 			name: z.string()
 		})
