@@ -12,12 +12,8 @@ import {
 	createMultiFileProgram,
 	analyzeFixtureModule
 } from './fixtures/ts/ts-test-helpers.ts';
-import {
-	mockExtractContext,
-	ModuleFixtureJson,
-	normalizeJson,
-	type ModuleFixture
-} from './test-helpers.ts';
+import { mockExtractContext, normalizeJson } from './test-helpers.ts';
+import { ModuleFixtureJson, type ModuleFixture } from './fixtures/module-fixture-helpers.ts';
 import {
 	testSourceOptions,
 	createTestSourceOptions,

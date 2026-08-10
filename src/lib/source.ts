@@ -147,6 +147,17 @@ export const stripVirtualSuffix = (path: string): string =>
 export const isSvelteVirtualPath = (path: string): boolean => path.endsWith(SVELTE_VIRTUAL_SUFFIX);
 
 /**
+ * Remove every occurrence of the virtual suffix from free-form text.
+ *
+ * The text twin of `stripVirtualSuffix`: that one strips a path's trailing
+ * suffix, this one scrubs a prose string (a diagnostic `message`) that may
+ * embed virtual paths anywhere. Both readings of the suffix live here so a
+ * suffix change has one home.
+ */
+export const scrubVirtualSuffixes = (text: string): string =>
+	text.includes(SVELTE_VIRTUAL_SUFFIX) ? text.split(SVELTE_VIRTUAL_SUFFIX).join('') : text;
+
+/**
  * Suffix svelte2tsx appends to the synthesized component const/type alias
  * (`<Name>__SvelteComponent_`). One of the generated-identifier shapes
  * `isSvelte2tsxInternal` filters.

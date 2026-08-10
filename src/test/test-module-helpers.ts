@@ -21,6 +21,8 @@ import {
 import { applyVirtualFiles, type VirtualFileEntry } from '$lib/typescript-program.ts';
 import { analyze } from '$lib/analyze.ts';
 import type { AnalyzeResultJson } from '$lib/analyze-core.ts';
+import { transformSvelteSource, type SvelteVirtualFile } from '$lib/svelte.ts';
+import type { SourceFileInfo } from '$lib/source.ts';
 
 import { withTestProject } from './test-helpers.ts';
 
@@ -34,25 +36,31 @@ import { withTestProject } from './test-helpers.ts';
  * files (a root `package.json`, say) feed the checker but don't become
  * modules. See `analyze.source-gate.test.ts`.
  *
- * @param options - passed through to `withTestProject` (e.g. `baseDir` for
- * tests that need the project inside the repo so packages resolve)
+ * For tests that need real packages (`svelte`) to resolve, use in-memory
+ * `analyze()` over `process.cwd()`-rooted ids with `testSourceOptions()`
+ * instead — the tmpdir this creates has no reachable `node_modules`.
  */
-export const analyzeTestProject = (
-	files: Record<string, string>,
-	options?: Parameters<typeof withTestProject>[2]
-): Promise<AnalyzeResultJson> =>
-	withTestProject(
-		files,
-		(projectRoot) =>
-			analyze({
-				sourceFiles: Object.entries(files).map(([path, content]) => ({
-					id: join(projectRoot, path),
-					content
-				})),
-				sourceOptions: createSourceOptions(projectRoot)
-			}),
-		options
+export const analyzeTestProject = (files: Record<string, string>): Promise<AnalyzeResultJson> =>
+	withTestProject(files, (projectRoot) =>
+		analyze({
+			sourceFiles: Object.entries(files).map(([path, content]) => ({
+				id: join(projectRoot, path),
+				content
+			})),
+			sourceOptions: createSourceOptions(projectRoot)
+		})
 	);
+
+/** Run `transformSvelteSource` and unwrap the virtual file or throw. */
+export const transformOrThrow = (sourceFile: SourceFileInfo): SvelteVirtualFile => {
+	const result = transformSvelteSource(sourceFile);
+	if (!result.virtual) {
+		throw new Error(
+			`transform failed: ${sourceFile.id}: ${result.diagnostics[0]?.message ?? 'unknown error'}`
+		);
+	}
+	return result.virtual;
+};
 
 /** Default project root for tests. */
 export const TEST_PROJECT_ROOT = '/home/user/project';
@@ -148,18 +156,27 @@ export const createTestProgram = (files: Array<{ path: string; content: string }
 	return ts.createProgram([...fileMap.keys()], compilerOptions, host);
 };
 
-// Cached program for incremental compilation
+// Cached tsconfig parse + parsed ASTs for `createCachedAnalysisProgram`
 
 let _cachedParsedConfig: { options: ts.CompilerOptions; fileNames: Array<string> } | undefined;
-let _lastProgram: ts.Program | undefined;
+/**
+ * Parsed-AST cache keyed by file name. Safe because every program shares the
+ * single `_cachedParsedConfig.options` object and repo files don't change
+ * mid-run — the same reuse a language service gets from its document
+ * registry. Virtuals are served by `applyVirtualFiles` layered above the
+ * caching wrapper, so they never enter the cache.
+ */
+const _sourceFileCache = new Map<string, ts.SourceFile>();
 
 /**
- * Create a TypeScript program with virtual files, using incremental compilation.
+ * Create a TypeScript program over the CWD tsconfig plus optional virtual
+ * files, reusing parsed ASTs across calls.
  *
- * First call reads tsconfig.json and creates a full program (~1.4s).
- * Subsequent calls reuse parsed source files via `oldProgram` (~100-200ms).
- *
- * Use this in test files that create many programs with the CWD project root
+ * The first call reads tsconfig.json and parses the whole program (~1s);
+ * subsequent calls re-check but skip re-reading and re-parsing every
+ * non-virtual file (`ts.createProgram`'s own `oldProgram` reuse can't apply
+ * here — each call has a fresh host and a different root set). Use this in
+ * test files that create many programs with the CWD project root
  * (e.g., svelte.test.ts) to avoid paying the full cost per test.
  *
  * @param virtualFiles Optional map of virtual file paths to entries
@@ -178,13 +195,23 @@ export const createCachedAnalysisProgram = (
 	const { options, fileNames } = _cachedParsedConfig;
 	const rootNames = virtualFiles?.size ? [...fileNames, ...virtualFiles.keys()] : fileNames;
 
-	let host: ts.CompilerHost | undefined;
+	const host = ts.createCompilerHost(options);
+	const uncachedGetSourceFile = host.getSourceFile.bind(host);
+	host.getSourceFile = (fileName, languageVersion, onError, shouldCreateNewSourceFile) => {
+		const cached = _sourceFileCache.get(fileName);
+		if (cached) return cached;
+		const sourceFile = uncachedGetSourceFile(
+			fileName,
+			languageVersion,
+			onError,
+			shouldCreateNewSourceFile
+		);
+		if (sourceFile) _sourceFileCache.set(fileName, sourceFile);
+		return sourceFile;
+	};
 	if (virtualFiles?.size) {
-		host = ts.createCompilerHost(options);
 		applyVirtualFiles(host, virtualFiles);
 	}
 
-	const program = ts.createProgram(rootNames, options, host, _lastProgram);
-	_lastProgram = program;
-	return program;
+	return ts.createProgram(rootNames, options, host);
 };

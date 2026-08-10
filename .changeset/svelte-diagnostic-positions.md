@@ -15,8 +15,6 @@ synthesized) drops `line`/`column` instead of publishing a virtual line.
 
 Callers assembling modules themselves through `analyzeModule` /
 `analyzeSvelteModule` get the new `finalizeDiagnostics(diagnostics,
-{projectRoot, virtualFiles})`, which runs the remap and
-`normalizeDiagnosticPaths` in their required order (position remap first —
-path normalization strips the virtual suffix the remap matches `file`
-against); the remap is also exported standalone as
-`remapVirtualDiagnosticPositions`.
+{projectRoot, virtualFiles})`, which runs the position remap and
+`normalizeDiagnosticPaths` in their required order (remap first — path
+normalization strips the virtual suffix the remap matches `file` against).

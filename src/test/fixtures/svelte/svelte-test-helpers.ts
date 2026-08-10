@@ -1,20 +1,20 @@
 import type ts from 'typescript';
-import { join } from 'node:path';
 
-import { transformSvelteSource, type SvelteVirtualFile } from '$lib/svelte.ts';
+import type { SvelteVirtualFile } from '$lib/svelte.ts';
 import { createAnalysisProgram } from '$lib/typescript-program.ts';
-import { analyzeCore } from '$lib/analyze-core.ts';
 import { buildAliasRegistry } from '$lib/typescript-alias-registry.ts';
 import type { AliasRegistry } from '$lib/typescript-extract-type-json.ts';
 import type { SourceFileInfo } from '$lib/source.ts';
 
+import { loadFixturesGeneric } from '../../test-helpers.ts';
+import { testSourceOptions, transformOrThrow } from '../../test-module-helpers.ts';
 import {
-	loadFixturesGeneric,
-	ModuleFixtureJson,
+	captureModuleFixture,
+	fixtureFileId,
 	type ModuleFixture,
+	type ModuleFixtureJson,
 	type ModuleFixtureJsonInput
-} from '../../test-helpers.ts';
-import { testSourceOptions } from '../../test-module-helpers.ts';
+} from '../module-fixture-helpers.ts';
 
 /**
  * Convert a fixture name to a component name.
@@ -34,17 +34,6 @@ export const fixtureNameToComponentName = (name: string): string => {
 		.split('-')
 		.map((word) => word.charAt(0).toUpperCase() + word.slice(1))
 		.join('');
-};
-
-/** Run `transformSvelteSource` and unwrap the virtual file or throw. */
-export const transformOrThrow = (sourceFile: SourceFileInfo): SvelteVirtualFile => {
-	const result = transformSvelteSource(sourceFile);
-	if (!result.virtual) {
-		throw new Error(
-			`transform failed: ${sourceFile.id}: ${result.diagnostics[0]?.message ?? 'unknown error'}`
-		);
-	}
-	return result.virtual;
 };
 
 /**
@@ -67,18 +56,15 @@ export const buildSvelteFixtureRegistry = (
 	);
 
 /**
- * Analyze a set of svelte fixture inputs through `analyzeCore` — one shared
- * program over every fixture's virtual (much faster than per-fixture), then
- * the production orchestrator per fixture, so the registry pre-pass, export
- * walk, output passes, and diagnostic boundary sequence are all production
- * code. Per-fixture rather than one batch call so fixtures stay independent
- * projects — no cross-fixture duplicate detection or re-export linking.
+ * Analyze a set of svelte fixture inputs through the production pipeline (see
+ * `captureModuleFixture`) over one shared program — much faster than
+ * per-fixture programs, and svelte virtuals need a real one so their `svelte`
+ * imports resolve.
  *
  * Each fixture analyzes under a component-named id in the repo's `src/lib`
  * (the file never exists on disk — content is supplied and only the virtual
  * enters the program), so `analyzeCore` derives the module path
- * (`PropsBasic.svelte`) and the virtual's `svelte` imports resolve against
- * the repo's node_modules.
+ * (`PropsBasic.svelte`) and resolution runs against the repo's node_modules.
  *
  * Used identically by `svelte.test.ts` and the update task so fixtures can't
  * drift from regeneration; results are index-aligned with `inputs`, each
@@ -90,7 +76,7 @@ export const analyzeSvelteFixtureModules = (
 	const sourceOptions = testSourceOptions();
 	const entries = inputs.map(({ name, input }) => {
 		const sourceFile: SourceFileInfo = {
-			id: join(process.cwd(), 'src/lib', `${fixtureNameToComponentName(name)}.svelte`),
+			id: fixtureFileId(process.cwd(), `${fixtureNameToComponentName(name)}.svelte`),
 			content: input
 		};
 		return { sourceFile, virtualFile: transformOrThrow(sourceFile) };
@@ -100,20 +86,16 @@ export const analyzeSvelteFixtureModules = (
 	const program = createAnalysisProgram({
 		virtualFiles: new Map(entries.map((e) => [e.virtualFile.virtualPath, e.virtualFile]))
 	});
+	// every call sees the whole virtual set (keyed by source id) so the
+	// batch-keyed diagnostic remap covers cross-virtual emissions
+	const virtualsBySourceId = new Map(entries.map((e) => [e.sourceFile.id, e.virtualFile]));
 
-	return entries.map(({ sourceFile, virtualFile }) => {
-		const { modules, diagnostics } = analyzeCore({
-			sourceFiles: [sourceFile],
-			sourceOptions,
-			program,
-			svelteVirtualFiles: new Map([[sourceFile.id, virtualFile]])
-		});
-		const mod = modules[0];
-		if (!mod) throw new Error(`analyzeCore emitted no module for ${sourceFile.id}`);
+	return entries.map(({ sourceFile }) => {
+		const mod = captureModuleFixture(sourceFile, program, sourceOptions, virtualsBySourceId);
 		if (!mod.declarations.some((d) => d.kind === 'component')) {
 			throw new Error(`No component declaration found for ${mod.path}`);
 		}
-		return { ...mod, diagnostics };
+		return mod;
 	});
 };
 
@@ -125,17 +107,4 @@ export const loadFixtures = async (): Promise<Array<ModuleFixture>> => {
 		fixturesDir: import.meta.dirname,
 		inputExtension: '.svelte'
 	});
-};
-
-/**
- * Validate a fixture's expected module object: parses through the Zod schema —
- * strictly stronger than any hand-rolled structural check and can't fall
- * behind the data model — and requires exactly one component declaration.
- */
-export const validateModuleFixture = (expected: ModuleFixtureJsonInput): void => {
-	const parsed = ModuleFixtureJson.parse(expected);
-	const components = parsed.declarations.filter((d) => d.kind === 'component');
-	if (components.length !== 1) {
-		throw new Error(`Expected exactly 1 component declaration, got ${components.length}`);
-	}
 };

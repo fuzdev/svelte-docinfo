@@ -20,15 +20,15 @@ import type { ModuleSourceOptions } from '$lib/source-config.ts';
 import {
 	buildSvelteFixtureRegistry,
 	loadFixtures,
-	transformOrThrow,
-	validateModuleFixture,
 	analyzeSvelteFixtureModules
 } from './fixtures/svelte/svelte-test-helpers.ts';
-import { normalizeJson, FIXTURES_SVELTE_DIR, type ModuleFixture } from './test-helpers.ts';
+import { validateModuleFixture, type ModuleFixture } from './fixtures/module-fixture-helpers.ts';
+import { normalizeJson, FIXTURES_SVELTE_DIR } from './test-helpers.ts';
 import {
 	testSourceOptions,
 	createTestSourceOptions,
-	createCachedAnalysisProgram
+	createCachedAnalysisProgram,
+	transformOrThrow
 } from './test-module-helpers.ts';
 
 /** Read fixture file content for analysis. */
@@ -40,37 +40,6 @@ beforeAll(async () => {
 	fixtures = await loadFixtures();
 });
 
-/** Analyze a Svelte source via `analyzeSvelteModule` and extract the component declaration. */
-const analyzeTestComponent = (
-	sourceFile: SourceFileInfo,
-	modulePath: string,
-	diagnostics: Array<Diagnostic> = [] as Array<Diagnostic>
-) => {
-	const virtualFile = transformOrThrow(sourceFile);
-	const program = createCachedAnalysisProgram(new Map([[virtualFile.virtualPath, virtualFile]]));
-	const testChecker = program.getTypeChecker();
-	const result = analyzeSvelteModule(
-		sourceFile,
-		modulePath,
-		testChecker,
-		// Root options at the component's own directory so its file is treated as
-		// internal — the production invariant is that analyzed files live under
-		// `projectRoot`. With the default cwd root, synthetic ids outside cwd are
-		// judged external and the component's own inline props get filtered out as
-		// if they came from node_modules.
-		createTestSourceOptions(dirname(sourceFile.id)),
-		diagnostics,
-		program,
-		virtualFile,
-		// registry over the single-module set, mirroring analyzeCore's pre-pass
-		buildSvelteFixtureRegistry(program, [{ virtualFile, modulePath }])
-	);
-	if (!result) throw new Error(`Analysis returned undefined for ${modulePath}`);
-	const componentDecl = result.declarations.find((d) => d.declaration.kind === 'component');
-	if (!componentDecl) throw new Error(`No component declaration found for ${modulePath}`);
-	return componentDecl.declaration;
-};
-
 /** Analyze a Svelte source through the production pipeline (for tests that need moduleComment or full analysis). */
 const analyzeSvelteTestIntegration = (
 	sourceFile: SourceFileInfo & { dependents?: ReadonlyArray<string> },
@@ -78,9 +47,12 @@ const analyzeSvelteTestIntegration = (
 	diagnostics: Array<Diagnostic>,
 	options?: ModuleSourceOptions
 ): ModuleAnalysis => {
-	// Default options root at the component's own directory so its file is treated
-	// as internal (see `analyzeTestComponent` for why); callers needing a specific
-	// project layout pass `options` explicitly.
+	// Default options root at the component's own directory so its file is
+	// treated as internal — the production invariant is that analyzed files
+	// live under `projectRoot`. With the default cwd root, synthetic ids
+	// outside cwd are judged external and the component's own inline props get
+	// filtered out as if they came from node_modules. Callers needing a
+	// specific project layout pass `options` explicitly.
 	const opts = options ?? createTestSourceOptions(dirname(sourceFile.id));
 	const virtualFile = transformOrThrow(sourceFile);
 	const program = createCachedAnalysisProgram(new Map([[virtualFile.virtualPath, virtualFile]]));
@@ -93,10 +65,23 @@ const analyzeSvelteTestIntegration = (
 		diagnostics,
 		program,
 		virtualFile,
+		// registry over the single-module set, mirroring analyzeCore's pre-pass
 		buildSvelteFixtureRegistry(program, [{ virtualFile, modulePath }])
 	);
 	if (!result) throw new Error(`Analysis returned undefined for ${modulePath}`);
 	return result;
+};
+
+/** `analyzeSvelteTestIntegration` narrowed to the component declaration. */
+const analyzeTestComponent = (
+	sourceFile: SourceFileInfo,
+	modulePath: string,
+	diagnostics: Array<Diagnostic> = []
+) => {
+	const result = analyzeSvelteTestIntegration(sourceFile, modulePath, diagnostics);
+	const componentDecl = result.declarations.find((d) => d.declaration.kind === 'component');
+	if (!componentDecl) throw new Error(`No component declaration found for ${modulePath}`);
+	return componentDecl.declaration;
 };
 
 describe('svelte component analyzer (fixture-based)', () => {
@@ -116,7 +101,7 @@ describe('svelte component analyzer (fixture-based)', () => {
 
 	test('all fixtures have valid structure', () => {
 		for (const fixture of fixtures) {
-			validateModuleFixture(fixture.expected);
+			validateModuleFixture(fixture.expected, { components: 1 });
 		}
 	});
 });
@@ -1272,24 +1257,12 @@ let {name}: MissingType = $props();
 <p>{name}</p>`;
 
 		const diagnostics: Array<Diagnostic> = [];
-		const sourceFile: SourceFileInfo = {
-			id: '/fake/path/Test.svelte',
-			content: svelteContent
-		};
-		const virtualFile = transformOrThrow(sourceFile);
-		const program = createCachedAnalysisProgram(new Map([[virtualFile.virtualPath, virtualFile]]));
-		const testChecker = program.getTypeChecker();
-		const result = analyzeSvelteModule(
-			sourceFile,
+		const result = analyzeSvelteTestIntegration(
+			{ id: '/fake/path/Test.svelte', content: svelteContent },
 			'Test.svelte',
-			testChecker,
-			testSourceOptions(),
 			diagnostics,
-			program,
-			virtualFile
+			testSourceOptions()
 		);
-
-		assert.ok(result);
 		const componentDecl = result.declarations.find(
 			(d) => d.declaration.kind === 'component'
 		)!.declaration;

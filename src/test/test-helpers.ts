@@ -8,36 +8,17 @@ import { readdir, readFile, writeFile, mkdir, rm } from 'node:fs/promises';
 import { join, relative } from 'node:path';
 import { tmpdir } from 'node:os';
 import type ts from 'typescript';
-import { z } from 'zod';
+import { assert } from 'vitest';
 
 import { compareStrings } from '$lib/postprocess.ts';
 import type { AnalysisLog } from '$lib/log.ts';
 import type { ExtractContext } from '$lib/typescript-extract-shared.ts';
-import {
-	ModuleJson,
-	type DeclarationJson,
-	type FunctionDeclarationJson,
-	type ComponentDeclarationJson
+import type {
+	DeclarationJson,
+	FunctionDeclarationJson,
+	ComponentDeclarationJson,
+	ModuleJson
 } from '$lib/types.ts';
-import { Diagnostic } from '$lib/diagnostics.ts';
-
-/**
- * The fixture harnesses' capture shape: the whole module analysis object plus
- * the analysis-pass diagnostics — what `expected.json` holds for both the ts
- * and svelte fixture sets. `ModuleJson` extended rather than the
- * `AnalyzeResultJson` envelope because a fixture is exactly one module; the
- * envelope's `modules` array would add a wrapper level with no information.
- *
- * Fixtures are written through `compactReplacer`, so defaulted fields
- * (`.default([])`, `.default(false)`) are stripped on disk and restored by
- * `.parse()`.
- */
-export const ModuleFixtureJson = ModuleJson.extend({
-	diagnostics: z.array(Diagnostic).default([])
-});
-export type ModuleFixtureJson = z.infer<typeof ModuleFixtureJson>;
-/** Wire (serialized) form of `ModuleFixtureJson` — the shape read from disk. */
-export type ModuleFixtureJsonInput = z.input<typeof ModuleFixtureJson>;
 
 /**
  * Create an `AnalysisLog` that collects info messages for assertions.
@@ -278,8 +259,6 @@ export const normalizeJson = (obj: any): any => {
 	return obj;
 };
 
-import { assert } from 'vitest';
-
 /**
  * Assert that a module has a specific dependency.
  *
@@ -433,25 +412,13 @@ export interface GenericFixture<T> {
 }
 
 /**
- * A loaded module fixture: raw input beside the expected wire-form
- * `ModuleFixtureJson`. The shared fixture shape of the ts and svelte
- * harnesses.
- */
-export type ModuleFixture = GenericFixture<ModuleFixtureJsonInput>;
-
-/**
  * Generic fixture loader configuration.
  */
-export interface FixtureLoaderConfig<T> {
+export interface FixtureLoaderConfig {
 	/** Directory containing fixture subdirectories */
 	fixturesDir: string;
 	/** Input file extension (e.g., '.mdz', '.ts', '.svelte') */
 	inputExtension: string;
-	/**
-	 * Transform the parsed expected.json data.
-	 * Use this for conversions like Object -> Map.
-	 */
-	transformExpected?: (parsed: any) => T;
 }
 
 /**
@@ -513,9 +480,9 @@ export const discoverFixtureDirs = async (
  * ```
  */
 export const loadFixturesGeneric = async <T>(
-	config: FixtureLoaderConfig<T>
+	config: FixtureLoaderConfig
 ): Promise<Array<GenericFixture<T>>> => {
-	const { fixturesDir, inputExtension, transformExpected } = config;
+	const { fixturesDir, inputExtension } = config;
 
 	// Recursively discover all fixture directories
 	const fixtureDirs = await discoverFixtureDirs(fixturesDir, inputExtension);
@@ -524,9 +491,7 @@ export const loadFixturesGeneric = async <T>(
 		fixtureDirs.map(async ({ path: fixtureDir, name }) => {
 			const input = await readFile(join(fixtureDir, `input${inputExtension}`), 'utf-8');
 			const expectedText = await readFile(join(fixtureDir, 'expected.json'), 'utf-8');
-			const expectedJson = JSON.parse(expectedText);
-			const expected = transformExpected ? transformExpected(expectedJson) : expectedJson;
-			return { name, input, expected };
+			return { name, input, expected: JSON.parse(expectedText) };
 		})
 	);
 };
@@ -540,10 +505,19 @@ export interface UpdateTaskConfig<TInput, TOutput> {
 	/** Input file extension */
 	inputExtension: string;
 	/**
-	 * Process the input to generate output.
-	 * This is where the fixture-specific logic goes.
+	 * Process one input to generate its output. Exactly one of `process` /
+	 * `processAll` must be supplied.
 	 */
-	process: (input: TInput, name: string) => Promise<TOutput> | TOutput;
+	process?: (input: TInput, name: string) => Promise<TOutput> | TOutput;
+	/**
+	 * Batch form of `process`: receives every fixture at once (one discovery
+	 * pass, one read per input) and returns outputs index-aligned with the
+	 * input array — for harnesses that analyze the whole set against one
+	 * shared program.
+	 */
+	processAll?: (
+		fixtures: Array<{ name: string; input: TInput }>
+	) => Promise<Array<TOutput>> | Array<TOutput>;
 	/**
 	 * Custom JSON replacer for serialization.
 	 * Use this for handling Maps, Sets, etc.
@@ -577,24 +551,34 @@ export const runUpdateTask = async <TInput = string, TOutput = any>(
 	config: UpdateTaskConfig<TInput, TOutput>,
 	log: { info: (msg: string) => void }
 ): Promise<{ generatedCount: number; skippedCount: number }> => {
-	const { fixturesDir, inputExtension, process, jsonReplacer } = config;
+	const { fixturesDir, inputExtension, process, processAll, jsonReplacer } = config;
+	if (!process === !processAll) {
+		throw new Error('runUpdateTask requires exactly one of `process` or `processAll`');
+	}
 
 	// Recursively discover all fixture directories
 	const fixtureDirs = await discoverFixtureDirs(fixturesDir, inputExtension);
 
 	log.info(`found ${fixtureDirs.length} fixtures`);
 
+	const fixtures = await Promise.all(
+		fixtureDirs.map(async ({ path: fixtureDir, name }) => ({
+			name,
+			expectedPath: join(fixtureDir, 'expected.json'),
+			input: (await readFile(join(fixtureDir, `input${inputExtension}`), 'utf-8')) as TInput
+		}))
+	);
+
+	const outputs = processAll
+		? await processAll(fixtures.map(({ name, input }) => ({ name, input })))
+		: await Promise.all(fixtures.map(({ input, name }) => process!(input, name)));
+
 	let generatedCount = 0;
 	let skippedCount = 0;
 
 	await Promise.all(
-		fixtureDirs.map(async ({ path: fixtureDir, name }) => {
-			const inputPath = join(fixtureDir, `input${inputExtension}`);
-			const expectedPath = join(fixtureDir, 'expected.json');
-
-			const input = (await readFile(inputPath, 'utf-8')) as TInput;
-			const result = await process(input, name);
-			const output = JSON.stringify(result, jsonReplacer, '\t') + '\n';
+		fixtures.map(async ({ name, expectedPath }, i) => {
+			const output = JSON.stringify(outputs[i], jsonReplacer, '\t') + '\n';
 
 			let existing: string | null = null;
 			try {

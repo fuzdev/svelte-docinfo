@@ -49,8 +49,8 @@ import {
 	type SvelteVirtualFile
 } from './svelte.ts';
 import {
+	scrubVirtualSuffixes,
 	stripVirtualSuffix,
-	SVELTE_VIRTUAL_SUFFIX,
 	type SourceFileInfo,
 	getComponentName
 } from './source.ts';
@@ -654,6 +654,8 @@ export const finalizeDiagnostics = (
  * match the public contract.
  *
  * @mutates diagnostics — rewrites each diagnostic's `file` and `message`
+ * @see `finalizeDiagnostics` — when Svelte virtuals are in play, the position
+ * remap must run before this pass (it strips the suffix the remap matches on)
  */
 export const normalizeDiagnosticPaths = (
 	diagnostics: Array<Diagnostic>,
@@ -662,9 +664,10 @@ export const normalizeDiagnosticPaths = (
 	const root = projectRoot.endsWith('/') ? projectRoot.slice(0, -1) : projectRoot;
 	const prefix = root + '/';
 	for (const d of diagnostics) {
-		if (d.message.includes(prefix) || d.message.includes(SVELTE_VIRTUAL_SUFFIX)) {
-			d.message = d.message.split(prefix).join('').split(SVELTE_VIRTUAL_SUFFIX).join('');
+		if (d.message.includes(prefix)) {
+			d.message = d.message.split(prefix).join('');
 		}
+		d.message = scrubVirtualSuffixes(d.message);
 		// Posixify so producers that emitted native-separator paths (e.g., a
 		// custom discovery layer building `path.relative` results on Windows)
 		// match the POSIX prefix derived from the normalized projectRoot.

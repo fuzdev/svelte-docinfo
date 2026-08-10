@@ -726,11 +726,14 @@ const mapVirtualPosition = (
  * that virtual's map.
  *
  * Must run before `normalizeDiagnosticPaths`, which strips the virtual suffix
- * this pass matches on — `finalizeDiagnostics` (in `analyze-core.ts`) runs
- * the pair in that order and is the call for callers assembling modules
- * themselves through `analyzeModule` / `analyzeSvelteModule`. An unmappable
- * position (no source map, or a node svelte2tsx synthesized) drops
- * `line`/`column` — absence over a virtual line.
+ * this pass matches on. An unmappable position (no source map, or a node
+ * svelte2tsx synthesized) drops `line`/`column` — absence over a virtual
+ * line.
+ *
+ * @internal Half of an ordered pair — `finalizeDiagnostics` (in
+ * `analyze-core.ts`) owns the order and is the entry point for callers
+ * assembling modules themselves through `analyzeModule` /
+ * `analyzeSvelteModule`.
  *
  * @mutates diagnostics — rewrites `line`/`column` on virtual-file entries
  */
@@ -738,16 +741,12 @@ export const remapVirtualDiagnosticPositions = (
 	diagnostics: Array<Diagnostic>,
 	virtualFiles: Iterable<SvelteVirtualFile>
 ): void => {
-	// built lazily on the first positioned diagnostic — the common case has none
-	let sourceMapsByVirtualPath: Map<string, SourceMap | null> | undefined;
+	if (diagnostics.length === 0) return;
+	const sourceMapsByVirtualPath = new Map<string, SourceMap | null>(
+		Array.from(virtualFiles, (v) => [v.virtualPath, v.sourceMap])
+	);
 	for (const diagnostic of diagnostics) {
 		if (diagnostic.line === undefined) continue;
-		if (sourceMapsByVirtualPath === undefined) {
-			sourceMapsByVirtualPath = new Map();
-			for (const virtualFile of virtualFiles) {
-				sourceMapsByVirtualPath.set(virtualFile.virtualPath, virtualFile.sourceMap);
-			}
-		}
 		const sourceMap = sourceMapsByVirtualPath.get(diagnostic.file);
 		if (sourceMap === undefined) continue; // not emitted against a virtual
 		const mapped = sourceMap

@@ -3,13 +3,9 @@ import ts from 'typescript';
 import type { TsdocParsedComment } from '$lib/tsdoc.ts';
 import { parseComment } from '$lib/tsdoc.ts';
 
-import { loadFixturesGeneric } from '../../test-helpers.ts';
+import { loadFixturesGeneric, type GenericFixture } from '../../test-helpers.ts';
 
-export interface TsdocFixture {
-	name: string;
-	input: string;
-	expected: TsdocParsedComment | null;
-}
+export type TsdocFixture = GenericFixture<TsdocParsedComment | null>;
 
 /**
  * Load all fixtures from the tsdoc fixtures directory.

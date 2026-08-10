@@ -189,7 +189,7 @@ src/test/fixtures/ts/declarations/class/generic/
 ## Expected Output Format
 
 Both fixture sets capture the **whole module analysis object plus diagnostics**
-— the `ModuleFixtureJson` schema in `src/test/test-helpers.ts` (`ModuleJson`
+— the `ModuleFixtureJson` schema in `src/test/fixtures/module-fixture-helpers.ts` (`ModuleJson`
 extended with a `diagnostics` array). Written through `compactReplacer`, so
 defaulted fields (empty arrays, `false` booleans) are stripped on disk; a
 fixture with no declarations and no comment is just `{"path": "..."}`. Each
@@ -369,6 +369,7 @@ declaration in `declarations` matches the `DeclarationJson` interface:
 - `src/test/svelte.test.ts` - How Svelte fixtures are loaded and validated
 - `src/test/typescript.test.ts` - How TypeScript fixtures are loaded and validated
 - `src/test/tsdoc.test.ts` - How TSDoc fixtures are loaded and validated
+- `src/test/fixtures/module-fixture-helpers.ts` - Shared capture machinery for the ts and svelte harnesses (`ModuleFixtureJson`, `captureModuleFixture`, `validateModuleFixture`)
 - `src/test/fixtures/svelte/svelte-test-helpers.ts` - Svelte fixture loading utilities
 - `src/test/fixtures/ts/ts-test-helpers.ts` - TypeScript fixture loading utilities
 - `src/test/fixtures/tsdoc/tsdoc-test-helpers.ts` - TSDoc fixture loading utilities

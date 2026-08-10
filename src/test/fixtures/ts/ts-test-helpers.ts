@@ -1,28 +1,26 @@
 import ts from 'typescript';
 
-import { analyzeCore } from '$lib/analyze-core.ts';
-
+import { loadFixturesGeneric } from '../../test-helpers.ts';
+import { createTestSourceOptions, TEST_PROJECT_ROOT } from '../../test-module-helpers.ts';
 import {
-	loadFixturesGeneric,
+	captureModuleFixture,
+	fixtureFileId,
 	type ModuleFixture,
 	type ModuleFixtureJson,
 	type ModuleFixtureJsonInput
-} from '../../test-helpers.ts';
-import { createTestSourceOptions, TEST_PROJECT_ROOT } from '../../test-module-helpers.ts';
+} from '../module-fixture-helpers.ts';
 
 /**
- * Synthetic file id for fixture analysis. Never touches disk — the program
- * serves the single fixture file from memory — but sits under
- * `TEST_PROJECT_ROOT`'s default `src/lib` layout so `path` extracts to
- * `input.ts` and diagnostic paths normalize to `src/lib/input.ts`
- * deterministically on every machine.
+ * Synthetic file id for fixture analysis — `path` extracts to `input.ts` and
+ * diagnostic paths normalize to `src/lib/input.ts` deterministically on every
+ * machine. See `fixtureFileId` for the `src/lib` invariant.
  */
-const FIXTURE_FILE_ID = `${TEST_PROJECT_ROOT}/src/lib/input.ts`;
+const FIXTURE_FILE_ID = fixtureFileId(TEST_PROJECT_ROOT, 'input.ts');
 
 /**
- * Create a TypeScript program for a given source file.
- * Used by both test files and update tasks to ensure consistent behavior.
- * Mirrors `createAnalysisProgram` by returning `ts.Program` directly.
+ * Create a single-file TypeScript program — `noResolve`, so fixtures stay
+ * hermetic and fast. Mirrors `createAnalysisProgram` by returning
+ * `ts.Program` directly.
  *
  * @param sourceFile - The TypeScript source file to analyze
  * @param filePath - The path identifier for the file
@@ -56,14 +54,9 @@ export const createTestProgram = (sourceFile: ts.SourceFile, filePath: string): 
 	);
 
 /**
- * Analyze a fixture input through `analyzeCore` — the production orchestrator
- * over a one-file source set, so the registry pre-pass, export walk, kind
- * dispatch, `@nodocs` filter, output passes, and diagnostic boundary sequence
- * are all production code and fixtures can't drift from real output.
- *
- * Used by both `typescript.test.ts` and the update task so the two can't
- * diverge; the returned object (module fields + `diagnostics`) is exactly what
- * `expected.json` captures.
+ * Analyze a fixture input through the production pipeline (see
+ * `captureModuleFixture`). Used by both `typescript.test.ts` and the update
+ * task so the two can't diverge.
  */
 export const analyzeFixtureModule = (input: string): ModuleFixtureJson => {
 	const sourceFile = ts.createSourceFile(
@@ -74,15 +67,11 @@ export const analyzeFixtureModule = (input: string): ModuleFixtureJson => {
 		ts.ScriptKind.TS
 	);
 	const program = createTestProgram(sourceFile, FIXTURE_FILE_ID);
-	const { modules, diagnostics } = analyzeCore({
-		sourceFiles: [{ id: FIXTURE_FILE_ID, content: input }],
-		sourceOptions: createTestSourceOptions(),
+	return captureModuleFixture(
+		{ id: FIXTURE_FILE_ID, content: input },
 		program,
-		svelteVirtualFiles: new Map()
-	});
-	const mod = modules[0];
-	if (!mod) throw new Error('analyzeCore emitted no module for fixture input');
-	return { ...mod, diagnostics };
+		createTestSourceOptions()
+	);
 };
 
 /**
@@ -201,7 +190,7 @@ export const findTypeAlias = (
 };
 
 /**
- * Load all fixtures from the ts fixtures directory (flat structure).
+ * Load all fixtures from the ts fixtures directory.
  */
 export const loadFixtures = async (): Promise<Array<ModuleFixture>> =>
 	loadFixturesGeneric<ModuleFixtureJsonInput>({

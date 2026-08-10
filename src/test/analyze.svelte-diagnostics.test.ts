@@ -10,7 +10,7 @@ import { test, assert, describe } from 'vitest';
 import ts from 'typescript';
 
 import { byKind, type Diagnostic } from '$lib/diagnostics.ts';
-import { remapVirtualDiagnosticPositions } from '$lib/svelte.ts';
+import { remapVirtualDiagnosticPositions, type SvelteVirtualFile } from '$lib/svelte.ts';
 
 import { analyzeTestProject } from './test-module-helpers.ts';
 
@@ -120,53 +120,31 @@ export const fn = (a: string): string => a;
 });
 
 describe('remapVirtualDiagnosticPositions', () => {
-	test('drops line/column when the virtual has no source map', () => {
-		const diagnostics: Array<Diagnostic> = [
-			{
-				kind: 'unknown_param',
-				file: '/p/src/lib/A.svelte.__svelte2tsx__.ts',
-				line: 3,
-				column: 5,
-				message: 'msg',
-				severity: 'warning',
-				paramName: 'b',
-				functionName: 'fn'
-			}
-		];
-		remapVirtualDiagnosticPositions(diagnostics, [
-			{
-				virtualPath: '/p/src/lib/A.svelte.__svelte2tsx__.ts',
-				content: '',
-				sourceMap: null,
-				scriptKind: ts.ScriptKind.TS
-			}
-		]);
-		assert.strictEqual(diagnostics[0]!.line, undefined);
-		assert.strictEqual(diagnostics[0]!.column, undefined);
+	const VIRTUAL: SvelteVirtualFile = {
+		virtualPath: '/p/src/lib/A.svelte.__svelte2tsx__.ts',
+		content: '',
+		sourceMap: null,
+		scriptKind: ts.ScriptKind.TS
+	};
+	const diagnosticFor = (file: string): Diagnostic => ({
+		kind: 'unknown_param',
+		file,
+		line: 3,
+		column: 5,
+		message: 'msg',
+		severity: 'warning',
+		paramName: 'b',
+		functionName: 'fn'
 	});
 
-	test('leaves non-virtual files untouched', () => {
-		const diagnostics: Array<Diagnostic> = [
-			{
-				kind: 'unknown_param',
-				file: '/p/src/lib/a.ts',
-				line: 3,
-				column: 5,
-				message: 'msg',
-				severity: 'warning',
-				paramName: 'b',
-				functionName: 'fn'
-			}
-		];
-		remapVirtualDiagnosticPositions(diagnostics, [
-			{
-				virtualPath: '/p/src/lib/A.svelte.__svelte2tsx__.ts',
-				content: '',
-				sourceMap: null,
-				scriptKind: ts.ScriptKind.TS
-			}
-		]);
-		assert.strictEqual(diagnostics[0]!.line, 3);
-		assert.strictEqual(diagnostics[0]!.column, 5);
+	test('drops unmappable virtual positions, leaves non-virtual files untouched', () => {
+		// one batch call — the pass discriminates by `file` within a batch
+		const virtualDiagnostic = diagnosticFor(VIRTUAL.virtualPath);
+		const plainDiagnostic = diagnosticFor('/p/src/lib/a.ts');
+		remapVirtualDiagnosticPositions([virtualDiagnostic, plainDiagnostic], [VIRTUAL]);
+		assert.strictEqual(virtualDiagnostic.line, undefined);
+		assert.strictEqual(virtualDiagnostic.column, undefined);
+		assert.strictEqual(plainDiagnostic.line, 3);
+		assert.strictEqual(plainDiagnostic.column, 5);
 	});
 });
