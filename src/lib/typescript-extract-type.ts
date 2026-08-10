@@ -24,7 +24,7 @@ import type { DeclarationJsonBuild, MemberJsonBuild } from './declaration-build.
 import { to_error_message } from './error.ts';
 import { parseComment, applyToDeclaration } from './tsdoc.ts';
 import {
-	collectExternalTypesFromHeritage,
+	applyHeritageExternalTypes,
 	emitCallOrConstructSignature,
 	extractModifiers,
 	getNodeLocation,
@@ -104,12 +104,7 @@ export const extractTypeInfo = (
 			// members are own-only, so the external types the heritage composition
 			// reaches are never enumerated — record them like the alias/component
 			// paths record what filtering drops
-			const externalTypes = collectExternalTypesFromHeritage(
-				heritageTypes,
-				checker,
-				ctx.isExternalFile
-			);
-			if (externalTypes.length) declaration.externalTypes = externalTypes;
+			applyHeritageExternalTypes(declaration, heritageTypes, ctx);
 		}
 
 		// Extract properties and method signatures with full metadata
@@ -296,6 +291,11 @@ export const extractTypeInfo = (
 		// alike — would be the one member enumerating inheritance. A signature is
 		// own when its declaration sits in any declaration of this interface
 		// symbol (merged blocks included).
+		//
+		// That guarantee is what lets TSDoc resolve through the signature's own
+		// declaration, exactly like the type-alias path: the node can no longer
+		// be a base interface's, so it is the right doc source even when the
+		// signature lives in a merged block other than the one being processed.
 		const interfaceType = nodeType ?? checker.getTypeAtLocation(node);
 		const ownDecls: Set<ts.Node> = new Set(
 			checker.getSymbolAtLocation(node.name)?.getDeclarations() ?? [node]
@@ -310,7 +310,7 @@ export const extractTypeInfo = (
 		emitCallOrConstructSignature(
 			() => ownOnly(interfaceType.getCallSignatures()),
 			'call',
-			() => node.members.find(ts.isCallSignatureDeclaration),
+			(sig) => sig.getDeclaration(),
 			node,
 			declaration,
 			ctx,
@@ -320,7 +320,7 @@ export const extractTypeInfo = (
 		emitCallOrConstructSignature(
 			() => ownOnly(interfaceType.getConstructSignatures()),
 			'construct',
-			() => node.members.find(ts.isConstructSignatureDeclaration),
+			(sig) => sig.getDeclaration(),
 			node,
 			declaration,
 			ctx,

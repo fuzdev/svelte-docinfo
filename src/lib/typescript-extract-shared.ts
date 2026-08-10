@@ -657,39 +657,125 @@ export const populatePropertyMember = (
 };
 
 /**
- * Check whether all declarations of a property symbol are in external source files.
- * Properties with no declarations (synthesized) are considered non-external.
+ * Whether a contribution's origin declarations put it in an external file.
+ *
+ * The one externality rule the external-composition model runs on: external
+ * when origin declarations exist and every one of them is external.
+ *
+ * Fail-open on none, deliberately — the checker synthesizes contributions with
+ * no declaration (a mapped instantiation's index info, a property it derived
+ * rather than found), and their content flows from the written site, so local
+ * is the right answer. Callers that must distinguish "synthesized" from
+ * "local" test the origin's emptiness themselves; this predicate answers only
+ * "known to be external".
  */
-const isExternalProperty = (prop: ts.Symbol, isExternalFile: IsExternalFile): boolean => {
-	const decls = prop.getDeclarations();
-	if (!decls?.length) return false;
-	return decls.every((d) => isExternalFile(d.getSourceFile()));
+const originIsExternal = (
+	decls: ReadonlyArray<ts.Declaration> | undefined,
+	isExternalFile: IsExternalFile
+): boolean => !!decls?.length && decls.every((d) => isExternalFile(d.getSourceFile()));
+
+/** Origin declarations of an index signature — empty when the checker synthesized it. */
+const indexInfoOrigin = (info: ts.IndexInfo): ReadonlyArray<ts.Declaration> =>
+	info.declaration ? [info.declaration] : [];
+
+/**
+ * Origin declarations of a call/construct signature — empty when the checker
+ * synthesized it. `getDeclaration()` is typed non-optional by the TypeScript
+ * API but is absent on synthesized signatures, so the widening lives here
+ * rather than at each call site.
+ */
+const signatureOrigin = (sig: ts.Signature): ReadonlyArray<ts.Declaration> => {
+	const decl: ts.SignatureDeclaration | undefined = sig.getDeclaration();
+	return decl ? [decl] : [];
 };
 
 /**
- * Check whether an index signature's declaration lives in an external file.
+ * Check whether a property symbol comes from external source files.
+ * Properties with no declarations (synthesized) are considered non-external.
+ */
+const isExternalProperty = (prop: ts.Symbol, isExternalFile: IsExternalFile): boolean =>
+	originIsExternal(prop.getDeclarations(), isExternalFile);
+
+/**
+ * Check whether a member declaration is private to the class that declares it —
+ * a `#` private identifier name, or a `private` modifier.
  *
- * Fail-open: a declaration-less info is local. The checker synthesizes index
- * infos for every mapped-type instantiation (`Record<string, X>`,
- * `Partial<Indexed>`, hand-written `{[K in string]: X}`) with no declaration —
- * the content there flows from the written instantiation site, so local is the
- * right answer — while a bare reference or an inherited info preserves the
+ * The one visibility rule, shared by the two ways a class's members reach
+ * output: `extractClassInfo` walking `node.members` at the class's own
+ * declaration, and `filterDocumentedProperties` projecting a class *type* at a
+ * structural container (`type X = LocalClass`, and since generic
+ * instantiations extract, `type X = LocalGen<string>`). Held in one place
+ * because the two paths disagreeing is what let `#` fields reach `members`
+ * through an alias while the class itself dropped them.
+ *
+ * `protected` is deliberately not private: it is part of the extension API a
+ * subclass author documents against. Only classes can declare either form —
+ * interfaces and type literals have no private members — so this is a no-op on
+ * every other shape.
+ */
+export const isPrivateMemberDeclaration = (decl: ts.Declaration): boolean => {
+	const { name } = decl as ts.NamedDeclaration;
+	if (name !== undefined && ts.isPrivateIdentifier(name)) return true;
+	return (
+		ts.canHaveModifiers(decl) &&
+		(ts.getModifiers(decl)?.some((m) => m.kind === ts.SyntaxKind.PrivateKeyword) ?? false)
+	);
+};
+
+/**
+ * Check whether a property symbol is private to its declaring class — the
+ * symbol-side form of `isPrivateMemberDeclaration`, for the checker-backed
+ * paths that see properties rather than written members.
+ *
+ * Any private declaration hides the symbol: an accessor pair must agree in
+ * visibility for TypeScript to accept it, so `some` and `every` can only
+ * differ on code that already fails to compile, and hiding is the safe answer
+ * there.
+ */
+const isPrivateProperty = (prop: ts.Symbol): boolean =>
+	prop.getDeclarations()?.some(isPrivateMemberDeclaration) ?? false;
+
+/**
+ * Check whether an index signature comes from an external file.
+ *
+ * The checker synthesizes index infos for every mapped-type instantiation
+ * (`Record<string, X>`, `Partial<Indexed>`, hand-written `{[K in string]: X}`)
+ * with no declaration, so those read local under `originIsExternal`'s
+ * fail-open, while a bare reference or an inherited info preserves the
  * original index-signature declaration, external file included.
  */
 export const isExternalIndexInfo = (info: ts.IndexInfo, isExternalFile: IsExternalFile): boolean =>
-	info.declaration !== undefined && isExternalFile(info.declaration.getSourceFile());
+	originIsExternal(indexInfoOrigin(info), isExternalFile);
 
 /**
- * Check whether a call/construct signature's declaration lives in an external
- * file. Fail-open like `isExternalIndexInfo` — a declaration-less signature is
- * local — though in practice a signature always carries its original
- * declaration, through intersections, inheritance, and generic instantiation
- * alike.
+ * Check whether a call/construct signature comes from an external file. In
+ * practice a signature always carries its original declaration — through
+ * intersections, inheritance, and generic instantiation alike — so the
+ * fail-open arm is unreachable for the shapes that occur.
  */
-export const isExternalSignature = (sig: ts.Signature, isExternalFile: IsExternalFile): boolean => {
-	const decl: ts.SignatureDeclaration | undefined = sig.getDeclaration();
-	return decl !== undefined && isExternalFile(decl.getSourceFile());
-};
+export const isExternalSignature = (sig: ts.Signature, isExternalFile: IsExternalFile): boolean =>
+	originIsExternal(signatureOrigin(sig), isExternalFile);
+
+/**
+ * Every contribution a type makes, as the origin declarations each is
+ * attributable to: named properties, index signatures, then call and construct
+ * signatures. An empty entry is a contribution the checker synthesized, with
+ * no origin to test.
+ *
+ * The enumeration membership filters against, in one place — so a contribution
+ * kind can't be dropped from `members` without also counting toward
+ * attribution, which is how call/construct signatures came to be filtered
+ * nowhere and labeled nowhere.
+ */
+const contributionOrigins = (
+	type: ts.Type,
+	checker: ts.TypeChecker
+): Array<ReadonlyArray<ts.Declaration>> => [
+	...type.getProperties().map((prop) => prop.getDeclarations() ?? []),
+	...checker.getIndexInfosOfType(type).map(indexInfoOrigin),
+	...type.getCallSignatures().map(signatureOrigin),
+	...type.getConstructSignatures().map(signatureOrigin)
+];
 
 /**
  * Determine whether a type's declared contributions are wholly external —
@@ -711,22 +797,12 @@ const typeContributesOnlyExternal = (
 	checker: ts.TypeChecker,
 	isExternalFile: IsExternalFile
 ): boolean => {
-	// each loop skips the declaration-less (neutral) and then asks the same
-	// predicate membership asks, so the two axes share code, not just a rule
 	let hasExternal = false;
-	for (const prop of type.getProperties()) {
-		if (!prop.getDeclarations()?.length) continue;
-		if (isExternalProperty(prop, isExternalFile)) hasExternal = true;
-		else return false;
-	}
-	for (const info of checker.getIndexInfosOfType(type)) {
-		if (!info.declaration) continue;
-		if (isExternalIndexInfo(info, isExternalFile)) hasExternal = true;
-		else return false;
-	}
-	for (const sig of [...type.getCallSignatures(), ...type.getConstructSignatures()]) {
-		if (!(sig.getDeclaration() as ts.SignatureDeclaration | undefined)) continue;
-		if (isExternalSignature(sig, isExternalFile)) hasExternal = true;
+	// the two axes run the same predicate over the same origins, so they can't
+	// drift: whatever membership drops here is what makes the branch a bag
+	for (const origin of contributionOrigins(type, checker)) {
+		if (!origin.length) continue; // synthesized — membership keeps it, so it is neutral
+		if (originIsExternal(origin, isExternalFile)) hasExternal = true;
 		else return false;
 	}
 	return hasExternal;
@@ -740,11 +816,10 @@ const typeContributesOnlyExternal = (
  * "bag" that should be summarized in `externalTypes` rather than enumerated as
  * members.
  */
-const isExternalTypeRefNode = (
-	node: ts.TypeNode,
-	checker: ts.TypeChecker,
-	isExternalFile: IsExternalFile
-): boolean => typeContributesOnlyExternal(checker.getTypeAtLocation(node), checker, isExternalFile);
+const isExternalTypeRefNode = (node: ts.TypeNode, walk: ExternalTypeWalk): boolean => {
+	const { checker, isExternalFile } = walk;
+	return typeContributesOnlyExternal(checker.getTypeAtLocation(node), checker, isExternalFile);
+};
 
 /**
  * Append an external type's text, ignoring a repeat.
@@ -786,6 +861,27 @@ const importedNameOf = (symbol: ts.Symbol, writtenText: string): string | undefi
 type TypeParamSubstitutions = ReadonlyMap<ts.TypeParameterDeclaration, string>;
 
 /**
+ * What one `externalTypes` walk carries unchanged from its root to every leaf:
+ * how to resolve and classify types, and the declaration path that terminates
+ * cycles.
+ *
+ * `seen` belongs here rather than beside the per-frame arguments because there
+ * is exactly one set per walk — an entry added descending a declaration is the
+ * same entry every deeper frame tests and the descending frame releases. The
+ * accumulator (`out`), the depth, and the substitution map do vary per frame
+ * and stay positional: a leaf collects into a scratch array to tell "found
+ * nothing" from "found what a sibling already had", and each declaration
+ * boundary replaces the substitutions.
+ *
+ * @mutates seen - by the collectors, for the duration of each declaration's own walk
+ */
+interface ExternalTypeWalk {
+	checker: ts.TypeChecker;
+	isExternalFile: IsExternalFile;
+	seen: Set<ts.Declaration>;
+}
+
+/**
  * Render a leaf reference node as text that means the same thing at the
  * documented site as it does where it was written.
  *
@@ -812,7 +908,7 @@ type TypeParamSubstitutions = ReadonlyMap<ts.TypeParameterDeclaration, string>;
  */
 const externalTypeRefText = (
 	node: ts.Node,
-	checker: ts.TypeChecker,
+	walk: ExternalTypeWalk,
 	subst: TypeParamSubstitutions | undefined
 ): string => {
 	const text = node.getText();
@@ -824,7 +920,7 @@ const externalTypeRefText = (
 		if (ts.isIdentifier(n)) {
 			// one symbol lookup decides both edit kinds — an identifier is either
 			// a type-parameter reference or an import binding, never both
-			const symbol = checker.getSymbolAtLocation(n);
+			const symbol = walk.checker.getSymbolAtLocation(n);
 			const name = symbol
 				? (substitutionFor(symbol, subst) ?? importedNameOf(symbol, n.text))
 				: undefined;
@@ -873,7 +969,7 @@ const substitutionFor = (
 const buildParamSubstitutions = (
 	typeParams: ReadonlyArray<ts.TypeParameterDeclaration> | undefined,
 	typeArgs: ReadonlyArray<ts.TypeNode> | undefined,
-	checker: ts.TypeChecker,
+	walk: ExternalTypeWalk,
 	outerSubst: TypeParamSubstitutions | undefined
 ): TypeParamSubstitutions | undefined => {
 	if (!typeParams?.length) return undefined;
@@ -882,9 +978,9 @@ const buildParamSubstitutions = (
 		const param = typeParams[i]!;
 		const arg = typeArgs?.[i];
 		if (arg) {
-			map.set(param, externalTypeRefText(arg, checker, outerSubst));
+			map.set(param, externalTypeRefText(arg, walk, outerSubst));
 		} else if (param.default) {
-			map.set(param, externalTypeRefText(param.default, checker, map));
+			map.set(param, externalTypeRefText(param.default, walk, map));
 		}
 	}
 	return map;
@@ -913,10 +1009,10 @@ const buildParamSubstitutions = (
  */
 const referencesTypeParamBoundInDescent = (
 	node: ts.Node,
-	checker: ts.TypeChecker,
-	seen: ReadonlySet<ts.Declaration>,
+	walk: ExternalTypeWalk,
 	subst: TypeParamSubstitutions | undefined
 ): boolean => {
+	const { checker, seen } = walk;
 	if (seen.size === 0) return false;
 	let found = false;
 	const visit = (n: ts.Node): void => {
@@ -989,22 +1085,21 @@ const MAX_COMPOSITION_DEPTH = 10;
  * mapped or conditional definition gets.
  *
  * @mutates out - appends each external reference's text, deduplicated by text
- * @mutates seen - holds the declarations on the current path for the duration of their walk
+ * @mutates walk.seen - holds the declarations on the current path for the duration of their walk
  */
 const collectFromLocalComposition = (
 	node: ts.TypeNode,
-	checker: ts.TypeChecker,
-	isExternalFile: IsExternalFile,
+	walk: ExternalTypeWalk,
 	out: Array<string>,
-	seen: Set<ts.Declaration>,
 	depth: number,
 	subst: TypeParamSubstitutions | undefined
 ): void => {
 	if (depth > MAX_COMPOSITION_DEPTH) return;
 	if (ts.isIndexedAccessTypeNode(node)) {
-		collectFromLocalIndexedAccess(node, checker, isExternalFile, out, seen, depth, subst);
+		collectFromLocalIndexedAccess(node, walk, out, depth, subst);
 		return;
 	}
+	const { checker, isExternalFile, seen } = walk;
 	// a type reference names its type through `typeName` and a heritage entry
 	// through `expression`
 	const nameNode = ts.isTypeReferenceNode(node)
@@ -1034,9 +1129,9 @@ const collectFromLocalComposition = (
 			continue;
 		}
 		seen.add(decl);
-		const inner = buildParamSubstitutions(decl.typeParameters, typeArgs, checker, subst);
+		const inner = buildParamSubstitutions(decl.typeParameters, typeArgs, walk, subst);
 		if (ts.isTypeAliasDeclaration(decl)) {
-			collectExternalTypeRefs(decl.type, checker, isExternalFile, out, seen, depth + 1, inner);
+			collectExternalTypeRefs(decl.type, walk, out, depth + 1, inner);
 		} else {
 			// interfaces and classes both compose through `extends` entries — an
 			// interface's only clause kind is `extends`, and a class's
@@ -1044,7 +1139,7 @@ const collectFromLocalComposition = (
 			for (const clause of decl.heritageClauses ?? []) {
 				if (clause.token !== ts.SyntaxKind.ExtendsKeyword) continue;
 				for (const base of clause.types) {
-					collectExternalTypeRefs(base, checker, isExternalFile, out, seen, depth + 1, inner);
+					collectExternalTypeRefs(base, walk, out, depth + 1, inner);
 				}
 			}
 		}
@@ -1071,17 +1166,16 @@ const collectFromLocalComposition = (
  * named local type or the index isn't a single string/numeric literal.
  *
  * @mutates out - appends each external reference's text, deduplicated by text
- * @mutates seen - holds the container + property declarations on the current path
+ * @mutates walk.seen - holds the container + property declarations on the current path
  */
 const collectFromLocalIndexedAccess = (
 	node: ts.IndexedAccessTypeNode,
-	checker: ts.TypeChecker,
-	isExternalFile: IsExternalFile,
+	walk: ExternalTypeWalk,
 	out: Array<string>,
-	seen: Set<ts.Declaration>,
 	depth: number,
 	subst: TypeParamSubstitutions | undefined
 ): void => {
+	const { checker, isExternalFile, seen } = walk;
 	if (!ts.isTypeReferenceNode(node.objectType)) return;
 	if (!ts.isLiteralTypeNode(node.indexType)) return;
 	const literal = node.indexType.literal;
@@ -1122,14 +1216,17 @@ const collectFromLocalIndexedAccess = (
 			const inner = buildParamSubstitutions(
 				containerParams,
 				node.objectType.typeArguments,
-				checker,
+				walk,
 				subst
 			);
-			if (container) seen.add(container);
+			// release only what this frame added — an outer frame already holding
+			// the container keeps it for the rest of its own walk
+			const heldContainer = container && !seen.has(container) ? container : undefined;
+			if (heldContainer) seen.add(heldContainer);
 			seen.add(propDecl);
-			collectExternalTypeRefs(propDecl.type, checker, isExternalFile, out, seen, depth + 1, inner);
+			collectExternalTypeRefs(propDecl.type, walk, out, depth + 1, inner);
 			seen.delete(propDecl);
-			if (container) seen.delete(container);
+			if (heldContainer) seen.delete(heldContainer);
 		}
 	}
 };
@@ -1166,22 +1263,20 @@ const collectFromLocalIndexedAccess = (
  * written type arguments over any in-descent type parameters it names.
  *
  * @mutates out - appends each external reference's text, deduplicated by text
- * @mutates seen - holds the declarations on the current path for the duration of their walk
+ * @mutates walk.seen - holds the declarations on the current path for the duration of their walk
  */
 const collectExternalTypeRefs = (
 	node: ts.TypeNode,
-	checker: ts.TypeChecker,
-	isExternalFile: IsExternalFile,
+	walk: ExternalTypeWalk,
 	out: Array<string>,
-	seen: Set<ts.Declaration>,
 	depth: number,
 	subst: TypeParamSubstitutions | undefined
 ): void => {
 	if (ts.isParenthesizedTypeNode(node)) {
-		collectExternalTypeRefs(node.type, checker, isExternalFile, out, seen, depth, subst);
+		collectExternalTypeRefs(node.type, walk, out, depth, subst);
 	} else if (ts.isIntersectionTypeNode(node) || ts.isUnionTypeNode(node)) {
 		for (const branch of node.types) {
-			collectExternalTypeRefs(branch, checker, isExternalFile, out, seen, depth, subst);
+			collectExternalTypeRefs(branch, walk, out, depth, subst);
 		}
 	} else if (
 		ts.isTypeReferenceNode(node) ||
@@ -1191,14 +1286,14 @@ const collectExternalTypeRefs = (
 		// collected apart from `out` so "the descent found nothing" stays
 		// distinguishable from "it found only what a sibling branch already did"
 		const descended: Array<string> = [];
-		collectFromLocalComposition(node, checker, isExternalFile, descended, seen, depth, subst);
+		collectFromLocalComposition(node, walk, descended, depth, subst);
 		if (descended.length) {
 			for (const text of descended) pushExternalTypeRef(out, text);
 		} else if (
-			!referencesTypeParamBoundInDescent(node, checker, seen, subst) &&
-			isExternalTypeRefNode(node, checker, isExternalFile)
+			!referencesTypeParamBoundInDescent(node, walk, subst) &&
+			isExternalTypeRefNode(node, walk)
 		) {
-			pushExternalTypeRef(out, externalTypeRefText(node, checker, subst));
+			pushExternalTypeRef(out, externalTypeRefText(node, walk, subst));
 		}
 	}
 };
@@ -1207,49 +1302,47 @@ const collectExternalTypeRefs = (
  * Resolve a props/type-alias annotation node to the written type node whose
  * structure drives `externalTypes` extraction.
  *
- * The svelte2tsx props annotation is a reference to a generated `$$ComponentProps`
- * alias; unwrap one level of *local* type-alias reference so the underlying
- * composition (`SvelteHTMLElements['li']`, `(A | B) & C`, …) is visible. External
- * alias references are left intact so they read as a single named bag rather than
- * leaking their node_modules-internal definition. Type-alias callers pass the
- * written node directly, so for them this is a no-op.
- *
- * `collectExternalTypeRefs` descends through local names on its own, so this is
- * belt-and-braces for the root position rather than the only way a generated
- * alias is seen through.
+ * The root is walked as written: `collectExternalTypeRefs` descends through
+ * local names itself, so a reference to a local alias — the generated
+ * `$$ComponentProps` the svelte2tsx props annotation names, or an author's own
+ * `type Props = …` — reaches the composition behind it without unwrapping the
+ * node first. Unwrapping was lossy at exactly the position the leaf fallback
+ * covers: it replaced a generic reference with the definition's right-hand
+ * side, dropping the written type arguments, and left an untraversable
+ * definition (mapped, conditional) with no node to attribute at all, where the
+ * root reference is the name the contract says to record.
  */
-const resolveAnnotationTypeNode = (
-	typeNode: ts.Node,
-	checker: ts.TypeChecker,
-	isExternalFile: IsExternalFile
-): ts.TypeNode | undefined => {
-	if (ts.isTypeReferenceNode(typeNode)) {
-		const aliasDecl = checker
-			.getSymbolAtLocation(typeNode.typeName)
-			?.getDeclarations()
-			?.find(ts.isTypeAliasDeclaration);
-		if (aliasDecl && !isExternalFile(aliasDecl.getSourceFile())) return aliasDecl.type;
-	}
-	return ts.isTypeNode(typeNode) ? typeNode : undefined;
-};
+const resolveAnnotationTypeNode = (typeNode: ts.Node): ts.TypeNode | undefined =>
+	ts.isTypeNode(typeNode) ? typeNode : undefined;
 
 /**
- * Partition a type's properties into local (kept) and external (dropped), and
- * collect the external type references that contributed the dropped ones.
+ * Reduce a type's properties to the ones consumers can see, and collect the
+ * external type references that contributed the dropped ones.
+ *
+ * Two axes drop a property, both by declaration:
+ *
+ * - **Origin** (`isExternalProperty`) — the property comes from node_modules or
+ *   a declaration file. Structure-agnostic: TypeScript preserves original
+ *   declaration sources on derived properties, so the test gives the right
+ *   answer through utility-type wrappers (Partial, Pick, `OmitStrict`) too. A
+ *   property with no declarations (synthesized) is treated as local and kept.
+ * - **Visibility** (`isPrivateProperty`) — the property is `private` or a `#`
+ *   field of a class this type projects. Only classes can declare either, so
+ *   this is a no-op on every other shape; it exists because a class *type*
+ *   reaches here whenever a structural container names one (`type X =
+ *   LocalClass`, `type X = LocalGen<string>`), and what the class's own
+ *   declaration hides an alias over it must hide too.
  *
  * Applies to any composition shape — intersection, union, bare reference,
- * indexed-access — not only intersections. Membership is decided per property
- * by declaration origin (`isExternalProperty`), which is structure-agnostic:
- * TypeScript preserves original declaration sources on derived properties, so
- * the test gives the right answer through utility-type wrappers (Partial, Pick,
- * `OmitStrict`) too. A property with no declarations (synthesized) is treated as
- * local and kept. The labels naming the dropped contributors come from an AST
- * walk (`collectExternalTypeRefs`) — the authoritative source for the
- * `&`/`|`/index-access shape inference would otherwise erase — which descends
- * through project-local names so a bag inherited via `interface Props extends
- * Bag` is labeled like an inline `Bag & {…}` branch.
+ * indexed-access — not only intersections. The labels naming the dropped
+ * external contributors come from an AST walk (`collectExternalTypeRefs`) — the
+ * authoritative source for the `&`/`|`/index-access shape inference would
+ * otherwise erase — which descends through project-local names so a bag
+ * inherited via `interface Props extends Bag` is labeled like an inline
+ * `Bag & {…}` branch. Private properties are dropped silently: they are the
+ * project's own code, with nothing to attribute.
  */
-export const filterExternalProperties = (
+export const filterDocumentedProperties = (
 	type: ts.Type,
 	typeNode: ts.Node,
 	checker: ts.TypeChecker,
@@ -1257,17 +1350,15 @@ export const filterExternalProperties = (
 ): { properties: Array<ts.Symbol>; externalTypes: Array<string> } => {
 	const properties = type
 		.getProperties()
-		.filter((prop) => !isExternalProperty(prop, isExternalFile));
+		.filter((prop) => !isPrivateProperty(prop) && !isExternalProperty(prop, isExternalFile));
 
 	const externalTypes: Array<string> = [];
-	const annotation = resolveAnnotationTypeNode(typeNode, checker, isExternalFile);
+	const annotation = resolveAnnotationTypeNode(typeNode);
 	if (annotation) {
 		collectExternalTypeRefs(
 			annotation,
-			checker,
-			isExternalFile,
+			{ checker, isExternalFile, seen: new Set() },
 			externalTypes,
-			new Set(),
 			0,
 			undefined
 		);
@@ -1277,9 +1368,9 @@ export const filterExternalProperties = (
 };
 
 /**
- * Collect `externalTypes` entries from a declaration's own heritage entries —
- * the interface/class counterpart of `filterExternalProperties`' annotation
- * walk.
+ * Set a declaration's `externalTypes` from its own heritage entries — the
+ * interface/class counterpart of `filterDocumentedProperties`' annotation
+ * walk, and the one place the two heritage-bearing extractors express it.
  *
  * Interfaces and classes enumerate own members only, so nothing is *filtered*
  * — what the field records there is the external types the heritage
@@ -1288,18 +1379,24 @@ export const filterExternalProperties = (
  * directly or through a local base chain, exactly as the same interface
  * annotating `$props()` records it on the component. Local bases reached and
  * fully enumerated nowhere are the `extends` field's business, not this one.
+ *
+ * Only `extends` entries are passed by either caller: an interface has no
+ * other clause kind, and a class's `implements` adds no members.
+ *
+ * @mutates declaration - sets `externalTypes` when the walk finds any, left absent when not
  */
-export const collectExternalTypesFromHeritage = (
+export const applyHeritageExternalTypes = (
+	declaration: DeclarationJsonBuild,
 	heritageTypes: ReadonlyArray<ts.ExpressionWithTypeArguments>,
-	checker: ts.TypeChecker,
-	isExternalFile: IsExternalFile
-): Array<string> => {
+	ctx: ExtractContext
+): void => {
+	const { checker, isExternalFile } = ctx;
 	const externalTypes: Array<string> = [];
-	const seen: Set<ts.Declaration> = new Set();
+	const walk: ExternalTypeWalk = { checker, isExternalFile, seen: new Set() };
 	for (const entry of heritageTypes) {
-		collectExternalTypeRefs(entry, checker, isExternalFile, externalTypes, seen, 0, undefined);
+		collectExternalTypeRefs(entry, walk, externalTypes, 0, undefined);
 	}
-	return externalTypes;
+	if (externalTypes.length) declaration.externalTypes = externalTypes;
 };
 
 /**

@@ -1,5 +1,5 @@
 /**
- * Unit tests for `filterExternalProperties` — the partition of a type's
+ * Unit tests for `filterDocumentedProperties` — the partition of a type's
  * properties into local (kept as `members` / `props`) and external (dropped),
  * and the `externalTypes` labels naming what contributed the dropped ones.
  *
@@ -11,7 +11,7 @@
 
 import { test, assert, describe } from 'vitest';
 
-import { filterExternalProperties } from '$lib/typescript-extract-shared.ts';
+import { filterDocumentedProperties } from '$lib/typescript-extract-shared.ts';
 import { extractTypeInfo } from '$lib/typescript-extract-type.ts';
 import type { IsExternalFile } from '$lib/typescript-program.ts';
 import { type Diagnostic } from '$lib/diagnostics.ts';
@@ -75,7 +75,7 @@ const runFilter = (
 	const { checker, sourceFiles } = createProgram(files);
 	const sf = sourceFiles.get('/src/lib/test.ts')!;
 	const alias = findTypeAlias(sf, checker, aliasName)!;
-	const result = filterExternalProperties(alias.type, alias.node.type, checker, isExternal);
+	const result = filterDocumentedProperties(alias.type, alias.node.type, checker, isExternal);
 	return {
 		propNames: result.properties.map((p) => p.name).sort(),
 		externalTypes: result.externalTypes
@@ -97,7 +97,7 @@ const EXT = {
 	`
 };
 
-describe('filterExternalProperties', () => {
+describe('filterDocumentedProperties', () => {
 	test('keeps all properties for a local non-intersection type, no external types', () => {
 		const { checker, sourceFiles } = createProgram([
 			{ path: '/src/lib/test.ts', content: 'export type Foo = { a: string; b: number };' }
@@ -105,7 +105,7 @@ describe('filterExternalProperties', () => {
 		const sf = sourceFiles.get('/src/lib/test.ts')!;
 		const alias = findTypeAlias(sf, checker, 'Foo')!;
 
-		const result = filterExternalProperties(alias.type, alias.node.type, checker, () => false);
+		const result = filterDocumentedProperties(alias.type, alias.node.type, checker, () => false);
 		const propNames = result.properties.map((p) => p.name).sort();
 		assert.deepEqual(propNames, ['a', 'b']);
 		assert.deepEqual(result.externalTypes, []);
@@ -125,7 +125,7 @@ describe('filterExternalProperties', () => {
 		const sf = sourceFiles.get('/src/lib/test.ts')!;
 		const alias = findTypeAlias(sf, checker, 'C')!;
 
-		const result = filterExternalProperties(alias.type, alias.node.type, checker, () => false);
+		const result = filterDocumentedProperties(alias.type, alias.node.type, checker, () => false);
 		const propNames = result.properties.map((p) => p.name).sort();
 		assert.deepEqual(propNames, ['x', 'y']);
 		assert.deepEqual(result.externalTypes, []);
@@ -152,7 +152,7 @@ describe('filterExternalProperties', () => {
 		// treat external-types.ts as external
 		const isExternal: IsExternalFile = (f) => f.fileName.includes('external-types');
 
-		const result = filterExternalProperties(alias.type, alias.node.type, checker, isExternal);
+		const result = filterDocumentedProperties(alias.type, alias.node.type, checker, isExternal);
 		const propNames = result.properties.map((p) => p.name).sort();
 		assert.deepEqual(propNames, ['own1', 'own2']);
 		assert.deepEqual(result.externalTypes, ['External']);
@@ -182,7 +182,7 @@ describe('filterExternalProperties', () => {
 
 		const isExternal: IsExternalFile = (f) => f.fileName.includes('ext-');
 
-		const result = filterExternalProperties(alias.type, alias.node.type, checker, isExternal);
+		const result = filterDocumentedProperties(alias.type, alias.node.type, checker, isExternal);
 		assert.deepEqual(result.properties, []);
 		assert.deepEqual(result.externalTypes.sort(), ['A', 'B']);
 	});
@@ -202,12 +202,17 @@ describe('filterExternalProperties', () => {
 		const alias = findTypeAlias(sf, checker, 'C')!;
 
 		// everything is external
-		const allExternal = filterExternalProperties(alias.type, alias.node.type, checker, () => true);
+		const allExternal = filterDocumentedProperties(
+			alias.type,
+			alias.node.type,
+			checker,
+			() => true
+		);
 		assert.deepEqual(allExternal.properties, []);
 		assert.deepEqual(allExternal.externalTypes.sort(), ['A', 'B']);
 
 		// nothing is external
-		const noneExternal = filterExternalProperties(
+		const noneExternal = filterDocumentedProperties(
 			alias.type,
 			alias.node.type,
 			checker,
@@ -239,7 +244,7 @@ describe('filterExternalProperties', () => {
 		// simulate production pattern: only test.ts is "internal"
 		const isExternal: IsExternalFile = (f) => !f.fileName.endsWith('test.ts');
 
-		const result = filterExternalProperties(alias.type, alias.node.type, checker, isExternal);
+		const result = filterDocumentedProperties(alias.type, alias.node.type, checker, isExternal);
 		const propNames = result.properties.map((p) => p.name).sort();
 		assert.deepEqual(propNames, ['own']);
 		assert.deepEqual(result.externalTypes, ['LibType']);
@@ -264,7 +269,7 @@ describe('filterExternalProperties', () => {
 
 		const isExternal: IsExternalFile = (f) => f.fileName.includes('ext.ts');
 
-		const result = filterExternalProperties(alias.type, alias.node.type, checker, isExternal);
+		const result = filterDocumentedProperties(alias.type, alias.node.type, checker, isExternal);
 		const propNames = result.properties.map((p) => p.name).sort();
 		assert.deepEqual(propNames, ['own']);
 		// inline object literal is not a TypeReferenceNode, so no externalTypes entry for it
@@ -296,7 +301,7 @@ describe('filterExternalProperties', () => {
 		// only ext-a is external
 		const isExternal: IsExternalFile = (f) => f.fileName.includes('ext-');
 
-		const result = filterExternalProperties(alias.type, alias.node.type, checker, isExternal);
+		const result = filterDocumentedProperties(alias.type, alias.node.type, checker, isExternal);
 		const propNames = result.properties.map((p) => p.name).sort();
 		assert.deepEqual(propNames, ['local', 'own']);
 		// only ExternalA is fully external, LocalB is internal
@@ -328,7 +333,7 @@ describe('filterExternalProperties', () => {
 
 		const isExternal: IsExternalFile = (f) => f.fileName.includes('ext-');
 
-		const result = filterExternalProperties(alias.type, alias.node.type, checker, isExternal);
+		const result = filterDocumentedProperties(alias.type, alias.node.type, checker, isExternal);
 		const propNames = result.properties.map((p) => p.name).sort();
 		assert.deepEqual(propNames, ['own']);
 		assert.deepEqual(result.externalTypes.sort(), ['ExtA', 'ExtB']);
@@ -351,7 +356,7 @@ describe('filterExternalProperties', () => {
 		// even with "everything external" predicate, synthesized props
 		// without declarations are kept (isExternalProperty returns false for no decls)
 		// In practice this is a safety net — most properties have declarations
-		const result = filterExternalProperties(alias.type, alias.node.type, checker, () => true);
+		const result = filterDocumentedProperties(alias.type, alias.node.type, checker, () => true);
 		// These properties DO have declarations (they come from the type alias literals),
 		// so they ARE filtered when predicate says external
 		assert.deepEqual(result.properties, []);
@@ -378,7 +383,7 @@ describe('filterExternalProperties', () => {
 
 		const isExternal: IsExternalFile = (f) => f.fileName.includes('ext.ts');
 
-		const result = filterExternalProperties(alias.type, alias.node.type, checker, isExternal);
+		const result = filterDocumentedProperties(alias.type, alias.node.type, checker, isExternal);
 		assert.deepEqual(result.properties, []);
 		assert.deepEqual(result.externalTypes, ['External']);
 	});
@@ -405,7 +410,7 @@ describe('filterExternalProperties', () => {
 
 		const isExternal: IsExternalFile = (f) => f.fileName.includes('ext.ts');
 
-		const result = filterExternalProperties(alias.type, alias.node.type, checker, isExternal);
+		const result = filterDocumentedProperties(alias.type, alias.node.type, checker, isExternal);
 		// union exposes only the shared member, whose declarations are external
 		assert.deepEqual(result.properties, []);
 		assert.deepEqual(result.externalTypes, ['ExtA', 'ExtB']);
@@ -430,7 +435,7 @@ describe('filterExternalProperties', () => {
 
 		const isExternal: IsExternalFile = (f) => f.fileName.includes('ext.ts');
 
-		const result = filterExternalProperties(alias.type, alias.node.type, checker, isExternal);
+		const result = filterDocumentedProperties(alias.type, alias.node.type, checker, isExternal);
 		assert.deepEqual(result.properties, []);
 		assert.deepEqual(result.externalTypes, ["Bag['li']"]);
 	});
@@ -457,7 +462,7 @@ describe('filterExternalProperties', () => {
 
 		const isExternal: IsExternalFile = (f) => f.fileName.includes('ext.ts');
 
-		const result = filterExternalProperties(alias.type, alias.node.type, checker, isExternal);
+		const result = filterDocumentedProperties(alias.type, alias.node.type, checker, isExternal);
 		const propNames = result.properties.map((p) => p.name).sort();
 		assert.deepEqual(propNames, ['own']);
 		assert.deepEqual(result.externalTypes, ['ExtA', 'ExtB']);
@@ -486,7 +491,7 @@ describe('filterExternalProperties', () => {
 			const sf = sourceFiles.get('/src/lib/test.ts')!;
 			const alias = findTypeAlias(sf, checker, 'C')!;
 			const isExternal: IsExternalFile = (f) => f.fileName.includes('ext.ts');
-			const result = filterExternalProperties(alias.type, alias.node.type, checker, isExternal);
+			const result = filterDocumentedProperties(alias.type, alias.node.type, checker, isExternal);
 			return {
 				propNames: result.properties.map((p) => p.name).sort(),
 				externalTypes: result.externalTypes
@@ -509,7 +514,7 @@ describe('filterExternalProperties', () => {
 	});
 });
 
-describe('filterExternalProperties: composition behind a local name', () => {
+describe('filterDocumentedProperties: composition behind a local name', () => {
 	const isExternal: IsExternalFile = (f) => f.fileName.includes('/external/');
 
 	test('interface heritage surfaces the external base, like an inline intersection', () => {
@@ -992,6 +997,52 @@ describe('filterExternalProperties: composition behind a local name', () => {
 		assert.deepEqual(externalTypes, ['Mask<Ext>']);
 	});
 
+	test('the same generic definition at a bare root records the same entry', () => {
+		// the root is walked as written, so a bare reference to a local alias
+		// reaches the leaf fallback like an intersection branch does — with its
+		// written arguments intact. Unwrapping the alias to its right-hand side
+		// first would hand the walk a bare mapped node: no arguments, and no
+		// reference left to attribute
+		const { externalTypes } = runFilter(
+			[
+				EXT,
+				{
+					path: '/src/lib/test.ts',
+					content: `
+						import type {Ext} from './external/ext.js';
+						type Mask<T> = { [K in keyof T]: T[K] };
+						export type P = Mask<Ext>;
+					`
+				}
+			],
+			'P',
+			isExternal
+		);
+		assert.deepEqual(externalTypes, ['Mask<Ext>']);
+	});
+
+	test('a bare root over a traversable local alias still descends past the name', () => {
+		// the removed unwrap was redundant here — the leaf descent reaches the
+		// same composition, so a local alias name never displaces the bag
+		const { propNames, externalTypes } = runFilter(
+			[
+				EXT,
+				{
+					path: '/src/lib/test.ts',
+					content: `
+						import type {Ext} from './external/ext.js';
+						type Base = Ext & { own: boolean };
+						export type P = Base;
+					`
+				}
+			],
+			'P',
+			isExternal
+		);
+		assert.deepEqual(propNames, ['own']);
+		assert.deepEqual(externalTypes, ['Ext']);
+	});
+
 	test('a type parameter in scope at the documented site still emits', () => {
 		// The guard is descent-scoped: `T` here belongs to the documented alias
 		// itself (declared in `genericParams`), not to a declaration the walk
@@ -1090,7 +1141,7 @@ describe('filterExternalProperties: composition behind a local name', () => {
  * resolved back to the name its module exports, so an entry means the same
  * thing at the documented site as it did where it was written.
  */
-describe('filterExternalProperties: import renames at the definition site', () => {
+describe('filterDocumentedProperties: import renames at the definition site', () => {
 	const isExternal: IsExternalFile = (f) => f.fileName.includes('/external/');
 
 	test('a renamed import records the exported name, not the local binding', () => {

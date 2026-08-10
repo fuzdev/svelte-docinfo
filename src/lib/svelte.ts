@@ -15,7 +15,7 @@
  * There is no Svelte 4 compatibility layer.
  *
  * @see `typescript-exports.ts` for `analyzeExports`, `extractModuleComment`
- * @see `typescript-extract-shared.ts` for `parseGenericParam`, `filterExternalProperties`
+ * @see `typescript-extract-shared.ts` for `parseGenericParam`, `filterDocumentedProperties`
  * @see `typescript-extract-type-json.ts` for `resolveTypeInfo`, `referenceSymbolName`, `tupleElements`, `restElementForms`
  * @see `typescript-program.ts` for `createIsExternalFile`
  * @see `tsdoc.ts` for `parseComment`, `applyToDeclaration`
@@ -49,7 +49,7 @@ import {
 import { createIsExternalFile } from './typescript-program.ts';
 import {
 	parseGenericParam,
-	filterExternalProperties,
+	filterDocumentedProperties,
 	getTypeSignature,
 	type ExtractContext
 } from './typescript-extract-shared.ts';
@@ -1098,7 +1098,7 @@ const extractPropsViaChecker = (
 } => {
 	const { checker, diagnostics } = ctx;
 	// Resolve the $props() declaration's type via the checker. Type and node
-	// are both-or-neither — the node is what `filterExternalProperties` and
+	// are both-or-neither — the node is what `filterDocumentedProperties` and
 	// snippet extraction walk, so a resolved type without one is useless
 	let resolvedProps: { type: ts.Type; node: ts.Node } | undefined;
 	let propsTypeName: string | undefined;
@@ -1161,7 +1161,7 @@ const extractPropsViaChecker = (
 	// Drop properties contributed by external types (node_modules / svelte's
 	// element-attribute bags like `SvelteHTMLElements['li']`); those external
 	// types are summarized in `externalTypes` rather than enumerated as props.
-	const { properties, externalTypes } = filterExternalProperties(
+	const { properties, externalTypes } = filterDocumentedProperties(
 		propsType,
 		propsTypeNode,
 		checker,

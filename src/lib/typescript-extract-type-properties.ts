@@ -25,7 +25,7 @@ import { resolveTypeInfo } from './typescript-extract-type-json.ts';
 import { type IsExternalFile } from './typescript-program.ts';
 import {
 	emitCallOrConstructSignature,
-	filterExternalProperties,
+	filterDocumentedProperties,
 	getNodeLocation,
 	isExternalIndexInfo,
 	isExternalSignature,
@@ -99,13 +99,11 @@ const extractLocalIndexInfo = (
 	isExternalFile: IsExternalFile,
 	indexKind: ts.IndexKind
 ): ts.IndexInfo | undefined => {
-	if (!nodeType.isIntersection()) {
-		const info = checker.getIndexInfoOfType(nodeType, indexKind);
-		return info && !isExternalIndexInfo(info, isExternalFile) ? info : undefined;
-	}
-
-	for (const constituent of nodeType.types) {
-		const info = checker.getIndexInfoOfType(constituent, indexKind);
+	// one candidate for a plain type, one per constituent for an intersection —
+	// the same "first local info wins" rule either way
+	const candidates = nodeType.isIntersection() ? nodeType.types : [nodeType];
+	for (const candidate of candidates) {
+		const info = checker.getIndexInfoOfType(candidate, indexKind);
 		if (info && !isExternalIndexInfo(info, isExternalFile)) return info;
 	}
 	return undefined;
@@ -212,9 +210,9 @@ export const extractTypeAliasProperties = (
 	// files) and surface those external types in the `externalTypes` field. Applies
 	// to the property-bearing shapes that pass `hasExtractableProperties` above —
 	// intersections, bare references, indexed-access. Unions are gated out here
-	// (the Svelte prop path calls `filterExternalProperties` directly, so unions
+	// (the Svelte prop path calls `filterDocumentedProperties` directly, so unions
 	// still surface `externalTypes` there, just not for plain type aliases).
-	const { properties: filteredProperties, externalTypes } = filterExternalProperties(
+	const { properties: filteredProperties, externalTypes } = filterDocumentedProperties(
 		nodeType,
 		node.type,
 		checker,
@@ -302,9 +300,11 @@ export const extractTypeAliasProperties = (
 	// resolves through the signature's own declaration — for type aliases,
 	// that's typically the inline call/construct signature node the user wrote.
 	const errorContext = { node, kindLabel: 'type' };
+	const localOnly = (sigs: ReadonlyArray<ts.Signature>): ReadonlyArray<ts.Signature> =>
+		sigs.filter((sig) => !isExternalSignature(sig, isExternalFile));
 
 	emitCallOrConstructSignature(
-		() => nodeType.getCallSignatures().filter((sig) => !isExternalSignature(sig, isExternalFile)),
+		() => localOnly(nodeType.getCallSignatures()),
 		'call',
 		(sig) => sig.getDeclaration(),
 		node,
@@ -314,8 +314,7 @@ export const extractTypeAliasProperties = (
 	);
 
 	emitCallOrConstructSignature(
-		() =>
-			nodeType.getConstructSignatures().filter((sig) => !isExternalSignature(sig, isExternalFile)),
+		() => localOnly(nodeType.getConstructSignatures()),
 		'construct',
 		(sig) => sig.getDeclaration(),
 		node,
