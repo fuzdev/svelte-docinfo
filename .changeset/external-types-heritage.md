@@ -42,8 +42,8 @@ recovery degrades to the nearest enclosing well-formed name
 parameter in scope at the annotation site — a generic component's own — still
 emits, beside the `genericParams` that document it.
 
-The descent terminates two ways: a path-scoped seen-set for cycles, and a
-depth bound of 10 declaration boundaries (matching the alias registry's
-containment walk) for a long acyclic chain of distinct local aliases. Past the
-bound the reference in hand is treated as untraversable and names itself, the
-same degradation a mapped or conditional definition gets.
+A path-scoped seen-set terminates cycles, and a depth bound of 10 declaration
+boundaries (matching the alias registry's containment walk) terminates a long
+acyclic chain of distinct local aliases. Past the bound the reference in hand
+is treated as untraversable and names itself, the degradation a mapped or
+conditional definition already gets.

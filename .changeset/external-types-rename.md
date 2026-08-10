@@ -6,12 +6,13 @@
 renames in its entries
 
 `TypeDeclarationJson.intersects` and `ComponentDeclarationJson.intersects` are
-now `externalTypes`. The field stopped being about intersections when the
-label walk learned to descend through heritage clauses and bare references —
-it lists the external types whose properties are filtered out of `members` /
-`props`, however the author composed them — and `externalTypes` is what the
-extractor has always called it internally. Consumers rename the field; the
-shape (`Array<string>`, default `[]`) is unchanged.
+now `externalTypes`. The field long since stopped matching its name: it has
+covered bare references and indexed access alongside intersections for some
+time, and now the heritage clauses and local composition behind them. What it
+lists is the external types whose properties are filtered out of `members` /
+`props`, however the author composed them — which is what the extractor has
+always called it internally. Consumers rename the field; the shape
+(`Array<string>`, default `[]`) is unchanged.
 
 **Fix riding along:** an entry is now the name its module exports rather than
 whatever local binding a rename introduced. `import type {Bag as B} from

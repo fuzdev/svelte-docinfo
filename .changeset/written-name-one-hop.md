@@ -4,13 +4,13 @@
 
 fix: written-name recovery stops at the exported name instead of the declaration's
 
-Recovering an alias TypeScript dropped resolved the written type reference
-through its whole alias chain, down to the declaration. A module that renames
-on the way out breaks that: with `hop.ts` doing `export type {Inferred as
-Public}`, an annotation of `Public` recovered `{kind: 'reference', name:
-'Inferred'}` — a name `hop.ts` does not export. Written-channel references
-carry no `module`, so the name is the whole of what a consumer has to resolve,
-and this one didn't match the import path they'd be resolving it against.
+Written-name recovery resolved a type reference through its whole alias chain,
+down to the declaration. A module that renames on the way out breaks that:
+with `hop.ts` doing `export type {Inferred as Public}`, an annotation of
+`Public` recovered `{kind: 'reference', name: 'Inferred'}` — a name `hop.ts`
+does not export. Written-channel references carry no `module`, so the name is
+the whole of what a consumer has to go on, and this one named a spelling the
+import path they would follow does not have.
 
 Recovery now stops at the nearest specifier's published name. `Public` stays
 `Public`, a rename of it (`import type {Public as R}`) resolves one hop to
