@@ -5,12 +5,13 @@ import { createAnalysisProgram } from '$lib/typescript-program.ts';
 import { detectReactivity, extractSignatureParameters } from '$lib/typescript-extract-shared.ts';
 import { analyzeExports, analyzeTypescriptModule } from '$lib/typescript-exports.ts';
 import { type Diagnostic, hasErrors, hasWarnings } from '$lib/diagnostics.ts';
+import { AnalyzeResultJson } from '$lib/analyze-core.ts';
 
 import {
 	loadFixtures,
 	createTestProgram,
 	createMultiFileProgram,
-	analyzeFixtureModule
+	analyzeTsFixture
 } from './fixtures/ts/ts-test-helpers.ts';
 import { mockExtractContext, normalizeJson } from './test-helpers.ts';
 import { ModuleFixtureJson, type ModuleFixture } from './fixtures/module-fixture-helpers.ts';
@@ -27,10 +28,11 @@ beforeAll(async () => {
 });
 
 describe('TypeScript helpers (fixture-based)', () => {
-	test('all fixtures extract correctly', () => {
+	test('all fixtures extract correctly', async () => {
 		for (const fixture of fixtures) {
-			// Analyze through the production single-module pipeline
-			const result = analyzeFixtureModule(fixture.input);
+			// Analyze through the production pipeline — single-module capture,
+			// or the whole-envelope capture for multi-file fixtures
+			const result = await analyzeTsFixture(fixture.input, fixture.extraFiles);
 
 			// Compare with expected (normalize to match JSON serialization)
 			assert.deepEqual(
@@ -43,9 +45,14 @@ describe('TypeScript helpers (fixture-based)', () => {
 
 	test('all fixtures have valid structure', () => {
 		for (const fixture of fixtures) {
-			// Validate through the Zod schema — strictly stronger than any
-			// hand-rolled structural check and can't fall behind the data model
-			ModuleFixtureJson.parse(fixture.expected);
+			// Validate through the Zod schemas — strictly stronger than any
+			// hand-rolled structural check and can't fall behind the data model.
+			// Multi-file fixtures capture the AnalyzeResultJson envelope.
+			if (fixture.extraFiles) {
+				AnalyzeResultJson.parse(fixture.expected);
+			} else {
+				ModuleFixtureJson.parse(fixture.expected);
+			}
 		}
 	});
 

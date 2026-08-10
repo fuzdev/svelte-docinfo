@@ -8,6 +8,12 @@
  * diverges (program construction: ts fixtures are self-contained so a
  * `noResolve` program keeps them hermetic and fast, svelte virtuals import
  * `svelte` so they need a real program).
+ *
+ * Multi-file ts fixtures (sibling files beside `input.ts`) capture the
+ * `AnalyzeResultJson` envelope instead — cross-module facts land on more than
+ * one module, so the single-module shape can't hold them. That path lives in
+ * `ts/ts-test-helpers.ts` (`analyzeFixtureProject`); this module stays the
+ * single-module contract.
  */
 
 import type ts from 'typescript';

@@ -1,0 +1,48 @@
+{
+	"modules": [
+		{
+			"path": "dep.ts",
+			"declarations": [
+				{
+					"name": "a",
+					"kind": "variable",
+					"typeSignature": "1",
+					"sourceLine": 1
+				},
+				{
+					"name": "B",
+					"kind": "type",
+					"typeSignature": "B",
+					"sourceLine": 3,
+					"members": [
+						{
+							"name": "c",
+							"kind": "variable",
+							"typeSignature": "number"
+						}
+					]
+				}
+			],
+			"dependents": [
+				"input.ts"
+			]
+		},
+		{
+			"path": "input.ts",
+			"declarations": [
+				{
+					"name": "d",
+					"kind": "variable",
+					"typeSignature": "2",
+					"sourceLine": 3
+				}
+			],
+			"dependencies": [
+				"dep.ts"
+			],
+			"starExports": [
+				"dep.ts"
+			]
+		}
+	]
+}

@@ -1,0 +1,40 @@
+{
+	"modules": [
+		{
+			"path": "dep.ts",
+			"declarations": [
+				{
+					"name": "fn1",
+					"kind": "function",
+					"typeSignature": "(): void",
+					"sourceLine": 3,
+					"returnType": "void"
+				},
+				{
+					"name": "a",
+					"kind": "variable",
+					"typeSignature": "1",
+					"sourceLine": 1
+				}
+			],
+			"dependents": [
+				"input.ts"
+			]
+		},
+		{
+			"path": "input.ts",
+			"declarations": [
+				{
+					"name": "ns",
+					"kind": "namespace",
+					"docComment": "Description 1",
+					"sourceLine": 2,
+					"module": "dep.ts"
+				}
+			],
+			"dependencies": [
+				"dep.ts"
+			]
+		}
+	]
+}

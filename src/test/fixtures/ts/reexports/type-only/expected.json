@@ -1,0 +1,83 @@
+{
+	"modules": [
+		{
+			"path": "dep.ts",
+			"declarations": [
+				{
+					"name": "A",
+					"kind": "type",
+					"typeSignature": "A",
+					"sourceLine": 1,
+					"alsoExportedFrom": [
+						"input.ts"
+					],
+					"members": [
+						{
+							"name": "a",
+							"kind": "variable",
+							"typeSignature": "number"
+						}
+					]
+				},
+				{
+					"name": "B",
+					"kind": "type",
+					"typeSignature": "B",
+					"sourceLine": 3,
+					"alsoExportedFrom": [
+						"input.ts"
+					],
+					"members": [
+						{
+							"name": "b",
+							"kind": "variable",
+							"typeSignature": "string"
+						}
+					]
+				}
+			],
+			"dependents": [
+				"input.ts"
+			]
+		},
+		{
+			"path": "input.ts",
+			"declarations": [
+				{
+					"name": "D",
+					"kind": "type",
+					"typeSignature": "A",
+					"sourceLine": 5,
+					"aliasOf": {
+						"module": "dep.ts",
+						"name": "A"
+					},
+					"members": [
+						{
+							"name": "a",
+							"kind": "variable",
+							"typeSignature": "number"
+						}
+					]
+				}
+			],
+			"dependencies": [
+				"dep.ts"
+			],
+			"reExports": [
+				{
+					"name": "A",
+					"module": "dep.ts",
+					"typeOnly": true,
+					"sourceLine": 1
+				},
+				{
+					"name": "B",
+					"module": "dep.ts",
+					"typeOnly": true,
+					"sourceLine": 3
+				}
+			]
+		}
+	]
+}

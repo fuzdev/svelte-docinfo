@@ -1,0 +1,52 @@
+{
+	"modules": [
+		{
+			"path": "base.ts",
+			"declarations": [
+				{
+					"name": "a",
+					"kind": "variable",
+					"docComment": "Description 1",
+					"typeSignature": "1",
+					"sourceLine": 2,
+					"alsoExportedFrom": [
+						"input.ts",
+						"mid.ts"
+					]
+				}
+			],
+			"dependents": [
+				"mid.ts"
+			]
+		},
+		{
+			"path": "input.ts",
+			"dependencies": [
+				"mid.ts"
+			],
+			"reExports": [
+				{
+					"name": "a",
+					"module": "base.ts",
+					"sourceLine": 1
+				}
+			]
+		},
+		{
+			"path": "mid.ts",
+			"dependencies": [
+				"base.ts"
+			],
+			"dependents": [
+				"input.ts"
+			],
+			"reExports": [
+				{
+					"name": "a",
+					"module": "base.ts",
+					"sourceLine": 1
+				}
+			]
+		}
+	]
+}

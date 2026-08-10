@@ -3,9 +3,10 @@
  * properties into local (kept as `members` / `props`) and external (dropped),
  * and the `externalTypes` labels naming what contributed the dropped ones.
  *
- * A multi-file program is what these need and what the fixture harnesses can't
- * give: `ts` fixtures are single-file, so nothing in one is ever external.
- * Behavior-level coverage lives in the `svelte/types/*` fixtures and
+ * These drive the extractors directly with a synthetic externality predicate,
+ * exercising walk mechanics no baseline can isolate. Behavior-level coverage
+ * lives in the `svelte/types/*` fixtures, the multi-file `ts/types/external-*`
+ * fixtures (real path-based externality via `external/` stubs), and
  * `analyze.props-cross-module.test.ts`.
  */
 

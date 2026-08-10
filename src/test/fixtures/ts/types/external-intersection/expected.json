@@ -1,0 +1,41 @@
+{
+	"modules": [
+		{
+			"path": "input.ts",
+			"declarations": [
+				{
+					"name": "A",
+					"kind": "type",
+					"docComment": "Description 1",
+					"typeSignature": "A",
+					"sourceLine": 4,
+					"externalTypes": [
+						"B"
+					],
+					"typeInfo": {
+						"kind": "intersection",
+						"alias": "A",
+						"members": [
+							{
+								"kind": "reference",
+								"name": "B"
+							},
+							{
+								"kind": "object",
+								"text": "{ a1: string; }"
+							}
+						]
+					},
+					"members": [
+						{
+							"name": "a1",
+							"kind": "variable",
+							"docComment": "Description 2",
+							"typeSignature": "string"
+						}
+					]
+				}
+			]
+		}
+	]
+}

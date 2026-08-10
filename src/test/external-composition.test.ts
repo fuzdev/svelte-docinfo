@@ -5,8 +5,9 @@
  * `externalTypes` attribution that pairs with it, including the heritage walk
  * on interfaces and classes.
  *
- * A multi-file program is what these need and what the fixture harnesses can't
- * give: `ts` fixtures are single-file, so nothing in one is ever external.
+ * These drive the extractors directly with a synthetic externality predicate,
+ * exercising shapes no baseline can isolate (multi-file `ts/types/external-*`
+ * fixtures carry the behavior-level locks with real path-based externality).
  * `external-properties.test.ts` covers the label walk's descent mechanics;
  * this file locks the membership/attribution contract across declaration
  * kinds.
