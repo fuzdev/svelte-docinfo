@@ -104,11 +104,11 @@
 				</li>
 				<li>
 					<code>"class"</code>: adds <code>members</code>, <code>extends</code>,
-					<code>implements</code>
+					<code>implements</code>, <code>externalTypes</code>
 				</li>
 				<li>
 					<code>"interface"</code>: adds <code>members</code>, <code>extends</code>,
-					<code>mergedValue</code>
+					<code>externalTypes</code>, <code>mergedValue</code>
 				</li>
 				<li>
 					<code>"type"</code>: adds <code>members</code>, <code>externalTypes</code>,

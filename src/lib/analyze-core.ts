@@ -783,8 +783,10 @@ const QUOTED_ABSOLUTE_PATH_RE = /"((?:\/|[A-Za-z]:\/)[^"\n]*)"/g;
 /**
  * Keys holding author-written text or already-relative paths, never printed
  * type text. Skipped by the walk so a doc comment, a raw `defaultValue`, or a
- * written heritage clause (`extends`, `implements`, `externalTypes` — all
- * `getText()` of the written node) can't be rewritten.
+ * written heritage field can't be rewritten — `extends` and `implements` are
+ * `getText()` of the written node, and `externalTypes` is written text with
+ * identifier-scoped splices (rename resolution, type-parameter substitution),
+ * never a checker print.
  *
  * A denylist rather than an allowlist of type-bearing keys, deliberately: the
  * failure this pass exists to prevent is a *missed* type field, so it should

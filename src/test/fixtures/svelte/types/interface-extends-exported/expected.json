@@ -1,0 +1,42 @@
+{
+	"path": "TypesInterfaceExtendsExported.svelte",
+	"declarations": [
+		{
+			"name": "TypesInterfaceExtendsExported",
+			"kind": "component",
+			"sourceLine": 11,
+			"externalTypes": [
+				"HTMLButtonAttributes"
+			],
+			"props": [
+				{
+					"name": "label",
+					"type": "string",
+					"description": "Description 1"
+				}
+			],
+			"acceptsChildren": true
+		},
+		{
+			"name": "ExportedButtonProps",
+			"kind": "interface",
+			"docComment": "Exported for reuse by wrappers.",
+			"typeSignature": "ExportedButtonProps",
+			"sourceLine": 5,
+			"extends": [
+				"HTMLButtonAttributes"
+			],
+			"externalTypes": [
+				"HTMLButtonAttributes"
+			],
+			"members": [
+				{
+					"name": "label",
+					"kind": "variable",
+					"docComment": "Description 1",
+					"typeSignature": "string"
+				}
+			]
+		}
+	]
+}

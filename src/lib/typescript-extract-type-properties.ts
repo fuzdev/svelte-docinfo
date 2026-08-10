@@ -25,23 +25,24 @@ import { resolveTypeInfo } from './typescript-extract-type-json.ts';
 import { type IsExternalFile } from './typescript-program.ts';
 import {
 	emitCallOrConstructSignature,
-	filterExternalProperties,
+	filterDocumentedProperties,
 	getNodeLocation,
-	isExternalIntersectionBranch,
+	isExternalIndexInfo,
+	isExternalSignature,
 	populatePropertyMember,
-	resolveIntersectionTypeNode,
 	type ExtractContext
 } from './typescript-extract-shared.ts';
 
 /**
  * Check whether a resolved type has properties worth extracting for documentation.
  *
- * Returns `true` for object-like types (object literals, intersections, mapped types,
- * type references, function types). Returns `false` for types where `getProperties()`
- * would return prototype methods or ambiguous results (unions, primitives, tuples,
- * generic type references like `Array<T>`).
+ * Returns `true` for object-like types (object literals, intersections, mapped
+ * types, project-local generic instantiations, function types). Returns `false`
+ * for types where `getProperties()` would return prototype methods or ambiguous
+ * results (unions, primitives, tuples, lib/external generic references like
+ * `Array<T>`, `Promise<T>`).
  */
-const hasExtractableProperties = (type: ts.Type): boolean => {
+const hasExtractableProperties = (type: ts.Type, isExternalFile: IsExternalFile): boolean => {
 	// Intersections: checker merges properties from all branches
 	if (type.isIntersection()) return true;
 
@@ -56,56 +57,54 @@ const hasExtractableProperties = (type: ts.Type): boolean => {
 	// Tuples give array prototype methods — not useful
 	if (objFlags & ts.ObjectFlags.Tuple) return false;
 
-	// Generic type references (Array<T>, Promise<T>, Set<T>) give prototype methods.
-	// Mapped types can also have Reference when instantiated (Partial<T>, Pick<T,K>),
-	// so allow Reference when Mapped is also set.
-	if (objFlags & ts.ObjectFlags.Reference && !(objFlags & ts.ObjectFlags.Mapped)) return false;
+	// Generic type references give prototype methods when the target is a lib
+	// or external type (Array<T>, Promise<T>, Set<T>) — but an instantiation of
+	// a *project-local* generic interface or class is the author's own shape,
+	// with instantiated members worth documenting. Mapped types can also have
+	// Reference when instantiated (Partial<T>, Pick<T,K>), so Reference is
+	// allowed when Mapped is also set.
+	if (objFlags & ts.ObjectFlags.Reference && !(objFlags & ts.ObjectFlags.Mapped)) {
+		const targetDecls = (type as ts.TypeReference).target.symbol?.getDeclarations();
+		return !!targetDecls?.length && targetDecls.every((d) => !isExternalFile(d.getSourceFile()));
+	}
 
 	return true;
 };
 
 /**
- * Get the index info for a type, filtering out external branches in intersections.
+ * Get the index info for a type, dropping external contributions by
+ * declaration origin.
  *
- * For non-intersection types, this delegates to `checker.getIndexInfoOfType`.
- * For intersections, it walks each branch and returns the index info from the
- * first local branch (skipping branches whose declarations are all in external
- * files). Without this filtering, `getIndexInfoOfType` on the merged type would
- * surface index signatures contributed only by external branches like
- * `HTMLAttributes<HTMLDivElement>`, which is wrong for a library's own type.
+ * The rule matches the per-property membership test: an index signature whose
+ * declaration lives in an external file is dropped — at a bare root
+ * (`type P = ExtIndexOnly`), through local inheritance (`LocalBase extends
+ * ExtIndex`, whose inherited info preserves the external declaration), and in
+ * intersections alike — while a declaration-less info is kept (fail-open: the
+ * checker synthesizes those for mapped-type instantiations like
+ * `Record<string, X>` and `Partial<Indexed>`, whose content flows from the
+ * written site).
+ *
+ * Intersections are tested per constituent rather than on the merged info —
+ * merging two same-kind signatures loses the declaration, and the first local
+ * constituent's own info is the one the author's branch contributes. Multiple
+ * local constituents with same-kind signatures keep the first (conservative;
+ * exceedingly rare in practice).
  *
  * The info carries the signature's `declaration` beside its type, so the
  * emitter can feed the written annotation to `typeInfo` name recovery.
- *
- * The "first local branch" simplification is conservative: multiple local
- * branches contributing index signatures of the same kind would normally be
- * intersected by the checker, but the merged result can also pull in external
- * contributions through inheritance — so we prefer the simpler local path. This
- * case is exceedingly rare in practice.
  */
 const extractLocalIndexInfo = (
 	nodeType: ts.Type,
-	typeNode: ts.Node,
 	checker: ts.TypeChecker,
 	isExternalFile: IsExternalFile,
 	indexKind: ts.IndexKind
 ): ts.IndexInfo | undefined => {
-	if (!nodeType.isIntersection()) {
-		return checker.getIndexInfoOfType(nodeType, indexKind);
-	}
-
-	const intersectionNode = resolveIntersectionTypeNode(nodeType, typeNode);
-	if (!intersectionNode) {
-		// Cannot determine branches — fall back to merged type. Conservative:
-		// preserves prior behavior for the rare synthesized-intersection case.
-		return checker.getIndexInfoOfType(nodeType, indexKind);
-	}
-
-	for (const branch of intersectionNode.types) {
-		if (isExternalIntersectionBranch(branch, checker, isExternalFile)) continue;
-		const branchType = checker.getTypeAtLocation(branch);
-		const branchInfo = checker.getIndexInfoOfType(branchType, indexKind);
-		if (branchInfo) return branchInfo;
+	// one candidate for a plain type, one per constituent for an intersection —
+	// the same "first local info wins" rule either way
+	const candidates = nodeType.isIntersection() ? nodeType.types : [nodeType];
+	for (const candidate of candidates) {
+		const info = checker.getIndexInfoOfType(candidate, indexKind);
+		if (info && !isExternalIndexInfo(info, isExternalFile)) return info;
 	}
 	return undefined;
 };
@@ -132,13 +131,7 @@ const emitLocalIndexSignature = (
 	const { checker, diagnostics } = ctx;
 	const indexKind = kind === 'string' ? ts.IndexKind.String : ts.IndexKind.Number;
 	try {
-		const indexInfo = extractLocalIndexInfo(
-			nodeType,
-			node.type,
-			checker,
-			ctx.isExternalFile,
-			indexKind
-		);
+		const indexInfo = extractLocalIndexInfo(nodeType, checker, ctx.isExternalFile, indexKind);
 		if (indexInfo) {
 			const member: MemberJsonBuild = {
 				name: `[key: ${kind}]`,
@@ -210,16 +203,16 @@ export const extractTypeAliasProperties = (
 	declaration: DeclarationJsonBuild,
 	ctx: ExtractContext
 ): void => {
-	if (!hasExtractableProperties(nodeType)) return;
+	if (!hasExtractableProperties(nodeType, ctx.isExternalFile)) return;
 	const { checker, isExternalFile } = ctx;
 
 	// Drop properties contributed by external types (node_modules / declaration
 	// files) and surface those external types in the `externalTypes` field. Applies
 	// to the property-bearing shapes that pass `hasExtractableProperties` above —
 	// intersections, bare references, indexed-access. Unions are gated out here
-	// (the Svelte prop path calls `filterExternalProperties` directly, so unions
+	// (the Svelte prop path calls `filterDocumentedProperties` directly, so unions
 	// still surface `externalTypes` there, just not for plain type aliases).
-	const { properties: filteredProperties, externalTypes } = filterExternalProperties(
+	const { properties: filteredProperties, externalTypes } = filterDocumentedProperties(
 		nodeType,
 		node.type,
 		checker,
@@ -301,13 +294,17 @@ export const extractTypeAliasProperties = (
 	emitLocalIndexSignature(declaration, nodeType, node, ctx, 'string');
 	emitLocalIndexSignature(declaration, nodeType, node, ctx, 'number');
 
-	// Extract call and construct signatures. TSDoc resolves through the
-	// signature's own declaration — for type aliases, that's typically the
-	// inline call/construct signature node the user wrote.
+	// Extract call and construct signatures, dropping external contributions by
+	// declaration origin like properties and index signatures — an external
+	// branch's `(call)` belongs in `externalTypes`, not in `members`. TSDoc
+	// resolves through the signature's own declaration — for type aliases,
+	// that's typically the inline call/construct signature node the user wrote.
 	const errorContext = { node, kindLabel: 'type' };
+	const localOnly = (sigs: ReadonlyArray<ts.Signature>): ReadonlyArray<ts.Signature> =>
+		sigs.filter((sig) => !isExternalSignature(sig, isExternalFile));
 
 	emitCallOrConstructSignature(
-		() => nodeType.getCallSignatures(),
+		() => localOnly(nodeType.getCallSignatures()),
 		'call',
 		(sig) => sig.getDeclaration(),
 		node,
@@ -317,7 +314,7 @@ export const extractTypeAliasProperties = (
 	);
 
 	emitCallOrConstructSignature(
-		() => nodeType.getConstructSignatures(),
+		() => localOnly(nodeType.getConstructSignatures()),
 		'construct',
 		(sig) => sig.getDeclaration(),
 		node,

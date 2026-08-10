@@ -20,10 +20,12 @@ import { to_error_message } from './error.ts';
 import { parseComment, applyToDeclaration } from './tsdoc.ts';
 import { resolveTypeInfo } from './typescript-extract-type-json.ts';
 import {
+	applyHeritageExternalTypes,
 	detectReactivity,
 	extractModifiers,
 	getNodeLocation,
 	getTypeSignature,
+	isPrivateMemberDeclaration,
 	memberNameText,
 	parseGenericParam,
 	populateCallableMember,
@@ -54,6 +56,11 @@ export const extractClassInfo = (
 		);
 		if (extendsClause?.types[0]) {
 			declaration.extends = extendsClause.types[0].getText();
+			// members are own-only, so external content inherited through the
+			// extends chain is never enumerated — record its contributors like the
+			// interface path does. `implements` adds no members and contributes
+			// nothing here
+			applyHeritageExternalTypes(declaration, [extendsClause.types[0]], ctx);
 		}
 
 		declaration.implements = node.heritageClauses
@@ -84,15 +91,9 @@ export const extractClassInfo = (
 				: (memberNameText(member.name) ?? member.name.getText());
 			if (!memberName) continue;
 
-			// Skip private fields (those starting with #)
-			if (memberName.startsWith('#')) continue;
-
-			// Skip private members - protected members are part of the extension API
-			const modifiers = ts.getModifiers(member);
-			if (modifiers) {
-				const isPrivate = modifiers.some((m) => m.kind === ts.SyntaxKind.PrivateKeyword);
-				if (isPrivate) continue;
-			}
+			// `#` fields and `private` members are the class's own business —
+			// protected stays, as part of the extension API
+			if (isPrivateMemberDeclaration(member)) continue;
 
 			// Skip duplicate overload declarations — only process first occurrence
 			if (isConstructor) {
@@ -118,8 +119,7 @@ export const extractClassInfo = (
 				memberDeclaration.optional = true;
 			}
 
-			// Extract modifiers (reuse already-extracted modifiers array)
-			const modifierFlags = extractModifiers(modifiers);
+			const modifierFlags = extractModifiers(ts.getModifiers(member));
 			if (modifierFlags.length > 0) {
 				memberDeclaration.modifiers = modifierFlags;
 			}
@@ -219,12 +219,7 @@ export const extractClassInfo = (
 			const accessorName = memberNameText(member.name) ?? member.name.getText();
 			if (!accessorName) continue;
 
-			// Skip private accessors - protected are part of the extension API
-			const modifiers = ts.getModifiers(member);
-			if (modifiers) {
-				const isPrivate = modifiers.some((m) => m.kind === ts.SyntaxKind.PrivateKeyword);
-				if (isPrivate) continue;
-			}
+			if (isPrivateMemberDeclaration(member)) continue;
 
 			const existing = accessors.get(accessorName) ?? { getter: null, setter: null };
 			if (ts.isGetAccessor(member)) {

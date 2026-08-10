@@ -168,13 +168,16 @@ export interface AProps extends B {
 			assert.deepEqual(component.externalTypes, ['Bag']);
 
 			// the interface's own `extends` is verbatim own-clause text, so it
-			// keeps the local spelling — the two fields answer different
-			// questions, and only the descent crosses the module boundary
+			// keeps the local spelling — while its `externalTypes` runs the same
+			// heritage descent as the component's and resolves the rename, so
+			// both declarations answer "what external bag does this compose"
+			// identically
 			const iface = modules
 				.find((m) => m.path === 'types.ts')
 				?.declarations.find((d) => d.name === 'AProps');
 			assert(iface?.kind === 'interface');
 			assert.deepEqual(iface.extends, ['B']);
+			assert.deepEqual(iface.externalTypes, ['Bag']);
 		});
 	});
 
