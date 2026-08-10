@@ -1,0 +1,14 @@
+{
+	"path": "TypesBareRenamedImport.svelte",
+	"declarations": [
+		{
+			"name": "TypesBareRenamedImport",
+			"kind": "component",
+			"sourceLine": 1,
+			"externalTypes": [
+				"SvelteHTMLElements['li']"
+			],
+			"acceptsChildren": true
+		}
+	]
+}
