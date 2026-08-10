@@ -2,12 +2,12 @@
 'svelte-docinfo': patch
 ---
 
-fix: `intersects` records external types reached through `interface Props extends Bag`
+fix: `externalTypes` records external types reached through `interface Props extends Bag`
 
 Inherited properties from an external attribute bag are filtered out of a
 component's `props` (and a type alias's `members`) whichever way the author
 composes them, but only the inline `Bag & {…}` form was recorded in
-`intersects` — the `extends` form left no trace, so a consumer could not
+`externalTypes` — the `extends` form left no trace, so a consumer could not
 render "also accepts button attributes". `interface Props extends
 HTMLButtonAttributes` now records `HTMLButtonAttributes` exactly like
 `type Props = HTMLButtonAttributes & {…}`. Multiple heritage entries each
@@ -41,3 +41,9 @@ recovery degrades to the nearest enclosing well-formed name
 (`A<HTMLDivElement>` when every property is external) or to no entry. A type
 parameter in scope at the annotation site — a generic component's own — still
 emits, beside the `genericParams` that document it.
+
+The descent terminates two ways: a path-scoped seen-set for cycles, and a
+depth bound of 10 declaration boundaries (matching the alias registry's
+containment walk) for a long acyclic chain of distinct local aliases. Past the
+bound the reference in hand is treated as untraversable and names itself, the
+same degradation a mapped or conditional definition gets.

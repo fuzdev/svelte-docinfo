@@ -159,7 +159,7 @@ let {label} = $props();
 		});
 	});
 
-	test('component with intersects propagates intersects through the alias', async () => {
+	test('component with externalTypes propagates externalTypes through the alias', async () => {
 		const files = {
 			'types.d.ts': `export interface A { extra: string; }`,
 			'src/lib/Foo.svelte': `<script lang="ts">
@@ -180,9 +180,9 @@ let {label, ...rest}: {label: string} & A = $props();
 			assert.ok(canonical);
 			assert.strictEqual(canonical.kind, 'component');
 			if (canonical.kind === 'component') {
-				// Sanity: external A's `extra` property is filtered out, A itself appears in intersects
+				// Sanity: external A's `extra` property is filtered out, A itself appears in externalTypes
 				assert.deepStrictEqual(canonical.props.map((p) => p.name).sort(), ['label']);
-				assert.deepStrictEqual(canonical.intersects, ['A']);
+				assert.deepStrictEqual(canonical.externalTypes, ['A']);
 			}
 
 			const renamed = modules
@@ -191,7 +191,7 @@ let {label, ...rest}: {label: string} & A = $props();
 			assert.ok(renamed);
 			assert.strictEqual(renamed.kind, 'component');
 			if (renamed.kind === 'component') {
-				assert.deepStrictEqual(renamed.intersects, ['A']);
+				assert.deepStrictEqual(renamed.externalTypes, ['A']);
 				assert.deepStrictEqual(renamed.props.map((p) => p.name).sort(), ['label']);
 			}
 		});

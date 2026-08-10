@@ -45,7 +45,7 @@ import { extractTypeAliasProperties } from './typescript-extract-type-properties
  * @param node - the declaration AST node
  * @param declaration - the declaration to populate
  * @param ctx - the extraction pass's context
- * @mutates declaration - adds typeSignature, genericParams, extends, intersects, members (and `partial: true` on extraction failure)
+ * @mutates declaration - adds typeSignature, genericParams, extends, externalTypes, members (and `partial: true` on extraction failure)
  * @mutates ctx.diagnostics - adds `type_extraction_failed` / `signature_analysis_failed` diagnostics on checker errors
  */
 export const extractTypeInfo = (

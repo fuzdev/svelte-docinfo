@@ -5,7 +5,7 @@
 			"name": "TypesUnionHtml",
 			"kind": "component",
 			"sourceLine": 1,
-			"intersects": [
+			"externalTypes": [
 				"SvelteHTMLElements['h1']",
 				"SvelteHTMLElements['h2']"
 			],

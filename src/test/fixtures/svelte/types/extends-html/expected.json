@@ -5,7 +5,7 @@
 			"name": "TypesExtendsHtml",
 			"kind": "component",
 			"sourceLine": 1,
-			"intersects": [
+			"externalTypes": [
 				"SvelteHTMLElements['button']"
 			],
 			"props": [

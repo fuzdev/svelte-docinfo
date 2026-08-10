@@ -1,8 +1,8 @@
 {
-	"path": "TypesInterfaceExtendsLocal.svelte",
+	"path": "TypesInterfaceExtendsRenamedImport.svelte",
 	"declarations": [
 		{
-			"name": "TypesInterfaceExtendsLocal",
+			"name": "TypesInterfaceExtendsRenamedImport",
 			"kind": "component",
 			"sourceLine": 1,
 			"externalTypes": [
@@ -12,12 +12,12 @@
 				{
 					"name": "prop1",
 					"type": "string",
-					"optional": true,
 					"description": "Description 1"
 				},
 				{
 					"name": "prop2",
 					"type": "number",
+					"optional": true,
 					"description": "Description 2"
 				}
 			],

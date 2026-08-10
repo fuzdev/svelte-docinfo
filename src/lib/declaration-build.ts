@@ -98,7 +98,7 @@ export interface DeclarationJsonBuild {
 	since?: string;
 	mutates?: Record<string, string>;
 	extends?: string | Array<string>;
-	intersects?: Array<string>;
+	externalTypes?: Array<string>;
 	implements?: Array<string>;
 	members?: Array<MemberJsonBuild>;
 	props?: Array<ComponentPropJsonInput>;

@@ -1,12 +1,12 @@
 {
-	"path": "TypesInterfaceExtendsGenericBaseOnly.svelte",
+	"path": "TypesIntersectionRenamedImport.svelte",
 	"declarations": [
 		{
-			"name": "TypesInterfaceExtendsGenericBaseOnly",
+			"name": "TypesIntersectionRenamedImport",
 			"kind": "component",
 			"sourceLine": 1,
 			"externalTypes": [
-				"A<HTMLDivElement>"
+				"HTMLAttributes<HTMLDivElement>"
 			],
 			"props": [
 				{

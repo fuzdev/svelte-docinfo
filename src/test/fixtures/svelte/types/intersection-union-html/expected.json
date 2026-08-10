@@ -5,7 +5,7 @@
 			"name": "TypesIntersectionUnionHtml",
 			"kind": "component",
 			"sourceLine": 1,
-			"intersects": [
+			"externalTypes": [
 				"SvelteHTMLElements['div']",
 				"SvelteHTMLElements['span']"
 			],

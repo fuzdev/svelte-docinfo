@@ -783,7 +783,7 @@ const QUOTED_ABSOLUTE_PATH_RE = /"((?:\/|[A-Za-z]:\/)[^"\n]*)"/g;
 /**
  * Keys holding author-written text or already-relative paths, never printed
  * type text. Skipped by the walk so a doc comment, a raw `defaultValue`, or a
- * written heritage clause (`extends`, `implements`, `intersects` — all
+ * written heritage clause (`extends`, `implements`, `externalTypes` — all
  * `getText()` of the written node) can't be rewritten.
  *
  * A denylist rather than an allowlist of type-bearing keys, deliberately: the
@@ -802,9 +802,9 @@ const NON_TYPE_TEXT_KEYS: ReadonlySet<string> = new Set([
 	'examples',
 	'extends',
 	'externalStarExports',
+	'externalTypes',
 	'implements',
 	'internalMessage',
-	'intersects',
 	'module',
 	'moduleComment',
 	'mutates',

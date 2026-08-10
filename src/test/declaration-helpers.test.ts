@@ -662,12 +662,12 @@ describe('compactReplacer', () => {
 							}
 						]
 					},
-					// TypeDeclarationJson — intersects, members
+					// TypeDeclarationJson — externalTypes, members
 					{
 						name: 'T1',
 						kind: 'type',
 						typeSignature: '{a: string} & External',
-						intersects: ['External'],
+						externalTypes: ['External'],
 						members: [{ name: 'a', kind: 'variable', typeSignature: 'string', optional: false }]
 					},
 					// VariableDeclarationJson — reactivity, plus a typeInfo tree with a
@@ -694,13 +694,13 @@ describe('compactReplacer', () => {
 							{ name: 'B', kind: 'variable', optional: false }
 						]
 					},
-					// ComponentDeclarationJson — props, acceptsChildren, lang, intersects
+					// ComponentDeclarationJson — props, acceptsChildren, lang, externalTypes
 					{
 						name: 'C',
 						kind: 'component',
 						lang: 'js',
 						acceptsChildren: true,
-						intersects: ['HTMLAttributes<HTMLDivElement>'],
+						externalTypes: ['HTMLAttributes<HTMLDivElement>'],
 						props: [
 							{ name: 'value', type: 'string', description: 'Description' },
 							{

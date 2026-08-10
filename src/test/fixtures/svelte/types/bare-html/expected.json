@@ -5,7 +5,7 @@
 			"name": "TypesBareHtml",
 			"kind": "component",
 			"sourceLine": 1,
-			"intersects": [
+			"externalTypes": [
 				"SvelteHTMLElements['li']"
 			],
 			"acceptsChildren": true

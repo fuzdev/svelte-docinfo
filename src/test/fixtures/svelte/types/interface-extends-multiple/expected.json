@@ -5,7 +5,7 @@
 			"name": "TypesInterfaceExtendsMultiple",
 			"kind": "component",
 			"sourceLine": 1,
-			"intersects": [
+			"externalTypes": [
 				"AriaAttributes",
 				"DOMAttributes<HTMLDivElement>"
 			],
