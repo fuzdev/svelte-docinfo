@@ -1,37 +1,42 @@
 {
-	"name": "fn",
-	"kind": "function",
-	"docComment": "Description 1",
-	"typeSignature": "(a: string): string",
-	"sourceLine": 2,
-	"parameters": [
+	"path": "input.ts",
+	"declarations": [
 		{
-			"name": "a",
-			"type": "string"
-		}
-	],
-	"overloads": [
-		{
+			"name": "fn",
+			"kind": "function",
+			"docComment": "Description 1",
 			"typeSignature": "(a: string): string",
+			"sourceLine": 2,
 			"parameters": [
 				{
 					"name": "a",
 					"type": "string"
 				}
 			],
-			"returnType": "string",
-			"docComment": "Description 1"
-		},
-		{
-			"typeSignature": "(a: number): number",
-			"parameters": [
+			"overloads": [
 				{
-					"name": "a",
-					"type": "number"
+					"typeSignature": "(a: string): string",
+					"parameters": [
+						{
+							"name": "a",
+							"type": "string"
+						}
+					],
+					"returnType": "string",
+					"docComment": "Description 1"
+				},
+				{
+					"typeSignature": "(a: number): number",
+					"parameters": [
+						{
+							"name": "a",
+							"type": "number"
+						}
+					],
+					"returnType": "number"
 				}
 			],
-			"returnType": "number"
+			"returnType": "string"
 		}
-	],
-	"returnType": "string"
+	]
 }

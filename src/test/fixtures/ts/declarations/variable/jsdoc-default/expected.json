@@ -1,8 +1,13 @@
 {
-	"name": "max_retries",
-	"kind": "variable",
-	"docComment": "Maximum number of retries before giving up.",
-	"typeSignature": "number",
-	"sourceLine": 5,
-	"defaultValue": "3"
+	"path": "input.ts",
+	"declarations": [
+		{
+			"name": "max_retries",
+			"kind": "variable",
+			"docComment": "Maximum number of retries before giving up.",
+			"typeSignature": "number",
+			"sourceLine": 5,
+			"defaultValue": "3"
+		}
+	]
 }

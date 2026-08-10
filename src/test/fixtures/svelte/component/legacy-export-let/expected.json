@@ -1,8 +1,26 @@
-[
-	{
-		"name": "ComponentLegacyExportLet",
-		"kind": "component",
-		"docComment": "Description.",
-		"sourceLine": 14
-	}
-]
+{
+	"path": "ComponentLegacyExportLet.svelte",
+	"declarations": [
+		{
+			"name": "ComponentLegacyExportLet",
+			"kind": "component",
+			"docComment": "Description.",
+			"sourceLine": 14
+		}
+	],
+	"diagnostics": [
+		{
+			"kind": "legacy_props",
+			"file": "ComponentLegacyExportLet.svelte",
+			"line": 16,
+			"message": "Component \"ComponentLegacyExportLet\" declares props with legacy export let syntax (prop1, prop2, prop3). Legacy props are not extracted — migrate to $props().",
+			"severity": "warning",
+			"componentName": "ComponentLegacyExportLet",
+			"propNames": [
+				"prop1",
+				"prop2",
+				"prop3"
+			]
+		}
+	]
+}

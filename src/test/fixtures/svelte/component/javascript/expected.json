@@ -1,15 +1,18 @@
-[
-	{
-		"name": "ComponentJavascript",
-		"kind": "component",
-		"lang": "js",
-		"props": [
-			{
-				"name": "prop1",
-				"type": "any"
-			}
-		],
-		"docComment": "Description.",
-		"sourceLine": 6
-	}
-]
+{
+	"path": "ComponentJavascript.svelte",
+	"declarations": [
+		{
+			"name": "ComponentJavascript",
+			"kind": "component",
+			"docComment": "Description.",
+			"sourceLine": 6,
+			"props": [
+				{
+					"name": "prop1",
+					"type": "any"
+				}
+			],
+			"lang": "js"
+		}
+	]
+}

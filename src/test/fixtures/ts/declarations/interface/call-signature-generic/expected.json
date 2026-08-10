@@ -1,68 +1,73 @@
 {
-	"name": "A",
-	"kind": "interface",
-	"docComment": "An interface with generic call signatures.",
-	"typeSignature": "A",
-	"sourceLine": 4,
-	"members": [
+	"path": "input.ts",
+	"declarations": [
 		{
-			"name": "(call)",
-			"kind": "function",
-			"docComment": "Description 1",
-			"typeSignature": "<T>(a: T): T",
-			"genericParams": [
+			"name": "A",
+			"kind": "interface",
+			"docComment": "An interface with generic call signatures.",
+			"typeSignature": "A",
+			"sourceLine": 4,
+			"members": [
 				{
-					"name": "T"
-				}
-			],
-			"parameters": [
-				{
-					"name": "a",
-					"type": "T"
-				}
-			],
-			"overloads": [
-				{
+					"name": "(call)",
+					"kind": "function",
+					"docComment": "Description 1",
 					"typeSignature": "<T>(a: T): T",
+					"genericParams": [
+						{
+							"name": "T"
+						}
+					],
 					"parameters": [
 						{
 							"name": "a",
 							"type": "T"
 						}
 					],
-					"returnType": "T",
-					"genericParams": [
+					"overloads": [
 						{
-							"name": "T"
-						}
-					],
-					"docComment": "Description 1"
-				},
-				{
-					"typeSignature": "<T, U>(a: T, b: U): [T, U]",
-					"parameters": [
-						{
-							"name": "a",
-							"type": "T"
+							"typeSignature": "<T>(a: T): T",
+							"parameters": [
+								{
+									"name": "a",
+									"type": "T"
+								}
+							],
+							"returnType": "T",
+							"genericParams": [
+								{
+									"name": "T"
+								}
+							],
+							"docComment": "Description 1"
 						},
 						{
-							"name": "b",
-							"type": "U"
+							"typeSignature": "<T, U>(a: T, b: U): [T, U]",
+							"parameters": [
+								{
+									"name": "a",
+									"type": "T"
+								},
+								{
+									"name": "b",
+									"type": "U"
+								}
+							],
+							"returnType": "[T, U]",
+							"genericParams": [
+								{
+									"name": "T"
+								},
+								{
+									"name": "U"
+								}
+							],
+							"docComment": "Description 2"
 						}
 					],
-					"returnType": "[T, U]",
-					"genericParams": [
-						{
-							"name": "T"
-						},
-						{
-							"name": "U"
-						}
-					],
-					"docComment": "Description 2"
+					"returnType": "T"
 				}
-			],
-			"returnType": "T"
+			]
 		}
 	]
 }

@@ -1,38 +1,43 @@
 {
-	"name": "A",
-	"kind": "type",
-	"docComment": "Description 1.",
-	"typeSignature": "A",
-	"sourceLine": 4,
-	"members": [
+	"path": "input.ts",
+	"declarations": [
 		{
-			"name": "a",
-			"kind": "variable",
-			"typeSignature": "string"
-		},
-		{
-			"name": "fn",
-			"kind": "function",
-			"typeSignature": "(a: number): void",
-			"parameters": [
+			"name": "A",
+			"kind": "type",
+			"docComment": "Description 1.",
+			"typeSignature": "A",
+			"sourceLine": 4,
+			"members": [
 				{
 					"name": "a",
-					"type": "number"
-				}
-			],
-			"returnType": "void"
-		},
-		{
-			"name": "fn2",
-			"kind": "function",
-			"typeSignature": "(a: string): boolean",
-			"parameters": [
+					"kind": "variable",
+					"typeSignature": "string"
+				},
 				{
-					"name": "a",
-					"type": "string"
+					"name": "fn",
+					"kind": "function",
+					"typeSignature": "(a: number): void",
+					"parameters": [
+						{
+							"name": "a",
+							"type": "number"
+						}
+					],
+					"returnType": "void"
+				},
+				{
+					"name": "fn2",
+					"kind": "function",
+					"typeSignature": "(a: string): boolean",
+					"parameters": [
+						{
+							"name": "a",
+							"type": "string"
+						}
+					],
+					"returnType": "boolean"
 				}
-			],
-			"returnType": "boolean"
+			]
 		}
 	]
 }

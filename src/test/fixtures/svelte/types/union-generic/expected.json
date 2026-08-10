@@ -1,12 +1,15 @@
-[
-	{
-		"name": "TypesUnionGeneric",
-		"kind": "component",
-		"intersects": [
-			"HTMLButtonAttributes",
-			"HTMLAnchorAttributes"
-		],
-		"acceptsChildren": true,
-		"sourceLine": 1
-	}
-]
+{
+	"path": "TypesUnionGeneric.svelte",
+	"declarations": [
+		{
+			"name": "TypesUnionGeneric",
+			"kind": "component",
+			"sourceLine": 1,
+			"intersects": [
+				"HTMLButtonAttributes",
+				"HTMLAnchorAttributes"
+			],
+			"acceptsChildren": true
+		}
+	]
+}

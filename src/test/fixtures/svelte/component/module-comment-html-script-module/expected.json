@@ -1,19 +1,23 @@
-[
-	{
-		"name": "ComponentModuleCommentHtmlScriptModule",
-		"kind": "component",
-		"props": [
-			{
-				"name": "prop1",
-				"type": "string"
-			}
-		],
-		"sourceLine": 10
-	},
-	{
-		"name": "HELPER",
-		"kind": "variable",
-		"sourceLine": 7,
-		"typeSignature": "\"value\""
-	}
-]
+{
+	"path": "ComponentModuleCommentHtmlScriptModule.svelte",
+	"declarations": [
+		{
+			"name": "ComponentModuleCommentHtmlScriptModule",
+			"kind": "component",
+			"sourceLine": 10,
+			"props": [
+				{
+					"name": "prop1",
+					"type": "string"
+				}
+			]
+		},
+		{
+			"name": "HELPER",
+			"kind": "variable",
+			"typeSignature": "\"value\"",
+			"sourceLine": 7
+		}
+	],
+	"moduleComment": "HTML module docs."
+}

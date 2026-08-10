@@ -1,19 +1,22 @@
-[
-	{
-		"name": "ComponentExportedSnippet",
-		"kind": "component",
-		"sourceLine": 3
-	},
-	{
-		"name": "greet",
-		"kind": "snippet",
-		"sourceLine": 5,
-		"typeSignature": "Snippet<[a: string]>",
-		"parameters": [
-			{
-				"name": "a",
-				"type": "string"
-			}
-		]
-	}
-]
+{
+	"path": "ComponentExportedSnippet.svelte",
+	"declarations": [
+		{
+			"name": "ComponentExportedSnippet",
+			"kind": "component",
+			"sourceLine": 3
+		},
+		{
+			"name": "greet",
+			"kind": "snippet",
+			"typeSignature": "Snippet<[a: string]>",
+			"sourceLine": 5,
+			"parameters": [
+				{
+					"name": "a",
+					"type": "string"
+				}
+			]
+		}
+	]
+}

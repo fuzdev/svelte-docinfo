@@ -1,35 +1,40 @@
 {
-	"name": "A",
-	"kind": "class",
-	"sourceLine": 11,
-	"extends": "B",
-	"members": [
+	"path": "input.ts",
+	"declarations": [
 		{
-			"name": "b",
-			"kind": "variable",
-			"typeSignature": "number"
-		},
-		{
-			"name": "constructor",
-			"kind": "constructor",
-			"typeSignature": "(a: string, b: number): A",
-			"parameters": [
-				{
-					"name": "a",
-					"type": "string"
-				},
+			"name": "A",
+			"kind": "class",
+			"sourceLine": 11,
+			"extends": "B",
+			"members": [
 				{
 					"name": "b",
-					"type": "number"
+					"kind": "variable",
+					"typeSignature": "number"
+				},
+				{
+					"name": "constructor",
+					"kind": "constructor",
+					"typeSignature": "(a: string, b: number): A",
+					"parameters": [
+						{
+							"name": "a",
+							"type": "string"
+						},
+						{
+							"name": "b",
+							"type": "number"
+						}
+					]
+				},
+				{
+					"name": "fn1",
+					"kind": "function",
+					"docComment": "Description 1",
+					"typeSignature": "(): string",
+					"returnType": "string"
 				}
 			]
-		},
-		{
-			"name": "fn1",
-			"kind": "function",
-			"docComment": "Description 1",
-			"typeSignature": "(): string",
-			"returnType": "string"
 		}
 	]
 }

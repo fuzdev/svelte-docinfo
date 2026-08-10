@@ -1,22 +1,20 @@
 import type ts from 'typescript';
 
-import { DeclarationJson, type DeclarationJsonInput } from '$lib/types.ts';
 import type { SvelteVirtualFile } from '$lib/svelte.ts';
+import { createAnalysisProgram } from '$lib/typescript-program.ts';
 import { buildAliasRegistry } from '$lib/typescript-alias-registry.ts';
 import type { AliasRegistry } from '$lib/typescript-extract-type-json.ts';
+import type { SourceFileInfo } from '$lib/source.ts';
 
 import { loadFixturesGeneric } from '../../test-helpers.ts';
-
-export interface SvelteFixture {
-	name: string;
-	input: string;
-	/**
-	 * All non-nodocs declarations from the module output, in wire (Input)
-	 * shape — fixtures are written through `compactReplacer` so defaulted
-	 * fields (`.default([])`, `.default(false)`) are stripped on disk.
-	 */
-	expected: Array<DeclarationJsonInput>;
-}
+import { testSourceOptions, transformOrThrow } from '../../test-module-helpers.ts';
+import {
+	captureModuleFixture,
+	fixtureFileId,
+	type ModuleFixture,
+	type ModuleFixtureJson,
+	type ModuleFixtureJsonInput
+} from '../module-fixture-helpers.ts';
 
 /**
  * Convert a fixture name to a component name.
@@ -41,8 +39,9 @@ export const fixtureNameToComponentName = (name: string): string => {
 /**
  * The svelte harness's twin of `analyzeCore`'s registry pre-pass: build the
  * alias registry over a set of transformed fixtures, reached through their
- * virtuals in `program`. `svelte.test.ts` and the update task must wire
- * identically or fixtures drift from regeneration — both call this.
+ * virtuals in `program`. For tests driving `analyzeSvelteModule` directly —
+ * the fixture pipeline itself (`analyzeSvelteFixtureModules`) goes through
+ * `analyzeCore`, which runs the pre-pass internally.
  */
 export const buildSvelteFixtureRegistry = (
 	program: ts.Program,
@@ -57,32 +56,55 @@ export const buildSvelteFixtureRegistry = (
 	);
 
 /**
- * Load all fixtures from the svelte fixtures directory.
+ * Analyze a set of svelte fixture inputs through the production pipeline (see
+ * `captureModuleFixture`) over one shared program — much faster than
+ * per-fixture programs, and svelte virtuals need a real one so their `svelte`
+ * imports resolve.
+ *
+ * Each fixture analyzes under a component-named id in the repo's `src/lib`
+ * (the file never exists on disk — content is supplied and only the virtual
+ * enters the program), so `analyzeCore` derives the module path
+ * (`PropsBasic.svelte`) and resolution runs against the repo's node_modules.
+ *
+ * Used identically by `svelte.test.ts` and the update task so fixtures can't
+ * drift from regeneration; results are index-aligned with `inputs`, each
+ * exactly what `expected.json` captures.
  */
-export const loadFixtures = async (): Promise<Array<SvelteFixture>> => {
-	return loadFixturesGeneric<Array<DeclarationJsonInput>>({
-		fixturesDir: import.meta.dirname,
-		inputExtension: '.svelte'
+export const analyzeSvelteFixtureModules = (
+	inputs: ReadonlyArray<{ name: string; input: string }>
+): Array<ModuleFixtureJson> => {
+	const sourceOptions = testSourceOptions();
+	const entries = inputs.map(({ name, input }) => {
+		const sourceFile: SourceFileInfo = {
+			id: fixtureFileId(process.cwd(), `${fixtureNameToComponentName(name)}.svelte`),
+			content: input
+		};
+		return { sourceFile, virtualFile: transformOrThrow(sourceFile) };
+	});
+
+	// Entries carry `scriptKind` so JS-lang fixtures parse as JS (JSDoc types)
+	const program = createAnalysisProgram({
+		virtualFiles: new Map(entries.map((e) => [e.virtualFile.virtualPath, e.virtualFile]))
+	});
+	// every call sees the whole virtual set (keyed by source id) so the
+	// batch-keyed diagnostic remap covers cross-virtual emissions
+	const virtualsBySourceId = new Map(entries.map((e) => [e.sourceFile.id, e.virtualFile]));
+
+	return entries.map(({ sourceFile }) => {
+		const mod = captureModuleFixture(sourceFile, program, sourceOptions, virtualsBySourceId);
+		if (!mod.declarations.some((d) => d.kind === 'component')) {
+			throw new Error(`No component declaration found for ${mod.path}`);
+		}
+		return mod;
 	});
 };
 
 /**
- * Validate that a fixture's declarations have valid structure.
+ * Load all fixtures from the svelte fixtures directory.
  */
-export const validateDeclarationStructures = (declarations: Array<DeclarationJsonInput>): void => {
-	if (!Array.isArray(declarations) || declarations.length === 0) {
-		throw new Error('Expected declarations to be a non-empty array');
-	}
-
-	// Must contain exactly one component
-	const components = declarations.filter((d) => d.kind === 'component');
-	if (components.length !== 1) {
-		throw new Error(`Expected exactly 1 component declaration, got ${components.length}`);
-	}
-
-	// Validate through the Zod schema — strictly stronger than any hand-rolled
-	// structural check and can't fall behind the data model
-	for (const decl of declarations) {
-		DeclarationJson.parse(decl);
-	}
+export const loadFixtures = async (): Promise<Array<ModuleFixture>> => {
+	return loadFixturesGeneric<ModuleFixtureJsonInput>({
+		fixturesDir: import.meta.dirname,
+		inputExtension: '.svelte'
+	});
 };

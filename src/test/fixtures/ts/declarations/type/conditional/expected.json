@@ -1,16 +1,21 @@
 {
-	"name": "A",
-	"kind": "type",
-	"docComment": "A conditional type.",
-	"typeSignature": "A<T>",
-	"sourceLine": 4,
-	"genericParams": [
+	"path": "input.ts",
+	"declarations": [
 		{
-			"name": "T"
+			"name": "A",
+			"kind": "type",
+			"docComment": "A conditional type.",
+			"typeSignature": "A<T>",
+			"sourceLine": 4,
+			"genericParams": [
+				{
+					"name": "T"
+				}
+			],
+			"typeInfo": {
+				"kind": "other",
+				"text": "T extends string ? \"a\" : \"b\""
+			}
 		}
-	],
-	"typeInfo": {
-		"kind": "other",
-		"text": "T extends string ? \"a\" : \"b\""
-	}
+	]
 }

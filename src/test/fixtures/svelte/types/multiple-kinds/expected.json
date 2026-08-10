@@ -1,76 +1,79 @@
-[
-	{
-		"name": "TypesMultipleKinds",
-		"kind": "component",
-		"props": [
-			{
-				"name": "prop1",
-				"type": "A",
-				"description": "Description 1",
-				"typeInfo": {
-					"kind": "union",
-					"alias": "A",
-					"members": [
-						{
-							"kind": "literal",
-							"value": "a",
-							"text": "\"a\""
-						},
-						{
-							"kind": "literal",
-							"value": "b",
-							"text": "\"b\""
-						},
-						{
-							"kind": "literal",
-							"value": "c",
-							"text": "\"c\""
-						},
-						{
-							"kind": "literal",
-							"value": "d",
-							"text": "\"d\""
-						}
-					]
+{
+	"path": "TypesMultipleKinds.svelte",
+	"declarations": [
+		{
+			"name": "TypesMultipleKinds",
+			"kind": "component",
+			"sourceLine": 1,
+			"props": [
+				{
+					"name": "prop1",
+					"type": "A",
+					"typeInfo": {
+						"kind": "union",
+						"alias": "A",
+						"members": [
+							{
+								"kind": "literal",
+								"value": "a",
+								"text": "\"a\""
+							},
+							{
+								"kind": "literal",
+								"value": "b",
+								"text": "\"b\""
+							},
+							{
+								"kind": "literal",
+								"value": "c",
+								"text": "\"c\""
+							},
+							{
+								"kind": "literal",
+								"value": "d",
+								"text": "\"d\""
+							}
+						]
+					},
+					"description": "Description 1"
+				},
+				{
+					"name": "prop2",
+					"type": "B | null",
+					"typeInfo": {
+						"kind": "union",
+						"members": [
+							{
+								"kind": "reference",
+								"name": "B"
+							},
+							{
+								"kind": "intrinsic",
+								"text": "null"
+							}
+						]
+					},
+					"description": "Description 2"
+				},
+				{
+					"name": "prop3",
+					"type": "(event: MouseEvent) => void",
+					"optional": true,
+					"description": "Description 3"
+				},
+				{
+					"name": "prop4",
+					"type": "Snippet<[]>",
+					"optional": true,
+					"description": "Description 4"
+				},
+				{
+					"name": "prop5",
+					"type": "string[]",
+					"optional": true,
+					"description": "Description 5"
 				}
-			},
-			{
-				"name": "prop2",
-				"type": "B | null",
-				"description": "Description 2",
-				"typeInfo": {
-					"kind": "union",
-					"members": [
-						{
-							"kind": "reference",
-							"name": "B"
-						},
-						{
-							"kind": "intrinsic",
-							"text": "null"
-						}
-					]
-				}
-			},
-			{
-				"name": "prop3",
-				"type": "(event: MouseEvent) => void",
-				"optional": true,
-				"description": "Description 3"
-			},
-			{
-				"name": "prop4",
-				"type": "Snippet<[]>",
-				"optional": true,
-				"description": "Description 4"
-			},
-			{
-				"name": "prop5",
-				"type": "string[]",
-				"optional": true,
-				"description": "Description 5"
-			}
-		],
-		"sourceLine": 1
-	}
-]
+			]
+		}
+	]
+}

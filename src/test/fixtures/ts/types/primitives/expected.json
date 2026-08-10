@@ -1,44 +1,49 @@
 {
-	"name": "A",
-	"kind": "type",
-	"docComment": "All primitive types.",
-	"typeSignature": "A",
-	"sourceLine": 4,
-	"members": [
+	"path": "input.ts",
+	"declarations": [
 		{
-			"name": "a",
-			"kind": "variable",
-			"typeSignature": "string"
-		},
-		{
-			"name": "b",
-			"kind": "variable",
-			"typeSignature": "number"
-		},
-		{
-			"name": "c",
-			"kind": "variable",
-			"typeSignature": "boolean"
-		},
-		{
-			"name": "d",
-			"kind": "variable",
-			"typeSignature": "null"
-		},
-		{
-			"name": "e",
-			"kind": "variable",
-			"typeSignature": "undefined"
-		},
-		{
-			"name": "f",
-			"kind": "variable",
-			"typeSignature": "symbol"
-		},
-		{
-			"name": "g",
-			"kind": "variable",
-			"typeSignature": "bigint"
+			"name": "A",
+			"kind": "type",
+			"docComment": "All primitive types.",
+			"typeSignature": "A",
+			"sourceLine": 4,
+			"members": [
+				{
+					"name": "a",
+					"kind": "variable",
+					"typeSignature": "string"
+				},
+				{
+					"name": "b",
+					"kind": "variable",
+					"typeSignature": "number"
+				},
+				{
+					"name": "c",
+					"kind": "variable",
+					"typeSignature": "boolean"
+				},
+				{
+					"name": "d",
+					"kind": "variable",
+					"typeSignature": "null"
+				},
+				{
+					"name": "e",
+					"kind": "variable",
+					"typeSignature": "undefined"
+				},
+				{
+					"name": "f",
+					"kind": "variable",
+					"typeSignature": "symbol"
+				},
+				{
+					"name": "g",
+					"kind": "variable",
+					"typeSignature": "bigint"
+				}
+			]
 		}
 	]
 }

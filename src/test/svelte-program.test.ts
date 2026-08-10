@@ -22,6 +22,7 @@ import {
 	assertHasComponentDeclaration,
 	assertHasProps
 } from './test-helpers.ts';
+import { transformOrThrow } from './test-module-helpers.ts';
 
 /** Create source file infos from a files map, filtering to analyzable types. */
 const createSourceFiles = (
@@ -160,8 +161,7 @@ let {color}: {color: Color} = $props();
 			const virtualFiles = new Map<string, SvelteVirtualFile>();
 			for (const sf of sourceFiles) {
 				if (sf.id.endsWith('.svelte')) {
-					const { virtual } = transformSvelteSource(sf);
-					if (!virtual) throw new Error(`transform failed for ${sf.id}`);
+					const virtual = transformOrThrow(sf);
 					virtualFiles.set(virtual.virtualPath, virtual);
 				}
 			}

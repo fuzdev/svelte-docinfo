@@ -1,19 +1,22 @@
-[
-	{
-		"name": "TypesTuple",
-		"kind": "component",
-		"props": [
-			{
-				"name": "coordinates",
-				"type": "[number, number]",
-				"description": "Description 1"
-			},
-			{
-				"name": "rgb",
-				"type": "[number, number, number]",
-				"description": "Description 2"
-			}
-		],
-		"sourceLine": 1
-	}
-]
+{
+	"path": "TypesTuple.svelte",
+	"declarations": [
+		{
+			"name": "TypesTuple",
+			"kind": "component",
+			"sourceLine": 1,
+			"props": [
+				{
+					"name": "coordinates",
+					"type": "[number, number]",
+					"description": "Description 1"
+				},
+				{
+					"name": "rgb",
+					"type": "[number, number, number]",
+					"description": "Description 2"
+				}
+			]
+		}
+	]
+}

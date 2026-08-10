@@ -1,1 +1,12 @@
-"Module-level documentation that appears after imports.\n\nThis is a common pattern in real TypeScript projects."
+{
+	"path": "input.ts",
+	"declarations": [
+		{
+			"name": "a",
+			"kind": "variable",
+			"typeSignature": "any",
+			"sourceLine": 11
+		}
+	],
+	"moduleComment": "Module-level documentation that appears after imports.\n\nThis is a common pattern in real TypeScript projects."
+}

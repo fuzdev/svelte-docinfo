@@ -1,26 +1,31 @@
 {
-	"name": "A",
-	"kind": "class",
-	"docComment": "A class with getter and setter properties.",
-	"sourceLine": 4,
-	"members": [
+	"path": "input.ts",
+	"declarations": [
 		{
-			"name": "a",
-			"kind": "variable",
-			"docComment": "Description 1",
-			"typeSignature": "string",
-			"modifiers": [
-				"getter",
-				"setter"
-			]
-		},
-		{
-			"name": "b",
-			"kind": "variable",
-			"docComment": "Description 3",
-			"typeSignature": "number",
-			"modifiers": [
-				"getter"
+			"name": "A",
+			"kind": "class",
+			"docComment": "A class with getter and setter properties.",
+			"sourceLine": 4,
+			"members": [
+				{
+					"name": "a",
+					"kind": "variable",
+					"docComment": "Description 1",
+					"typeSignature": "string",
+					"modifiers": [
+						"getter",
+						"setter"
+					]
+				},
+				{
+					"name": "b",
+					"kind": "variable",
+					"docComment": "Description 3",
+					"typeSignature": "number",
+					"modifiers": [
+						"getter"
+					]
+				}
 			]
 		}
 	]

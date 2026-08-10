@@ -1,48 +1,51 @@
-[
-	{
-		"name": "TypesSnippetGeneric",
-		"kind": "component",
-		"props": [
-			{
-				"name": "data",
-				"type": "T[]",
-				"description": "Description 1"
-			},
-			{
-				"name": "row",
-				"type": "Snippet<[d: T]>",
-				"description": "Description 2",
-				"typeInfo": {
-					"kind": "reference",
-					"name": "Snippet",
-					"typeArgs": [
-						{
-							"kind": "tuple",
-							"elements": [
-								{
-									"name": "d",
-									"type": {
-										"kind": "other",
-										"text": "T"
+{
+	"path": "TypesSnippetGeneric.svelte",
+	"declarations": [
+		{
+			"name": "TypesSnippetGeneric",
+			"kind": "component",
+			"sourceLine": 1,
+			"genericParams": [
+				{
+					"name": "T"
+				}
+			],
+			"props": [
+				{
+					"name": "data",
+					"type": "T[]",
+					"description": "Description 1"
+				},
+				{
+					"name": "row",
+					"type": "Snippet<[d: T]>",
+					"typeInfo": {
+						"kind": "reference",
+						"name": "Snippet",
+						"typeArgs": [
+							{
+								"kind": "tuple",
+								"elements": [
+									{
+										"name": "d",
+										"type": {
+											"kind": "other",
+											"text": "T"
+										}
 									}
-								}
-							]
+								]
+							}
+						]
+					},
+					"description": "Description 2",
+					"parameters": [
+						{
+							"name": "d",
+							"type": "T"
 						}
 					]
-				},
-				"parameters": [
-					{
-						"name": "d",
-						"type": "T"
-					}
-				]
-			}
-		],
-		"genericParams": [
-			{
-				"name": "T"
-			}
-		],
-		"sourceLine": 1
-	}
-]
+				}
+			]
+		}
+	]
+}

@@ -143,6 +143,20 @@ export const SVELTE_VIRTUAL_SUFFIX = '.__svelte2tsx__.ts';
 export const stripVirtualSuffix = (path: string): string =>
 	path.endsWith(SVELTE_VIRTUAL_SUFFIX) ? path.slice(0, -SVELTE_VIRTUAL_SUFFIX.length) : path;
 
+/** Whether a path names a svelte2tsx virtual file (carries `SVELTE_VIRTUAL_SUFFIX`). */
+export const isSvelteVirtualPath = (path: string): boolean => path.endsWith(SVELTE_VIRTUAL_SUFFIX);
+
+/**
+ * Remove every occurrence of the virtual suffix from free-form text.
+ *
+ * The text twin of `stripVirtualSuffix`: that one strips a path's trailing
+ * suffix, this one scrubs a prose string (a diagnostic `message`) that may
+ * embed virtual paths anywhere. Both readings of the suffix live here so a
+ * suffix change has one home.
+ */
+export const scrubVirtualSuffixes = (text: string): string =>
+	text.includes(SVELTE_VIRTUAL_SUFFIX) ? text.split(SVELTE_VIRTUAL_SUFFIX).join('') : text;
+
 /**
  * Suffix svelte2tsx appends to the synthesized component const/type alias
  * (`<Name>__SvelteComponent_`). One of the generated-identifier shapes
@@ -154,11 +168,22 @@ export const SVELTE_COMPONENT_ALIAS_SUFFIX = '__SvelteComponent_';
  * Whether a symbol name is an internal svelte2tsx identifier — a generated
  * name that must not appear in documentation output: `$$ComponentProps`,
  * `$$render`, `__sveltets_Render`, and the synthesized component class/type
- * alias `<ComponentName>__SvelteComponent_`. The one filter shared by the
- * Svelte export walk (`analyzeSvelteModule`) and the alias-registry pre-pass
- * (`buildAliasRegistry`), which both iterate a virtual's export table.
+ * alias `<ComponentName>__SvelteComponent_`. Building block for
+ * `isSvelte2tsxGeneratedExport`, which adds the `default` slot.
  */
 export const isSvelte2tsxInternal = (name: string): boolean =>
 	name.startsWith('$$') ||
 	name.startsWith('__sveltets_') ||
 	name.endsWith(SVELTE_COMPONENT_ALIAS_SUFFIX);
+
+/**
+ * Whether an export name from a svelte2tsx virtual is generated machinery
+ * rather than an author declaration: the `default` slot (svelte2tsx's own
+ * component export — the component declaration is synthesized separately)
+ * plus every `isSvelte2tsxInternal` shape. The one rule shared by the Svelte
+ * export filter (`analyzeSvelteModule`), the alias-registry pre-pass skip,
+ * and `warnAliasLost`'s virtual guard — only meaningful for names read off a
+ * virtual's export table (a plain TS module's `default` export is real).
+ */
+export const isSvelte2tsxGeneratedExport = (name: string): boolean =>
+	name === 'default' || isSvelte2tsxInternal(name);

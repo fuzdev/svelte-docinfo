@@ -1,50 +1,53 @@
-[
-	{
-		"name": "PropsDefaultNull",
-		"kind": "component",
-		"props": [
-			{
-				"name": "prop1",
-				"type": "A",
-				"optional": true,
-				"description": "Description 1",
-				"defaultValue": "null",
-				"typeInfo": {
-					"kind": "union",
-					"alias": "A",
-					"members": [
-						{
-							"kind": "object",
-							"text": "{ a: string; }"
-						},
-						{
-							"kind": "intrinsic",
-							"text": "null"
-						}
-					]
+{
+	"path": "PropsDefaultNull.svelte",
+	"declarations": [
+		{
+			"name": "PropsDefaultNull",
+			"kind": "component",
+			"sourceLine": 1,
+			"props": [
+				{
+					"name": "prop1",
+					"type": "A",
+					"typeInfo": {
+						"kind": "union",
+						"alias": "A",
+						"members": [
+							{
+								"kind": "object",
+								"text": "{ a: string; }"
+							},
+							{
+								"kind": "intrinsic",
+								"text": "null"
+							}
+						]
+					},
+					"optional": true,
+					"description": "Description 1",
+					"defaultValue": "null"
+				},
+				{
+					"name": "prop2",
+					"type": "A",
+					"typeInfo": {
+						"kind": "union",
+						"alias": "A",
+						"members": [
+							{
+								"kind": "object",
+								"text": "{ a: string; }"
+							},
+							{
+								"kind": "intrinsic",
+								"text": "null"
+							}
+						]
+					},
+					"optional": true,
+					"description": "Description 2"
 				}
-			},
-			{
-				"name": "prop2",
-				"type": "A",
-				"optional": true,
-				"description": "Description 2",
-				"typeInfo": {
-					"kind": "union",
-					"alias": "A",
-					"members": [
-						{
-							"kind": "object",
-							"text": "{ a: string; }"
-						},
-						{
-							"kind": "intrinsic",
-							"text": "null"
-						}
-					]
-				}
-			}
-		],
-		"sourceLine": 1
-	}
-]
+			]
+		}
+	]
+}

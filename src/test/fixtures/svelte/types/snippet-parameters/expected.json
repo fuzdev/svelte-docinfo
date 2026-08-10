@@ -1,79 +1,82 @@
-[
-	{
-		"name": "TypesSnippetParameters",
-		"kind": "component",
-		"props": [
-			{
-				"name": "content",
-				"type": "Snippet<[text: string, index: number]>",
-				"description": "Description 1",
-				"typeInfo": {
-					"kind": "reference",
-					"name": "Snippet",
-					"typeArgs": [
-						{
-							"kind": "tuple",
-							"elements": [
-								{
-									"name": "text",
-									"type": {
-										"kind": "intrinsic",
-										"text": "string"
+{
+	"path": "TypesSnippetParameters.svelte",
+	"declarations": [
+		{
+			"name": "TypesSnippetParameters",
+			"kind": "component",
+			"sourceLine": 1,
+			"props": [
+				{
+					"name": "content",
+					"type": "Snippet<[text: string, index: number]>",
+					"typeInfo": {
+						"kind": "reference",
+						"name": "Snippet",
+						"typeArgs": [
+							{
+								"kind": "tuple",
+								"elements": [
+									{
+										"name": "text",
+										"type": {
+											"kind": "intrinsic",
+											"text": "string"
+										}
+									},
+									{
+										"name": "index",
+										"type": {
+											"kind": "intrinsic",
+											"text": "number"
+										}
 									}
-								},
-								{
-									"name": "index",
-									"type": {
-										"kind": "intrinsic",
-										"text": "number"
-									}
-								}
-							]
-						}
-					]
-				},
-				"parameters": [
-					{
-						"name": "text",
-						"type": "string"
+								]
+							}
+						]
 					},
-					{
-						"name": "index",
-						"type": "number"
-					}
-				]
-			},
-			{
-				"name": "header",
-				"type": "Snippet<[title: string]>",
-				"optional": true,
-				"description": "Description 2",
-				"typeInfo": {
-					"kind": "reference",
-					"name": "Snippet",
-					"typeArgs": [
+					"description": "Description 1",
+					"parameters": [
 						{
-							"kind": "tuple",
-							"elements": [
-								{
-									"name": "title",
-									"type": {
-										"kind": "intrinsic",
-										"text": "string"
-									}
-								}
-							]
+							"name": "text",
+							"type": "string"
+						},
+						{
+							"name": "index",
+							"type": "number"
 						}
 					]
 				},
-				"parameters": [
-					{
-						"name": "title",
-						"type": "string"
-					}
-				]
-			}
-		],
-		"sourceLine": 1
-	}
-]
+				{
+					"name": "header",
+					"type": "Snippet<[title: string]>",
+					"typeInfo": {
+						"kind": "reference",
+						"name": "Snippet",
+						"typeArgs": [
+							{
+								"kind": "tuple",
+								"elements": [
+									{
+										"name": "title",
+										"type": {
+											"kind": "intrinsic",
+											"text": "string"
+										}
+									}
+								]
+							}
+						]
+					},
+					"optional": true,
+					"description": "Description 2",
+					"parameters": [
+						{
+							"name": "title",
+							"type": "string"
+						}
+					]
+				}
+			]
+		}
+	]
+}

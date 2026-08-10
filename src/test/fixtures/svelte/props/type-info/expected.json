@@ -1,140 +1,143 @@
-[
-	{
-		"name": "PropsTypeInfo",
-		"kind": "component",
-		"props": [
-			{
-				"name": "a",
-				"type": "A",
-				"optional": true,
-				"description": "Description 1",
-				"defaultValue": "'b'",
-				"typeInfo": {
-					"kind": "union",
-					"alias": "A",
-					"members": [
-						{
-							"kind": "literal",
-							"value": "a",
-							"text": "\"a\""
-						},
-						{
-							"kind": "literal",
-							"value": "b",
-							"text": "\"b\""
-						},
-						{
-							"kind": "literal",
-							"value": "c",
-							"text": "\"c\""
-						}
-					]
-				}
-			},
-			{
-				"name": "b",
-				"type": "Map<string, B>",
-				"typeInfo": {
-					"kind": "reference",
-					"name": "Map",
-					"typeArgs": [
-						{
-							"kind": "intrinsic",
-							"text": "string"
-						},
-						{
+{
+	"path": "PropsTypeInfo.svelte",
+	"declarations": [
+		{
+			"name": "PropsTypeInfo",
+			"kind": "component",
+			"sourceLine": 1,
+			"props": [
+				{
+					"name": "a",
+					"type": "A",
+					"typeInfo": {
+						"kind": "union",
+						"alias": "A",
+						"members": [
+							{
+								"kind": "literal",
+								"value": "a",
+								"text": "\"a\""
+							},
+							{
+								"kind": "literal",
+								"value": "b",
+								"text": "\"b\""
+							},
+							{
+								"kind": "literal",
+								"value": "c",
+								"text": "\"c\""
+							}
+						]
+					},
+					"optional": true,
+					"description": "Description 1",
+					"defaultValue": "'b'"
+				},
+				{
+					"name": "b",
+					"type": "Map<string, B>",
+					"typeInfo": {
+						"kind": "reference",
+						"name": "Map",
+						"typeArgs": [
+							{
+								"kind": "intrinsic",
+								"text": "string"
+							},
+							{
+								"kind": "reference",
+								"name": "B"
+							}
+						]
+					}
+				},
+				{
+					"name": "c",
+					"type": "B[]",
+					"typeInfo": {
+						"kind": "array",
+						"element": {
 							"kind": "reference",
 							"name": "B"
 						}
-					]
-				}
-			},
-			{
-				"name": "c",
-				"type": "B[]",
-				"optional": true,
-				"typeInfo": {
-					"kind": "array",
-					"element": {
-						"kind": "reference",
-						"name": "B"
-					}
-				}
-			},
-			{
-				"name": "d",
-				"type": "\"a\" | \"b\" | null",
-				"typeInfo": {
-					"kind": "union",
-					"members": [
-						{
-							"kind": "literal",
-							"value": "a",
-							"text": "\"a\""
-						},
-						{
-							"kind": "literal",
-							"value": "b",
-							"text": "\"b\""
-						},
-						{
-							"kind": "intrinsic",
-							"text": "null"
-						}
-					]
-				}
-			},
-			{
-				"name": "e",
-				"type": "boolean",
-				"optional": true,
-				"defaultValue": "false"
-			},
-			{
-				"name": "f",
-				"type": "string"
-			},
-			{
-				"name": "g",
-				"type": "Snippet<[b: B, i: number]>",
-				"optional": true,
-				"typeInfo": {
-					"kind": "reference",
-					"name": "Snippet",
-					"typeArgs": [
-						{
-							"kind": "tuple",
-							"elements": [
-								{
-									"name": "b",
-									"type": {
-										"kind": "reference",
-										"name": "B"
-									}
-								},
-								{
-									"name": "i",
-									"type": {
-										"kind": "intrinsic",
-										"text": "number"
-									}
-								}
-							]
-						}
-					]
-				},
-				"parameters": [
-					{
-						"name": "b",
-						"type": "B"
 					},
-					{
-						"name": "i",
-						"type": "number"
+					"optional": true
+				},
+				{
+					"name": "d",
+					"type": "\"a\" | \"b\" | null",
+					"typeInfo": {
+						"kind": "union",
+						"members": [
+							{
+								"kind": "literal",
+								"value": "a",
+								"text": "\"a\""
+							},
+							{
+								"kind": "literal",
+								"value": "b",
+								"text": "\"b\""
+							},
+							{
+								"kind": "intrinsic",
+								"text": "null"
+							}
+						]
 					}
-				]
-			}
-		],
-		"sourceLine": 1
-	}
-]
+				},
+				{
+					"name": "e",
+					"type": "boolean",
+					"optional": true,
+					"defaultValue": "false"
+				},
+				{
+					"name": "f",
+					"type": "string"
+				},
+				{
+					"name": "g",
+					"type": "Snippet<[b: B, i: number]>",
+					"typeInfo": {
+						"kind": "reference",
+						"name": "Snippet",
+						"typeArgs": [
+							{
+								"kind": "tuple",
+								"elements": [
+									{
+										"name": "b",
+										"type": {
+											"kind": "reference",
+											"name": "B"
+										}
+									},
+									{
+										"name": "i",
+										"type": {
+											"kind": "intrinsic",
+											"text": "number"
+										}
+									}
+								]
+							}
+						]
+					},
+					"optional": true,
+					"parameters": [
+						{
+							"name": "b",
+							"type": "B"
+						},
+						{
+							"name": "i",
+							"type": "number"
+						}
+					]
+				}
+			]
+		}
+	]
+}

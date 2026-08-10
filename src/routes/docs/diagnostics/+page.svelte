@@ -71,7 +71,9 @@
 				</li>
 				<li>
 					<code>line</code>, <code>column</code>: 1-based, optional. Absent when there's no precise
-					AST node (e.g., a module-level skip)
+					AST node (e.g., a module-level skip). Positions from a Svelte
+					<code>&lt;script module&gt;</code> are remapped to the original <code>.svelte</code> source;
+					an unmappable position is dropped rather than published as a line in the svelte2tsx output
 				</li>
 				<li>
 					<code>message</code>: human-readable description. Scrubbed of project-root paths and
@@ -244,9 +246,9 @@
 						<td><code>source_map_failed</code></td>
 						<td>
 							<strong>Trigger:</strong> source map parsing failed for a Svelte virtual file.
-							<strong>Consequence:</strong> analysis continues using virtual positions, so
-							downstream <code>line</code>/<code>column</code> may point into the svelte2tsx output
-							rather than the original <code>.svelte</code> source.
+							<strong>Consequence:</strong> analysis continues without position mapping — query-time
+							diagnostics from the virtual drop <code>line</code>/<code>column</code>, and
+							declaration <code>sourceLine</code>s fall back to virtual positions.
 							<strong>Ingest-time.</strong>
 						</td>
 					</tr>

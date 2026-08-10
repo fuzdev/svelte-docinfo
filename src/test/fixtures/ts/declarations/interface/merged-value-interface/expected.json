@@ -1,20 +1,25 @@
 {
-	"name": "MergedIface",
-	"kind": "interface",
-	"docComment": "Merged const+interface pair — the interface wins.",
-	"typeSignature": "MergedIface",
-	"sourceLine": 5,
-	"members": [
+	"path": "input.ts",
+	"declarations": [
 		{
-			"name": "a",
-			"kind": "variable",
-			"typeSignature": "string"
-		},
-		{
-			"name": "b",
-			"kind": "variable",
-			"typeSignature": "number"
+			"name": "MergedIface",
+			"kind": "interface",
+			"docComment": "Merged const+interface pair — the interface wins.",
+			"typeSignature": "MergedIface",
+			"sourceLine": 5,
+			"members": [
+				{
+					"name": "a",
+					"kind": "variable",
+					"typeSignature": "string"
+				},
+				{
+					"name": "b",
+					"kind": "variable",
+					"typeSignature": "number"
+				}
+			],
+			"mergedValue": true
 		}
-	],
-	"mergedValue": true
+	]
 }

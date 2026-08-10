@@ -1,21 +1,15 @@
 {
-	"name": "A",
-	"kind": "class",
-	"sourceLine": 1,
-	"members": [
+	"path": "input.ts",
+	"declarations": [
 		{
-			"name": "fn1",
-			"kind": "function",
-			"docComment": "Description 1",
-			"typeSignature": "(a: string): string",
-			"parameters": [
+			"name": "A",
+			"kind": "class",
+			"sourceLine": 1,
+			"members": [
 				{
-					"name": "a",
-					"type": "string"
-				}
-			],
-			"overloads": [
-				{
+					"name": "fn1",
+					"kind": "function",
+					"docComment": "Description 1",
 					"typeSignature": "(a: string): string",
 					"parameters": [
 						{
@@ -23,21 +17,32 @@
 							"type": "string"
 						}
 					],
-					"returnType": "string",
-					"docComment": "Description 1"
-				},
-				{
-					"typeSignature": "(a: number): number",
-					"parameters": [
+					"overloads": [
 						{
-							"name": "a",
-							"type": "number"
+							"typeSignature": "(a: string): string",
+							"parameters": [
+								{
+									"name": "a",
+									"type": "string"
+								}
+							],
+							"returnType": "string",
+							"docComment": "Description 1"
+						},
+						{
+							"typeSignature": "(a: number): number",
+							"parameters": [
+								{
+									"name": "a",
+									"type": "number"
+								}
+							],
+							"returnType": "number"
 						}
 					],
-					"returnType": "number"
+					"returnType": "string"
 				}
-			],
-			"returnType": "string"
+			]
 		}
 	]
 }

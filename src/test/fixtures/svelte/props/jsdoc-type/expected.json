@@ -1,68 +1,71 @@
-[
-	{
-		"name": "PropsJsdocType",
-		"kind": "component",
-		"lang": "js",
-		"props": [
-			{
-				"name": "prop1",
-				"type": "boolean",
-				"optional": true,
-				"description": "Description 1",
-				"defaultValue": "true"
-			},
-			{
-				"name": "prop2",
-				"type": "string",
-				"description": "Description 2"
-			},
-			{
-				"name": "prop3",
-				"type": "number",
-				"optional": true,
-				"description": "Description 3",
-				"defaultValue": "1",
-				"bindable": true
-			},
-			{
-				"name": "children",
-				"type": "Snippet<[]>",
-				"optional": true,
-				"description": "Description 4"
-			},
-			{
-				"name": "prop4",
-				"type": "Snippet<[a: string]>",
-				"optional": true,
-				"description": "Description 5",
-				"typeInfo": {
-					"kind": "reference",
-					"name": "Snippet",
-					"typeArgs": [
-						{
-							"kind": "tuple",
-							"elements": [
-								{
-									"name": "a",
-									"type": {
-										"kind": "intrinsic",
-										"text": "string"
+{
+	"path": "PropsJsdocType.svelte",
+	"declarations": [
+		{
+			"name": "PropsJsdocType",
+			"kind": "component",
+			"docComment": "Description.",
+			"sourceLine": 6,
+			"props": [
+				{
+					"name": "prop1",
+					"type": "boolean",
+					"optional": true,
+					"description": "Description 1",
+					"defaultValue": "true"
+				},
+				{
+					"name": "prop2",
+					"type": "string",
+					"description": "Description 2"
+				},
+				{
+					"name": "prop3",
+					"type": "number",
+					"optional": true,
+					"description": "Description 3",
+					"defaultValue": "1",
+					"bindable": true
+				},
+				{
+					"name": "children",
+					"type": "Snippet<[]>",
+					"optional": true,
+					"description": "Description 4"
+				},
+				{
+					"name": "prop4",
+					"type": "Snippet<[a: string]>",
+					"typeInfo": {
+						"kind": "reference",
+						"name": "Snippet",
+						"typeArgs": [
+							{
+								"kind": "tuple",
+								"elements": [
+									{
+										"name": "a",
+										"type": {
+											"kind": "intrinsic",
+											"text": "string"
+										}
 									}
-								}
-							]
+								]
+							}
+						]
+					},
+					"optional": true,
+					"description": "Description 5",
+					"parameters": [
+						{
+							"name": "a",
+							"type": "string"
 						}
 					]
-				},
-				"parameters": [
-					{
-						"name": "a",
-						"type": "string"
-					}
-				]
-			}
-		],
-		"acceptsChildren": true,
-		"docComment": "Description.",
-		"sourceLine": 6
-	}
-]
+				}
+			],
+			"acceptsChildren": true,
+			"lang": "js"
+		}
+	]
+}

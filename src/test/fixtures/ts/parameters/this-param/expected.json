@@ -1,16 +1,21 @@
 {
-	"name": "fn",
-	"kind": "function",
-	"docComment": "A function with this parameter.",
-	"typeSignature": "(this: { value: string; }, a: number): string",
-	"sourceLine": 7,
-	"parameters": [
+	"path": "input.ts",
+	"declarations": [
 		{
-			"name": "a",
-			"type": "number",
-			"description": "Description 1"
+			"name": "fn",
+			"kind": "function",
+			"docComment": "A function with this parameter.",
+			"typeSignature": "(this: { value: string; }, a: number): string",
+			"sourceLine": 7,
+			"parameters": [
+				{
+					"name": "a",
+					"type": "number",
+					"description": "Description 1"
+				}
+			],
+			"returnType": "string",
+			"returnDescription": "Description 2"
 		}
-	],
-	"returnType": "string",
-	"returnDescription": "Description 2"
+	]
 }

@@ -1,28 +1,33 @@
 {
-	"name": "A",
-	"kind": "class",
-	"docComment": "A class with static accessors.",
-	"sourceLine": 4,
-	"members": [
+	"path": "input.ts",
+	"declarations": [
 		{
-			"name": "config",
-			"kind": "variable",
-			"docComment": "Description 1",
-			"typeSignature": "string",
-			"modifiers": [
-				"getter",
-				"setter",
-				"static"
-			]
-		},
-		{
-			"name": "readonly_value",
-			"kind": "variable",
-			"docComment": "Description 3",
-			"typeSignature": "number",
-			"modifiers": [
-				"getter",
-				"static"
+			"name": "A",
+			"kind": "class",
+			"docComment": "A class with static accessors.",
+			"sourceLine": 4,
+			"members": [
+				{
+					"name": "config",
+					"kind": "variable",
+					"docComment": "Description 1",
+					"typeSignature": "string",
+					"modifiers": [
+						"getter",
+						"setter",
+						"static"
+					]
+				},
+				{
+					"name": "readonly_value",
+					"kind": "variable",
+					"docComment": "Description 3",
+					"typeSignature": "number",
+					"modifiers": [
+						"getter",
+						"static"
+					]
+				}
 			]
 		}
 	]

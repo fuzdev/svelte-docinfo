@@ -1,1 +1,12 @@
-"First `@module` comment wins."
+{
+	"path": "input.ts",
+	"declarations": [
+		{
+			"name": "a",
+			"kind": "variable",
+			"typeSignature": "1",
+			"sourceLine": 13
+		}
+	],
+	"moduleComment": "First `@module` comment wins."
+}

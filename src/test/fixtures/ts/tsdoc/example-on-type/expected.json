@@ -1,32 +1,37 @@
 {
-	"name": "A",
-	"kind": "type",
-	"docComment": "Description.",
-	"typeSignature": "A",
-	"sourceLine": 9,
-	"examples": [
-		"const a: A = 'a';",
-		"const b: A = 'b';"
-	],
-	"typeInfo": {
-		"kind": "union",
-		"alias": "A",
-		"members": [
-			{
-				"kind": "literal",
-				"value": "a",
-				"text": "\"a\""
-			},
-			{
-				"kind": "literal",
-				"value": "b",
-				"text": "\"b\""
-			},
-			{
-				"kind": "literal",
-				"value": "c",
-				"text": "\"c\""
+	"path": "input.ts",
+	"declarations": [
+		{
+			"name": "A",
+			"kind": "type",
+			"docComment": "Description.",
+			"typeSignature": "A",
+			"sourceLine": 9,
+			"examples": [
+				"const a: A = 'a';",
+				"const b: A = 'b';"
+			],
+			"typeInfo": {
+				"kind": "union",
+				"alias": "A",
+				"members": [
+					{
+						"kind": "literal",
+						"value": "a",
+						"text": "\"a\""
+					},
+					{
+						"kind": "literal",
+						"value": "b",
+						"text": "\"b\""
+					},
+					{
+						"kind": "literal",
+						"value": "c",
+						"text": "\"c\""
+					}
+				]
 			}
-		]
-	}
+		}
+	]
 }

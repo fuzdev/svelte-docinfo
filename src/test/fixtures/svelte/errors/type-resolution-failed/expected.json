@@ -1,13 +1,16 @@
-[
-	{
-		"name": "ErrorsTypeResolutionFailed",
-		"kind": "component",
-		"props": [
-			{
-				"name": "prop1",
-				"type": "NonExistent"
-			}
-		],
-		"sourceLine": 1
-	}
-]
+{
+	"path": "ErrorsTypeResolutionFailed.svelte",
+	"declarations": [
+		{
+			"name": "ErrorsTypeResolutionFailed",
+			"kind": "component",
+			"sourceLine": 1,
+			"props": [
+				{
+					"name": "prop1",
+					"type": "NonExistent"
+				}
+			]
+		}
+	]
+}

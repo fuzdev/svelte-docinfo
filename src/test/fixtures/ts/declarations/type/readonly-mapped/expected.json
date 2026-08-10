@@ -1,24 +1,29 @@
 {
-	"name": "A",
-	"kind": "type",
-	"docComment": "Description 1.",
-	"typeSignature": "A",
-	"sourceLine": 4,
-	"members": [
+	"path": "input.ts",
+	"declarations": [
 		{
-			"name": "a",
-			"kind": "variable",
-			"typeSignature": "string",
-			"modifiers": [
-				"readonly"
-			]
-		},
-		{
-			"name": "b",
-			"kind": "variable",
-			"typeSignature": "string",
-			"modifiers": [
-				"readonly"
+			"name": "A",
+			"kind": "type",
+			"docComment": "Description 1.",
+			"typeSignature": "A",
+			"sourceLine": 4,
+			"members": [
+				{
+					"name": "a",
+					"kind": "variable",
+					"typeSignature": "string",
+					"modifiers": [
+						"readonly"
+					]
+				},
+				{
+					"name": "b",
+					"kind": "variable",
+					"typeSignature": "string",
+					"modifiers": [
+						"readonly"
+					]
+				}
 			]
 		}
 	]

@@ -1,23 +1,26 @@
-[
-	{
-		"name": "ComponentExportedSnippetAnyParams",
-		"kind": "component",
-		"sourceLine": 3
-	},
-	{
-		"name": "greet",
-		"kind": "snippet",
-		"sourceLine": 5,
-		"typeSignature": "Snippet<[a: any, b: any]>",
-		"parameters": [
-			{
-				"name": "a",
-				"type": "any"
-			},
-			{
-				"name": "b",
-				"type": "any"
-			}
-		]
-	}
-]
+{
+	"path": "ComponentExportedSnippetAnyParams.svelte",
+	"declarations": [
+		{
+			"name": "ComponentExportedSnippetAnyParams",
+			"kind": "component",
+			"sourceLine": 3
+		},
+		{
+			"name": "greet",
+			"kind": "snippet",
+			"typeSignature": "Snippet<[a: any, b: any]>",
+			"sourceLine": 5,
+			"parameters": [
+				{
+					"name": "a",
+					"type": "any"
+				},
+				{
+					"name": "b",
+					"type": "any"
+				}
+			]
+		}
+	]
+}

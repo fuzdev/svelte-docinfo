@@ -1,6 +1,11 @@
 {
-	"name": "A",
-	"kind": "class",
-	"docComment": "Test kind inference for class declarations.",
-	"sourceLine": 4
+	"path": "input.ts",
+	"declarations": [
+		{
+			"name": "A",
+			"kind": "class",
+			"docComment": "Test kind inference for class declarations.",
+			"sourceLine": 4
+		}
+	]
 }

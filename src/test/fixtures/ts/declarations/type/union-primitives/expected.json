@@ -1,21 +1,26 @@
 {
-	"name": "A",
-	"kind": "type",
-	"docComment": "Test kind inference for type aliases.",
-	"typeSignature": "A",
-	"sourceLine": 4,
-	"typeInfo": {
-		"kind": "union",
-		"alias": "A",
-		"members": [
-			{
-				"kind": "intrinsic",
-				"text": "string"
-			},
-			{
-				"kind": "intrinsic",
-				"text": "number"
+	"path": "input.ts",
+	"declarations": [
+		{
+			"name": "A",
+			"kind": "type",
+			"docComment": "Test kind inference for type aliases.",
+			"typeSignature": "A",
+			"sourceLine": 4,
+			"typeInfo": {
+				"kind": "union",
+				"alias": "A",
+				"members": [
+					{
+						"kind": "intrinsic",
+						"text": "string"
+					},
+					{
+						"kind": "intrinsic",
+						"text": "number"
+					}
+				]
 			}
-		]
-	}
+		}
+	]
 }

@@ -1,25 +1,28 @@
-[
-	{
-		"name": "TypesFunctionAdvanced",
-		"kind": "component",
-		"props": [
-			{
-				"name": "fn1",
-				"type": "<T>(value: T) => T",
-				"description": "Description 1"
-			},
-			{
-				"name": "fn2",
-				"type": "(...args: string[]) => void",
-				"description": "Description 2"
-			},
-			{
-				"name": "fn3",
-				"type": "(a: string, b: number, ...rest: boolean[]) => Promise<string>",
-				"optional": true,
-				"description": "Description 3"
-			}
-		],
-		"sourceLine": 1
-	}
-]
+{
+	"path": "TypesFunctionAdvanced.svelte",
+	"declarations": [
+		{
+			"name": "TypesFunctionAdvanced",
+			"kind": "component",
+			"sourceLine": 1,
+			"props": [
+				{
+					"name": "fn1",
+					"type": "<T>(value: T) => T",
+					"description": "Description 1"
+				},
+				{
+					"name": "fn2",
+					"type": "(...args: string[]) => void",
+					"description": "Description 2"
+				},
+				{
+					"name": "fn3",
+					"type": "(a: string, b: number, ...rest: boolean[]) => Promise<string>",
+					"optional": true,
+					"description": "Description 3"
+				}
+			]
+		}
+	]
+}

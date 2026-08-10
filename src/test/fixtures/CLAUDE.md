@@ -173,65 +173,58 @@ src/test/fixtures/svelte/
 Each fixture directory contains:
 
 - `input.svelte` - The Svelte component to analyze
-- `expected.json` - Expected `ComponentDeclarationJson` object
+- `expected.json` - Expected module fixture object (see Expected Output Format)
 
 ### TypeScript Module Fixtures
 
 ```
 src/test/fixtures/ts/declarations/class/generic/
 ├── input.ts           # Input TypeScript module
-└── expected.json      # Expected DeclarationJson output
+└── expected.json      # Expected module fixture object
 ```
 
 - `input.ts` - The TypeScript module to analyze
-- `expected.json` - Expected `DeclarationJson` object (or module comment string for `module/comment/*` fixtures)
+- `expected.json` - Expected module fixture object (see Expected Output Format)
 
 ## Expected Output Format
 
+Both fixture sets capture the **whole module analysis object plus diagnostics**
+— the `ModuleFixtureJson` schema in `src/test/fixtures/module-fixture-helpers.ts` (`ModuleJson`
+extended with a `diagnostics` array). Written through `compactReplacer`, so
+defaulted fields (empty arrays, `false` booleans) are stripped on disk; a
+fixture with no declarations and no comment is just `{"path": "..."}`. Each
+fixture analyzes through `analyzeCore` itself (per fixture, so fixtures stay
+independent projects), which runs the diagnostic boundary passes — positions
+are original-source and paths are machine-independent.
+
 ### Svelte Module Output
 
-`expected.json` is an array of all non-nodocs `DeclarationJson` objects from the module output. The component declaration is always first (primary export), followed by module-level exports (snippets, functions, variables, types).
+`path` is `<ComponentName>.svelte` (PascalCase from the fixture directory).
+`declarations` holds all non-nodocs declarations — the component first (primary
+export), then module-level exports (snippets, functions, variables, types).
+Module comments land in `moduleComment`; analysis warnings (e.g.
+`legacy_props`, `duplicate_comment`) land in `diagnostics`, so fixture edits
+can't drift detection silently.
 
 ```json
-[
-	{
-		"name": "PropsBasic",
-		"kind": "component",
-		"docComment": "Component documentation",
-		"props": [
-			{
-				"name": "prop1",
-				"type": "string",
-				"description": "Description 1"
-			}
-		],
-		"sourceLine": 1
-	}
-]
-```
-
-Fixtures with exported snippets:
-
-```json
-[
-	{
-		"name": "ComponentExportedSnippet",
-		"kind": "component",
-		"sourceLine": 3
-	},
-	{
-		"name": "greet",
-		"kind": "snippet",
-		"sourceLine": 5,
-		"typeSignature": "Snippet<[a: string]>",
-		"parameters": [
-			{
-				"name": "a",
-				"type": "string"
-			}
-		]
-	}
-]
+{
+	"path": "PropsBasic.svelte",
+	"declarations": [
+		{
+			"name": "PropsBasic",
+			"kind": "component",
+			"docComment": "Component documentation",
+			"props": [
+				{
+					"name": "prop1",
+					"type": "string",
+					"description": "Description 1"
+				}
+			],
+			"sourceLine": 1
+		}
+	]
+}
 ```
 
 **Component fields:**
@@ -255,20 +248,30 @@ Fixtures with exported snippets:
 
 ### TypeScript Module Output
 
-`expected.json` matches the `DeclarationJson` interface:
+`path` is always `input.ts` — the harness analyzes each fixture at a synthetic
+`/home/user/project/src/lib/input.ts` (see `analyzeFixtureModule` in
+`ts-test-helpers.ts`), so diagnostic `file` fields read `src/lib/input.ts`.
+All exports are captured, module comments land in `moduleComment` (the
+`module/comment/*` fixtures lock theirs beside any declarations), and a
+declaration in `declarations` matches the `DeclarationJson` interface:
 
 ```json
 {
-	"name": "fn",
-	"kind": "function",
-	"typeSignature": "(a: string, b: number): string",
-	"returnType": "string",
-	"returnDescription": "Description 3",
-	"parameters": [
+	"path": "input.ts",
+	"declarations": [
 		{
-			"name": "a",
-			"type": "string",
-			"description": "Description 1"
+			"name": "fn",
+			"kind": "function",
+			"typeSignature": "(a: string, b: number): string",
+			"returnType": "string",
+			"returnDescription": "Description 3",
+			"parameters": [
+				{
+					"name": "a",
+					"type": "string",
+					"description": "Description 1"
+				}
+			]
 		}
 	]
 }
@@ -298,8 +301,6 @@ Fixtures with exported snippets:
 - `members` - Array of member objects (for interfaces and object-like type aliases)
 - `genericParams` - Array of type parameter objects
 
-**Note:** Module comment fixtures contain just the comment string or `null`.
-
 ## Coverage Checklist
 
 ### Svelte Component Fixtures
@@ -320,7 +321,7 @@ Fixtures with exported snippets:
 - [x] Exported snippets (basic, typed, parameterless, untyped, with function, with props)
 - [x] `acceptsChildren` detection (explicit, inherited, no-children)
 - [x] JS components (JSDoc `@type`/`@typedef` props with descriptions/defaults/bindable/snippets in `props/jsdoc-type`, untyped inference + HTML `@component` doc in `component/javascript`)
-- [x] Legacy `export let` components (zero props + HTML `@component` fallback instead of doc leak, in `component/legacy-export-let`; the `legacy_props` diagnostic is covered by `analyze.legacy-components.test.ts`, and `svelte.test.ts` locks it on this fixture's exact input — the fixture harness itself discards diagnostics)
+- [x] Legacy `export let` components (zero props + HTML `@component` fallback instead of doc leak, in `component/legacy-export-let`; the `legacy_props` diagnostic is locked by that fixture's own `expected.json` — the harness captures diagnostics — with behavior-level coverage in `analyze.legacy-components.test.ts`)
 
 ### TypeScript Module Fixtures
 
@@ -368,6 +369,7 @@ Fixtures with exported snippets:
 - `src/test/svelte.test.ts` - How Svelte fixtures are loaded and validated
 - `src/test/typescript.test.ts` - How TypeScript fixtures are loaded and validated
 - `src/test/tsdoc.test.ts` - How TSDoc fixtures are loaded and validated
+- `src/test/fixtures/module-fixture-helpers.ts` - Shared capture machinery for the ts and svelte harnesses (`ModuleFixtureJson`, `captureModuleFixture`, `validateModuleFixture`)
 - `src/test/fixtures/svelte/svelte-test-helpers.ts` - Svelte fixture loading utilities
 - `src/test/fixtures/ts/ts-test-helpers.ts` - TypeScript fixture loading utilities
 - `src/test/fixtures/tsdoc/tsdoc-test-helpers.ts` - TSDoc fixture loading utilities

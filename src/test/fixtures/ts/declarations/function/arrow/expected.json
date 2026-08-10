@@ -1,21 +1,26 @@
 {
-	"name": "fn",
-	"kind": "function",
-	"docComment": "An arrow function.",
-	"typeSignature": "(a: string, b: number): string",
-	"sourceLine": 8,
-	"parameters": [
+	"path": "input.ts",
+	"declarations": [
 		{
-			"name": "a",
-			"type": "string",
-			"description": "Description 1"
-		},
-		{
-			"name": "b",
-			"type": "number",
-			"description": "Description 2"
+			"name": "fn",
+			"kind": "function",
+			"docComment": "An arrow function.",
+			"typeSignature": "(a: string, b: number): string",
+			"sourceLine": 8,
+			"parameters": [
+				{
+					"name": "a",
+					"type": "string",
+					"description": "Description 1"
+				},
+				{
+					"name": "b",
+					"type": "number",
+					"description": "Description 2"
+				}
+			],
+			"returnType": "string",
+			"returnDescription": "Description 3"
 		}
-	],
-	"returnType": "string",
-	"returnDescription": "Description 3"
+	]
 }

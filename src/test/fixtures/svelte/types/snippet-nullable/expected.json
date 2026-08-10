@@ -1,86 +1,89 @@
-[
-	{
-		"name": "TypesSnippetNullable",
-		"kind": "component",
-		"props": [
-			{
-				"name": "prop1",
-				"type": "Snippet<[a: string]> | null",
-				"description": "Description 1",
-				"typeInfo": {
-					"kind": "union",
-					"members": [
-						{
-							"kind": "reference",
-							"name": "Snippet",
-							"typeArgs": [
-								{
-									"kind": "tuple",
-									"elements": [
-										{
-											"name": "a",
-											"type": {
-												"kind": "intrinsic",
-												"text": "string"
+{
+	"path": "TypesSnippetNullable.svelte",
+	"declarations": [
+		{
+			"name": "TypesSnippetNullable",
+			"kind": "component",
+			"sourceLine": 1,
+			"props": [
+				{
+					"name": "prop1",
+					"type": "Snippet<[a: string]> | null",
+					"typeInfo": {
+						"kind": "union",
+						"members": [
+							{
+								"kind": "reference",
+								"name": "Snippet",
+								"typeArgs": [
+									{
+										"kind": "tuple",
+										"elements": [
+											{
+												"name": "a",
+												"type": {
+													"kind": "intrinsic",
+													"text": "string"
+												}
 											}
-										}
-									]
-								}
-							]
-						},
+										]
+									}
+								]
+							},
+							{
+								"kind": "intrinsic",
+								"text": "null"
+							}
+						]
+					},
+					"description": "Description 1",
+					"parameters": [
 						{
-							"kind": "intrinsic",
-							"text": "null"
+							"name": "a",
+							"type": "string"
 						}
 					]
 				},
-				"parameters": [
-					{
-						"name": "a",
-						"type": "string"
-					}
-				]
-			},
-			{
-				"name": "prop2",
-				"type": "Snippet<[b: string]> | null",
-				"optional": true,
-				"description": "Description 2",
-				"typeInfo": {
-					"kind": "union",
-					"members": [
-						{
-							"kind": "reference",
-							"name": "Snippet",
-							"typeArgs": [
-								{
-									"kind": "tuple",
-									"elements": [
-										{
-											"name": "b",
-											"type": {
-												"kind": "intrinsic",
-												"text": "string"
+				{
+					"name": "prop2",
+					"type": "Snippet<[b: string]> | null",
+					"typeInfo": {
+						"kind": "union",
+						"members": [
+							{
+								"kind": "reference",
+								"name": "Snippet",
+								"typeArgs": [
+									{
+										"kind": "tuple",
+										"elements": [
+											{
+												"name": "b",
+												"type": {
+													"kind": "intrinsic",
+													"text": "string"
+												}
 											}
-										}
-									]
-								}
-							]
-						},
+										]
+									}
+								]
+							},
+							{
+								"kind": "intrinsic",
+								"text": "null"
+							}
+						]
+					},
+					"optional": true,
+					"description": "Description 2",
+					"parameters": [
 						{
-							"kind": "intrinsic",
-							"text": "null"
+							"name": "b",
+							"type": "string"
 						}
 					]
-				},
-				"parameters": [
-					{
-						"name": "b",
-						"type": "string"
-					}
-				]
-			}
-		],
-		"sourceLine": 1
-	}
-]
+				}
+			]
+		}
+	]
+}

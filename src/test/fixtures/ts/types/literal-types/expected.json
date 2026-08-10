@@ -1,29 +1,34 @@
 {
-	"name": "A",
-	"kind": "type",
-	"docComment": "Literal types.",
-	"typeSignature": "A",
-	"sourceLine": 4,
-	"members": [
+	"path": "input.ts",
+	"declarations": [
 		{
-			"name": "a",
-			"kind": "variable",
-			"typeSignature": "\"value\""
-		},
-		{
-			"name": "b",
-			"kind": "variable",
-			"typeSignature": "123"
-		},
-		{
-			"name": "c",
-			"kind": "variable",
-			"typeSignature": "true"
-		},
-		{
-			"name": "d",
-			"kind": "variable",
-			"typeSignature": "false"
+			"name": "A",
+			"kind": "type",
+			"docComment": "Literal types.",
+			"typeSignature": "A",
+			"sourceLine": 4,
+			"members": [
+				{
+					"name": "a",
+					"kind": "variable",
+					"typeSignature": "\"value\""
+				},
+				{
+					"name": "b",
+					"kind": "variable",
+					"typeSignature": "123"
+				},
+				{
+					"name": "c",
+					"kind": "variable",
+					"typeSignature": "true"
+				},
+				{
+					"name": "d",
+					"kind": "variable",
+					"typeSignature": "false"
+				}
+			]
 		}
 	]
 }

@@ -1,16 +1,21 @@
 {
-	"name": "A",
-	"kind": "type",
-	"docComment": "Infer keyword in conditional types.",
-	"typeSignature": "A<T>",
-	"sourceLine": 4,
-	"genericParams": [
+	"path": "input.ts",
+	"declarations": [
 		{
-			"name": "T"
+			"name": "A",
+			"kind": "type",
+			"docComment": "Infer keyword in conditional types.",
+			"typeSignature": "A<T>",
+			"sourceLine": 4,
+			"genericParams": [
+				{
+					"name": "T"
+				}
+			],
+			"typeInfo": {
+				"kind": "other",
+				"text": "T extends Array<infer U> ? U : never"
+			}
 		}
-	],
-	"typeInfo": {
-		"kind": "other",
-		"text": "T extends Array<infer U> ? U : never"
-	}
+	]
 }

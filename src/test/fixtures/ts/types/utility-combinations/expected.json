@@ -1,43 +1,48 @@
 {
-	"name": "A",
-	"kind": "type",
-	"typeSignature": "A",
-	"sourceLine": 6,
-	"members": [
+	"path": "input.ts",
+	"declarations": [
 		{
-			"name": "a",
-			"kind": "variable",
-			"typeSignature": "Pick<B, \"a\" | \"b\">"
-		},
-		{
-			"name": "b",
-			"kind": "variable",
-			"typeSignature": "Omit<B, \"c\">"
-		},
-		{
-			"name": "c",
-			"kind": "variable",
-			"typeSignature": "Partial<B>"
-		},
-		{
-			"name": "d",
-			"kind": "variable",
-			"typeSignature": "Required<Partial<B>>"
-		},
-		{
-			"name": "e",
-			"kind": "variable",
-			"typeSignature": "Readonly<B>"
-		},
-		{
-			"name": "f",
-			"kind": "variable",
-			"typeSignature": "Record<string, number>"
-		},
-		{
-			"name": "g",
-			"kind": "variable",
-			"typeSignature": "Pick<Partial<B>, \"a\">"
+			"name": "A",
+			"kind": "type",
+			"typeSignature": "A",
+			"sourceLine": 6,
+			"members": [
+				{
+					"name": "a",
+					"kind": "variable",
+					"typeSignature": "Pick<B, \"a\" | \"b\">"
+				},
+				{
+					"name": "b",
+					"kind": "variable",
+					"typeSignature": "Omit<B, \"c\">"
+				},
+				{
+					"name": "c",
+					"kind": "variable",
+					"typeSignature": "Partial<B>"
+				},
+				{
+					"name": "d",
+					"kind": "variable",
+					"typeSignature": "Required<Partial<B>>"
+				},
+				{
+					"name": "e",
+					"kind": "variable",
+					"typeSignature": "Readonly<B>"
+				},
+				{
+					"name": "f",
+					"kind": "variable",
+					"typeSignature": "Record<string, number>"
+				},
+				{
+					"name": "g",
+					"kind": "variable",
+					"typeSignature": "Pick<Partial<B>, \"a\">"
+				}
+			]
 		}
 	]
 }

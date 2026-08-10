@@ -1,1 +1,11 @@
-null
+{
+	"path": "input.ts",
+	"declarations": [
+		{
+			"name": "a",
+			"kind": "variable",
+			"typeSignature": "1",
+			"sourceLine": 2
+		}
+	]
+}

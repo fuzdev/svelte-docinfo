@@ -1,24 +1,29 @@
 {
-	"name": "A",
-	"kind": "enum",
-	"docComment": "Description.",
-	"typeSignature": "A",
-	"sourceLine": 5,
-	"members": [
+	"path": "input.ts",
+	"declarations": [
 		{
-			"name": "a",
-			"kind": "variable",
-			"typeSignature": "A.a"
-		},
-		{
-			"name": "b",
-			"kind": "variable",
-			"typeSignature": "A.b"
-		},
-		{
-			"name": "c",
-			"kind": "variable",
-			"typeSignature": "A.c"
+			"name": "A",
+			"kind": "enum",
+			"docComment": "Description.",
+			"typeSignature": "A",
+			"sourceLine": 5,
+			"members": [
+				{
+					"name": "a",
+					"kind": "variable",
+					"typeSignature": "A.a"
+				},
+				{
+					"name": "b",
+					"kind": "variable",
+					"typeSignature": "A.b"
+				},
+				{
+					"name": "c",
+					"kind": "variable",
+					"typeSignature": "A.c"
+				}
+			]
 		}
 	]
 }

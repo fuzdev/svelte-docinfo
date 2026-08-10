@@ -1,23 +1,17 @@
 {
-	"name": "A",
-	"kind": "interface",
-	"docComment": "An interface with construct signatures.",
-	"typeSignature": "A",
-	"sourceLine": 4,
-	"members": [
+	"path": "input.ts",
+	"declarations": [
 		{
-			"name": "(construct)",
-			"kind": "constructor",
-			"docComment": "Description 1",
-			"typeSignature": "(a: string): { b: number; }",
-			"parameters": [
+			"name": "A",
+			"kind": "interface",
+			"docComment": "An interface with construct signatures.",
+			"typeSignature": "A",
+			"sourceLine": 4,
+			"members": [
 				{
-					"name": "a",
-					"type": "string"
-				}
-			],
-			"overloads": [
-				{
+					"name": "(construct)",
+					"kind": "constructor",
+					"docComment": "Description 1",
 					"typeSignature": "(a: string): { b: number; }",
 					"parameters": [
 						{
@@ -25,19 +19,30 @@
 							"type": "string"
 						}
 					],
-					"returnType": "{ b: number; }",
-					"docComment": "Description 1"
-				},
-				{
-					"typeSignature": "(a: number): { b: string; }",
-					"parameters": [
+					"overloads": [
 						{
-							"name": "a",
-							"type": "number"
+							"typeSignature": "(a: string): { b: number; }",
+							"parameters": [
+								{
+									"name": "a",
+									"type": "string"
+								}
+							],
+							"returnType": "{ b: number; }",
+							"docComment": "Description 1"
+						},
+						{
+							"typeSignature": "(a: number): { b: string; }",
+							"parameters": [
+								{
+									"name": "a",
+									"type": "number"
+								}
+							],
+							"returnType": "{ b: string; }",
+							"docComment": "Description 2"
 						}
-					],
-					"returnType": "{ b: string; }",
-					"docComment": "Description 2"
+					]
 				}
 			]
 		}

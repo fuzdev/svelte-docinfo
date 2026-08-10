@@ -1,30 +1,34 @@
-[
-	{
-		"name": "ComponentGenericArrow",
-		"kind": "component",
-		"props": [
-			{
-				"name": "callback",
-				"type": "T",
-				"description": "Callback prop typed by the arrow-constrained param."
-			},
-			{
-				"name": "items",
-				"type": "U[]",
-				"description": "Items typed by the record-constrained param."
-			}
-		],
-		"genericParams": [
-			{
-				"name": "T",
-				"constraint": "() => void"
-			},
-			{
-				"name": "U",
-				"constraint": "Record<string, unknown>"
-			}
-		],
-		"docComment": "Generic component whose `generics` attribute contains `>` characters.",
-		"sourceLine": 6
-	}
-]
+{
+	"path": "ComponentGenericArrow.svelte",
+	"declarations": [
+		{
+			"name": "ComponentGenericArrow",
+			"kind": "component",
+			"docComment": "Generic component whose `generics` attribute contains `>` characters.",
+			"sourceLine": 6,
+			"genericParams": [
+				{
+					"name": "T",
+					"constraint": "() => void"
+				},
+				{
+					"name": "U",
+					"constraint": "Record<string, unknown>"
+				}
+			],
+			"props": [
+				{
+					"name": "callback",
+					"type": "T",
+					"description": "Callback prop typed by the arrow-constrained param."
+				},
+				{
+					"name": "items",
+					"type": "U[]",
+					"description": "Items typed by the record-constrained param."
+				}
+			]
+		}
+	],
+	"moduleComment": "Module docs for the arrow-generics component."
+}

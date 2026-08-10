@@ -1,14 +1,18 @@
-[
-	{
-		"name": "ComponentComponentAndModule",
-		"kind": "component",
-		"props": [
-			{
-				"name": "prop1",
-				"type": "string"
-			}
-		],
-		"docComment": "Description 1.",
-		"sourceLine": 6
-	}
-]
+{
+	"path": "ComponentComponentAndModule.svelte",
+	"declarations": [
+		{
+			"name": "ComponentComponentAndModule",
+			"kind": "component",
+			"docComment": "Description 1.",
+			"sourceLine": 6,
+			"props": [
+				{
+					"name": "prop1",
+					"type": "string"
+				}
+			]
+		}
+	],
+	"moduleComment": "Description 2."
+}

@@ -1,20 +1,23 @@
-[
-	{
-		"name": "ComponentGeneric",
-		"kind": "component",
-		"props": [
-			{
-				"name": "prop1",
-				"type": "T[]",
-				"description": "Description 1"
-			}
-		],
-		"genericParams": [
-			{
-				"name": "T"
-			}
-		],
-		"docComment": "Description.",
-		"sourceLine": 6
-	}
-]
+{
+	"path": "ComponentGeneric.svelte",
+	"declarations": [
+		{
+			"name": "ComponentGeneric",
+			"kind": "component",
+			"docComment": "Description.",
+			"sourceLine": 6,
+			"genericParams": [
+				{
+					"name": "T"
+				}
+			],
+			"props": [
+				{
+					"name": "prop1",
+					"type": "T[]",
+					"description": "Description 1"
+				}
+			]
+		}
+	]
+}

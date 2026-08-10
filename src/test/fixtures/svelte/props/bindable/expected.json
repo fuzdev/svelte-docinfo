@@ -1,27 +1,30 @@
-[
-	{
-		"name": "PropsBindable",
-		"kind": "component",
-		"props": [
-			{
-				"name": "prop1",
-				"type": "string",
-				"description": "Description 1"
-			},
-			{
-				"name": "prop2",
-				"type": "string",
-				"description": "Description 2",
-				"bindable": true
-			},
-			{
-				"name": "prop3",
-				"type": "boolean",
-				"description": "Description 3",
-				"bindable": true
-			}
-		],
-		"docComment": "Component with bindable props.",
-		"sourceLine": 1
-	}
-]
+{
+	"path": "PropsBindable.svelte",
+	"declarations": [
+		{
+			"name": "PropsBindable",
+			"kind": "component",
+			"docComment": "Component with bindable props.",
+			"sourceLine": 1,
+			"props": [
+				{
+					"name": "prop1",
+					"type": "string",
+					"description": "Description 1"
+				},
+				{
+					"name": "prop2",
+					"type": "string",
+					"description": "Description 2",
+					"bindable": true
+				},
+				{
+					"name": "prop3",
+					"type": "boolean",
+					"description": "Description 3",
+					"bindable": true
+				}
+			]
+		}
+	]
+}

@@ -1,7 +1,12 @@
 {
-	"name": "A",
-	"kind": "type",
-	"docComment": "A template literal type.",
-	"typeSignature": "`prefix_${string}_suffix`",
-	"sourceLine": 4
+	"path": "input.ts",
+	"declarations": [
+		{
+			"name": "A",
+			"kind": "type",
+			"docComment": "A template literal type.",
+			"typeSignature": "`prefix_${string}_suffix`",
+			"sourceLine": 4
+		}
+	]
 }

@@ -1,13 +1,36 @@
 {
-	"name": "make",
-	"kind": "function",
-	"docComment": "An inferred (unannotated) return of an alias-lost type: no written return\nannotation exists, so the flat string prints the expansion while\n`returnTypeInfo` recovers the exported alias's name through the registry.",
-	"typeSignature": "(): { a: string; b: number; }",
-	"sourceLine": 12,
-	"returnType": "{ a: string; b: number; }",
-	"returnTypeInfo": {
-		"kind": "reference",
-		"name": "Inferred",
-		"module": "declarations/function/alias-lost-inferred.ts"
-	}
+	"path": "input.ts",
+	"declarations": [
+		{
+			"name": "make",
+			"kind": "function",
+			"docComment": "An inferred (unannotated) return of an alias-lost type: no written return\nannotation exists, so the flat string prints the expansion while\n`returnTypeInfo` recovers the exported alias's name through the registry.",
+			"typeSignature": "(): { a: string; b: number; }",
+			"sourceLine": 12,
+			"returnType": "{ a: string; b: number; }",
+			"returnTypeInfo": {
+				"kind": "reference",
+				"name": "Inferred",
+				"module": "input.ts"
+			}
+		},
+		{
+			"name": "Inferred",
+			"kind": "type",
+			"typeSignature": "{ a: string; b: number; }",
+			"sourceLine": 16,
+			"members": [
+				{
+					"name": "a",
+					"kind": "variable",
+					"typeSignature": "string"
+				},
+				{
+					"name": "b",
+					"kind": "variable",
+					"typeSignature": "number"
+				}
+			]
+		}
+	]
 }

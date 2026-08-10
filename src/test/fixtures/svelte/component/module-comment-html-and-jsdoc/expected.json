@@ -1,13 +1,26 @@
-[
-	{
-		"name": "ComponentModuleCommentHtmlAndJsdoc",
-		"kind": "component",
-		"props": [
-			{
-				"name": "prop1",
-				"type": "string"
-			}
-		],
-		"sourceLine": 6
-	}
-]
+{
+	"path": "ComponentModuleCommentHtmlAndJsdoc.svelte",
+	"declarations": [
+		{
+			"name": "ComponentModuleCommentHtmlAndJsdoc",
+			"kind": "component",
+			"sourceLine": 6,
+			"props": [
+				{
+					"name": "prop1",
+					"type": "string"
+				}
+			]
+		}
+	],
+	"moduleComment": "JSDoc module docs.",
+	"diagnostics": [
+		{
+			"kind": "duplicate_comment",
+			"commentType": "module_comment",
+			"file": "ComponentModuleCommentHtmlAndJsdoc.svelte",
+			"message": "Multiple @module comments found (JSDoc in <script>, HTML comment). Using first found.",
+			"severity": "warning"
+		}
+	]
+}

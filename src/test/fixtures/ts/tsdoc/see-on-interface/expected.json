@@ -1,23 +1,28 @@
 {
-	"name": "A",
-	"kind": "interface",
-	"docComment": "Description.",
-	"typeSignature": "A",
-	"sourceLine": 7,
-	"seeAlso": [
-		"{@link https://fuz.dev}",
-		"B"
-	],
-	"members": [
+	"path": "input.ts",
+	"declarations": [
 		{
-			"name": "a",
-			"kind": "variable",
-			"typeSignature": "string"
-		},
-		{
-			"name": "b",
-			"kind": "variable",
-			"typeSignature": "number"
+			"name": "A",
+			"kind": "interface",
+			"docComment": "Description.",
+			"typeSignature": "A",
+			"sourceLine": 7,
+			"seeAlso": [
+				"{@link https://fuz.dev}",
+				"B"
+			],
+			"members": [
+				{
+					"name": "a",
+					"kind": "variable",
+					"typeSignature": "string"
+				},
+				{
+					"name": "b",
+					"kind": "variable",
+					"typeSignature": "number"
+				}
+			]
 		}
 	]
 }

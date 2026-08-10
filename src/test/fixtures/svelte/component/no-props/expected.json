@@ -1,7 +1,10 @@
-[
-	{
-		"name": "ComponentNoProps",
-		"kind": "component",
-		"sourceLine": 1
-	}
-]
+{
+	"path": "ComponentNoProps.svelte",
+	"declarations": [
+		{
+			"name": "ComponentNoProps",
+			"kind": "component",
+			"sourceLine": 1
+		}
+	]
+}

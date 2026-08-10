@@ -1,33 +1,38 @@
 {
-	"name": "A",
-	"kind": "class",
-	"sourceLine": 9,
-	"implements": [
-		"B"
-	],
-	"members": [
+	"path": "input.ts",
+	"declarations": [
 		{
-			"name": "a",
-			"kind": "variable",
-			"typeSignature": "string"
-		},
-		{
-			"name": "constructor",
-			"kind": "constructor",
-			"typeSignature": "(a: string): A",
-			"parameters": [
+			"name": "A",
+			"kind": "class",
+			"sourceLine": 9,
+			"implements": [
+				"B"
+			],
+			"members": [
 				{
 					"name": "a",
-					"type": "string"
+					"kind": "variable",
+					"typeSignature": "string"
+				},
+				{
+					"name": "constructor",
+					"kind": "constructor",
+					"typeSignature": "(a: string): A",
+					"parameters": [
+						{
+							"name": "a",
+							"type": "string"
+						}
+					]
+				},
+				{
+					"name": "fn1",
+					"kind": "function",
+					"docComment": "Description 1",
+					"typeSignature": "(): void",
+					"returnType": "void"
 				}
 			]
-		},
-		{
-			"name": "fn1",
-			"kind": "function",
-			"docComment": "Description 1",
-			"typeSignature": "(): void",
-			"returnType": "void"
 		}
 	]
 }

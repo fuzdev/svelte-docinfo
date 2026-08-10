@@ -1,7 +1,12 @@
 {
-	"name": "a",
-	"kind": "variable",
-	"docComment": "A simple constant variable.",
-	"typeSignature": "number",
-	"sourceLine": 4
+	"path": "input.ts",
+	"declarations": [
+		{
+			"name": "a",
+			"kind": "variable",
+			"docComment": "A simple constant variable.",
+			"typeSignature": "number",
+			"sourceLine": 4
+		}
+	]
 }

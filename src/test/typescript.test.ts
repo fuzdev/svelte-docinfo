@@ -1,7 +1,6 @@
 import { test, assert, describe, beforeAll } from 'vitest';
 import ts from 'typescript';
 
-import { DeclarationJson } from '$lib/types.ts';
 import { createAnalysisProgram } from '$lib/typescript-program.ts';
 import { detectReactivity, extractSignatureParameters } from '$lib/typescript-extract-shared.ts';
 import { analyzeExports, analyzeTypescriptModule } from '$lib/typescript-exports.ts';
@@ -11,18 +10,17 @@ import {
 	loadFixtures,
 	createTestProgram,
 	createMultiFileProgram,
-	createFixtureProgram,
-	extractDeclarationFromSource,
-	type TsFixture
+	analyzeFixtureModule
 } from './fixtures/ts/ts-test-helpers.ts';
 import { mockExtractContext, normalizeJson } from './test-helpers.ts';
+import { ModuleFixtureJson, type ModuleFixture } from './fixtures/module-fixture-helpers.ts';
 import {
 	testSourceOptions,
 	createTestSourceOptions,
 	createVirtualSourceOptions
 } from './test-module-helpers.ts';
 
-let fixtures: Array<TsFixture> = [];
+let fixtures: Array<ModuleFixture> = [];
 
 beforeAll(async () => {
 	fixtures = await loadFixtures();
@@ -31,11 +29,8 @@ beforeAll(async () => {
 describe('TypeScript helpers (fixture-based)', () => {
 	test('all fixtures extract correctly', () => {
 		for (const fixture of fixtures) {
-			// Create program and source file from fixture
-			const { checker, sourceFile } = createFixtureProgram(fixture);
-
-			// Extract the declaration from the source file
-			const result = extractDeclarationFromSource(sourceFile, checker, fixture.category);
+			// Analyze through the production single-module pipeline
+			const result = analyzeFixtureModule(fixture.input);
 
 			// Compare with expected (normalize to match JSON serialization)
 			assert.deepEqual(
@@ -48,24 +43,9 @@ describe('TypeScript helpers (fixture-based)', () => {
 
 	test('all fixtures have valid structure', () => {
 		for (const fixture of fixtures) {
-			// Skip moduleComment category (returns string, not DeclarationJson)
-			if (fixture.category === 'moduleComment') continue;
-
-			// Validate that null only appears in module/comment/* or tsdoc/nodocs-filtering fixtures
-			if (fixture.expected === null) {
-				// Allow null for @nodocs test case
-				if (fixture.name !== 'tsdoc/nodocs-filtering') {
-					throw new Error(
-						`Unexpected null in fixture ${fixture.name} - only module/comment/* and tsdoc/nodocs-filtering should return null. ` +
-							`This likely indicates a fixture that doesn't test anything useful and should be removed.`
-					);
-				}
-				continue; // Skip structure validation for null
-			}
-
 			// Validate through the Zod schema — strictly stronger than any
 			// hand-rolled structural check and can't fall behind the data model
-			DeclarationJson.parse(fixture.expected);
+			ModuleFixtureJson.parse(fixture.expected);
 		}
 	});
 
@@ -80,9 +60,7 @@ describe('TypeScript helpers (fixture-based)', () => {
 
 		// Parse through Zod to restore stripped array/boolean defaults so
 		// `result.members` is `Array<...>` (Output shape), not optional.
-		const result = privateFieldsFixture.expected
-			? DeclarationJson.parse(privateFieldsFixture.expected)
-			: null;
+		const result = ModuleFixtureJson.parse(privateFieldsFixture.expected).declarations[0];
 
 		// Verify that private members are NOT in the output
 		if (result?.kind === 'class') {
@@ -116,9 +94,7 @@ describe('TypeScript helpers (fixture-based)', () => {
 			throw new Error('members/class-accessors fixture not found');
 		}
 
-		const result = accessorsFixture.expected
-			? DeclarationJson.parse(accessorsFixture.expected)
-			: null;
+		const result = ModuleFixtureJson.parse(accessorsFixture.expected).declarations[0];
 
 		if (result?.kind !== 'class' || result.members.length === 0) {
 			throw new Error('Expected members to be defined for class A');

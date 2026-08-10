@@ -1,16 +1,21 @@
 {
-	"name": "fn",
-	"kind": "function",
-	"docComment": "A function with type predicate.",
-	"typeSignature": "(a: unknown): a is string",
-	"sourceLine": 7,
-	"parameters": [
+	"path": "input.ts",
+	"declarations": [
 		{
-			"name": "a",
-			"type": "unknown",
-			"description": "Description 1"
+			"name": "fn",
+			"kind": "function",
+			"docComment": "A function with type predicate.",
+			"typeSignature": "(a: unknown): a is string",
+			"sourceLine": 7,
+			"parameters": [
+				{
+					"name": "a",
+					"type": "unknown",
+					"description": "Description 1"
+				}
+			],
+			"returnType": "boolean",
+			"returnDescription": "Description 2"
 		}
-	],
-	"returnType": "boolean",
-	"returnDescription": "Description 2"
+	]
 }
