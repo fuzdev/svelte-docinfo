@@ -1,3 +1,17 @@
+/**
+ * Loading and analysis helpers for the ts fixture set, plus the in-memory
+ * `ts.Program` constructors the unit tests share.
+ *
+ * Every program here is built by `createProgramOverSources` — one host, one
+ * resolver (`resolveFixtureSpecifier`), one set of compiler options — so a
+ * single-file fixture, a multi-file fixture project, and a unit test's
+ * hand-written file set can't drift apart in how they see the compiler. The
+ * real-compiler-host counterpart (lib and `node_modules` resolve) is
+ * `createVirtualFileProgram` in `test-module-helpers.ts`.
+ *
+ * @module
+ */
+
 import ts from 'typescript';
 import { posix } from 'node:path';
 
@@ -23,65 +37,6 @@ import {
  * machine. See `fixtureFileId` for the `src/lib` invariant.
  */
 const FIXTURE_FILE_ID = fixtureFileId(TEST_PROJECT_ROOT, 'input.ts');
-
-/**
- * Create a single-file TypeScript program — `noResolve`, so fixtures stay
- * hermetic and fast. Mirrors `createAnalysisProgram` by returning
- * `ts.Program` directly.
- *
- * @param sourceFile - The TypeScript source file to analyze
- * @param filePath - The path identifier for the file
- */
-export const createTestProgram = (sourceFile: ts.SourceFile, filePath: string): ts.Program =>
-	ts.createProgram(
-		[filePath],
-		{
-			target: ts.ScriptTarget.Latest,
-			module: ts.ModuleKind.ESNext,
-			// consumers analyze under `strict`; without it nullable unions collapse
-			// before extraction sees them and fixtures stop reflecting real output
-			strict: true,
-			noResolve: true
-		},
-		{
-			getSourceFile: (fileName) => {
-				if (fileName === filePath) return sourceFile;
-				return undefined;
-			},
-			writeFile: () => undefined,
-			getCurrentDirectory: () => '',
-			getDirectories: () => [],
-			fileExists: () => true,
-			readFile: () => '',
-			getCanonicalFileName: (fileName) => fileName,
-			useCaseSensitiveFileNames: () => true,
-			getNewLine: () => '\n',
-			getDefaultLibFileName: () => 'lib.d.ts'
-		}
-	);
-
-/**
- * Analyze a fixture input through the production pipeline (see
- * `captureModuleFixture`). Used by both `typescript.test.ts` and the update
- * task so the two can't diverge.
- */
-export const analyzeFixtureModule = (input: string): ModuleFixtureJson => {
-	const sourceFile = ts.createSourceFile(
-		FIXTURE_FILE_ID,
-		input,
-		ts.ScriptTarget.Latest,
-		true,
-		ts.ScriptKind.TS
-	);
-	const program = createTestProgram(sourceFile, FIXTURE_FILE_ID);
-	return captureModuleFixture(
-		{ id: FIXTURE_FILE_ID, content: input },
-		program,
-		createTestSourceOptions()
-	);
-};
-
-// Multi-file fixtures
 
 /**
  * Reserved fixture subdirectory whose files map into the synthetic project's
@@ -112,7 +67,7 @@ const fixtureProjectFileId = (relPath: string): string =>
 		: fixtureFileId(TEST_PROJECT_ROOT, relPath);
 
 /**
- * Resolve an import specifier against the fixture project's file set.
+ * Resolve an import specifier against a test program's file set.
  *
  * Relative specifiers resolve from the importing file's directory (exact,
  * `.js` → `.ts` swap, appended `.ts`/`.d.ts`, `index` fallbacks); bare
@@ -141,36 +96,64 @@ const resolveFixtureSpecifier = (
 	return candidates.find((c) => fileIds.has(c));
 };
 
+// Program construction
+
 /**
- * Create an in-memory multi-file program over mapped fixture files. Same
- * lib-less host shape as `createTestProgram` (fixtures never rely on lib
- * types), with resolution enabled through `resolveFixtureSpecifier` so
- * re-exports and cross-file references bind — but never escaping the mapped
- * set, keeping fixtures hermetic.
+ * Compiler options shared by every program built here.
+ *
+ * `strict` is load-bearing rather than incidental: consumers analyze under it,
+ * and without it nullable unions collapse before extraction sees them and
+ * fixtures stop reflecting real output.
  */
-const createFixtureProjectProgram = (
-	sourceFiles: ReadonlyMap<string, ts.SourceFile>
+const TEST_COMPILER_OPTIONS: ts.CompilerOptions = {
+	target: ts.ScriptTarget.Latest,
+	module: ts.ModuleKind.ESNext,
+	strict: true
+};
+
+/**
+ * The `ts.CompilerHost` fields every program built here shares — everything
+ * the file set doesn't decide. `getDefaultLibFileName` names a file no set
+ * ever contains, so these programs are lib-less by construction: tests here
+ * assert on the checker's rendering of their own types, and loading a real
+ * `lib.d.ts` would only cost time.
+ */
+const TEST_HOST_BASE = {
+	writeFile: () => undefined,
+	getDirectories: () => [],
+	getCanonicalFileName: (fileName: string) => fileName,
+	useCaseSensitiveFileNames: () => true,
+	getNewLine: () => '\n',
+	getDefaultLibFileName: () => 'lib.d.ts'
+} satisfies Partial<ts.CompilerHost>;
+
+/**
+ * The one in-memory program constructor behind every test program here: a host
+ * serving exactly `sourceFiles` and resolving imports with
+ * `resolveFixtureSpecifier`, so nothing outside the given set can enter and
+ * programs stay hermetic and fast. Mirrors `createAnalysisProgram` by
+ * returning `ts.Program` directly.
+ *
+ * @param sourceFiles - Parsed sources keyed by the id the program sees
+ * @param options - `currentDirectory` is the host's, consulted only when a
+ *   root name is relative (`ts.createProgram` normalizes root names against
+ *   it); `noResolve` skips module resolution outright, for single-file
+ *   programs that have nothing to resolve against
+ */
+const createProgramOverSources = (
+	sourceFiles: ReadonlyMap<string, ts.SourceFile>,
+	options: { currentDirectory: string; noResolve?: boolean }
 ): ts.Program => {
 	const fileIds = new Set(sourceFiles.keys());
 	return ts.createProgram(
-		[...sourceFiles.keys()],
+		[...fileIds],
+		{ ...TEST_COMPILER_OPTIONS, noResolve: options.noResolve },
 		{
-			target: ts.ScriptTarget.Latest,
-			module: ts.ModuleKind.ESNext,
-			// consumers analyze under `strict`; see `createTestProgram`
-			strict: true
-		},
-		{
+			...TEST_HOST_BASE,
 			getSourceFile: (fileName) => sourceFiles.get(fileName),
-			writeFile: () => undefined,
-			getCurrentDirectory: () => TEST_PROJECT_ROOT,
-			getDirectories: () => [],
-			fileExists: (fileName) => sourceFiles.has(fileName),
+			getCurrentDirectory: () => options.currentDirectory,
+			fileExists: (fileName) => fileIds.has(fileName),
 			readFile: (fileName) => sourceFiles.get(fileName)?.text ?? '',
-			getCanonicalFileName: (fileName) => fileName,
-			useCaseSensitiveFileNames: () => true,
-			getNewLine: () => '\n',
-			getDefaultLibFileName: () => 'lib.d.ts',
 			resolveModuleNames: (moduleNames, containingFile) =>
 				moduleNames.map((name) => {
 					const resolved = resolveFixtureSpecifier(name, containingFile, fileIds);
@@ -179,6 +162,107 @@ const createFixtureProjectProgram = (
 						: undefined;
 				})
 		}
+	);
+};
+
+/**
+ * Create a single-file TypeScript program — `noResolve`, so fixtures stay
+ * hermetic and fast. Reached through `createSourceAndChecker` (unit tests) or
+ * `analyzeFixtureModule` (the fixture harness), which own the parse beside it.
+ *
+ * @param sourceFile - The TypeScript source file to analyze
+ * @param filePath - The path identifier for the file
+ */
+const createSingleFileProgram = (sourceFile: ts.SourceFile, filePath: string): ts.Program =>
+	createProgramOverSources(new Map([[filePath, sourceFile]]), {
+		// callers pass bare names (`'test.ts'`) as readily as absolute ids, and
+		// root names normalize against the current directory — a non-empty one
+		// would re-key them past the map and yield an empty program
+		currentDirectory: '',
+		noResolve: true
+	});
+
+/**
+ * Parse `content` and build a single-file program over it, returning the
+ * source file beside the checker that sees it — the pair most extractor unit
+ * tests want.
+ *
+ * The path is written once here on purpose: handing different names to
+ * `ts.createSourceFile` and to the program yields a program with no files at
+ * all, and nothing about the resulting checker says so.
+ *
+ * @param content - Source text to parse
+ * @param filePath - Path identifier for the file; cosmetic under `noResolve`,
+ *   so tests with nothing riding on it take the default
+ */
+export const createSourceAndChecker = (
+	content: string,
+	filePath = 'test.ts'
+): { sourceFile: ts.SourceFile; checker: ts.TypeChecker } => {
+	const sourceFile = ts.createSourceFile(filePath, content, ts.ScriptTarget.Latest, true);
+	return { sourceFile, checker: createSingleFileProgram(sourceFile, filePath).getTypeChecker() };
+};
+
+/**
+ * A source file entry for multi-file test programs.
+ */
+export interface TestSourceFile {
+	path: string;
+	content: string;
+}
+
+/**
+ * Create a TypeScript program with multiple source files, for testing
+ * cross-module scenarios (re-exports, imported types) where declarations live
+ * in different files.
+ *
+ * `path` is the absolute id the program sees, so callers choose their own
+ * layout — relative specifiers resolve against the importing file, not against
+ * any root. Two things do key off the synthetic project root: ids under
+ * `TEST_LIB_DIR` line up with `createTestSourceOptions()`, so module paths
+ * extract as the tests assert them, and a file placed under
+ * `${TEST_PROJECT_ROOT}/node_modules/` is reachable by bare specifier through
+ * `resolveFixtureSpecifier`'s package arm (the id mapping that spells that
+ * directory `external/` belongs to `analyzeFixtureProject`, not here).
+ *
+ * @param files - Array of source files with their paths and content
+ * @returns Object with program and a map of source files by path
+ */
+export const createMultiFileProgram = (
+	files: Array<TestSourceFile>
+): { program: ts.Program; sourceFiles: Map<string, ts.SourceFile> } => {
+	const sourceFiles = new Map<string, ts.SourceFile>(
+		files.map((file) => [
+			file.path,
+			ts.createSourceFile(file.path, file.content, ts.ScriptTarget.Latest, true)
+		])
+	);
+	return {
+		program: createProgramOverSources(sourceFiles, { currentDirectory: TEST_PROJECT_ROOT }),
+		sourceFiles
+	};
+};
+
+// Fixture analysis
+
+/**
+ * Analyze a fixture input through the production pipeline (see
+ * `captureModuleFixture`). Used by both `typescript.test.ts` and the update
+ * task so the two can't diverge.
+ */
+export const analyzeFixtureModule = (input: string): ModuleFixtureJson => {
+	const sourceFile = ts.createSourceFile(
+		FIXTURE_FILE_ID,
+		input,
+		ts.ScriptTarget.Latest,
+		true,
+		ts.ScriptKind.TS
+	);
+	const program = createSingleFileProgram(sourceFile, FIXTURE_FILE_ID);
+	return captureModuleFixture(
+		{ id: FIXTURE_FILE_ID, content: input },
+		program,
+		createTestSourceOptions()
 	);
 };
 
@@ -219,7 +303,9 @@ export const analyzeFixtureProject = async (
 			ts.createSourceFile(e.id, e.content, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS)
 		])
 	);
-	const program = createFixtureProjectProgram(sourceFileAsts);
+	const program = createProgramOverSources(sourceFileAsts, {
+		currentDirectory: TEST_PROJECT_ROOT
+	});
 
 	const emittedIds = new Set(
 		entries.filter((e) => !e.external && isSource(e.id, sourceOptions)).map((e) => e.id)
@@ -255,76 +341,7 @@ export const analyzeTsFixture = async (
 ): Promise<ModuleFixtureJson | AnalyzeResultJson> =>
 	extraFiles?.length ? analyzeFixtureProject(input, extraFiles) : analyzeFixtureModule(input);
 
-/**
- * A source file entry for multi-file test programs.
- */
-export interface TestSourceFile {
-	path: string;
-	content: string;
-}
-
-/**
- * Create a TypeScript program with multiple source files.
- * Used for testing re-export scenarios where declarations are in different files.
- *
- * Note: The re-export detection in tsHelpers.ts uses `checker.getAliasedSymbol()` to
- * properly resolve aliases to their original declarations, which works correctly with
- * this test infrastructure.
- *
- * @param files - Array of source files with their paths and content
- * @returns Object with program and a map of source files by path
- */
-export const createMultiFileProgram = (
-	files: Array<TestSourceFile>
-): { program: ts.Program; sourceFiles: Map<string, ts.SourceFile> } => {
-	// Create source files
-	const sourceFiles = new Map<string, ts.SourceFile>();
-	for (const file of files) {
-		const sourceFile = ts.createSourceFile(file.path, file.content, ts.ScriptTarget.Latest, true);
-		sourceFiles.set(file.path, sourceFile);
-	}
-
-	const filePaths = files.map((f) => f.path);
-
-	const program = ts.createProgram(
-		filePaths,
-		{
-			target: ts.ScriptTarget.Latest,
-			module: ts.ModuleKind.ESNext,
-			moduleResolution: ts.ModuleResolutionKind.NodeNext,
-			strict: true
-		},
-		{
-			getSourceFile: (fileName) => sourceFiles.get(fileName),
-			writeFile: () => undefined,
-			getCurrentDirectory: () => '/src/lib',
-			getDirectories: () => [],
-			fileExists: (fileName) => sourceFiles.has(fileName),
-			readFile: (fileName) => {
-				const sf = sourceFiles.get(fileName);
-				return sf?.text ?? '';
-			},
-			getCanonicalFileName: (fileName) => fileName,
-			useCaseSensitiveFileNames: () => true,
-			getNewLine: () => '\n',
-			getDefaultLibFileName: () => 'lib.d.ts',
-			resolveModuleNames: (moduleNames, _containingFile) => {
-				return moduleNames.map((name) => {
-					// Handle relative imports like './foo.js' or './foo.ts'
-					if (name.startsWith('./')) {
-						const resolved = name.replace(/^\.\//, '/src/lib/').replace(/\.js$/, '.ts');
-						if (sourceFiles.has(resolved)) {
-							return { resolvedFileName: resolved, isExternalLibraryImport: false };
-						}
-					}
-					return undefined;
-				});
-			}
-		}
-	);
-
-	return { program, sourceFiles };
-};
+// Node lookup
 
 /**
  * Find a top-level declaration of any kind in a source file by name.

@@ -1,4 +1,5 @@
 import ts from 'typescript';
+import { z } from 'zod';
 
 import type { TsdocParsedComment } from '$lib/tsdoc.ts';
 import { parseComment } from '$lib/tsdoc.ts';
@@ -6,6 +7,47 @@ import { parseComment } from '$lib/tsdoc.ts';
 import { loadFixturesGeneric, type GenericFixture } from '../../test-helpers.ts';
 
 export type TsdocFixture = GenericFixture<TsdocParsedComment | null>;
+
+/**
+ * Schema mirror of `TsdocParsedComment`, for validating what `expected.json`
+ * holds. Test-side rather than in `tsdoc.ts` because a parsed comment is an
+ * intermediate, never wire data — the lib's Zod schemas
+ * (`types.ts`, `diagnostics.ts`) are the output data model.
+ */
+const TsdocParsedCommentJson = z.strictObject({
+	text: z.string(),
+	params: z.record(z.string(), z.string()),
+	returns: z.string().optional(),
+	throws: z
+		.array(z.strictObject({ type: z.string().optional(), description: z.string() }))
+		.optional(),
+	examples: z.array(z.string()).optional(),
+	deprecatedMessage: z.string().optional(),
+	internalMessage: z.string().optional(),
+	seeAlso: z.array(z.string()).optional(),
+	since: z.string().optional(),
+	defaultValue: z.string().optional(),
+	mutates: z.record(z.string(), z.string()).optional(),
+	nodocs: z.boolean().optional()
+});
+
+/**
+ * `TsdocParsedComment`, but only while the schema above mirrors every key of
+ * it — carried in `validateTsdocStructure`'s parameter type so the guard can't
+ * be dropped as unused.
+ *
+ * `.parse` checks only the fields the schema declares, so a field added to
+ * `TsdocParsedComment` and forgotten in the mirror would go unvalidated in
+ * silence — exactly how the hand-rolled predecessor came to skip
+ * `defaultValue`. A key on either side and not the other collapses this to
+ * `never`, and every call to `validateTsdocStructure` stops compiling.
+ */
+type SchemaMirroredComment = [
+	Exclude<keyof TsdocParsedComment, keyof z.infer<typeof TsdocParsedCommentJson>>,
+	Exclude<keyof z.infer<typeof TsdocParsedCommentJson>, keyof TsdocParsedComment>
+] extends [never, never]
+	? TsdocParsedComment
+	: never;
 
 /**
  * Load all fixtures from the tsdoc fixtures directory.
@@ -51,98 +93,15 @@ export const findAndParseTsdoc = (sourceFile: ts.SourceFile): TsdocParsedComment
 };
 
 /**
- * Validate that a parsed TSDoc comment has the expected structure.
+ * Validate that a parsed TSDoc comment has the expected structure — parses
+ * through the schema mirror above, which is strictly stronger than any
+ * hand-rolled structural check (unknown keys rejected, nested `throws` entries
+ * checked) and, with the coverage guard, can't fall behind the type. Mirrors
+ * `validateModuleFixture` for the ts and svelte sets.
  */
-export const validateTsdocStructure = (tsdoc: TsdocParsedComment | undefined): void => {
+export const validateTsdocStructure = (tsdoc: SchemaMirroredComment | undefined): void => {
 	if (!tsdoc) {
 		throw new Error('Expected tsdoc to be defined');
 	}
-
-	// Basic structure validation
-	if (typeof tsdoc.text !== 'string') {
-		throw new Error('Expected tsdoc.text to be a string');
-	}
-
-	if (typeof tsdoc.params !== 'object' || tsdoc.params === null || Array.isArray(tsdoc.params)) {
-		throw new Error('Expected tsdoc.params to be an object');
-	}
-	for (const [key, value] of Object.entries(tsdoc.params)) {
-		if (typeof key !== 'string') {
-			throw new Error('Expected params key to be a string');
-		}
-		if (typeof value !== 'string') {
-			throw new Error('Expected params value to be a string');
-		}
-	}
-
-	// Validate optional fields
-	if (tsdoc.returns !== undefined && typeof tsdoc.returns !== 'string') {
-		throw new Error('Expected tsdoc.returns to be a string');
-	}
-
-	if (tsdoc.throws !== undefined) {
-		if (!Array.isArray(tsdoc.throws)) {
-			throw new Error('Expected tsdoc.throws to be an array');
-		}
-		for (const t of tsdoc.throws) {
-			if (typeof t.description !== 'string') {
-				throw new Error('Expected throw description to be a string');
-			}
-			if (t.type !== undefined && typeof t.type !== 'string') {
-				throw new Error('Expected throw type to be a string');
-			}
-		}
-	}
-
-	if (tsdoc.examples !== undefined) {
-		if (!Array.isArray(tsdoc.examples)) {
-			throw new Error('Expected tsdoc.examples to be an array');
-		}
-		for (const example of tsdoc.examples) {
-			if (typeof example !== 'string') {
-				throw new Error('Expected example to be a string');
-			}
-		}
-	}
-
-	if (tsdoc.deprecatedMessage !== undefined && typeof tsdoc.deprecatedMessage !== 'string') {
-		throw new Error('Expected tsdoc.deprecatedMessage to be a string');
-	}
-
-	if (tsdoc.internalMessage !== undefined && typeof tsdoc.internalMessage !== 'string') {
-		throw new Error('Expected tsdoc.internalMessage to be a string');
-	}
-
-	if (tsdoc.seeAlso !== undefined) {
-		if (!Array.isArray(tsdoc.seeAlso)) {
-			throw new Error('Expected tsdoc.seeAlso to be an array');
-		}
-		for (const see of tsdoc.seeAlso) {
-			if (typeof see !== 'string') {
-				throw new Error('Expected see reference to be a string');
-			}
-		}
-	}
-
-	if (tsdoc.since !== undefined && typeof tsdoc.since !== 'string') {
-		throw new Error('Expected tsdoc.since to be a string');
-	}
-
-	if (tsdoc.mutates !== undefined) {
-		if (typeof tsdoc.mutates !== 'object' || tsdoc.mutates === null) {
-			throw new Error('Expected tsdoc.mutates to be an object');
-		}
-		for (const [key, value] of Object.entries(tsdoc.mutates)) {
-			if (typeof key !== 'string') {
-				throw new Error('Expected mutates key to be a string');
-			}
-			if (typeof value !== 'string') {
-				throw new Error('Expected mutates value to be a string');
-			}
-		}
-	}
-
-	if (tsdoc.nodocs !== undefined && typeof tsdoc.nodocs !== 'boolean') {
-		throw new Error('Expected tsdoc.nodocs to be a boolean');
-	}
+	TsdocParsedCommentJson.parse(tsdoc);
 };

@@ -10,7 +10,7 @@ import { runCli } from '$lib/cli.ts';
 /**
  * Result of capturing console output.
  */
-export interface ConsoleCaptureResult {
+interface ConsoleCaptureResult {
 	/** Captured output lines. */
 	lines: Array<string>;
 	/** Restore the original console method. */
@@ -34,7 +34,7 @@ export interface ConsoleCaptureResult {
  * }
  * ```
  */
-export const captureConsoleLog = (): ConsoleCaptureResult => {
+const captureConsoleLog = (): ConsoleCaptureResult => {
 	const lines: Array<string> = [];
 	const original = console.log;
 	console.log = (...args: Array<unknown>) => lines.push(args.join(' '));
@@ -49,7 +49,7 @@ export const captureConsoleLog = (): ConsoleCaptureResult => {
 /**
  * Capture console.error output during test execution.
  */
-export const captureConsoleError = (): ConsoleCaptureResult => {
+const captureConsoleError = (): ConsoleCaptureResult => {
 	const lines: Array<string> = [];
 	const original = console.error;
 	console.error = (...args: Array<unknown>) => lines.push(args.join(' '));
@@ -64,7 +64,7 @@ export const captureConsoleError = (): ConsoleCaptureResult => {
 /**
  * Capture both console.log and console.error output.
  */
-export const captureConsole = (): {
+const captureConsole = (): {
 	logs: Array<string>;
 	errors: Array<string>;
 	restore: () => void;
@@ -173,9 +173,6 @@ export const PROJECT_ROOT = join(import.meta.dirname, '../..');
 
 /** Directory containing API examples. */
 export const EXAMPLES_API_DIR = join(PROJECT_ROOT, 'examples/api');
-
-/** Directory containing CLI examples. */
-export const EXAMPLES_CLI_DIR = join(PROJECT_ROOT, 'examples/cli');
 
 /** Directory containing Vite plugin examples. */
 export const EXAMPLES_VITE_DIR = join(PROJECT_ROOT, 'examples/vite');
