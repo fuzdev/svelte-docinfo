@@ -11,9 +11,7 @@ fix: `Diagnostic.file` honors its project-root-relative contract; the Vite plugi
   behavior rather than an edge case: one analysis reported the same file as
   both `Widget.svelte` and `src/lib/Widget.svelte`, grouping by `file` gave two
   buckets for one file, and `formatDiagnostic`'s `./${file}` didn't resolve
-  from the project root. The same `misplaced_tag` cause even reported under
-  different bases depending on whether the module comment sat in a `.svelte` or
-  a `.ts` file. Producers now emit the absolute id and let
+  from the project root. Producers now emit the absolute id and let
   `normalizeDiagnosticPaths` rewrite it — the path every extractor diagnostic
   already took — and the `module_skipped` messages that name a file now name
   the same string `file` does.
@@ -21,11 +19,10 @@ fix: `Diagnostic.file` honors its project-root-relative contract; the Vite plugi
   _discovery_ diagnostics, so a `module_unreadable` message, which wraps the fs
   error and therefore embeds the developer's absolute path, reached
   `virtual:svelte-docinfo` verbatim and shipped to any bundle importing it.
-  Discovery is the one diagnostic source that can't normalize itself, since it
-  runs before a session exists; `analyzeFromFiles` already normalized it before
-  merging and the plugin now does the same. Consumers calling
-  `discoverSourceFiles` / `discoverFromExports` directly still own that call,
-  now stated on the `Diagnostic.file` schema doc.
+  `analyzeFromFiles` already normalized it before merging and the plugin now
+  does the same; consumers calling `discoverSourceFiles` /
+  `discoverFromExports` directly still own that call, now stated on the
+  `Diagnostic.file` schema doc.
 
 `Diagnostic.file` names a file, never a module — `ModuleJson.path` is
 `sourceRoot`-relative, and `DuplicateDeclarationDiagnostic.modules` still holds

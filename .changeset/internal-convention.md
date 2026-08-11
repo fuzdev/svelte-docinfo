@@ -35,23 +35,20 @@ part of the public surface. Three coordinated changes support the convention
 
 Plus the follow-through that keeps the convention live end-to-end:
 
-- **Sessions own the context closure** — new `AnalysisSessionOptions.contextClosure`
-  (default `true`; `analyze()` opts out — `analyzeFromFiles` and the CLI keep
-  it on, since a gated `.svelte` dependency's virtual exists only via the
-  closure and its re-export would otherwise degrade to an empty husk): after
-  each ingest batch the
-  session reads from disk the in-root non-source files the batch's imports
-  resolved to (transitively; `node_modules`/dot-dir segments and analyzer-less
-  files excluded) and owns them as version-tracked context files. Output is
+- **Sessions own the context closure** — new
+  `AnalysisSessionOptions.contextClosure` (default `true`; `analyze()` opts
+  out, `analyzeFromFiles` and the CLI keep it on): after each ingest batch
+  the session reads from disk the in-root non-source files the batch's
+  imports resolved to (transitively; `node_modules`/dot-dir segments and
+  analyzer-less files excluded) and owns them as version-tracked context
+  files. Output is
   unchanged — `query()` still gates them — but their edits now propagate: the
   Vite plugin's watcher gate widened to `isSource(file) || session.has(file)`,
   so editing an `internal/` module re-analyzes the public modules that use it
   instead of serving stale types until a dev-server restart.
-- **LS disk-version sentinel** — the language-service host reported constant
-  `'1'` for disk-resolved files, colliding with a first-time owned file's
-  version 1: the first `setFile` of a previously-disk-resolved file was a
-  silent no-op (stale AST served despite new content). Now `'disk'`,
-  non-numeric so it can never collide.
+- **Stale-AST fix** — the first `setFile` of a file the session had
+  previously resolved from disk was a silent no-op (a version collision in
+  the language-service host), serving the stale AST despite new content.
 - **Re-exports from gated modules synthesize instead of misclassifying** —
   re-export classification now splits externality (`createIsExternalPath`,
   newly exported from `svelte-docinfo/typescript-program.js`) from the source

@@ -5,9 +5,8 @@
 feat: alias registry recovers lost alias names at unannotated positions; new `alias_lost` diagnostic
 
 - A pre-pass registers the emitted modules' exported alias-lost type aliases
-  (`z.infer<typeof S>`-class right-hand sides) by checker type identity,
-  gated on containing an anonymous component so interned shapes can never be
-  relabeled. `typeInfo` now emits `{kind: 'reference', name}` at unannotated
+  (`z.infer<typeof S>`-class right-hand sides) by checker type identity.
+  `typeInfo` now emits `{kind: 'reference', name}` at unannotated
   positions too — inferred returns and variables, nested tree positions,
   `Array<Lost>`/`Promise<Lost>` (trees flip from absent to structured), and
   `null`-bearing optionals via a member-set side index. Ambiguous aliases

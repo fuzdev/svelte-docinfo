@@ -28,14 +28,12 @@ display time.
 
 ### Membership: one rule at every granularity
 
-External filtering used to be three mechanisms that disagreed. Named properties
-filtered per-symbol everywhere, index signatures only inside intersections by a
-node-level branch test, and call/construct signatures not at all — so
-`type P = ExtCallable & {a}` emitted the package's `(call)` as a member,
-`type P = ExtIndexOnly` emitted the external index signature at a bare root
-while named properties at the same position filtered, and an external index
-signature inherited through a local base leaked past the branch test. Each with
-no `externalTypes` entry to account for it.
+External filtering used to be three mechanisms that disagreed — named
+properties filtered everywhere, index signatures only inside intersections,
+call/construct signatures not at all — so `type P = ExtCallable & {a}`
+emitted the package's `(call)` as a member and `type P = ExtIndexOnly`
+emitted the external index signature at a bare root, each with no
+`externalTypes` entry to account for it.
 
 One rule now decides membership: a contribution — named property, index
 signature, call/construct signature — is dropped when its declaration lives in
@@ -54,12 +52,11 @@ contributions stay neutral in both directions, and membership and attribution
 can't disagree.
 
 Interfaces get the companion coherence fix: call/construct signatures are
-own-only like every other interface member kind. `getCallSignatures()` resolves
-inherited signatures, so `interface I extends ExtCallable` used to enumerate the
-bag's `(call)` while enumerating none of its properties. Now that a signature is
-always the interface's own, its TSDoc resolves through its own declaration like
-the type-alias path does, so a signature written in a merged `interface` block
-keeps its docs instead of silently losing them.
+own-only like every other interface member kind — `interface I extends
+ExtCallable` used to enumerate the bag's `(call)` while enumerating none of
+its properties. A signature's TSDoc now resolves through its own declaration
+like the type-alias path, so a signature written in a merged `interface`
+block keeps its docs.
 
 ### Attribution: what the walk records
 
@@ -95,22 +92,18 @@ lists and the field's `&` / index-access shape survive:
 
 - **Import renames resolve to the exported name.** `import type {Bag as B}`
   beside `type Props = B & {…}` recorded `B`, a spelling that means nothing
-  outside the file that wrote it. Resolution is one hop — the
-  `ImportSpecifier`'s property name — deliberately: the full alias chain ends at
-  the declaration's own name, which a package re-exporting under a new name
-  (`export {Foo as Bar}`) never makes importable. A default import has no
-  exported name to recover and is left alone. This matters most at the leaves
-  the descent reaches, collected from a *definition* site free to bind the bag
-  under any name of its own.
+  outside the file that wrote it. Resolution is one hop, deliberately: the
+  full alias chain ends at the declaration's own name, which a package
+  re-exporting under a new name (`export {Foo as Bar}`) never makes
+  importable. A default import has no exported name to recover and is left
+  alone.
 - **Type parameters bound inside the descent substitute their written
   argument.** `interface A<T> extends ExtG<T>` reached via `Props extends
-  A<string>` records `ExtG<string>`, not the wrapper's name — the hottest gap
-  in a corpus survey of published Svelte libraries, where generic base
-  interfaces and `Without<T, U>`-style local utilities bind the attribute bag
-  to a type parameter. Arguments render at their own site first (outer
-  substitutions and renames applied) so chained generics compose; an omitted
-  argument takes its declared default. A parameter with neither still degrades
-  to no entry rather than emitting text that dangles at the documented site.
+  A<string>` records `ExtG<string>`, not the wrapper's name. Arguments render
+  at their own site first (outer substitutions and renames applied) so
+  chained generics compose; an omitted argument takes its declared default. A
+  parameter with neither still degrades to no entry rather than emitting text
+  that dangles at the documented site.
 
 A type parameter in scope at the annotation site itself — a generic component's
 own — still emits as written, beside the `genericParams` documenting it.
@@ -121,8 +114,7 @@ Each distinct contributor appears once, in source order. Entries carry no
 module, so the dedupe that collapses one bag spelled two ways also collapses two
 *distinct* bags sharing an exported name; membership is unaffected either way.
 
-A path-scoped seen-set terminates cycles and `MAX_COMPOSITION_DEPTH` bounds a
-long acyclic chain of distinct local aliases; past the bound the reference in
+The descent is cycle-safe and depth-bounded; past the bound the reference in
 hand names itself, the degradation an untraversable definition already gets.
 Scoping note: an interface's or class's own field reads the processed
 declaration's heritage clauses — the same node `extends` and `members` come
@@ -155,8 +147,6 @@ shape, and admitting local generic instantiations extended that to
 exactly what the class hides; `protected` stays on both, as part of the
 extension API. Only classes can declare either form, so nothing else changes.
 
-Two `@internal` extractor helpers are renamed to match what they now do —
-`filterExternalProperties` → `filterDocumentedProperties` (the property
-chokepoint, which decides two axes) and `collectExternalTypesFromHeritage` →
-`applyHeritageExternalTypes` (it sets the field rather than returning it).
-Neither is barrel-exported.
+Breaking for `@internal` subpath callers: `filterExternalProperties` →
+`filterDocumentedProperties`, `collectExternalTypesFromHeritage` →
+`applyHeritageExternalTypes`.

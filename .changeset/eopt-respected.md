@@ -19,9 +19,9 @@ fix: respect `exactOptionalPropertyTypes` — stop stripping author-written `und
   `kind: 'function'` like `fn?: () => void`, keeping
   `parameters`/`returnType` and `@param`/`@returns` routing. At an optional
   position an explicit `undefined` is the same runtime observation as
-  absence, already carried by `optional: true` (which is also all that
-  survives of the written `undefined` on a callable member — the signature
-  prints without it). `| null` still demotes to `kind: 'variable'` — `null`
+  absence, already carried by `optional: true`; on a callable member that
+  flag is also all that survives of the written `undefined` — the signature
+  prints without it. `| null` still demotes to `kind: 'variable'` — `null`
   is a real value absence doesn't imply — as does a *required* property's
   written `undefined` (`fn: (() => void) | undefined`), which has no
   `optional: true` to carry it.
