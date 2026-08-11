@@ -1,0 +1,58 @@
+{
+	"modules": [
+		{
+			"path": "PropsCrossModule/PropsCrossModule.svelte",
+			"declarations": [
+				{
+					"name": "PropsCrossModule",
+					"kind": "component",
+					"sourceLine": 1,
+					"props": [
+						{
+							"name": "prop1",
+							"type": "string",
+							"description": "Description 2"
+						},
+						{
+							"name": "prop2",
+							"type": "number",
+							"optional": true
+						}
+					]
+				}
+			],
+			"dependencies": [
+				"PropsCrossModule/types.ts"
+			]
+		},
+		{
+			"path": "PropsCrossModule/types.ts",
+			"declarations": [
+				{
+					"name": "A",
+					"kind": "interface",
+					"docComment": "Description 1",
+					"typeSignature": "A",
+					"sourceLine": 2,
+					"members": [
+						{
+							"name": "prop1",
+							"kind": "variable",
+							"docComment": "Description 2",
+							"typeSignature": "string"
+						},
+						{
+							"name": "prop2",
+							"kind": "variable",
+							"typeSignature": "number",
+							"optional": true
+						}
+					]
+				}
+			],
+			"dependents": [
+				"PropsCrossModule/PropsCrossModule.svelte"
+			]
+		}
+	]
+}

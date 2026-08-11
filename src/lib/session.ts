@@ -22,6 +22,9 @@
  * at most once per content change. Resolver work parallelizes across the
  * batch in phase 2 of the three-phase setFiles pipeline; fully pre-resolved
  * batches skip phase 2 (and the default-resolver construction) entirely.
+ * A batch that adds paths then retries the import specifiers earlier batches
+ * couldn't resolve, since the file that settles one is the dep rather than
+ * the importer (see `AnalysisSession` → Deferred resolutions).
  *
  * @see `analyze-core.ts` for the two-phase analysis orchestrator
  * @see `dep-resolver.ts` for the `ImportResolver` token contract
@@ -30,10 +33,11 @@
  */
 
 import { readFile } from 'node:fs/promises';
-import type ts from 'typescript';
+import ts from 'typescript';
 
 import {
 	createAnalysisLanguageService,
+	createOwnedDirIndex,
 	type AnalysisLanguageService,
 	type AnalysisLanguageServiceOptions
 } from './typescript-program.ts';
@@ -170,6 +174,17 @@ export interface QueryOptions {
  *
  * Mode flips (an entry previously ingested as lex+resolve now arrives with
  * `dependencies`, or vice versa) always cache-miss.
+ *
+ * **Deferred resolutions**: a cache hit reuses the entry's dependency edges,
+ * but an import specifier that resolved to nothing isn't a settled answer —
+ * its target may be ingested later, and the file that changes then is the
+ * *dep*, not the importer, so the importer would stay a cache hit with a
+ * missing edge. A `setFiles` that adds paths therefore retries the unresolved
+ * specifiers of already-owned entries and updates their edges in place,
+ * retiring any `resolver_failed` that has since resolved. This is the one way
+ * an entry changes without being re-ingested; it consumes no resolver work for
+ * files whose imports all resolved, and none at all for pre-resolved callers,
+ * whose edges are theirs to declare.
  *
  * **Promise resolution**: `setFile` / `setFiles` resolve only after the
  * serial LS push (phase 3) completes for every file in the batch. Awaiting
@@ -376,6 +391,33 @@ interface OwnedEntryLexResolve extends OwnedEntryBase {
 	mode: 'lex+resolve';
 	/** Identity that produced `unfilteredDeps`. Cache key for re-resolve elision. */
 	resolverIdentity: string | symbol;
+	/**
+	 * The lexed specifiers and their resolutions, kept only while at least one
+	 * non-builtin specifier resolved to `null` — a file whose imports all
+	 * resolved can't gain edges from a later ingest, so it stores nothing.
+	 *
+	 * An unresolved specifier is a *deferred* answer, not a final one: the
+	 * target may be ingested later, and this entry is a cache hit until its own
+	 * content changes, so nothing would re-resolve it. `healUnresolvedEdges`
+	 * retries these slots after a batch adds paths and rebuilds
+	 * `unfilteredDeps` from the full array rather than appending to it, so a
+	 * healed entry stores exactly what a fresh ingest would (same dedupe rule,
+	 * same first-occurrence order) and nothing downstream can tell the two
+	 * apart.
+	 */
+	unresolved?: {
+		specifiers: ReadonlyArray<string>;
+		resolved: Array<string | null>;
+		/**
+		 * The `ingestSeq` these slots were resolved under. The heal skips its
+		 * own call's entries: everything a `setFiles` adds is already in the
+		 * resolution host's overlay during that call's phase 2, so retrying
+		 * them would re-run a resolver over answers that can't have changed —
+		 * observable as duplicate resolver calls, and endless for an import
+		 * that is simply a typo.
+		 */
+		seq: number;
+	};
 }
 
 interface OwnedEntryPreResolved extends OwnedEntryBase {
@@ -467,6 +509,51 @@ export const createAnalysisSession = (options: AnalysisSessionOptions): Analysis
 	);
 
 	const owned = new Map<string, OwnedEntry>();
+	// Ancestor directories of the owned set, kept in lockstep at the three
+	// mutation sites (phase-3 `owned.set`, `deleteFile`, `dispose`) — the
+	// default resolver's host answers `directoryExists` from it, see
+	// `createOwnedDirIndex`.
+	const ownedDirs = createOwnedDirIndex();
+
+	// Bumped whenever the owned set's *membership* changes (a path added or
+	// removed — content changes can't change what exists). Resolvers cache
+	// failed lookups, which the next membership change may falsify, so each
+	// resolver's cache is dropped when it predates the current generation.
+	// Per-resolver rather than a single flag: a per-call override must not
+	// consume the session default's invalidation, or vice versa.
+	let ownedGeneration = 0;
+	const resolverGenerations = new WeakMap<ImportResolver, number>();
+
+	// Incremented once per `setFiles` (so the context closure's batches share
+	// the caller's number) — stamps deferred resolutions so the heal pass can
+	// tell "resolved before this call" from "resolved during it".
+	let ingestSeq = 0;
+
+	// The in-flight ingest batch, overlaid on `owned` by the resolution host:
+	// dependency resolution (phase 2) runs before the batch commits (phase 3),
+	// and a batch must resolve against itself — first ingest of importer + dep
+	// in one call. Registered/removed per batch in `runBatch`. Batches never
+	// nest (the context closure runs after `runBatch` returns) and overlapping
+	// calls are unsupported (see `AnalysisSession`), so the overlay is only
+	// ever one batch deep.
+	const pendingBatch = new Map<string, string>();
+	const pendingDirs = createOwnedDirIndex();
+
+	// The default resolver must see the same world the checker does: owned
+	// content over disk (the LS host already serves it — see
+	// `typescript-program.ts`). Without this, a file in a directory that
+	// exists nowhere on disk (unsaved buffers, virtual-only layouts) resolves
+	// for types but silently drops its dependency edges. Keys are POSIX like
+	// the owned map; `ts.resolveModuleName` probes forward-slash paths.
+	const resolutionHost: ts.ModuleResolutionHost = {
+		fileExists: (path) => pendingBatch.has(path) || owned.has(path) || ts.sys.fileExists(path),
+		readFile: (path) => pendingBatch.get(path) ?? owned.get(path)?.content ?? ts.sys.readFile(path),
+		directoryExists: (path) =>
+			pendingDirs.has(path) || ownedDirs.has(path) || ts.sys.directoryExists(path),
+		realpath: ts.sys.realpath,
+		getCurrentDirectory: () => sourceOptions.projectRoot,
+		useCaseSensitiveFileNames: ts.sys.useCaseSensitiveFileNames
+	};
 
 	// TODO: the owned-entry cache is in-memory only, so cold one-shot runs
 	// (`analyzeFromFiles` from the CLI, `vite build`) re-transform and re-analyze
@@ -490,7 +577,11 @@ export const createAnalysisSession = (options: AnalysisSessionOptions): Analysis
 	// the resolver so consecutive resolves share state.
 	let lazyDefault: ImportResolver | undefined;
 	const getDefaultResolver = (): ImportResolver => {
-		lazyDefault ??= createDefaultResolver(ls.getCompilerOptions(), sourceOptions.projectRoot);
+		lazyDefault ??= createDefaultResolver(
+			ls.getCompilerOptions(),
+			sourceOptions.projectRoot,
+			resolutionHost
+		);
 		return lazyDefault;
 	};
 
@@ -612,6 +703,30 @@ export const createAnalysisSession = (options: AnalysisSessionOptions): Analysis
 		};
 	};
 
+	// Project resolver output to stored edges: drop unresolved slots and
+	// non-source targets, dedupe in first-occurrence order — multiple
+	// statements importing the same module are one edge. Shared by phase 3 and
+	// `healUnresolvedEdges` so a healed entry's edges are byte-identical to a
+	// fresh ingest's.
+	const depsFromResolved = (resolved: ReadonlyArray<string | null>): Array<string> => {
+		const depSet = new Set<string>();
+		for (const r of resolved) {
+			if (r === null) continue;
+			if (!isSource(r, sourceOptions)) continue;
+			depSet.add(r);
+		}
+		return [...depSet];
+	};
+
+	// Whether any resolution is *deferred* rather than settled: a specifier
+	// that resolved to `null` and isn't a Node builtin (builtins are never
+	// resolved by design — their slot stays `null` forever, so treating them
+	// as retryable would flag every file importing `node:fs`).
+	const hasDeferredResolution = (
+		specifiers: ReadonlyArray<string>,
+		resolved: ReadonlyArray<string | null>
+	): boolean => specifiers.some((s, i) => resolved[i] === null && !isNodeBuiltin(s));
+
 	// Phase 3: serial per-file LS push + entry write
 	const phase3 = (
 		pending: PendingIngest,
@@ -636,21 +751,18 @@ export const createAnalysisSession = (options: AnalysisSessionOptions): Analysis
 		// The Set dedupes in first-occurrence order — multiple statements
 		// importing the same module (or a duplicate caller-declared edge) are
 		// one edge.
-		const depSet = new Set<string>();
+		let unfilteredDeps: Array<string>;
 		if (pending.preResolvedDeps !== undefined) {
+			const depSet = new Set<string>();
 			for (const raw of pending.preResolvedDeps) {
 				const posix = toPosixPath(raw);
 				if (!isSource(posix, sourceOptions)) continue;
 				depSet.add(posix);
 			}
+			unfilteredDeps = [...depSet];
 		} else {
-			for (const r of resolved) {
-				if (r === null) continue;
-				if (!isSource(r, sourceOptions)) continue;
-				depSet.add(r);
-			}
+			unfilteredDeps = depsFromResolved(resolved);
 		}
-		const unfilteredDeps = [...depSet];
 
 		// Build a mode-specific entry. The discriminator (`mode`) tags which
 		// cache-key field to read on the next ingest: `resolverIdentity` for
@@ -677,7 +789,18 @@ export const createAnalysisSession = (options: AnalysisSessionOptions): Analysis
 						resolverIdentity: pending.resolverIdentity!,
 						ingestDiagnostics: pending.ingestDiagnostics
 					};
+		if (entry.mode === 'lex+resolve' && hasDeferredResolution(pending.specifiers, resolved)) {
+			entry.unresolved = {
+				specifiers: pending.specifiers,
+				resolved: [...resolved],
+				seq: ingestSeq
+			};
+		}
 		if (pending.transformFailed) entry.transformFailed = true;
+		// A path new to the owned set falsifies cached resolution failures, so
+		// the generation moves; the dir index is idempotent and just gets told.
+		if (!owned.has(pending.file.id)) ownedGeneration++;
+		ownedDirs.add(pending.file.id);
 		owned.set(pending.file.id, entry);
 
 		// LS push — virtual path for successful Svelte transforms, real path
@@ -719,6 +842,18 @@ export const createAnalysisSession = (options: AnalysisSessionOptions): Analysis
 			? pickResolver(normalizeResolveImport(opts?.resolveImport))
 			: null;
 
+		// Drop resolution state cached before the owned set last changed shape.
+		// The default resolver caches `ts.resolveModuleName` results for its
+		// lifetime, failed lookups included — without this, a dep ingested
+		// after an importer already failed to resolve it would never produce an
+		// edge, however many times the importer changed afterwards. A resolver
+		// that has never run here counts as stale (no entry ≠ current
+		// generation), which costs one no-op clear on a cold cache.
+		if (resolver !== null && resolverGenerations.get(resolver) !== ownedGeneration) {
+			resolver.invalidate?.();
+			resolverGenerations.set(resolver, ownedGeneration);
+		}
+
 		// Posixify ids at ingest — the internal contract is forward-slash
 		// everywhere. Skip the clone when the input is already POSIX (common
 		// path on Linux/macOS).
@@ -727,142 +862,156 @@ export const createAnalysisSession = (options: AnalysisSessionOptions): Analysis
 			return posixId === f.id ? f : { ...f, id: posixId };
 		});
 
-		// Phase 1: sync per-file transform + lex.
-		const pendings: Array<PendingIngest> = [];
-		for (const file of normalizedFiles) {
-			pendings.push(phase1(file, resolver));
+		// Overlay the batch onto the resolution host's view for the duration
+		// of the phases — see `pendingBatch`.
+		for (const f of normalizedFiles) {
+			pendingBatch.set(f.id, f.content);
+			pendingDirs.add(f.id);
 		}
-
-		// Phase 2: parallel resolve. `Promise.resolve(sync)` adapts sync resolvers
-		// without per-call branching; async resolvers (Vite/Rollup) parallelize
-		// naturally. Each task returns its (file, idx, resolved) tuple so we can
-		// scatter results back into the right pending entry.
-		//
-		// Resolver throws are caught per-task and emitted as `resolver_failed`
-		// ingest diagnostics on the importing file. Treating throws as `null`
-		// (legitimately unresolvable) would silently mask buggy resolvers; the
-		// distinction matters for LSP-style consumers that publish failures.
-		interface ResolveTask {
-			pendingIdx: number;
-			specIdx: number;
-			specifier: string;
-		}
-		const tasks: Array<ResolveTask> = [];
-		for (let pi = 0; pi < pendings.length; pi++) {
-			const p = pendings[pi]!;
-			// Load-bearing beyond the wasted work it avoids: a cache hit's
-			// `ingestDiagnostics` is the *stored* array, already normalized at
-			// rest, and phase 3 skips it — so a `resolver_failed` pushed here
-			// would never be normalized and would ship an absolute path.
-			if (p.cacheHit) continue;
-			for (let si = 0; si < p.specifiers.length; si++) {
-				// Skip Node builtins — never a source file, and routing them
-				// through a host resolver (Vite/Rollup) provokes spurious
-				// "externalized for browser compatibility" warnings. The
-				// resolved slot stays `null` (its pre-filled default).
-				if (isNodeBuiltin(p.specifiers[si]!)) continue;
-				tasks.push({ pendingIdx: pi, specIdx: si, specifier: p.specifiers[si]! });
+		try {
+			// Phase 1: sync per-file transform + lex.
+			const pendings: Array<PendingIngest> = [];
+			for (const file of normalizedFiles) {
+				pendings.push(phase1(file, resolver));
 			}
-		}
-		// Resolver invariant: `tasks` non-empty implies `resolver !== null`.
-		// A task is only enqueued for a non-cache-hit pending with at least
-		// one specifier, which by phase 1's logic implies the file went
-		// through the lex+resolve branch, which only runs when at least one
-		// file in the batch lacks `dependencies` — i.e., `needsResolver` was
-		// `true` and a resolver was picked. Convert this unreachable-by-
-		// invariant into unreachable-by-throw so the `resolver!` below has
-		// an explicit runtime defense rather than relying on the chain.
-		if (tasks.length > 0 && resolver === null) {
-			throw new Error(
-				'svelte-docinfo: phase-2 invariant violated — tasks pending without a resolver'
-			);
-		}
-		const taskResults = await map_concurrent(tasks, MAX_RESOLVE_CONCURRENCY, async (t) => {
-			const pending = pendings[t.pendingIdx]!;
-			try {
-				const resolved = await resolver!.resolve(t.specifier, pending.file.id);
-				// Posixify resolver output — custom resolvers (Vite/Rollup,
-				// user-supplied) may emit native paths on Windows. The TS
-				// default resolver already returns POSIX, so this is a no-op
-				// there. Storing POSIX keeps unfilteredDeps consistent with
-				// owned-set keys in `query()`'s ownedIds filter.
-				return {
-					...t,
-					resolved: resolved === null ? null : toPosixPath(resolved),
-					error: undefined
-				};
-			} catch (err) {
-				return {
-					...t,
-					resolved: null,
-					error: to_error_message(err)
-				};
-			}
-		});
 
-		// Group resolved results by pending index for phase 3. Resolver errors
-		// land on the importing file's ingest diagnostics so per-file grouping
-		// (LSP publish, etc.) keeps them attached to the right source.
-		// Dedup on (pendingIdx, specifier) — duplicate imports of the same path
-		// throw N times, but the diagnostic carries no per-import-site info, so
-		// emitting once per specifier keeps the output non-redundant.
-		const resolvedByPending: Array<Array<string | null>> = pendings.map((p) =>
-			p.cacheHit ? [] : new Array<string | null>(p.specifiers.length).fill(null)
-		);
-		const seenFailures = new Map<number, Set<string>>();
-		for (const r of taskResults) {
-			resolvedByPending[r.pendingIdx]![r.specIdx] = r.resolved;
-			if (r.error === undefined) continue;
-			let seen = seenFailures.get(r.pendingIdx);
-			if (!seen) {
-				seen = new Set();
-				seenFailures.set(r.pendingIdx, seen);
+			// Phase 2: parallel resolve. `Promise.resolve(sync)` adapts sync resolvers
+			// without per-call branching; async resolvers (Vite/Rollup) parallelize
+			// naturally. Each task returns its (file, idx, resolved) tuple so we can
+			// scatter results back into the right pending entry.
+			//
+			// Resolver throws are caught per-task and emitted as `resolver_failed`
+			// ingest diagnostics on the importing file. Treating throws as `null`
+			// (legitimately unresolvable) would silently mask buggy resolvers; the
+			// distinction matters for LSP-style consumers that publish failures.
+			interface ResolveTask {
+				pendingIdx: number;
+				specIdx: number;
+				specifier: string;
 			}
-			if (seen.has(r.specifier)) continue;
-			seen.add(r.specifier);
-			const pending = pendings[r.pendingIdx]!;
-			pending.ingestDiagnostics.push({
-				kind: 'resolver_failed',
-				file: pending.file.id,
-				message: `Import resolver threw for "${r.specifier}": ${r.error}`,
-				severity: 'warning',
-				specifier: r.specifier
-			});
-		}
-
-		// Raw dependency targets of the batch's changed files (posixified,
-		// pre-`isSource`) — the context-closure seed. Cache-hit entries
-		// contribute nothing: their closure was walked when they last changed,
-		// and a context file missed then (e.g. an unreadable candidate)
-		// self-heals on the importer's next change.
-		const rawDeps = new Set<string>();
-		for (let i = 0; i < pendings.length; i++) {
-			const p = pendings[i]!;
-			if (p.cacheHit) continue;
-			if (p.preResolvedDeps !== undefined) {
-				for (const raw of p.preResolvedDeps) rawDeps.add(toPosixPath(raw));
-			} else {
-				for (const r of resolvedByPending[i]!) {
-					if (r !== null) rawDeps.add(r);
+			const tasks: Array<ResolveTask> = [];
+			for (let pi = 0; pi < pendings.length; pi++) {
+				const p = pendings[pi]!;
+				// Load-bearing beyond the wasted work it avoids: a cache hit's
+				// `ingestDiagnostics` is the *stored* array, already normalized at
+				// rest, and phase 3 skips it — so a `resolver_failed` pushed here
+				// would never be normalized and would ship an absolute path.
+				if (p.cacheHit) continue;
+				for (let si = 0; si < p.specifiers.length; si++) {
+					// Skip Node builtins — never a source file, and routing them
+					// through a host resolver (Vite/Rollup) provokes spurious
+					// "externalized for browser compatibility" warnings. The
+					// resolved slot stays `null` (its pre-filled default).
+					if (isNodeBuiltin(p.specifiers[si]!)) continue;
+					tasks.push({ pendingIdx: pi, specIdx: si, specifier: p.specifiers[si]! });
 				}
 			}
+			// Resolver invariant: `tasks` non-empty implies `resolver !== null`.
+			// A task is only enqueued for a non-cache-hit pending with at least
+			// one specifier, which by phase 1's logic implies the file went
+			// through the lex+resolve branch, which only runs when at least one
+			// file in the batch lacks `dependencies` — i.e., `needsResolver` was
+			// `true` and a resolver was picked. Convert this unreachable-by-
+			// invariant into unreachable-by-throw so the `resolver!` below has
+			// an explicit runtime defense rather than relying on the chain.
+			if (tasks.length > 0 && resolver === null) {
+				throw new Error(
+					'svelte-docinfo: phase-2 invariant violated — tasks pending without a resolver'
+				);
+			}
+			const taskResults = await map_concurrent(tasks, MAX_RESOLVE_CONCURRENCY, async (t) => {
+				const pending = pendings[t.pendingIdx]!;
+				try {
+					const resolved = await resolver!.resolve(t.specifier, pending.file.id);
+					// Posixify resolver output — custom resolvers (Vite/Rollup,
+					// user-supplied) may emit native paths on Windows. The TS
+					// default resolver already returns POSIX, so this is a no-op
+					// there. Storing POSIX keeps unfilteredDeps consistent with
+					// owned-set keys in `query()`'s ownedIds filter.
+					return {
+						...t,
+						resolved: resolved === null ? null : toPosixPath(resolved),
+						error: undefined
+					};
+				} catch (err) {
+					return {
+						...t,
+						resolved: null,
+						error: to_error_message(err)
+					};
+				}
+			});
+
+			// Group resolved results by pending index for phase 3. Resolver errors
+			// land on the importing file's ingest diagnostics so per-file grouping
+			// (LSP publish, etc.) keeps them attached to the right source.
+			// Dedup on (pendingIdx, specifier) — duplicate imports of the same path
+			// throw N times, but the diagnostic carries no per-import-site info, so
+			// emitting once per specifier keeps the output non-redundant.
+			const resolvedByPending: Array<Array<string | null>> = pendings.map((p) =>
+				p.cacheHit ? [] : new Array<string | null>(p.specifiers.length).fill(null)
+			);
+			const seenFailures = new Map<number, Set<string>>();
+			for (const r of taskResults) {
+				resolvedByPending[r.pendingIdx]![r.specIdx] = r.resolved;
+				if (r.error === undefined) continue;
+				let seen = seenFailures.get(r.pendingIdx);
+				if (!seen) {
+					seen = new Set();
+					seenFailures.set(r.pendingIdx, seen);
+				}
+				if (seen.has(r.specifier)) continue;
+				seen.add(r.specifier);
+				const pending = pendings[r.pendingIdx]!;
+				pending.ingestDiagnostics.push({
+					kind: 'resolver_failed',
+					file: pending.file.id,
+					message: `Import resolver threw for "${r.specifier}": ${r.error}`,
+					severity: 'warning',
+					specifier: r.specifier
+				});
+			}
+
+			// Raw dependency targets of the batch's changed files (posixified,
+			// pre-`isSource`) — the context-closure seed. Cache-hit entries
+			// contribute nothing: their closure was walked when they last changed,
+			// and a context file missed then (e.g. an unreadable candidate)
+			// self-heals on the importer's next change.
+			const rawDeps = new Set<string>();
+			for (let i = 0; i < pendings.length; i++) {
+				const p = pendings[i]!;
+				if (p.cacheHit) continue;
+				if (p.preResolvedDeps !== undefined) {
+					for (const raw of p.preResolvedDeps) rawDeps.add(toPosixPath(raw));
+				} else {
+					for (const r of resolvedByPending[i]!) {
+						if (r !== null) rawDeps.add(r);
+					}
+				}
+			}
+
+			// Phase 3: serial per-file LS push + entry write. Single LS mutator
+			// across the batch — no interleaved updates from concurrent tasks.
+			const perFile = new Map<string, SetFileResult>();
+			const changedIds = new Set<string>();
+			const aggregateDiagnostics: Array<Diagnostic> = [];
+
+			for (let i = 0; i < pendings.length; i++) {
+				const pending = pendings[i]!;
+				const result = phase3(pending, resolvedByPending[i]!);
+				perFile.set(pending.file.id, result);
+				if (result.changed) changedIds.add(pending.file.id);
+				for (const d of result.diagnostics) aggregateDiagnostics.push(d);
+			}
+
+			return { result: { changedIds, diagnostics: aggregateDiagnostics, perFile }, rawDeps };
+		} finally {
+			// Whole-overlay clear rather than per-file removal: the overlay is
+			// exactly this batch (never nested, never overlapping), so there is
+			// nothing else in it to preserve.
+			pendingBatch.clear();
+			pendingDirs.clear();
 		}
-
-		// Phase 3: serial per-file LS push + entry write. Single LS mutator
-		// across the batch — no interleaved updates from concurrent tasks.
-		const perFile = new Map<string, SetFileResult>();
-		const changedIds = new Set<string>();
-		const aggregateDiagnostics: Array<Diagnostic> = [];
-
-		for (let i = 0; i < pendings.length; i++) {
-			const pending = pendings[i]!;
-			const result = phase3(pending, resolvedByPending[i]!);
-			perFile.set(pending.file.id, result);
-			if (result.changed) changedIds.add(pending.file.id);
-			for (const d of result.diagnostics) aggregateDiagnostics.push(d);
-		}
-
-		return { result: { changedIds, diagnostics: aggregateDiagnostics, perFile }, rawDeps };
 	};
 
 	// Context-closure ingest (see `AnalysisSessionOptions.contextClosure`).
@@ -914,12 +1063,124 @@ export const createAnalysisSession = (options: AnalysisSessionOptions): Analysis
 		}
 	};
 
+	// Retry the deferred resolutions of *owned* entries after a batch adds
+	// paths (see `OwnedEntryLexResolve.unresolved`).
+	//
+	// The entry cache is keyed on content, so an importer that resolved a
+	// specifier to nothing before its target existed is a cache hit forever
+	// after: without this pass its edge would only appear when the importer's
+	// own content next changed, which is the wrong trigger — the file that
+	// changed is the dep. The build-tool flow is exactly this shape (a watcher
+	// hands over the created file alone), so leaving it to the next edit means
+	// the graph is quietly wrong in between.
+	//
+	// Scoped tightly: only entries carrying deferred slots, only slots resolved
+	// before this call (see `unresolved.seq`), only their `null` slots, and
+	// only when the entry's resolver is the one in effect now (a different
+	// resolver is a different answer, not a stale one). No re-lex, no
+	// re-transform, and edges rebuild from the full array rather than being
+	// appended to, so the entry matches a fresh ingest byte for byte. Deletion
+	// needs no counterpart — a resolved target that goes away is filtered out
+	// at query time by the owned-set projection.
+	//
+	// The resolver's own cache needs no clearing here even though phase 3 just
+	// moved the generation: everything this call commits was already visible to
+	// its phase 2 through the pending overlay, so the cache cannot be holding a
+	// false negative for it. Only a *previous* call's answers are stale, and
+	// `runBatch` cleared those at the top.
+	//
+	// A settled slot also retires the `resolver_failed` its ingest emitted, if
+	// any — the claim was true then and isn't now. Two margins remain, both
+	// self-healing on the importer's next ingest: a resolver that throws *here*
+	// leaves the slot deferred and its original diagnostic standing, and a
+	// newly-resolved edge pointing at an in-root non-source file doesn't itself
+	// seed a context-closure round.
+	const healUnresolvedEdges = async (opts: SetFileOptions | undefined): Promise<void> => {
+		// A scan of the owned set rather than a side index of deferred entries:
+		// it can't desync, and it only runs on a batch that added paths.
+		const stale: Array<[string, OwnedEntryLexResolve]> = [];
+		for (const [id, entry] of owned) {
+			if (entry.mode === 'lex+resolve' && entry.unresolved && entry.unresolved.seq !== ingestSeq) {
+				stale.push([id, entry]);
+			}
+		}
+		if (stale.length === 0) return;
+
+		const resolver = pickResolver(normalizeResolveImport(opts?.resolveImport));
+		const retries: Array<{ id: string; entry: OwnedEntryLexResolve; slot: number }> = [];
+		for (const [id, entry] of stale) {
+			if (entry.resolverIdentity !== resolver.identity) continue;
+			const { specifiers, resolved } = entry.unresolved!;
+			for (let i = 0; i < specifiers.length; i++) {
+				if (resolved[i] === null && !isNodeBuiltin(specifiers[i]!)) {
+					retries.push({ id, entry, slot: i });
+				}
+			}
+		}
+		if (retries.length === 0) return;
+
+		const results = await map_concurrent(retries, MAX_RESOLVE_CONCURRENCY, async (r) => {
+			try {
+				const resolved = await resolver.resolve(r.entry.unresolved!.specifiers[r.slot]!, r.id);
+				return { ...r, resolved: resolved === null ? null : toPosixPath(resolved) };
+			} catch {
+				return { ...r, resolved: null };
+			}
+		});
+
+		const attempted = new Set<OwnedEntryLexResolve>();
+		const settled = new Map<OwnedEntryLexResolve, Set<string>>();
+		for (const r of results) {
+			attempted.add(r.entry);
+			if (r.resolved === null) continue;
+			r.entry.unresolved!.resolved[r.slot] = r.resolved;
+			let specifiers = settled.get(r.entry);
+			if (!specifiers) {
+				specifiers = new Set();
+				settled.set(r.entry, specifiers);
+			}
+			specifiers.add(r.entry.unresolved!.specifiers[r.slot]!);
+		}
+		for (const entry of attempted) {
+			const { specifiers, resolved } = entry.unresolved!;
+			const settledSpecifiers = settled.get(entry);
+			if (settledSpecifiers) {
+				entry.unfilteredDeps = depsFromResolved(resolved);
+				// A `resolver_failed` for a specifier that now resolves is no
+				// longer true — durable ingest diagnostics would otherwise
+				// publish it (LSP, the Vite virtual module) for the session's
+				// life. Phase 2 emits at most one per (file, specifier), so
+				// matching on the specifier drops exactly the settled ones.
+				if (entry.ingestDiagnostics.length > 0) {
+					entry.ingestDiagnostics = entry.ingestDiagnostics.filter(
+						(d) => d.kind !== 'resolver_failed' || !settledSpecifiers.has(d.specifier)
+					);
+				}
+			}
+			if (hasDeferredResolution(specifiers, resolved)) {
+				// Attempted under this call, so don't retry within it; the next
+				// call that adds a path tries the remainder again — the specifier
+				// it needs may be exactly what that call brings.
+				entry.unresolved!.seq = ingestSeq;
+			} else {
+				// All settled — drop the retry state so the entry stops being scanned.
+				entry.unresolved = undefined;
+			}
+		}
+	};
+
 	const setFiles = async (
 		files: ReadonlyArray<SourceFileInfo>,
 		opts?: SetFileOptions
 	): Promise<SetFilesResult> => {
+		ingestSeq++;
+		const generationBefore = ownedGeneration;
 		const { result, rawDeps } = await runBatch(files, opts);
 		if (contextClosureEnabled) await ingestContextClosure(rawDeps, opts);
+		// Only additions can settle a deferred resolution, and `deleteFile`
+		// moves the generation too — but a batch never deletes, so a moved
+		// generation here means paths were added.
+		if (ownedGeneration !== generationBefore) await healUnresolvedEdges(opts);
 		return result;
 	};
 
@@ -942,6 +1203,8 @@ export const createAnalysisSession = (options: AnalysisSessionOptions): Analysis
 			ls.deleteFile(posixId);
 		}
 		owned.delete(posixId);
+		ownedDirs.remove(posixId);
+		ownedGeneration++;
 		return Promise.resolve();
 	};
 
@@ -1029,6 +1292,7 @@ export const createAnalysisSession = (options: AnalysisSessionOptions): Analysis
 	const dispose = (): void => {
 		ls.dispose();
 		owned.clear();
+		ownedDirs.clear();
 	};
 
 	return {

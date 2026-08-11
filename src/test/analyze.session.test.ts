@@ -17,6 +17,9 @@
  *    identity returns `{changed: false}` and runs no work.
  * 7. **Transform-failed placeholder** — Svelte files whose svelte2tsx throws
  *    surface in `query().modules` as `{partial: true, declarations: []}`.
+ * 8. **Deferred resolution** — an import that resolved to nothing is retried
+ *    when a later ingest adds paths, so an importer gains the edge without
+ *    being re-ingested itself (the file that changed is the dep).
  *
  * The script-kind facet of mutation correctness — a component flipping
  * `lang="ts"` in place must reparse under the new kind — is covered in
@@ -1496,6 +1499,255 @@ describe('createAnalysisSession', { timeout: 30_000 }, () => {
 					session.dispose();
 				}
 			});
+		});
+	});
+});
+
+describe('dependency edges for in-memory files', { timeout: 30_000 }, () => {
+	test('an owned file with no disk counterpart is a resolvable dependency target', async () => {
+		// The narrow half of the guarantee — a directory that exists on disk,
+		// with content that only exists in memory. The resolver used to run
+		// against `ts.sys` alone, so *every* such edge was silently dropped
+		// (build pipelines handing over content, unsaved editor buffers);
+		// its host now answers from the owned set like the LS host does.
+		await withTestProject({ 'src/lib/keep.ts': 'export const k = 1;\n' }, async (projectRoot) => {
+			const dir = join(projectRoot, 'src/lib');
+			const session = createAnalysisSession({
+				sourceOptions: createSourceOptions(projectRoot)
+			});
+			try {
+				await session.setFiles([
+					{ id: join(dir, 'dep.ts'), content: 'export const a = 1;\n' },
+					{ id: join(dir, 'main.ts'), content: `import { a } from './dep';\nexport const b = a;\n` }
+				]);
+				const result = session.query();
+
+				const main = result.modules.find((m) => m.path === 'main.ts');
+				assert.ok(main, 'main module missing');
+				assert.deepStrictEqual(main.dependencies, ['dep.ts']);
+			} finally {
+				session.dispose();
+			}
+		});
+	});
+
+	test('in-memory Svelte components resolve each other', async () => {
+		// `.svelte` never goes through `ts.resolveModuleName` — the default
+		// resolver appends the extension and probes the host directly, so this
+		// is the Svelte-shaped half of the same guarantee.
+		await withTestProject({}, async (projectRoot) => {
+			const dir = join(projectRoot, 'src/lib');
+			const session = createAnalysisSession({
+				sourceOptions: createSourceOptions(projectRoot)
+			});
+			try {
+				await session.setFiles([
+					{
+						id: join(dir, 'B.svelte'),
+						content: `<script lang="ts">let {prop1}: {prop1: string} = $props();</script>\n<div>{prop1}</div>\n`
+					},
+					{
+						id: join(dir, 'A.svelte'),
+						content: `<script lang="ts">import B from './B.svelte';</script>\n<B prop1="text" />\n`
+					}
+				]);
+				const result = session.query();
+
+				const a = result.modules.find((m) => m.path === 'A.svelte');
+				assert.ok(a, 'A module missing');
+				assert.deepStrictEqual(a.dependencies, ['B.svelte']);
+				const b = result.modules.find((m) => m.path === 'B.svelte');
+				assert.ok(b, 'B module missing');
+				assert.deepStrictEqual(b.dependents, ['A.svelte']);
+			} finally {
+				session.dispose();
+			}
+		});
+	});
+
+	test('a dep ingested after a failed resolve produces an edge on the next change', async () => {
+		// The resolver's module-resolution cache lives for the session and
+		// stores failed lookups too, so an importer that resolved `./dep` to
+		// nothing before the dep existed would keep resolving it to nothing
+		// forever. The session invalidates on owned-set membership change.
+		await withTestProject({ 'src/lib/keep.ts': 'export const k = 1;\n' }, async (projectRoot) => {
+			const dir = join(projectRoot, 'src/lib');
+			const mainId = join(dir, 'main.ts');
+			const session = createAnalysisSession({
+				sourceOptions: createSourceOptions(projectRoot)
+			});
+			try {
+				// the dep exists nowhere yet — this resolve fails and is cached
+				await session.setFiles([
+					{ id: mainId, content: `import { a } from './dep';\nexport const b = a;\n` }
+				]);
+				assert.deepStrictEqual(
+					session.query().modules.find((m) => m.path === 'main.ts')?.dependencies,
+					[]
+				);
+
+				await session.setFiles([{ id: join(dir, 'dep.ts'), content: 'export const a = 1;\n' }]);
+				await session.setFiles([
+					{ id: mainId, content: `import { a } from './dep';\nexport const b2 = a;\n` }
+				]);
+				const result = session.query();
+
+				const main = result.modules.find((m) => m.path === 'main.ts');
+				assert.ok(main, 'main module missing');
+				assert.deepStrictEqual(main.dependencies, ['dep.ts']);
+				const dep = result.modules.find((m) => m.path === 'dep.ts');
+				assert.ok(dep, 'dep module missing');
+				assert.deepStrictEqual(dep.dependents, ['main.ts']);
+			} finally {
+				session.dispose();
+			}
+		});
+	});
+
+	test('an untouched importer gains the edge when its dep is created', async () => {
+		// The build-tool shape: a watcher hands over the created file alone, so
+		// the importer is a content cache hit and never re-resolves on its own.
+		// Waiting for its next edit would leave the graph wrong in between.
+		await withTestProject({ 'src/lib/keep.ts': 'export const k = 1;\n' }, async (projectRoot) => {
+			const dir = join(projectRoot, 'src/lib');
+			const session = createAnalysisSession({
+				sourceOptions: createSourceOptions(projectRoot)
+			});
+			try {
+				await session.setFiles([
+					{ id: join(dir, 'keep.ts'), content: 'export const k = 1;\n' },
+					{
+						id: join(dir, 'main.ts'),
+						// extensionless: the temp tsconfig (bundler resolution) has no
+						// allowImportingTsExtensions
+						content: `import { k } from './keep';\nimport { a } from './dep';\nexport const b = a + k;\n`
+					}
+				]);
+				assert.deepStrictEqual(
+					session.query().modules.find((m) => m.path === 'main.ts')?.dependencies,
+					['keep.ts']
+				);
+
+				// only the dep is ingested — main is not touched again
+				const ingest = await session.setFiles([
+					{ id: join(dir, 'dep.ts'), content: 'export const a = 1;\n' }
+				]);
+				assert.deepStrictEqual([...ingest.changedIds], [join(dir, 'dep.ts')]);
+				const result = session.query();
+
+				const main = result.modules.find((m) => m.path === 'main.ts');
+				assert.ok(main, 'main module missing');
+				// the healed edge joins the one that already resolved, and output
+				// order is `compareStrings` as for any other module
+				assert.deepStrictEqual(main.dependencies, ['dep.ts', 'keep.ts']);
+				const dep = result.modules.find((m) => m.path === 'dep.ts');
+				assert.ok(dep, 'dep module missing');
+				assert.deepStrictEqual(dep.dependents, ['main.ts']);
+			} finally {
+				session.dispose();
+			}
+		});
+	});
+
+	test('a still-unresolvable import stays deferred without disturbing settled edges', async () => {
+		await withTestProject({ 'src/lib/keep.ts': 'export const k = 1;\n' }, async (projectRoot) => {
+			const dir = join(projectRoot, 'src/lib');
+			const session = createAnalysisSession({
+				sourceOptions: createSourceOptions(projectRoot)
+			});
+			try {
+				await session.setFiles([
+					{ id: join(dir, 'keep.ts'), content: 'export const k = 1;\n' },
+					{
+						id: join(dir, 'main.ts'),
+						content: `import { k } from './keep';\nimport { x } from './typo';\nexport const b = k;\n`
+					}
+				]);
+				// an unrelated add moves the generation and runs the heal pass
+				await session.setFiles([{ id: join(dir, 'other.ts'), content: 'export const o = 1;\n' }]);
+				const result = session.query();
+
+				const main = result.modules.find((m) => m.path === 'main.ts');
+				assert.ok(main, 'main module missing');
+				assert.deepStrictEqual(main.dependencies, ['keep.ts']);
+			} finally {
+				session.dispose();
+			}
+		});
+	});
+
+	test('a healed specifier retires the resolver_failed it reported', async () => {
+		// Ingest diagnostics are durable, so a warning about a specifier that
+		// since resolved would be republished for the session's lifetime.
+		await withTestProject({}, async (projectRoot) => {
+			const dir = join(projectRoot, 'src/lib');
+			const mainId = join(dir, 'main.ts');
+			const session = createAnalysisSession({
+				sourceOptions: createSourceOptions(projectRoot),
+				// stable identity so the heal recognizes its own resolver; throws
+				// until the dep is owned, which is what emits `resolver_failed`
+				resolveImport: {
+					identity: 'test-resolver',
+					resolve: (specifier) => {
+						if (!specifier.startsWith('./')) return null;
+						const target = join(dir, `${specifier.slice(2)}.ts`);
+						if (!session.has(target)) throw new Error('not yet');
+						return target;
+					}
+				}
+			});
+			try {
+				await session.setFiles([
+					{ id: mainId, content: `import { a } from './dep';\nexport const b = a;\n` }
+				]);
+				assert.deepStrictEqual(
+					session.allIngestDiagnostics().map((d) => d.kind),
+					['resolver_failed']
+				);
+
+				await session.setFiles([{ id: join(dir, 'dep.ts'), content: 'export const a = 1;\n' }]);
+
+				assert.deepStrictEqual(session.allIngestDiagnostics(), []);
+				const main = session.query().modules.find((m) => m.path === 'main.ts');
+				assert.ok(main, 'main module missing');
+				assert.deepStrictEqual(main.dependencies, ['dep.ts']);
+			} finally {
+				session.dispose();
+			}
+		});
+	});
+
+	test('dependency edges resolve for in-memory files whose directory exists nowhere on disk', async () => {
+		// The LS host resolves such files for the checker; the default
+		// dependency resolver must see the same world (its host answers from
+		// the owned set) or the emitted module silently loses its edges.
+		await withTestProject({}, async (projectRoot) => {
+			const dir = join(projectRoot, 'src/lib/ghost');
+			const depId = join(dir, 'dep.ts');
+			const mainId = join(dir, 'main.ts');
+
+			const session = createAnalysisSession({
+				sourceOptions: createSourceOptions(projectRoot)
+			});
+			try {
+				await session.setFiles([
+					{ id: depId, content: 'export const a = 1;\n' },
+					// extensionless — the temp tsconfig (bundler resolution) has no
+					// allowImportingTsExtensions, so a `.ts`-suffixed specifier
+					// wouldn't resolve regardless of host
+					{ id: mainId, content: `import { a } from './dep';\nexport const b = a;\n` }
+				]);
+				const result = session.query();
+
+				const main = result.modules.find((m) => m.path === 'ghost/main.ts');
+				assert.ok(main, 'main module missing');
+				assert.deepStrictEqual(main.dependencies, ['ghost/dep.ts']);
+				const dep = result.modules.find((m) => m.path === 'ghost/dep.ts');
+				assert.ok(dep, 'dep module missing');
+				assert.deepStrictEqual(dep.dependents, ['ghost/main.ts']);
+			} finally {
+				session.dispose();
+			}
 		});
 	});
 });

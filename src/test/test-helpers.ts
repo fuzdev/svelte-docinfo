@@ -419,28 +419,33 @@ export interface FixtureLoaderConfig {
 	/** Input file extension (e.g., '.mdz', '.ts', '.svelte') */
 	inputExtension: string;
 	/**
-	 * Collect sibling source files (`.ts`, recursive) beside the input file,
-	 * for multi-file fixtures. Default `false`.
+	 * Collect sibling source files (recursive) beside the input file, for
+	 * multi-file fixtures. Default `false`.
 	 */
 	loadExtraFiles?: boolean;
+	/**
+	 * Extensions collected as sibling files (`.d.ts` matches `.ts`). Default
+	 * `DEFAULT_EXTRA_FILE_EXTENSIONS`. Per-set deliberately — each harness
+	 * collects only what it can analyze: the ts harness feeds siblings straight
+	 * to `analyzeCore`, so a collected `.svelte` sibling would arrive with no
+	 * svelte2tsx virtual there, while the svelte harness transforms `.svelte`
+	 * siblings itself and widens to `['.ts', '.svelte']`.
+	 */
+	extraFileExtensions?: Array<string>;
 }
 
-/**
- * Extensions collected as fixture sibling files (`.d.ts` matches `.ts`).
- * Deliberately only what a harness can analyze — the ts harness feeds
- * siblings straight to `analyzeCore`, so a collected `.svelte` sibling would
- * arrive with no svelte2tsx virtual; widen when svelte multi-file lands.
- */
-const EXTRA_FILE_EXTENSIONS = ['.ts'];
+/** Default `extraFileExtensions` — see the config field for why it's per-set. */
+const DEFAULT_EXTRA_FILE_EXTENSIONS = ['.ts'];
 
 /**
  * Recursively collect a fixture directory's sibling source files — every
- * `.ts` file except the input file itself, with fixture-dir-relative POSIX
- * paths in `compareStrings` order.
+ * file matching `extensions` except the input file itself, with
+ * fixture-dir-relative POSIX paths in `compareStrings` order.
  */
 const loadFixtureExtraFiles = async (
 	fixtureDir: string,
-	inputExtension: string
+	inputExtension: string,
+	extensions: Array<string>
 ): Promise<Array<FixtureExtraFile>> => {
 	const inputName = `input${inputExtension}`;
 	const paths: Array<string> = [];
@@ -451,7 +456,7 @@ const loadFixtureExtraFiles = async (
 			const abs = join(dir, entry.name);
 			if (entry.isDirectory()) {
 				await scan(abs);
-			} else if (entry.isFile() && EXTRA_FILE_EXTENSIONS.some((ext) => entry.name.endsWith(ext))) {
+			} else if (entry.isFile() && extensions.some((ext) => entry.name.endsWith(ext))) {
 				const rel = relative(fixtureDir, abs).replaceAll('\\', '/');
 				if (rel !== inputName) paths.push(rel);
 			}
@@ -529,7 +534,12 @@ const discoverFixtureDirs = async (
 export const loadFixturesGeneric = async <T>(
 	config: FixtureLoaderConfig
 ): Promise<Array<GenericFixture<T>>> => {
-	const { fixturesDir, inputExtension, loadExtraFiles } = config;
+	const {
+		fixturesDir,
+		inputExtension,
+		loadExtraFiles,
+		extraFileExtensions = DEFAULT_EXTRA_FILE_EXTENSIONS
+	} = config;
 
 	// Recursively discover all fixture directories
 	const fixtureDirs = await discoverFixtureDirs(fixturesDir, inputExtension);
@@ -540,7 +550,11 @@ export const loadFixturesGeneric = async <T>(
 			const expectedText = await readFile(join(fixtureDir, 'expected.json'), 'utf-8');
 			const fixture: GenericFixture<T> = { name, input, expected: JSON.parse(expectedText) };
 			if (loadExtraFiles) {
-				const extraFiles = await loadFixtureExtraFiles(fixtureDir, inputExtension);
+				const extraFiles = await loadFixtureExtraFiles(
+					fixtureDir,
+					inputExtension,
+					extraFileExtensions
+				);
 				if (extraFiles.length > 0) fixture.extraFiles = extraFiles;
 			}
 			return fixture;
@@ -557,10 +571,12 @@ export interface UpdateTaskConfig<TInput, TOutput> {
 	/** Input file extension */
 	inputExtension: string;
 	/**
-	 * Collect sibling source files per fixture and pass them to `process`
-	 * (multi-file fixtures). Default `false`.
+	 * Collect sibling source files per fixture and pass them to `process` /
+	 * `processAll` (multi-file fixtures). Default `false`.
 	 */
 	loadExtraFiles?: boolean;
+	/** Extensions collected as sibling files — see `FixtureLoaderConfig`. */
+	extraFileExtensions?: Array<string>;
 	/**
 	 * Process one input to generate its output. Exactly one of `process` /
 	 * `processAll` must be supplied. `extraFiles` is populated only under
@@ -575,10 +591,10 @@ export interface UpdateTaskConfig<TInput, TOutput> {
 	 * Batch form of `process`: receives every fixture at once (one discovery
 	 * pass, one read per input) and returns outputs index-aligned with the
 	 * input array — for harnesses that analyze the whole set against one
-	 * shared program.
+	 * shared program. `extraFiles` follows the same rule as `process`.
 	 */
 	processAll?: (
-		fixtures: Array<{ name: string; input: TInput }>
+		fixtures: Array<{ name: string; input: TInput; extraFiles?: Array<FixtureExtraFile> }>
 	) => Promise<Array<TOutput>> | Array<TOutput>;
 	/**
 	 * Custom JSON replacer for serialization.
@@ -613,14 +629,17 @@ export const runUpdateTask = async <TInput = string, TOutput = any>(
 	config: UpdateTaskConfig<TInput, TOutput>,
 	log: { info: (msg: string) => void }
 ): Promise<{ generatedCount: number; skippedCount: number }> => {
-	const { fixturesDir, inputExtension, loadExtraFiles, process, processAll, jsonReplacer } = config;
+	const {
+		fixturesDir,
+		inputExtension,
+		loadExtraFiles,
+		extraFileExtensions = DEFAULT_EXTRA_FILE_EXTENSIONS,
+		process,
+		processAll,
+		jsonReplacer
+	} = config;
 	if (!process === !processAll) {
 		throw new Error('runUpdateTask requires exactly one of `process` or `processAll`');
-	}
-	// `processAll` doesn't receive per-fixture extras — combining the two
-	// would silently drop them; fail loudly instead
-	if (loadExtraFiles && processAll) {
-		throw new Error('runUpdateTask: `loadExtraFiles` requires `process` (not `processAll`)');
 	}
 
 	// Recursively discover all fixture directories
@@ -631,7 +650,7 @@ export const runUpdateTask = async <TInput = string, TOutput = any>(
 	const fixtures = await Promise.all(
 		fixtureDirs.map(async ({ path: fixtureDir, name }) => {
 			const extraFiles = loadExtraFiles
-				? await loadFixtureExtraFiles(fixtureDir, inputExtension)
+				? await loadFixtureExtraFiles(fixtureDir, inputExtension, extraFileExtensions)
 				: [];
 			return {
 				name,
@@ -643,7 +662,7 @@ export const runUpdateTask = async <TInput = string, TOutput = any>(
 	);
 
 	const outputs = processAll
-		? await processAll(fixtures.map(({ name, input }) => ({ name, input })))
+		? await processAll(fixtures.map(({ name, input, extraFiles }) => ({ name, input, extraFiles })))
 		: await Promise.all(
 				fixtures.map(({ input, name, extraFiles }) => process!(input, name, extraFiles))
 			);

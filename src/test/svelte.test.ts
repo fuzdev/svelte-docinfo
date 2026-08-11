@@ -13,12 +13,15 @@ import {
 	synthesizeSnippetTypeSignature
 } from '$lib/svelte.ts';
 import { type Diagnostic, hasErrors, hasWarnings, warningsOf } from '$lib/diagnostics.ts';
+import { AnalyzeResultJson } from '$lib/analyze-core.ts';
 import type { ModuleAnalysis } from '$lib/declaration-build.ts';
 import type { SourceFileInfo } from '$lib/source.ts';
 import type { ModuleSourceOptions } from '$lib/source-config.ts';
 
 import {
 	buildSvelteFixtureRegistry,
+	fixtureNameToComponentName,
+	svelteFixtureEntryPath,
 	loadFixtures,
 	analyzeSvelteFixtureModules
 } from './fixtures/svelte/svelte-test-helpers.ts';
@@ -85,10 +88,10 @@ const analyzeTestComponent = (
 };
 
 describe('svelte component analyzer (fixture-based)', () => {
-	test('all fixtures analyze correctly', { timeout: 15_000 }, () => {
+	test('all fixtures analyze correctly', { timeout: 15_000 }, async () => {
 		// The exact pipeline the update task regenerates with — shared program,
 		// per-fixture analyzeCore; results index-aligned with the inputs
-		const analyzed = analyzeSvelteFixtureModules(fixtures);
+		const analyzed = await analyzeSvelteFixtureModules(fixtures);
 
 		for (let i = 0; i < fixtures.length; i++) {
 			assert.deepEqual(
@@ -101,7 +104,22 @@ describe('svelte component analyzer (fixture-based)', () => {
 
 	test('all fixtures have valid structure', () => {
 		for (const fixture of fixtures) {
-			validateModuleFixture(fixture.expected, { components: 1 });
+			if (fixture.extraFiles) {
+				// Multi-file fixtures capture the AnalyzeResultJson envelope; the
+				// entry module carries the fixture's own component (component
+				// re-export aliases may sit beside it as further component
+				// declarations, so "exactly one" would be wrong here).
+				const parsed = AnalyzeResultJson.parse(fixture.expected);
+				const name = fixtureNameToComponentName(fixture.name);
+				const entryModule = parsed.modules.find((m) => m.path === svelteFixtureEntryPath(name));
+				assert.ok(entryModule, `Missing entry module for fixture "${fixture.name}"`);
+				assert.ok(
+					entryModule.declarations.some((d) => d.kind === 'component' && d.name === name),
+					`Missing the fixture's own component in the entry module of "${fixture.name}"`
+				);
+			} else {
+				validateModuleFixture(fixture.expected, { components: 1 });
+			}
 		}
 	});
 });

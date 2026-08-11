@@ -1,0 +1,57 @@
+{
+	"modules": [
+		{
+			"path": "TypesCrossModuleExternal/types.ts",
+			"declarations": [
+				{
+					"name": "A",
+					"kind": "interface",
+					"docComment": "Description 1",
+					"typeSignature": "A",
+					"sourceLine": 4,
+					"extends": [
+						"HTMLButtonAttributes"
+					],
+					"externalTypes": [
+						"HTMLButtonAttributes"
+					],
+					"members": [
+						{
+							"name": "prop1",
+							"kind": "variable",
+							"docComment": "Description 2",
+							"typeSignature": "string"
+						}
+					]
+				}
+			],
+			"dependents": [
+				"TypesCrossModuleExternal/TypesCrossModuleExternal.svelte"
+			]
+		},
+		{
+			"path": "TypesCrossModuleExternal/TypesCrossModuleExternal.svelte",
+			"declarations": [
+				{
+					"name": "TypesCrossModuleExternal",
+					"kind": "component",
+					"sourceLine": 1,
+					"externalTypes": [
+						"HTMLButtonAttributes"
+					],
+					"props": [
+						{
+							"name": "prop1",
+							"type": "string",
+							"description": "Description 2"
+						}
+					],
+					"acceptsChildren": true
+				}
+			],
+			"dependencies": [
+				"TypesCrossModuleExternal/types.ts"
+			]
+		}
+	]
+}

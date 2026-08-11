@@ -78,7 +78,7 @@ Directory names should be **descriptive and specific**:
 
 **Pattern:** `<category>-<specific-feature>` (kebab-case)
 
-- Svelte categories: `component`, `props`, `types`
+- Svelte categories: `component`, `props`, `types`, `reexports`, `errors`
 - TypeScript categories: `class`, `interface`, `type`, `function`, `variable`, `module-comment`, `reexports`
 - TSDoc categories: `comment`, `tags`, `param`, `returns`, `throws`, `example`, `deprecated`, `see`, `since`, `mutates`, `nodocs`
 - Feature: Be specific about what's tested (e.g., `bindable` not `binding`, `after-imports` not `comments`)
@@ -159,13 +159,22 @@ src/test/fixtures/svelte/
 ├── props/             # Prop extraction
 │   ├── basic/
 │   ├── bindable/
+│   ├── cross-module/
 │   ├── default-values/
 │   ├── optional/
 │   └── with-descriptions/
 ├── types/             # Type resolution
+│   ├── cross-module-external/
 │   ├── extends-html/
 │   ├── intersection/
 │   └── multiple-kinds/
+├── reexports/         # Re-export encodings (multi-file)
+│   ├── component-renamed/
+│   ├── component-same-name/
+│   ├── external-package/
+│   ├── gated-component/
+│   ├── gated-module/
+│   └── module-exports/
 └── errors/            # Error handling
     └── untyped/
 ```
@@ -174,6 +183,71 @@ Each fixture directory contains:
 
 - `input.svelte` - The Svelte component to analyze
 - `expected.json` - Expected module fixture object (see Expected Output Format)
+
+### Multi-File Svelte Fixtures
+
+A svelte fixture directory may carry sibling files beside `input.svelte` —
+`.ts` and `.svelte`, recursive (`SVELTE_EXTRA_FILE_EXTENSIONS`). The harness
+(`analyzeSvelteFixtureModules` in `svelte/svelte-test-helpers.ts`) maps the
+fixture into a per-fixture namespace dir under the repo's `src/lib` and
+analyzes the whole set through `analyzeCore` over the one shared batch
+program:
+
+```
+src/test/fixtures/svelte/reexports/component-renamed/
+├── input.svelte           # → src/lib/<Name>/<Name>.svelte (the entry,
+│                          #   renamed so the component name derives from it)
+├── Other.svelte           # → src/lib/<Name>/Other.svelte (transformed like
+│                          #   any component; importable as ./Other.svelte)
+└── expected.json          # AnalyzeResultJson envelope (see below)
+```
+
+Mapping rules:
+
+- **Namespace dir per fixture** — `<Name>` is the fixture path's PascalCase
+  component name, so sibling names can't collide across fixtures in the one
+  shared program; module paths become `<Name>/<Name>.svelte` /
+  `<Name>/types.ts`. Siblings keep their disk-relative position to the
+  entry, so `./types.ts` / `./Other.svelte` specifiers resolve identically
+  on disk (repo typecheck) and in the mapped project. Keep every specifier
+  inside the fixture's own dir: one climbing out (`../Other/types.ts`) would
+  resolve in the shared program — every fixture's files are in it — but not
+  in the harness resolver, whose `fileIds` is per-fixture, so the type would
+  resolve while the dependency edge silently didn't. Unguarded, since the
+  layout gives no reason to write one.
+- **The entry imports siblings, never the reverse.** The entry is _renamed_
+  (`input.svelte` → `<Name>.svelte`; the ts harness keeps `input.ts`)
+  because the component name derives from the filename, so no specifier for
+  the entry resolves both on disk and mapped — a harness pre-pass lexes
+  every file (gated `internal/` siblings included, which dep resolution
+  never lexes) and throws on an import resolving to the fixture-root
+  `input.svelte`; a _nested_ sibling legitimately named `input.svelte`
+  passes. Components that import each other are both siblings, with the
+  entry as the barrel.
+- **`internal/` siblings are gated** by the default `**/internal/**`
+  exclude: gated `.ts` siblings reach the checker via the program alone,
+  gated `.svelte` siblings additionally ride
+  `AnalyzeCoreInputs.contextSvelteFiles` so a gated component re-export
+  fills props — mirroring `session.query`'s assembly.
+- **Guards** (all throw): the namespace dir existing on disk under
+  `src/lib`, a sibling mapping onto the entry's id (literally named
+  `<Name>.svelte`), any file importing the entry, two fixture paths
+  PascalCasing to one component name (mapped ids would silently last-win in
+  the shared program), and a regenerated module set missing the fixture's
+  _own_ component — name-matched, since a component re-export alias is
+  itself a `kind: 'component'` declaration (`svelteFixtureEntryPath` is the
+  shared entry-path spelling).
+- **External shapes use the repo's real packages** (`svelte`,
+  `svelte/store`, `svelte/elements`) — there is no `external/` mapping here;
+  the program resolves against real `node_modules`, and synthetic-package
+  forms stay ts-side.
+
+Semantics mirror the ts side via the shared `captureFixtureProject`
+(`module-fixture-helpers.ts`): only `isSource`-passing files emit modules,
+`dependencies` are pre-resolved with the production lexer over the session's
+content-to-lex rule (the svelte2tsx _virtual_ for `.svelte` files — raw
+svelte isn't lex-able as TS), filtered to the emitted set, and
+`computeDependents` derives the reverse edges.
 
 ### TypeScript Module Fixtures
 
@@ -245,16 +319,18 @@ fixture analyzes through `analyzeCore` itself (per fixture, so fixtures stay
 independent projects), which runs the diagnostic boundary passes — positions
 are original-source and paths are machine-independent.
 
-**Multi-file ts fixtures capture the `AnalyzeResultJson` envelope instead**
-(`{modules, diagnostics}`, same wire rules) — cross-module facts land on more
-than one module (`alsoExportedFrom` on the canonical, `dependents` on the
-dep), so every emitted module is locked. Single-file fixtures keep the
-single-module shape; the loader distinguishes by the presence of sibling
-files.
+**Multi-file fixtures (ts and svelte) capture the `AnalyzeResultJson`
+envelope instead** (`{modules, diagnostics}`, same wire rules) — cross-module
+facts land on more than one module (`alsoExportedFrom` on the canonical,
+`dependents` on the dep), so every emitted module is locked. Single-file
+fixtures keep the single-module shape; the loader distinguishes by the
+presence of sibling files.
 
 ### Svelte Module Output
 
-`path` is `<ComponentName>.svelte` (PascalCase from the fixture directory).
+`path` is `<ComponentName>.svelte` (PascalCase from the fixture directory);
+a multi-file fixture's entry module is `<Name>/<Name>.svelte` with siblings
+under `<Name>/`.
 `declarations` holds all non-nodocs declarations — the component first (primary
 export), then module-level exports (snippets, functions, variables, types).
 Module comments land in `moduleComment`; analysis warnings (e.g.
@@ -368,7 +444,7 @@ declaration in `declarations` matches the `DeclarationJson` interface:
 - [x] Complex types (unions, interfaces, type aliases, Snippet, functions, arrays)
 - [x] Extending HTML element types (SvelteHTMLElements)
 - [x] Intersection types (custom props & HTMLAttributes)
-- [x] `interface Props extends` external bags — single, generic, multiple, attribute-forwarding (no own props), through a local base, a diamond over one bag, and a utility instantiation in heritage position (`Omit<HTMLAttributes<HTMLDivElement>, 'onclick'>` — real lib `Omit`, so the fixture also locks that derived properties keep their external origins) (`types/interface-extends-*`); plus a bag composed inside a local alias (`types/nested-alias-html`). Generic local bases lock the type-parameter guard: a base whose heritage text names its own params records nothing (`types/interface-extends-generic-base`) or degrades to the instantiation-site name when attribute-forwarding (`types/interface-extends-generic-base-only`), while a component's own generic stays in scope and emits (`types/intersection-component-generic` — inline form: a _named_ props type in a generic component trips TS4060 under `declaration: true`, so no fixture can model that combination; the in-scope-param emission is what it locks). Import renames resolve to the name the module exports, locked against real `svelte/elements` at every leaf shape: descended-to (`types/interface-extends-renamed-import`, which also imports one bag under two names so the dedupe collapse is visible), written at the annotation itself with generic arguments preserved (`types/intersection-renamed-import`), an indexed access whose key survives the substitution (`types/bare-renamed-import`), and a generic instantiation where the substitution and the type-parameter guard inspect the same node — the renamed identifier moves, the component's own in-scope `T` stays (`types/generic-renamed-import`). All lock `externalTypes`; the walk's internals are unit-tested in `src/test/external-properties.test.ts` with a synthetic externality predicate (ts-side behavior locks live in the multi-file `ts/types/external-*` fixtures, real path-based externality via `external/` stubs), and the cross-module forms — props typed by an interface/alias imported from a sibling module (the dominant real-world pattern), a rename spelled in that sibling, and a package that renames on the way out — are locked behavior-level in `src/test/analyze.props-cross-module.test.ts` (the svelte harness is single-file per fixture)
+- [x] `interface Props extends` external bags — single, generic, multiple, attribute-forwarding (no own props), through a local base, a diamond over one bag, and a utility instantiation in heritage position (`Omit<HTMLAttributes<HTMLDivElement>, 'onclick'>` — real lib `Omit`, so the fixture also locks that derived properties keep their external origins) (`types/interface-extends-*`); plus a bag composed inside a local alias (`types/nested-alias-html`). Generic local bases lock the type-parameter guard: a base whose heritage text names its own params records nothing (`types/interface-extends-generic-base`) or degrades to the instantiation-site name when attribute-forwarding (`types/interface-extends-generic-base-only`), while a component's own generic stays in scope and emits (`types/intersection-component-generic` — inline form: a _named_ props type in a generic component trips TS4060 under `declaration: true`, so no fixture can model that combination; the in-scope-param emission is what it locks). Import renames resolve to the name the module exports, locked against real `svelte/elements` at every leaf shape: descended-to (`types/interface-extends-renamed-import`, which also imports one bag under two names so the dedupe collapse is visible), written at the annotation itself with generic arguments preserved (`types/intersection-renamed-import`), an indexed access whose key survives the substitution (`types/bare-renamed-import`), and a generic instantiation where the substitution and the type-parameter guard inspect the same node — the renamed identifier moves, the component's own in-scope `T` stays (`types/generic-renamed-import`). All lock `externalTypes`; the walk's internals are unit-tested in `src/test/external-properties.test.ts` with a synthetic externality predicate (ts-side behavior locks live in the multi-file `ts/types/external-*` fixtures, real path-based externality via `external/` stubs), and the cross-module forms — props typed by an interface/alias imported from a sibling module (the dominant real-world pattern), a rename spelled in that sibling, and a package that renames on the way out — are locked behavior-level in `src/test/analyze.props-cross-module.test.ts`, with the base sibling-interface form also fixture-locked (`props/cross-module`, `types/cross-module-external`)
 - [x] `externalTypes` on a **type alias** rather than a component (`types/module-alias-html`) — every other fixture documents the field on a component, so this is the only one exercising the type-alias path (`extractTypeAliasProperties` and its `hasExtractableProperties` gate) against real package origins; `external-properties.test.ts` reaches that path only with a synthetic externality predicate. The same fixture locks the two paths disagreeing on unions by design: `EitherProps` is a union of external bags and records no `externalTypes` and no `members`, while the component annotated with that very type records both bags (the component path bypasses the gate)
 - [x] Component with JSDoc (@component, @example tags)
 - [x] Component without props
@@ -379,6 +455,8 @@ declaration in `declarations` matches the `DeclarationJson` interface:
 - [x] `acceptsChildren` detection (explicit, inherited, no-children)
 - [x] JS components (JSDoc `@type`/`@typedef` props with descriptions/defaults/bindable/snippets in `props/jsdoc-type`, untyped inference + HTML `@component` doc in `component/javascript`)
 - [x] Legacy `export let` components (zero props + HTML `@component` fallback instead of doc leak, in `component/legacy-export-let`; the `legacy_props` diagnostic is locked by that fixture's own `expected.json` — the harness captures diagnostics — with behavior-level coverage in `analyze.legacy-components.test.ts`)
+- [x] Re-exports (multi-file, `reexports/*`): component rename with phase-2 prop/doc fill (`component-renamed`), component same-name re-key with `alsoExportedFrom` + forward `reExports` edge — the bare `export {default}` form, spelled in a sibling ts barrel because `export {default as Other}` classifies as a rename and a component's own `<script module>` can't cleanly re-export another default (`component-same-name`), `<script module>` value re-exports — same-name links, Position-3 doc synthesis, rename alias with inherited shape, star exports (`module-exports`), external-package re-exports against the real `svelte` incl. rename `originalName`, type-only, and `externalStarExports` (`external-package` — single-file: no cross-module facts), gated Svelte canonical filling props via `contextSvelteFiles` (`gated-component`), gated ts module synthesizing full aliases with dangling `aliasOf` (`gated-module`). All lock `dependencies`/`dependents`; behavior-level mechanics stay in `src/test/analyze.reexport-*.test.ts`
+- [x] Cross-module props (multi-file): props typed by an interface from a sibling `./types.ts` (`props/cross-module`); a sibling interface extending a real `svelte/elements` bag, `externalTypes` agreeing on both sides of the module boundary (`types/cross-module-external`). Deeper rename/package variants stay behavior-level in `analyze.props-cross-module.test.ts`
 
 ### TypeScript Module Fixtures
 
@@ -428,7 +506,7 @@ declaration in `declarations` matches the `DeclarationJson` interface:
 - `src/test/svelte.test.ts` - How Svelte fixtures are loaded and validated
 - `src/test/typescript.test.ts` - How TypeScript fixtures are loaded and validated
 - `src/test/tsdoc.test.ts` - How TSDoc fixtures are loaded and validated
-- `src/test/fixtures/module-fixture-helpers.ts` - Shared capture machinery for the ts and svelte harnesses (`ModuleFixtureJson`, `captureModuleFixture`, `validateModuleFixture`)
+- `src/test/fixtures/module-fixture-helpers.ts` - Shared capture machinery for the ts and svelte harnesses (`ModuleFixtureJson`, `captureModuleFixture`, `captureFixtureProject`, `resolveFixtureSpecifier`, `validateModuleFixture`)
 - `src/test/fixtures/svelte/svelte-test-helpers.ts` - Svelte fixture loading utilities
 - `src/test/fixtures/ts/ts-test-helpers.ts` - TypeScript fixture loading utilities
 - `src/test/fixtures/tsdoc/tsdoc-test-helpers.ts` - TSDoc fixture loading utilities

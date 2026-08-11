@@ -1,0 +1,120 @@
+{
+	"modules": [
+		{
+			"path": "ReexportsModuleExports/helpers.ts",
+			"declarations": [
+				{
+					"name": "a",
+					"kind": "variable",
+					"docComment": "Description 1",
+					"typeSignature": "1",
+					"sourceLine": 2,
+					"alsoExportedFrom": [
+						"ReexportsModuleExports/ReexportsModuleExports.svelte"
+					]
+				},
+				{
+					"name": "b",
+					"kind": "variable",
+					"typeSignature": "2",
+					"sourceLine": 4,
+					"alsoExportedFrom": [
+						"ReexportsModuleExports/ReexportsModuleExports.svelte"
+					]
+				},
+				{
+					"name": "fn1",
+					"kind": "function",
+					"docComment": "Description 2.",
+					"typeSignature": "(c: string): number",
+					"sourceLine": 11,
+					"parameters": [
+						{
+							"name": "c",
+							"type": "string",
+							"description": "Description 4"
+						}
+					],
+					"returnType": "number"
+				}
+			],
+			"dependents": [
+				"ReexportsModuleExports/ReexportsModuleExports.svelte"
+			]
+		},
+		{
+			"path": "ReexportsModuleExports/ReexportsModuleExports.svelte",
+			"declarations": [
+				{
+					"name": "ReexportsModuleExports",
+					"kind": "component",
+					"sourceLine": 10
+				},
+				{
+					"name": "b",
+					"kind": "variable",
+					"docComment": "Description 3",
+					"typeSignature": "2",
+					"sourceLine": 5,
+					"aliasOf": {
+						"module": "ReexportsModuleExports/helpers.ts",
+						"name": "b"
+					}
+				},
+				{
+					"name": "fn2",
+					"kind": "function",
+					"docComment": "Description 2.",
+					"typeSignature": "(c: string): number",
+					"sourceLine": 7,
+					"aliasOf": {
+						"module": "ReexportsModuleExports/helpers.ts",
+						"name": "fn1"
+					},
+					"parameters": [
+						{
+							"name": "c",
+							"type": "string",
+							"description": "Description 4"
+						}
+					],
+					"returnType": "number"
+				}
+			],
+			"dependencies": [
+				"ReexportsModuleExports/helpers.ts",
+				"ReexportsModuleExports/star.ts"
+			],
+			"starExports": [
+				"ReexportsModuleExports/star.ts"
+			],
+			"reExports": [
+				{
+					"name": "a",
+					"module": "ReexportsModuleExports/helpers.ts",
+					"sourceLine": 2
+				},
+				{
+					"name": "b",
+					"module": "ReexportsModuleExports/helpers.ts",
+					"sourceLine": 5
+				}
+			]
+		},
+		{
+			"path": "ReexportsModuleExports/star.ts",
+			"declarations": [
+				{
+					"name": "d",
+					"kind": "variable",
+					"docComment": "Description 5",
+					"typeSignature": "3",
+					"sourceLine": 2
+				}
+			],
+			"dependents": [
+				"ReexportsModuleExports/ReexportsModuleExports.svelte"
+			]
+		}
+	]
+}

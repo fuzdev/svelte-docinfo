@@ -13,19 +13,17 @@
  */
 
 import ts from 'typescript';
-import { posix } from 'node:path';
 
-import { analyzeCore, type AnalyzeResultJson } from '$lib/analyze-core.ts';
-import { ensureLexerReady, lexImports } from '$lib/dep-resolver.ts';
+import type { AnalyzeResultJson } from '$lib/analyze-core.ts';
 import { isSource } from '$lib/source-config.ts';
-import { computeDependents } from '$lib/postprocess.ts';
-import type { SourceFileInfo } from '$lib/source.ts';
 
 import { loadFixturesGeneric, type FixtureExtraFile } from '../../test-helpers.ts';
 import { createTestSourceOptions, TEST_PROJECT_ROOT } from '../../test-module-helpers.ts';
 import {
+	captureFixtureProject,
 	captureModuleFixture,
 	fixtureFileId,
+	resolveFixtureSpecifier,
 	type ModuleFixture,
 	type ModuleFixtureJson,
 	type ModuleFixtureJsonInput
@@ -65,36 +63,6 @@ const fixtureProjectFileId = (relPath: string): string =>
 	relPath.startsWith(EXTERNAL_DIR_PREFIX)
 		? `${NODE_MODULES_ROOT}/${relPath.slice(EXTERNAL_DIR_PREFIX.length)}`
 		: fixtureFileId(TEST_PROJECT_ROOT, relPath);
-
-/**
- * Resolve an import specifier against a test program's file set.
- *
- * Relative specifiers resolve from the importing file's directory (exact,
- * `.js` → `.ts` swap, appended `.ts`/`.d.ts`, `index` fallbacks); bare
- * specifiers resolve into the mapped `node_modules/` the same way
- * (`extpkg` → `node_modules/extpkg/index.ts`, `pkg/sub` → `node_modules/pkg/sub.ts`).
- * Returns `undefined` for anything the set doesn't contain — mirroring an
- * unresolvable import, which analysis tolerates.
- */
-const resolveFixtureSpecifier = (
-	specifier: string,
-	containingFile: string,
-	fileIds: ReadonlySet<string>
-): string | undefined => {
-	const base =
-		specifier.startsWith('./') || specifier.startsWith('../')
-			? posix.join(posix.dirname(containingFile), specifier)
-			: `${NODE_MODULES_ROOT}/${specifier}`;
-	const candidates = [
-		base,
-		base.replace(/\.js$/, '.ts'),
-		`${base}.ts`,
-		`${base}.d.ts`,
-		`${base}/index.ts`,
-		`${base}/index.d.ts`
-	];
-	return candidates.find((c) => fileIds.has(c));
-};
 
 // Program construction
 
@@ -156,7 +124,12 @@ const createProgramOverSources = (
 			readFile: (fileName) => sourceFiles.get(fileName)?.text ?? '',
 			resolveModuleNames: (moduleNames, containingFile) =>
 				moduleNames.map((name) => {
-					const resolved = resolveFixtureSpecifier(name, containingFile, fileIds);
+					const resolved = resolveFixtureSpecifier(
+						name,
+						containingFile,
+						fileIds,
+						NODE_MODULES_ROOT
+					);
 					return resolved
 						? { resolvedFileName: resolved, isExternalLibraryImport: false }
 						: undefined;
@@ -273,19 +246,16 @@ export const analyzeFixtureModule = (input: string): ModuleFixtureJson => {
  * `dependents` on the dep), so every emitted module is locked, not just
  * `input.ts`'s.
  *
- * Mirrors `session.query`'s input assembly: only `isSource`-passing locals
- * become `sourceFiles` (a gated `internal/` sibling reaches the checker via
- * the program alone), each with pre-resolved `dependencies` — lexed with the
- * production `lexImports`, resolved against the mapped set, filtered to the
- * emitted set — and `computeDependents` derives the reverse edges. The
- * harness is thereby the pre-resolved-deps caller the session documents
- * (type-only edges kept, like default lex+resolve).
+ * File mapping and the hermetic program stay here; the input assembly and
+ * capture are `captureFixtureProject`'s (shared with the svelte harness):
+ * only `isSource`-passing locals become `sourceFiles` (a gated `internal/`
+ * sibling reaches the checker via the program alone), dependencies
+ * pre-resolved against the mapped set with the production lexer.
  */
 export const analyzeFixtureProject = async (
 	input: string,
 	extraFiles: ReadonlyArray<FixtureExtraFile>
 ): Promise<AnalyzeResultJson> => {
-	await ensureLexerReady();
 	const sourceOptions = createTestSourceOptions();
 
 	// classify at mapping time — `external` comes from the `external/` prefix,
@@ -307,24 +277,14 @@ export const analyzeFixtureProject = async (
 		currentDirectory: TEST_PROJECT_ROOT
 	});
 
-	const emittedIds = new Set(
-		entries.filter((e) => !e.external && isSource(e.id, sourceOptions)).map((e) => e.id)
-	);
-
-	const sourceFiles: Array<SourceFileInfo> = entries
-		.filter((e) => emittedIds.has(e.id))
-		.map(({ id, content }) => {
-			const resolved = lexImports(content, id)
-				.map((specifier) => resolveFixtureSpecifier(specifier, id, fileIds))
-				.filter((dep): dep is string => dep !== undefined && emittedIds.has(dep));
-			return { id, content, dependencies: [...new Set(resolved)] };
-		});
-
-	return analyzeCore({
-		sourceFiles: computeDependents(sourceFiles),
-		sourceOptions,
+	return captureFixtureProject({
+		sourceFiles: entries
+			.filter((e) => !e.external && isSource(e.id, sourceOptions))
+			.map(({ id, content }) => ({ id, content })),
 		program,
-		svelteVirtualFiles: new Map()
+		sourceOptions,
+		resolveImport: (specifier, containingFile) =>
+			resolveFixtureSpecifier(specifier, containingFile, fileIds, NODE_MODULES_ROOT)
 	});
 };
 

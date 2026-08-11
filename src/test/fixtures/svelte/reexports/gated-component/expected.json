@@ -1,0 +1,36 @@
+{
+	"modules": [
+		{
+			"path": "ReexportsGatedComponent/ReexportsGatedComponent.svelte",
+			"declarations": [
+				{
+					"name": "ReexportsGatedComponent",
+					"kind": "component",
+					"sourceLine": 3
+				},
+				{
+					"name": "Hidden",
+					"kind": "component",
+					"sourceLine": 2,
+					"aliasOf": {
+						"module": "ReexportsGatedComponent/internal/Hidden.svelte",
+						"name": "Hidden"
+					},
+					"props": [
+						{
+							"name": "prop1",
+							"type": "string",
+							"description": "Description 2"
+						},
+						{
+							"name": "prop2",
+							"type": "boolean",
+							"optional": true
+						}
+					],
+					"docComment": "Description 1."
+				}
+			]
+		}
+	]
+}
