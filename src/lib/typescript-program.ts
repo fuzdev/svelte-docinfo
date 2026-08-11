@@ -67,32 +67,110 @@ export interface VirtualFileEntry {
 }
 
 /**
+ * Ancestor-directory index over a path set, maintained as the set mutates.
+ *
+ * Module resolution probes `directoryExists` before trying file candidates
+ * inside it (`directoryProbablyExists`): a directory reported absent has
+ * every candidate recorded as a failed lookup with `fileExists` never
+ * consulted, so a directory that exists only as the prefix of served
+ * in-memory paths must report present. Refcounted per ancestor so removal is
+ * exact — O(path depth) per mutation, O(1) per query; a per-probe scan of the
+ * path set would multiply into resolution's hot path (bare-specifier
+ * resolution walks many nonexistent ancestor `node_modules` directories per
+ * import).
+ *
+ * The index owns its path set, so `add`/`remove` are idempotent and a caller
+ * can't skew the refcounts by double-adding or by removing something it never
+ * added (which would drop an ancestor still holding live paths). Membership
+ * bookkeeping therefore stays here rather than in each caller's guard.
+ *
+ * @internal Shared by the one-shot host, the LS host, and the session's
+ *   dependency-resolution host; not a stable API.
+ */
+export interface OwnedDirIndex {
+	/** Count `path`'s ancestor directories into the index. Idempotent. */
+	add(path: string): void;
+	/** Reverse of `add`; a path that isn't indexed is a no-op. */
+	remove(path: string): void;
+	/** Whether `dir` is an ancestor of any indexed path (trailing slash tolerated). */
+	has(dir: string): boolean;
+	clear(): void;
+}
+
+/** Create an empty `OwnedDirIndex`. @internal */
+export const createOwnedDirIndex = (): OwnedDirIndex => {
+	const paths = new Set<string>();
+	const counts = new Map<string, number>();
+	const walk = (path: string, delta: 1 | -1): void => {
+		let dir = path;
+		while (true) {
+			const slash = dir.lastIndexOf('/');
+			if (slash <= 0) break;
+			dir = dir.slice(0, slash);
+			const next = (counts.get(dir) ?? 0) + delta;
+			if (next <= 0) counts.delete(dir);
+			else counts.set(dir, next);
+		}
+	};
+	return {
+		add: (path) => {
+			if (paths.has(path)) return;
+			paths.add(path);
+			walk(path, 1);
+		},
+		remove: (path) => {
+			if (!paths.delete(path)) return;
+			walk(path, -1);
+		},
+		has: (dir) => counts.has(dir.endsWith('/') && dir.length > 1 ? dir.slice(0, -1) : dir),
+		clear: () => {
+			paths.clear();
+			counts.clear();
+		}
+	};
+};
+
+/**
  * Decorate a compiler host so `virtualFiles` shadow the filesystem —
- * `getSourceFile` (honoring per-entry `scriptKind`), `fileExists`, `readFile`.
+ * `getSourceFile` (honoring per-entry `scriptKind`), `fileExists`, `readFile`,
+ * and `directoryExists`.
  *
  * Entries are copied to minimal `{content, scriptKind}` records so the host's
  * closures don't retain larger caller objects (a `SvelteVirtualFile`'s source
  * map, say) for the program's lifetime. The copied map is returned so callers
  * layering module resolution on top (`.svelte` specifier mapping) can key it
- * off the same snapshot instead of re-capturing the caller's map.
+ * off the same snapshot instead of re-capturing the caller's map. The entry
+ * set is fixed at decoration time — the returned `ReadonlyMap` and the
+ * directory index are built in the same pass, so no host answer can be served
+ * from a staler view of the set than another (a `LanguageService` is the
+ * mutable counterpart; see `createAnalysisLanguageService`).
  *
  * @internal Shared host decoration for `createAnalysisProgram`; exported for
  *   test-side hosts — not a stable API.
- * @mutates host - replaces `getSourceFile`, `fileExists`, and `readFile`
+ * @mutates host - replaces `getSourceFile`, `fileExists`, `readFile`, and
+ *   (when the host defines it) `directoryExists`
  * @returns the copied entries, keyed by path
  */
 export const applyVirtualFiles = (
 	host: ts.CompilerHost,
 	virtualFiles: ReadonlyMap<string, VirtualFileEntry>
 ): ReadonlyMap<string, VirtualFileEntry> => {
-	const entries = new Map<string, VirtualFileEntry>();
-	for (const [path, entry] of virtualFiles) {
-		entries.set(path, { content: entry.content, scriptKind: entry.scriptKind });
-	}
-
 	const originalGetSourceFile = host.getSourceFile;
 	const originalFileExists = host.fileExists;
 	const originalReadFile = host.readFile;
+	// A virtual entry may live in a directory that exists nowhere on disk, so
+	// its ancestor chain must report present (see `createOwnedDirIndex` for
+	// why resolution never reaches `fileExists` otherwise). A host with no
+	// `directoryExists` assumes all directories exist — nothing to fix there,
+	// and no index to pay for.
+	const originalDirectoryExists = host.directoryExists;
+	const virtualDirs = originalDirectoryExists ? createOwnedDirIndex() : undefined;
+
+	const entries = new Map<string, VirtualFileEntry>();
+	for (const [path, entry] of virtualFiles) {
+		entries.set(path, { content: entry.content, scriptKind: entry.scriptKind });
+		virtualDirs?.add(path);
+	}
 
 	host.getSourceFile = (fileName, languageVersion, onError, shouldCreate) => {
 		const entry = entries.get(fileName);
@@ -112,6 +190,11 @@ export const applyVirtualFiles = (
 		if (entry !== undefined) return entry.content;
 		return originalReadFile.call(host, fileName);
 	};
+
+	if (originalDirectoryExists && virtualDirs) {
+		host.directoryExists = (directoryName) =>
+			virtualDirs.has(directoryName) || originalDirectoryExists.call(host, directoryName);
+	}
 
 	return entries;
 };
@@ -373,6 +456,9 @@ export const createAnalysisLanguageService = (
 		snapshot: ts.IScriptSnapshot;
 	}
 	const owned = new Map<string, OwnedFile>();
+	// Ancestor directories of the owned set, kept in lockstep by
+	// `setFileInternal`/`deleteFile` — see `createOwnedDirIndex`.
+	const ownedDirs = createOwnedDirIndex();
 	// Root file names from tsconfig — kept as a Set for fast membership checks
 	// during deleteFile (so a deleted owned file that was *also* in tsconfig
 	// stays in the program's root set, falling through to disk).
@@ -392,6 +478,7 @@ export const createAnalysisLanguageService = (
 		) {
 			return false;
 		}
+		ownedDirs.add(path);
 		owned.set(path, {
 			content: entry.content,
 			version: existing ? existing.version + 1 : 1,
@@ -419,7 +506,10 @@ export const createAnalysisLanguageService = (
 			if (entry) return entry.content;
 			return ts.sys.readFile(path);
 		},
-		directoryExists: ts.sys.directoryExists,
+		// Owned files may live in directories that exist nowhere on disk
+		// (virtuals, unsaved buffers) — see `createOwnedDirIndex` for why the
+		// answer must come from the owned set as well as the disk.
+		directoryExists: (path) => ownedDirs.has(path) || ts.sys.directoryExists(path),
 		getCurrentDirectory: () => projectRoot,
 		getDirectories: ts.sys.getDirectories,
 		realpath: ts.sys.realpath,
@@ -489,6 +579,7 @@ export const createAnalysisLanguageService = (
 
 	const deleteFile = (path: string): boolean => {
 		const removed = owned.delete(path);
+		ownedDirs.remove(path);
 		ownedRoots.delete(path);
 		return removed;
 	};
@@ -498,6 +589,7 @@ export const createAnalysisLanguageService = (
 	const dispose = (): void => {
 		ls.dispose();
 		owned.clear();
+		ownedDirs.clear();
 		ownedRoots.clear();
 	};
 

@@ -10,7 +10,8 @@
  *   (raw TS/JS, or svelte2tsx virtual content for `.svelte` files).
  * - `createDefaultResolver` — the TS + tsconfig fallback used when neither
  *   `AnalysisSessionOptions.resolveImport` nor a per-call override is provided.
- *   Carries a fresh symbol identity per session (cache-key-safe).
+ *   Carries a fresh symbol identity per session (cache-key-safe) and an
+ *   `invalidate` that clears its module-resolution cache.
  * - `normalizeResolveImport` — coerces the public `ResolveImport` union (bare
  *   function or token-paired resolver) to an `ImportResolver` at each boundary.
  * - `wrapResolveImport` — the fn→token primitive behind `normalizeResolveImport`:
@@ -72,6 +73,20 @@ export interface ImportResolver {
 	 * `'vite-plugin-container'`); `symbol` for generated sentinels.
 	 */
 	identity: string | symbol;
+	/**
+	 * Drop any cached resolution state. Optional — implement it when the
+	 * resolver caches results across calls, and especially when it caches
+	 * *failed* lookups, which go stale the moment a previously-missing file
+	 * appears.
+	 *
+	 * The session calls this at the start of a batch whenever its owned file
+	 * set gained or lost a path since this resolver last ran, so a dep ingested
+	 * after an importer already failed to resolve it still produces an edge.
+	 * Content-only changes never trigger it (they can't change what exists).
+	 * Files appearing on *disk* without being ingested are invisible to the
+	 * session — a resolver caching disk misses owns that invalidation itself.
+	 */
+	invalidate?: () => void;
 }
 
 /**
@@ -158,48 +173,67 @@ export const isNodeBuiltin = (specifier: string): boolean => isBuiltin(specifier
 /**
  * Create the default `ImportResolver` (TypeScript + tsconfig).
  *
- * Uses `ts.resolveModuleName` against `ts.sys` directly — no `ts.Program` is
- * built. Identity is a fresh symbol per call, so each session that constructs
- * its own default gets a unique cache scope. Multiple sessions sharing one
- * resolver instance share the cache scope (correct, since resolver state is
- * shared too).
+ * Uses `ts.resolveModuleName` against `host` (default `ts.sys`) — no
+ * `ts.Program` is built. Identity is a fresh symbol per call, so each session
+ * that constructs its own default gets a unique cache scope. Multiple
+ * sessions sharing one resolver instance share the cache scope (correct,
+ * since resolver state is shared too).
  *
  * `ts.resolveModuleName` cannot resolve real `.svelte` files (no compiler
  * option teaches it the extension), so relative and absolute `.svelte`
  * specifiers — with or without the extension written — fall back to manual
- * filesystem resolution against `fromFile`. Non-relative `.svelte` specifiers
- * (tsconfig `paths` aliases, package subpaths) stay unresolved; supply a
- * custom `resolveImport` for those setups.
+ * resolution against `fromFile` through the same host. Non-relative `.svelte`
+ * specifiers (tsconfig `paths` aliases, package subpaths) stay unresolved;
+ * supply a custom `resolveImport` for those setups.
+ *
+ * The resolution cache lives for the resolver's lifetime and caches failed
+ * lookups alongside successful ones, so `invalidate` clears it — the session
+ * calls that whenever its owned set's membership changed (see `ImportResolver`).
  *
  * @param compilerOptions - parsed tsconfig (from `loadTsconfig`, or the LS
  *   handle's `getCompilerOptions()`)
  * @param projectRoot - absolute project root for the module-resolution cache
+ * @param host - resolution surface; the session passes an owned-content-aware
+ *   host so dependency edges see the same world the checker does (in-memory
+ *   files, including ones in directories that exist nowhere on disk), disk-only
+ *   callers take the `ts.sys` default
  */
 export const createDefaultResolver = (
 	compilerOptions: ts.CompilerOptions,
-	projectRoot: string
+	projectRoot: string,
+	host: ts.ModuleResolutionHost = ts.sys
 ): ImportResolver => {
+	// Read case sensitivity off the host rather than `ts.sys` — the cache's
+	// canonicalizer decides which paths collide, so a host disagreeing with the
+	// disk about casing would key its own results wrong.
+	const useCaseSensitiveFileNames =
+		typeof host.useCaseSensitiveFileNames === 'function'
+			? host.useCaseSensitiveFileNames()
+			: (host.useCaseSensitiveFileNames ?? ts.sys.useCaseSensitiveFileNames);
 	const cache = ts.createModuleResolutionCache(
 		projectRoot,
-		ts.sys.useCaseSensitiveFileNames ? (f) => f : (f) => f.toLowerCase(),
+		useCaseSensitiveFileNames ? (f) => f : (f) => f.toLowerCase(),
 		compilerOptions
 	);
 	const resolve = (specifier: string, fromFile: string): string | null => {
-		const result = ts.resolveModuleName(specifier, fromFile, compilerOptions, ts.sys, cache);
+		const result = ts.resolveModuleName(specifier, fromFile, compilerOptions, host, cache);
 		if (result.resolvedModule) return result.resolvedModule.resolvedFileName;
 		// ts.resolveModuleName never resolves real .svelte files — no compiler
 		// option teaches it the extension — so resolve relative/absolute
 		// specifiers manually, appending .svelte when it isn't written.
 		if (specifier.startsWith('./') || specifier.startsWith('../') || isAbsolute(specifier)) {
 			const withExt = specifier.endsWith('.svelte') ? specifier : specifier + '.svelte';
-			const candidate = isAbsolute(withExt) ? withExt : resolvePath(dirname(fromFile), withExt);
 			// posixified for parity with ts.resolveModuleName, which always
-			// returns forward-slash paths
-			if (ts.sys.fileExists(candidate)) return toPosixPath(candidate);
+			// returns forward-slash paths — and because a host serving in-memory
+			// content keys its set that way (see `paths.ts`)
+			const candidate = toPosixPath(
+				isAbsolute(withExt) ? withExt : resolvePath(dirname(fromFile), withExt)
+			);
+			if (host.fileExists(candidate)) return candidate;
 		}
 		return null;
 	};
-	return { resolve, identity: Symbol('ts-default') };
+	return { resolve, identity: Symbol('ts-default'), invalidate: () => cache.clear() };
 };
 
 /**

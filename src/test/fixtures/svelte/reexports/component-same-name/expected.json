@@ -1,0 +1,56 @@
+{
+	"modules": [
+		{
+			"path": "ReexportsComponentSameName/barrel.ts",
+			"dependencies": [
+				"ReexportsComponentSameName/Other.svelte"
+			],
+			"reExports": [
+				{
+					"name": "Other",
+					"module": "ReexportsComponentSameName/Other.svelte",
+					"sourceLine": 1
+				}
+			]
+		},
+		{
+			"path": "ReexportsComponentSameName/Other.svelte",
+			"declarations": [
+				{
+					"name": "Other",
+					"kind": "component",
+					"docComment": "Description 1.",
+					"sourceLine": 1,
+					"alsoExportedFrom": [
+						"ReexportsComponentSameName/barrel.ts"
+					],
+					"props": [
+						{
+							"name": "prop1",
+							"type": "string"
+						}
+					]
+				}
+			],
+			"dependents": [
+				"ReexportsComponentSameName/barrel.ts"
+			]
+		},
+		{
+			"path": "ReexportsComponentSameName/ReexportsComponentSameName.svelte",
+			"declarations": [
+				{
+					"name": "ReexportsComponentSameName",
+					"kind": "component",
+					"sourceLine": 1,
+					"props": [
+						{
+							"name": "prop1",
+							"type": "string"
+						}
+					]
+				}
+			]
+		}
+	]
+}

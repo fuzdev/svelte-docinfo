@@ -9,9 +9,69 @@
 import { join } from 'node:path';
 import { test, assert, describe } from 'vitest';
 
-import { createAnalysisLanguageService, loadTsconfig } from '$lib/typescript-program.ts';
+import {
+	createAnalysisLanguageService,
+	createOwnedDirIndex,
+	loadTsconfig
+} from '$lib/typescript-program.ts';
 
 import { withTestProject } from './test-helpers.ts';
+
+describe('createOwnedDirIndex', () => {
+	test('reports every ancestor of an indexed path, exclusive of the root', () => {
+		const index = createOwnedDirIndex();
+		index.add('/a/b/c/f.ts');
+		assert.ok(index.has('/a/b/c'));
+		assert.ok(index.has('/a/b'));
+		assert.ok(index.has('/a'));
+		assert.ok(!index.has('/a/b/c/d'));
+		assert.ok(!index.has('/a/b/c/f.ts'));
+	});
+
+	test('tolerates a trailing slash on the probe', () => {
+		const index = createOwnedDirIndex();
+		index.add('/a/b/f.ts');
+		assert.ok(index.has('/a/b/'));
+		assert.ok(!index.has('/'));
+	});
+
+	test('removal is exact — a shared ancestor survives while any path holds it', () => {
+		const index = createOwnedDirIndex();
+		index.add('/a/b/f1.ts');
+		index.add('/a/b/f2.ts');
+		index.remove('/a/b/f1.ts');
+		assert.ok(index.has('/a/b'), 'ancestor dropped while a sibling still holds it');
+		index.remove('/a/b/f2.ts');
+		assert.ok(!index.has('/a/b'));
+		assert.ok(!index.has('/a'));
+	});
+
+	test('add and remove are idempotent, so a caller cannot skew the refcounts', () => {
+		// The guards live here rather than in each caller: a double add or a
+		// remove of something never added would otherwise unbalance an ancestor
+		// that live paths still need.
+		const index = createOwnedDirIndex();
+		index.add('/a/b/f1.ts');
+		index.add('/a/b/f1.ts');
+		index.remove('/a/b/f1.ts');
+		assert.ok(!index.has('/a/b'), 'double add left an unbalanced count');
+
+		index.add('/a/b/f2.ts');
+		index.remove('/a/b/never-added.ts');
+		assert.ok(index.has('/a/b'), 'removing an unindexed path decremented a live ancestor');
+	});
+
+	test('clear drops everything', () => {
+		const index = createOwnedDirIndex();
+		index.add('/a/b/f.ts');
+		index.clear();
+		assert.ok(!index.has('/a/b'));
+		// re-adding after clear starts from zero rather than a stale count
+		index.add('/a/b/f.ts');
+		index.remove('/a/b/f.ts');
+		assert.ok(!index.has('/a/b'));
+	});
+});
 
 describe('loadTsconfig', () => {
 	test('throws when the requested tsconfig is not found', async () => {
@@ -85,6 +145,38 @@ describe('createAnalysisLanguageService', () => {
 				const ls = createAnalysisLanguageService({ projectRoot });
 				try {
 					assert.strictEqual(ls.getCompilerOptions(), ls.getCompilerOptions());
+				} finally {
+					ls.dispose();
+				}
+			});
+		});
+	});
+
+	describe('owned files in directories absent from disk', () => {
+		test('module resolution reaches an owned file whose directory exists nowhere on disk', async () => {
+			await withTestProject({}, async (projectRoot) => {
+				const ls = createAnalysisLanguageService({ projectRoot });
+				try {
+					// `virtual-only/` is never created on disk. Resolution probes
+					// `directoryExists` before trying file candidates inside it, so a
+					// disk-only answer records `./dep` as a failed lookup with
+					// `fileExists` never consulted, and the import silently fails.
+					const dir = join(projectRoot, 'src/lib/virtual-only');
+					const mainPath = join(dir, 'main.ts');
+					ls.setFile(join(dir, 'dep.ts'), { content: 'export const a = 1;' });
+					ls.setFile(mainPath, {
+						content: `import { a } from './dep';\nexport const b: number = a;`
+					});
+					const program = ls.getProgram();
+					const main = program.getSourceFile(mainPath);
+					assert.ok(main);
+					const messages = program
+						.getSemanticDiagnostics(main)
+						.map((d) => JSON.stringify(d.messageText));
+					assert.ok(
+						!messages.some((m) => m.includes('Cannot find module')),
+						`import failed to resolve: ${messages.join('; ')}`
+					);
 				} finally {
 					ls.dispose();
 				}

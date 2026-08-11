@@ -1,0 +1,32 @@
+{
+	"path": "ReexportsExternalPackage.svelte",
+	"declarations": [
+		{
+			"name": "ReexportsExternalPackage",
+			"kind": "component",
+			"sourceLine": 9
+		}
+	],
+	"externalReExports": [
+		{
+			"name": "retick",
+			"specifier": "svelte",
+			"originalName": "tick",
+			"sourceLine": 4
+		},
+		{
+			"name": "Snippet",
+			"specifier": "svelte",
+			"typeOnly": true,
+			"sourceLine": 6
+		},
+		{
+			"name": "tick",
+			"specifier": "svelte",
+			"sourceLine": 2
+		}
+	],
+	"externalStarExports": [
+		"svelte/store"
+	]
+}
