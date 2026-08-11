@@ -4,7 +4,7 @@ import { analyzeModule } from '$lib/analyze-core.ts';
 import { type ModuleSourceOptions } from '$lib/source-config.ts';
 import { byKind, hasErrors, hasWarnings, warningsOf, type Diagnostic } from '$lib/diagnostics.ts';
 
-import { createTestSourceOptions, createTestProgram } from './test-module-helpers.ts';
+import { createTestSourceOptions, createVirtualFileProgram } from './test-module-helpers.ts';
 
 describe('analyzeModule', { timeout: 10_000 }, () => {
 	const options: ModuleSourceOptions = createTestSourceOptions('/project', {
@@ -12,7 +12,7 @@ describe('analyzeModule', { timeout: 10_000 }, () => {
 	});
 
 	test('dispatches to TypeScript analyzer for .ts files', () => {
-		const program = createTestProgram([
+		const program = createVirtualFileProgram([
 			{
 				path: '/project/src/lib/helpers.ts',
 				content: `
@@ -54,7 +54,9 @@ let {name}: {name: string} = $props();
 		const diagnostics: Array<Diagnostic> = [];
 
 		// Create a minimal program for the analysis
-		const program = createTestProgram([{ path: '/project/src/lib/Test.svelte', content: '' }]);
+		const program = createVirtualFileProgram([
+			{ path: '/project/src/lib/Test.svelte', content: '' }
+		]);
 
 		const result = analyzeModule(
 			{ id: '/project/src/lib/Test.svelte', content: svelteContent },
@@ -79,7 +81,7 @@ let {name}: {name: string} = $props();
 	});
 
 	test('derives modulePath correctly from sourceFile.id', () => {
-		const program = createTestProgram([
+		const program = createVirtualFileProgram([
 			{
 				path: '/project/src/lib/utils/stringHelpers.ts',
 				content: `export const trim = (s: string) => s.trim();`
@@ -104,7 +106,7 @@ let {name}: {name: string} = $props();
 			sourcePaths: ['root']
 		});
 
-		const program = createTestProgram([
+		const program = createVirtualFileProgram([
 			{
 				path: '/custom/root/my_module.ts',
 				content: `export const x = 1;`
@@ -125,7 +127,7 @@ let {name}: {name: string} = $props();
 
 	test('returns undefined when TypeScript file not in program', () => {
 		// Create program without the file we'll try to analyze
-		const program = createTestProgram([
+		const program = createVirtualFileProgram([
 			{ path: '/project/src/lib/other.ts', content: 'export const x = 1;' }
 		]);
 
@@ -142,7 +144,7 @@ let {name}: {name: string} = $props();
 	});
 
 	test('passes dependencies from SourceFileInfo to result', () => {
-		const program = createTestProgram([
+		const program = createVirtualFileProgram([
 			{
 				path: '/project/src/lib/consumer.ts',
 				content: `export const value = 'test';`
@@ -169,7 +171,7 @@ let {name}: {name: string} = $props();
 	});
 
 	test('returns minimal module for CSS files', () => {
-		const program = createTestProgram([
+		const program = createVirtualFileProgram([
 			{ path: '/project/src/lib/placeholder.ts', content: 'export const x = 1;' }
 		]);
 
@@ -188,7 +190,7 @@ let {name}: {name: string} = $props();
 	});
 
 	test('returns minimal module for JSON files', () => {
-		const program = createTestProgram([
+		const program = createVirtualFileProgram([
 			{ path: '/project/src/lib/placeholder.ts', content: 'export const x = 1;' }
 		]);
 
@@ -207,7 +209,7 @@ let {name}: {name: string} = $props();
 	});
 
 	test('handles .js files as TypeScript', () => {
-		const program = createTestProgram([
+		const program = createVirtualFileProgram([
 			{
 				path: '/project/src/lib/script.js',
 				content: `export const config = {debug: true};`
@@ -235,7 +237,7 @@ describe('analyzeModule return structure', () => {
 	});
 
 	test('TypeScript module returns ModuleJson with reExports array', () => {
-		const program = createTestProgram([
+		const program = createVirtualFileProgram([
 			{
 				path: '/project/src/lib/simple.ts',
 				content: `export const x = 1;`
@@ -256,7 +258,9 @@ describe('analyzeModule return structure', () => {
 	});
 
 	test('Svelte module is skipped in analyzeModule', () => {
-		const program = createTestProgram([{ path: '/project/src/lib/Component.svelte', content: '' }]);
+		const program = createVirtualFileProgram([
+			{ path: '/project/src/lib/Component.svelte', content: '' }
+		]);
 
 		const svelteContent = `<script lang="ts">
 let {value}: {value: string} = $props();
@@ -276,7 +280,7 @@ let {value}: {value: string} = $props();
 	});
 
 	test('CSS module returns ModuleJson with empty reExports', () => {
-		const program = createTestProgram([
+		const program = createVirtualFileProgram([
 			{ path: '/project/src/lib/placeholder.ts', content: 'export const x = 1;' }
 		]);
 
@@ -296,7 +300,7 @@ let {value}: {value: string} = $props();
 	});
 
 	test('JSON module returns ModuleJson with empty reExports', () => {
-		const program = createTestProgram([
+		const program = createVirtualFileProgram([
 			{ path: '/project/src/lib/placeholder.ts', content: 'export const x = 1;' }
 		]);
 
@@ -316,7 +320,7 @@ let {value}: {value: string} = $props();
 	});
 
 	test('module with no exports has undefined declarations', () => {
-		const program = createTestProgram([
+		const program = createVirtualFileProgram([
 			{
 				path: '/project/src/lib/internal.ts',
 				content: `const internal = 'not exported';`
@@ -338,7 +342,9 @@ let {value}: {value: string} = $props();
 	});
 
 	test('Svelte component with no props is skipped in analyzeModule', () => {
-		const program = createTestProgram([{ path: '/project/src/lib/Static.svelte', content: '' }]);
+		const program = createVirtualFileProgram([
+			{ path: '/project/src/lib/Static.svelte', content: '' }
+		]);
 
 		const svelteContent = `<p>Static content</p>`;
 
@@ -361,7 +367,7 @@ describe('analyzeModule error handling', () => {
 	});
 
 	test('returns undefined for TypeScript file not in program (logs warning)', () => {
-		const program = createTestProgram([
+		const program = createVirtualFileProgram([
 			{ path: '/project/src/lib/exists.ts', content: 'export const x = 1;' }
 		]);
 
@@ -385,7 +391,9 @@ describe('analyzeModule error handling', () => {
 	});
 
 	test('Svelte files are skipped even with malformed content', () => {
-		const program = createTestProgram([{ path: '/project/src/lib/Bad.svelte', content: '' }]);
+		const program = createVirtualFileProgram([
+			{ path: '/project/src/lib/Bad.svelte', content: '' }
+		]);
 
 		const badContent = `<script lang="ts">
 let {name}: {name: string} = $props();
@@ -405,7 +413,7 @@ let {name}: {name: string} = $props();
 	});
 
 	test('analysis context collects diagnostics without halting', () => {
-		const program = createTestProgram([
+		const program = createVirtualFileProgram([
 			{
 				path: '/project/src/lib/valid.ts',
 				content: `

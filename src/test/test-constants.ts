@@ -41,15 +41,3 @@ export const TEST_FILES = {
 	/** JSON file */
 	JSON: 'data.json'
 } as const;
-
-/**
- * Common module names for testing.
- */
-export const TEST_MODULES = {
-	MATH: 'math.ts',
-	UTILS: 'utils.ts',
-	HELPERS: 'helpers.ts',
-	INDEX: 'index.ts',
-	BUTTON: 'Button.svelte',
-	CARD: 'Card.svelte'
-} as const;

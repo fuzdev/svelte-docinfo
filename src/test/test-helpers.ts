@@ -58,30 +58,13 @@ export interface TestProjectResult {
 }
 
 /**
- * Create a unique temporary directory for test projects.
- *
- * Use in beforeAll/afterAll to manage a shared temp dir for a test suite.
+ * Create a unique temporary directory, with its own cleanup. Backs
+ * `withTestDir`, which is how tests reach it.
  *
  * @param prefix - Optional prefix for the directory name
  * @returns Object with path and cleanup function
- *
- * @example
- * ```ts
- * let testDir: string;
- * let cleanupTestDir: () => Promise<void>;
- *
- * beforeAll(async () => {
- *   const result = await createTestDir('my-tests');
- *   testDir = result.path;
- *   cleanupTestDir = result.cleanup;
- * });
- *
- * afterAll(async () => {
- *   await cleanupTestDir();
- * });
- * ```
  */
-export const createTestDir = async (
+const createTestDir = async (
 	prefix = 'svelte-docinfo-test'
 ): Promise<{ path: string; cleanup: () => Promise<void> }> => {
 	const path = join(tmpdir(), `${prefix}-${Date.now()}`);
@@ -216,16 +199,14 @@ export const withTestProject = async <T = void>(
 };
 
 /** Base directory for test fixtures. */
-export const FIXTURES_DIR = join(import.meta.dirname, 'fixtures');
+const FIXTURES_DIR = join(import.meta.dirname, 'fixtures');
 
-/** Directory for Svelte component fixtures. */
+/**
+ * Directory for Svelte component fixtures. The ts and tsdoc sets need no
+ * counterpart — their harnesses live inside the fixture directories and reach
+ * their own via `import.meta.dirname`.
+ */
 export const FIXTURES_SVELTE_DIR = join(FIXTURES_DIR, 'svelte');
-
-/** Directory for TypeScript fixtures. */
-export const FIXTURES_TS_DIR = join(FIXTURES_DIR, 'ts');
-
-/** Directory for TSDoc fixtures. */
-export const FIXTURES_TSDOC_DIR = join(FIXTURES_DIR, 'tsdoc');
 
 /**
  * Normalize an object by removing undefined values and empty arrays.
@@ -457,7 +438,7 @@ const EXTRA_FILE_EXTENSIONS = ['.ts'];
  * `.ts` file except the input file itself, with fixture-dir-relative POSIX
  * paths in `compareStrings` order.
  */
-export const loadFixtureExtraFiles = async (
+const loadFixtureExtraFiles = async (
 	fixtureDir: string,
 	inputExtension: string
 ): Promise<Array<FixtureExtraFile>> => {
@@ -495,7 +476,7 @@ export const loadFixtureExtraFiles = async (
  * @param inputExtension - The file extension to look for (e.g., '.svelte', '.ts')
  * @returns Array of {path: absolutePath, name: relativePath}
  */
-export const discoverFixtureDirs = async (
+const discoverFixtureDirs = async (
 	baseDir: string,
 	inputExtension: string
 ): Promise<Array<{ path: string; name: string }>> => {

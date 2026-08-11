@@ -13,9 +13,7 @@ import { join } from 'node:path';
 
 import {
 	createSourceOptions,
-	DEFAULT_SOURCE_OPTIONS,
 	type ModuleSourceOptions,
-	type SourceOptionsDefaults,
 	type SourceOptionsOverrides
 } from '$lib/source-config.ts';
 import { applyVirtualFiles, type VirtualFileEntry } from '$lib/typescript-program.ts';
@@ -66,6 +64,14 @@ export const transformOrThrow = (sourceFile: SourceFileInfo): SvelteVirtualFile 
 export const TEST_PROJECT_ROOT = '/home/user/project';
 
 /**
+ * The synthetic project's source directory — `TEST_PROJECT_ROOT` joined with
+ * the default `sourcePaths` entry. Tests building file sets by hand root them
+ * here so `createTestSourceOptions()` extracts the module paths they assert
+ * on (`${TEST_LIB_DIR}/a.ts` → `a.ts`).
+ */
+export const TEST_LIB_DIR = `${TEST_PROJECT_ROOT}/src/lib`;
+
+/**
  * Create ModuleSourceOptions for testing with consistent defaults.
  *
  * @param projectRoot Project root path (defaults to TEST_PROJECT_ROOT)
@@ -111,33 +117,20 @@ export const testMockOptions = (overrides?: SourceOptionsOverrides): ModuleSourc
 	createTestSourceOptions(TEST_PROJECT_ROOT, overrides);
 
 /**
- * Create ModuleSourceOptions for virtual file tests (no path resolution).
+ * Create a TypeScript program whose whole file set is virtual, over a real
+ * compiler host — so `lib` and `node_modules` still resolve from disk while
+ * the analyzed files come from memory. Mirrors `createAnalysisProgram` by
+ * returning `ts.Program` directly, but without its tsconfig requirement.
  *
- * Unlike `createTestSourceOptions`, this does not call `resolve()` on the project root,
- * so it works with virtual file paths that don't exist on disk (e.g., `/src/lib/foo.ts`
- * from `createMultiFileProgram`).
- *
- * @param projectRoot Literal project root (default: `''` for virtual files rooted at `/src/lib/`)
- * @param overrides Optional overrides for default options
- */
-export const createVirtualSourceOptions = (
-	projectRoot: string = '',
-	overrides?: Partial<SourceOptionsDefaults>
-): ModuleSourceOptions => ({
-	projectRoot,
-	...DEFAULT_SOURCE_OPTIONS,
-	...overrides
-});
-
-/**
- * Create a minimal TypeScript program from source code for testing.
- *
- * Useful for testing analysis functions without reading from disk.
- * Mirrors `createAnalysisProgram` by returning `ts.Program` directly.
+ * The hermetic counterpart (nothing outside the given set, no lib) is
+ * `createSourceAndChecker` / `createMultiFileProgram` in
+ * `fixtures/ts/ts-test-helpers.ts`.
  *
  * @param files Array of virtual files with path and content
  */
-export const createTestProgram = (files: Array<{ path: string; content: string }>): ts.Program => {
+export const createVirtualFileProgram = (
+	files: Array<{ path: string; content: string }>
+): ts.Program => {
 	const fileMap = new Map(files.map((f) => [f.path, { content: f.content }]));
 
 	const compilerOptions: ts.CompilerOptions = {

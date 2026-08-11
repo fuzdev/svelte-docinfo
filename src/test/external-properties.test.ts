@@ -100,92 +100,85 @@ const EXT = {
 
 describe('filterDocumentedProperties', () => {
 	test('keeps all properties for a local non-intersection type, no external types', () => {
-		const { checker, sourceFiles } = createProgram([
-			{ path: '/src/lib/test.ts', content: 'export type Foo = { a: string; b: number };' }
-		]);
-		const sf = sourceFiles.get('/src/lib/test.ts')!;
-		const alias = findTypeAlias(sf, checker, 'Foo')!;
-
-		const result = filterDocumentedProperties(alias.type, alias.node.type, checker, () => false);
-		const propNames = result.properties.map((p) => p.name).sort();
+		const { propNames, externalTypes } = runFilter(
+			[{ path: '/src/lib/test.ts', content: 'export type Foo = { a: string; b: number };' }],
+			'Foo',
+			() => false
+		);
 		assert.deepEqual(propNames, ['a', 'b']);
-		assert.deepEqual(result.externalTypes, []);
+		assert.deepEqual(externalTypes, []);
 	});
 
 	test('keeps all properties when nothing is external', () => {
-		const { checker, sourceFiles } = createProgram([
-			{
-				path: '/src/lib/test.ts',
-				content: `
-					type A = { x: string };
-					type B = { y: number };
-					export type C = A & B;
-				`
-			}
-		]);
-		const sf = sourceFiles.get('/src/lib/test.ts')!;
-		const alias = findTypeAlias(sf, checker, 'C')!;
-
-		const result = filterDocumentedProperties(alias.type, alias.node.type, checker, () => false);
-		const propNames = result.properties.map((p) => p.name).sort();
+		const { propNames, externalTypes } = runFilter(
+			[
+				{
+					path: '/src/lib/test.ts',
+					content: `
+						type A = { x: string };
+						type B = { y: number };
+						export type C = A & B;
+					`
+				}
+			],
+			'C',
+			() => false
+		);
 		assert.deepEqual(propNames, ['x', 'y']);
-		assert.deepEqual(result.externalTypes, []);
+		assert.deepEqual(externalTypes, []);
 	});
 
 	test('filters properties from external sources', () => {
-		const { checker, sourceFiles } = createProgram([
-			{
-				path: '/src/lib/external-types.ts',
-				content: 'export type External = { ext1: string; ext2: number };'
-			},
-			{
-				path: '/src/lib/test.ts',
-				content: `
-					import type {External} from './external-types.js';
-					type Own = { own1: string; own2: boolean };
-					export type Combined = Own & External;
-				`
-			}
-		]);
-		const sf = sourceFiles.get('/src/lib/test.ts')!;
-		const alias = findTypeAlias(sf, checker, 'Combined')!;
-
 		// treat external-types.ts as external
 		const isExternal: IsExternalFile = (f) => f.fileName.includes('external-types');
-
-		const result = filterDocumentedProperties(alias.type, alias.node.type, checker, isExternal);
-		const propNames = result.properties.map((p) => p.name).sort();
+		const { propNames, externalTypes } = runFilter(
+			[
+				{
+					path: '/src/lib/external-types.ts',
+					content: 'export type External = { ext1: string; ext2: number };'
+				},
+				{
+					path: '/src/lib/test.ts',
+					content: `
+						import type {External} from './external-types.js';
+						type Own = { own1: string; own2: boolean };
+						export type Combined = Own & External;
+					`
+				}
+			],
+			'Combined',
+			isExternal
+		);
 		assert.deepEqual(propNames, ['own1', 'own2']);
-		assert.deepEqual(result.externalTypes, ['External']);
+		assert.deepEqual(externalTypes, ['External']);
 	});
 
 	test('filters all properties when all branches are external', () => {
-		const { checker, sourceFiles } = createProgram([
-			{
-				path: '/src/lib/ext-a.ts',
-				content: 'export type A = { x: string };'
-			},
-			{
-				path: '/src/lib/ext-b.ts',
-				content: 'export type B = { y: number };'
-			},
-			{
-				path: '/src/lib/test.ts',
-				content: `
-					import type {A} from './ext-a.js';
-					import type {B} from './ext-b.js';
-					export type Both = A & B;
-				`
-			}
-		]);
-		const sf = sourceFiles.get('/src/lib/test.ts')!;
-		const alias = findTypeAlias(sf, checker, 'Both')!;
-
 		const isExternal: IsExternalFile = (f) => f.fileName.includes('ext-');
-
-		const result = filterDocumentedProperties(alias.type, alias.node.type, checker, isExternal);
-		assert.deepEqual(result.properties, []);
-		assert.deepEqual(result.externalTypes.sort(), ['A', 'B']);
+		const { propNames, externalTypes } = runFilter(
+			[
+				{
+					path: '/src/lib/ext-a.ts',
+					content: 'export type A = { x: string };'
+				},
+				{
+					path: '/src/lib/ext-b.ts',
+					content: 'export type B = { y: number };'
+				},
+				{
+					path: '/src/lib/test.ts',
+					content: `
+						import type {A} from './ext-a.js';
+						import type {B} from './ext-b.js';
+						export type Both = A & B;
+					`
+				}
+			],
+			'Both',
+			isExternal
+		);
+		assert.deepEqual(propNames, []);
+		assert.deepEqual(externalTypes.sort(), ['A', 'B']);
 	});
 
 	test('predicate controls what counts as external', () => {
@@ -225,248 +218,235 @@ describe('filterDocumentedProperties', () => {
 	});
 
 	test('source root predicate pattern works', () => {
-		const { checker, sourceFiles } = createProgram([
-			{
-				path: '/src/lib/lib-types.ts',
-				content: 'export type LibType = { lib1: string; lib2: number };'
-			},
-			{
-				path: '/src/lib/test.ts',
-				content: `
-					import type {LibType} from './lib-types.js';
-					type Own = { own: boolean };
-					export type Props = Own & LibType;
-				`
-			}
-		]);
-		const sf = sourceFiles.get('/src/lib/test.ts')!;
-		const alias = findTypeAlias(sf, checker, 'Props')!;
-
 		// simulate production pattern: only test.ts is "internal"
 		const isExternal: IsExternalFile = (f) => !f.fileName.endsWith('test.ts');
-
-		const result = filterDocumentedProperties(alias.type, alias.node.type, checker, isExternal);
-		const propNames = result.properties.map((p) => p.name).sort();
+		const { propNames, externalTypes } = runFilter(
+			[
+				{
+					path: '/src/lib/lib-types.ts',
+					content: 'export type LibType = { lib1: string; lib2: number };'
+				},
+				{
+					path: '/src/lib/test.ts',
+					content: `
+						import type {LibType} from './lib-types.js';
+						type Own = { own: boolean };
+						export type Props = Own & LibType;
+					`
+				}
+			],
+			'Props',
+			isExternal
+		);
 		assert.deepEqual(propNames, ['own']);
-		assert.deepEqual(result.externalTypes, ['LibType']);
+		assert.deepEqual(externalTypes, ['LibType']);
 	});
 
 	test('inline object literal branches produce no externalTypes entry', () => {
-		const { checker, sourceFiles } = createProgram([
-			{
-				path: '/src/lib/ext.ts',
-				content: 'export type External = { ext: string };'
-			},
-			{
-				path: '/src/lib/test.ts',
-				content: `
-					import type {External} from './ext.js';
-					export type Combined = { own: boolean } & External;
-				`
-			}
-		]);
-		const sf = sourceFiles.get('/src/lib/test.ts')!;
-		const alias = findTypeAlias(sf, checker, 'Combined')!;
-
 		const isExternal: IsExternalFile = (f) => f.fileName.includes('ext.ts');
-
-		const result = filterDocumentedProperties(alias.type, alias.node.type, checker, isExternal);
-		const propNames = result.properties.map((p) => p.name).sort();
+		const { propNames, externalTypes } = runFilter(
+			[
+				{
+					path: '/src/lib/ext.ts',
+					content: 'export type External = { ext: string };'
+				},
+				{
+					path: '/src/lib/test.ts',
+					content: `
+						import type {External} from './ext.js';
+						export type Combined = { own: boolean } & External;
+					`
+				}
+			],
+			'Combined',
+			isExternal
+		);
 		assert.deepEqual(propNames, ['own']);
 		// inline object literal is not a TypeReferenceNode, so no externalTypes entry for it
-		assert.deepEqual(result.externalTypes, ['External']);
+		assert.deepEqual(externalTypes, ['External']);
 	});
 
 	test('mixed intersection with some external branches', () => {
-		const { checker, sourceFiles } = createProgram([
-			{
-				path: '/src/lib/ext-a.ts',
-				content: 'export type ExternalA = { ext: string };'
-			},
-			{
-				path: '/src/lib/local-b.ts',
-				content: 'export type LocalB = { local: number };'
-			},
-			{
-				path: '/src/lib/test.ts',
-				content: `
-					import type {ExternalA} from './ext-a.js';
-					import type {LocalB} from './local-b.js';
-					export type Mixed = ExternalA & LocalB & { own: boolean };
-				`
-			}
-		]);
-		const sf = sourceFiles.get('/src/lib/test.ts')!;
-		const alias = findTypeAlias(sf, checker, 'Mixed')!;
-
 		// only ext-a is external
 		const isExternal: IsExternalFile = (f) => f.fileName.includes('ext-');
-
-		const result = filterDocumentedProperties(alias.type, alias.node.type, checker, isExternal);
-		const propNames = result.properties.map((p) => p.name).sort();
+		const { propNames, externalTypes } = runFilter(
+			[
+				{
+					path: '/src/lib/ext-a.ts',
+					content: 'export type ExternalA = { ext: string };'
+				},
+				{
+					path: '/src/lib/local-b.ts',
+					content: 'export type LocalB = { local: number };'
+				},
+				{
+					path: '/src/lib/test.ts',
+					content: `
+						import type {ExternalA} from './ext-a.js';
+						import type {LocalB} from './local-b.js';
+						export type Mixed = ExternalA & LocalB & { own: boolean };
+					`
+				}
+			],
+			'Mixed',
+			isExternal
+		);
 		assert.deepEqual(propNames, ['local', 'own']);
 		// only ExternalA is fully external, LocalB is internal
-		assert.deepEqual(result.externalTypes, ['ExternalA']);
+		assert.deepEqual(externalTypes, ['ExternalA']);
 	});
 
 	test('three-way intersection with two external branches', () => {
-		const { checker, sourceFiles } = createProgram([
-			{
-				path: '/src/lib/ext-a.ts',
-				content: 'export type ExtA = { ea: string };'
-			},
-			{
-				path: '/src/lib/ext-b.ts',
-				content: 'export type ExtB = { eb: number };'
-			},
-			{
-				path: '/src/lib/test.ts',
-				content: `
-					import type {ExtA} from './ext-a.js';
-					import type {ExtB} from './ext-b.js';
-					type Own = { own: boolean };
-					export type Triple = Own & ExtA & ExtB;
-				`
-			}
-		]);
-		const sf = sourceFiles.get('/src/lib/test.ts')!;
-		const alias = findTypeAlias(sf, checker, 'Triple')!;
-
 		const isExternal: IsExternalFile = (f) => f.fileName.includes('ext-');
-
-		const result = filterDocumentedProperties(alias.type, alias.node.type, checker, isExternal);
-		const propNames = result.properties.map((p) => p.name).sort();
+		const { propNames, externalTypes } = runFilter(
+			[
+				{
+					path: '/src/lib/ext-a.ts',
+					content: 'export type ExtA = { ea: string };'
+				},
+				{
+					path: '/src/lib/ext-b.ts',
+					content: 'export type ExtB = { eb: number };'
+				},
+				{
+					path: '/src/lib/test.ts',
+					content: `
+						import type {ExtA} from './ext-a.js';
+						import type {ExtB} from './ext-b.js';
+						type Own = { own: boolean };
+						export type Triple = Own & ExtA & ExtB;
+					`
+				}
+			],
+			'Triple',
+			isExternal
+		);
 		assert.deepEqual(propNames, ['own']);
-		assert.deepEqual(result.externalTypes.sort(), ['ExtA', 'ExtB']);
+		assert.deepEqual(externalTypes.sort(), ['ExtA', 'ExtB']);
 	});
 
 	test('synthesized properties (no declarations) are kept', () => {
-		const { checker, sourceFiles } = createProgram([
-			{
-				path: '/src/lib/test.ts',
-				content: `
-					type A = { x: string };
-					type B = { y: number };
-					export type C = A & B;
-				`
-			}
-		]);
-		const sf = sourceFiles.get('/src/lib/test.ts')!;
-		const alias = findTypeAlias(sf, checker, 'C')!;
-
 		// even with "everything external" predicate, synthesized props
 		// without declarations are kept (isExternalProperty returns false for no decls)
 		// In practice this is a safety net — most properties have declarations
-		const result = filterDocumentedProperties(alias.type, alias.node.type, checker, () => true);
+		const { propNames } = runFilter(
+			[
+				{
+					path: '/src/lib/test.ts',
+					content: `
+						type A = { x: string };
+						type B = { y: number };
+						export type C = A & B;
+					`
+				}
+			],
+			'C',
+			() => true
+		);
 		// These properties DO have declarations (they come from the type alias literals),
 		// so they ARE filtered when predicate says external
-		assert.deepEqual(result.properties, []);
+		assert.deepEqual(propNames, []);
 	});
 
 	// Shapes that the previous intersection-only gate let slip through unfiltered.
 
 	test('bare external reference: all members filtered, type surfaced', () => {
-		const { checker, sourceFiles } = createProgram([
-			{
-				path: '/src/lib/ext.ts',
-				content: 'export type External = { ext1: string; ext2: number };'
-			},
-			{
-				path: '/src/lib/test.ts',
-				content: `
-					import type {External} from './ext.js';
-					export type Bare = External;
-				`
-			}
-		]);
-		const sf = sourceFiles.get('/src/lib/test.ts')!;
-		const alias = findTypeAlias(sf, checker, 'Bare')!;
-
 		const isExternal: IsExternalFile = (f) => f.fileName.includes('ext.ts');
-
-		const result = filterDocumentedProperties(alias.type, alias.node.type, checker, isExternal);
-		assert.deepEqual(result.properties, []);
-		assert.deepEqual(result.externalTypes, ['External']);
+		const { propNames, externalTypes } = runFilter(
+			[
+				{
+					path: '/src/lib/ext.ts',
+					content: 'export type External = { ext1: string; ext2: number };'
+				},
+				{
+					path: '/src/lib/test.ts',
+					content: `
+						import type {External} from './ext.js';
+						export type Bare = External;
+					`
+				}
+			],
+			'Bare',
+			isExternal
+		);
+		assert.deepEqual(propNames, []);
+		assert.deepEqual(externalTypes, ['External']);
 	});
 
 	test('union of external references: each member surfaced', () => {
-		const { checker, sourceFiles } = createProgram([
-			{
-				path: '/src/lib/ext.ts',
-				content: `
-					export type ExtA = { shared: string; a: number };
-					export type ExtB = { shared: string; b: boolean };
-				`
-			},
-			{
-				path: '/src/lib/test.ts',
-				content: `
-					import type {ExtA, ExtB} from './ext.js';
-					export type U = ExtA | ExtB;
-				`
-			}
-		]);
-		const sf = sourceFiles.get('/src/lib/test.ts')!;
-		const alias = findTypeAlias(sf, checker, 'U')!;
-
 		const isExternal: IsExternalFile = (f) => f.fileName.includes('ext.ts');
-
-		const result = filterDocumentedProperties(alias.type, alias.node.type, checker, isExternal);
+		const { propNames, externalTypes } = runFilter(
+			[
+				{
+					path: '/src/lib/ext.ts',
+					content: `
+						export type ExtA = { shared: string; a: number };
+						export type ExtB = { shared: string; b: boolean };
+					`
+				},
+				{
+					path: '/src/lib/test.ts',
+					content: `
+						import type {ExtA, ExtB} from './ext.js';
+						export type U = ExtA | ExtB;
+					`
+				}
+			],
+			'U',
+			isExternal
+		);
 		// union exposes only the shared member, whose declarations are external
-		assert.deepEqual(result.properties, []);
-		assert.deepEqual(result.externalTypes, ['ExtA', 'ExtB']);
+		assert.deepEqual(propNames, []);
+		assert.deepEqual(externalTypes, ['ExtA', 'ExtB']);
 	});
 
 	test('indexed-access into an external type is surfaced verbatim', () => {
-		const { checker, sourceFiles } = createProgram([
-			{
-				path: '/src/lib/ext.ts',
-				content: 'export type Bag = { li: { a: string; b: number } };'
-			},
-			{
-				path: '/src/lib/test.ts',
-				content: `
-					import type {Bag} from './ext.js';
-					export type Indexed = Bag['li'];
-				`
-			}
-		]);
-		const sf = sourceFiles.get('/src/lib/test.ts')!;
-		const alias = findTypeAlias(sf, checker, 'Indexed')!;
-
 		const isExternal: IsExternalFile = (f) => f.fileName.includes('ext.ts');
-
-		const result = filterDocumentedProperties(alias.type, alias.node.type, checker, isExternal);
-		assert.deepEqual(result.properties, []);
-		assert.deepEqual(result.externalTypes, ["Bag['li']"]);
+		const { propNames, externalTypes } = runFilter(
+			[
+				{
+					path: '/src/lib/ext.ts',
+					content: 'export type Bag = { li: { a: string; b: number } };'
+				},
+				{
+					path: '/src/lib/test.ts',
+					content: `
+						import type {Bag} from './ext.js';
+						export type Indexed = Bag['li'];
+					`
+				}
+			],
+			'Indexed',
+			isExternal
+		);
+		assert.deepEqual(propNames, []);
+		assert.deepEqual(externalTypes, ["Bag['li']"]);
 	});
 
 	test('intersection whose external branch is a union of references', () => {
-		const { checker, sourceFiles } = createProgram([
-			{
-				path: '/src/lib/ext.ts',
-				content: `
-					export type ExtA = { shared: string };
-					export type ExtB = { shared: string };
-				`
-			},
-			{
-				path: '/src/lib/test.ts',
-				content: `
-					import type {ExtA, ExtB} from './ext.js';
-					export type Mixed = (ExtA | ExtB) & { own: boolean };
-				`
-			}
-		]);
-		const sf = sourceFiles.get('/src/lib/test.ts')!;
-		const alias = findTypeAlias(sf, checker, 'Mixed')!;
-
 		const isExternal: IsExternalFile = (f) => f.fileName.includes('ext.ts');
-
-		const result = filterDocumentedProperties(alias.type, alias.node.type, checker, isExternal);
-		const propNames = result.properties.map((p) => p.name).sort();
+		const { propNames, externalTypes } = runFilter(
+			[
+				{
+					path: '/src/lib/ext.ts',
+					content: `
+						export type ExtA = { shared: string };
+						export type ExtB = { shared: string };
+					`
+				},
+				{
+					path: '/src/lib/test.ts',
+					content: `
+						import type {ExtA, ExtB} from './ext.js';
+						export type Mixed = (ExtA | ExtB) & { own: boolean };
+					`
+				}
+			],
+			'Mixed',
+			isExternal
+		);
 		assert.deepEqual(propNames, ['own']);
-		assert.deepEqual(result.externalTypes, ['ExtA', 'ExtB']);
+		assert.deepEqual(externalTypes, ['ExtA', 'ExtB']);
 	});
 
 	test('a local property redeclaring an external one is kept; external-only is dropped', () => {

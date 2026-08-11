@@ -9,17 +9,13 @@ import { AnalyzeResultJson } from '$lib/analyze-core.ts';
 
 import {
 	loadFixtures,
-	createTestProgram,
+	createSourceAndChecker,
 	createMultiFileProgram,
 	analyzeTsFixture
 } from './fixtures/ts/ts-test-helpers.ts';
 import { mockExtractContext, normalizeJson } from './test-helpers.ts';
 import { ModuleFixtureJson, type ModuleFixture } from './fixtures/module-fixture-helpers.ts';
-import {
-	testSourceOptions,
-	createTestSourceOptions,
-	createVirtualSourceOptions
-} from './test-module-helpers.ts';
+import { testSourceOptions, createTestSourceOptions, TEST_LIB_DIR } from './test-module-helpers.ts';
 
 let fixtures: Array<ModuleFixture> = [];
 
@@ -148,8 +144,7 @@ export class A {
 	get implicit(): string { return 'implicit'; }
 }
 `;
-		const sourceFile = ts.createSourceFile('test.ts', sourceCode, ts.ScriptTarget.Latest, true);
-		const checker = createTestProgram(sourceFile, 'test.ts').getTypeChecker();
+		const { sourceFile, checker } = createSourceAndChecker(sourceCode);
 
 		const result = analyzeExports(
 			sourceFile,
@@ -189,8 +184,7 @@ export class A {
 	static get readonlyStatic(): number { return 42; }
 }
 `;
-		const sourceFile = ts.createSourceFile('test.ts', sourceCode, ts.ScriptTarget.Latest, true);
-		const checker = createTestProgram(sourceFile, 'test.ts').getTypeChecker();
+		const { sourceFile, checker } = createSourceAndChecker(sourceCode);
 
 		const result = analyzeExports(
 			sourceFile,
@@ -224,8 +218,7 @@ export class A {
 	set writeOnly(value: string) { console.log(value); }
 }
 `;
-		const sourceFile = ts.createSourceFile('test.ts', sourceCode, ts.ScriptTarget.Latest, true);
-		const checker = createTestProgram(sourceFile, 'test.ts').getTypeChecker();
+		const { sourceFile, checker } = createSourceAndChecker(sourceCode);
 
 		const result = analyzeExports(
 			sourceFile,
@@ -261,8 +254,7 @@ export class A {
 	}
 }
 `;
-		const sourceFile = ts.createSourceFile('test.ts', sourceCode, ts.ScriptTarget.Latest, true);
-		const checker = createTestProgram(sourceFile, 'test.ts').getTypeChecker();
+		const { sourceFile, checker } = createSourceAndChecker(sourceCode);
 
 		const result = analyzeExports(
 			sourceFile,
@@ -287,8 +279,7 @@ export abstract class A {
 	abstract fn1(): void;
 }
 `;
-		const sourceFile = ts.createSourceFile('test.ts', sourceCode, ts.ScriptTarget.Latest, true);
-		const checker = createTestProgram(sourceFile, 'test.ts').getTypeChecker();
+		const { sourceFile, checker } = createSourceAndChecker(sourceCode);
 
 		const result = analyzeExports(
 			sourceFile,
@@ -314,8 +305,7 @@ export class A {
 	constructor(public a: string) {}
 }
 `;
-		const sourceFile = ts.createSourceFile('test.ts', sourceCode, ts.ScriptTarget.Latest, true);
-		const checker = createTestProgram(sourceFile, 'test.ts').getTypeChecker();
+		const { sourceFile, checker } = createSourceAndChecker(sourceCode);
 
 		const result = analyzeExports(
 			sourceFile,
@@ -341,8 +331,7 @@ export default class {
 	fn1(): void {}
 }
 `;
-		const sourceFile = ts.createSourceFile('test.ts', sourceCode, ts.ScriptTarget.Latest, true);
-		const checker = createTestProgram(sourceFile, 'test.ts').getTypeChecker();
+		const { sourceFile, checker } = createSourceAndChecker(sourceCode);
 
 		const result = analyzeExports(
 			sourceFile,
@@ -378,8 +367,7 @@ export default class {
 	constructor(a: string | number) {}
 }
 `;
-		const sourceFile = ts.createSourceFile('test.ts', sourceCode, ts.ScriptTarget.Latest, true);
-		const checker = createTestProgram(sourceFile, 'test.ts').getTypeChecker();
+		const { sourceFile, checker } = createSourceAndChecker(sourceCode);
 
 		const result = analyzeExports(
 			sourceFile,
@@ -416,8 +404,7 @@ export function bar(): string { return 'bar'; }
 export type Baz = { value: number };
 `;
 
-		const sourceFile = ts.createSourceFile('test.ts', sourceCode, ts.ScriptTarget.Latest, true);
-		const checker = createTestProgram(sourceFile, 'test.ts').getTypeChecker();
+		const { sourceFile, checker } = createSourceAndChecker(sourceCode);
 
 		const result = analyzeExports(
 			sourceFile,
@@ -453,8 +440,7 @@ export type Baz = { value: number };
 export const foo = 42;
 `;
 
-		const sourceFile = ts.createSourceFile('first.ts', sourceCode, ts.ScriptTarget.Latest, true);
-		const checker = createTestProgram(sourceFile, 'first.ts').getTypeChecker();
+		const { sourceFile, checker } = createSourceAndChecker(sourceCode, 'first.ts');
 
 		const diagnostics: Array<Diagnostic> = [];
 		const result = analyzeExports(sourceFile, checker, testSourceOptions(), diagnostics);
@@ -481,8 +467,7 @@ export const foo = 42;
 export const foo = 42;
 `;
 
-		const sourceFile = ts.createSourceFile('clean.ts', sourceCode, ts.ScriptTarget.Latest, true);
-		const checker = createTestProgram(sourceFile, 'clean.ts').getTypeChecker();
+		const { sourceFile, checker } = createSourceAndChecker(sourceCode, 'clean.ts');
 
 		const diagnostics: Array<Diagnostic> = [];
 		analyzeExports(sourceFile, checker, testSourceOptions(), diagnostics);
@@ -504,8 +489,7 @@ export const foo = 42;
 const internal = 'not exported';
 `;
 
-		const sourceFile = ts.createSourceFile('empty.ts', sourceCode, ts.ScriptTarget.Latest, true);
-		const checker = createTestProgram(sourceFile, 'empty.ts').getTypeChecker();
+		const { sourceFile, checker } = createSourceAndChecker(sourceCode, 'empty.ts');
 
 		const result = analyzeExports(
 			sourceFile,
@@ -524,13 +508,7 @@ export const foo = 'no comment';
 export const bar = 123;
 `;
 
-		const sourceFile = ts.createSourceFile(
-			'module_no_comment.ts',
-			sourceCode,
-			ts.ScriptTarget.Latest,
-			true
-		);
-		const checker = createTestProgram(sourceFile, 'module_no_comment.ts').getTypeChecker();
+		const { sourceFile, checker } = createSourceAndChecker(sourceCode, 'module_no_comment.ts');
 
 		const result = analyzeExports(
 			sourceFile,
@@ -556,8 +534,7 @@ export function add(a: number, b: number): number {
 }
 `;
 
-		const sourceFile = ts.createSourceFile('math.ts', sourceCode, ts.ScriptTarget.Latest, true);
-		const checker = createTestProgram(sourceFile, 'math.ts').getTypeChecker();
+		const { sourceFile, checker } = createSourceAndChecker(sourceCode, 'math.ts');
 
 		const result = analyzeExports(
 			sourceFile,
@@ -593,8 +570,7 @@ export class Counter {
 }
 `;
 
-		const sourceFile = ts.createSourceFile('counter.ts', sourceCode, ts.ScriptTarget.Latest, true);
-		const checker = createTestProgram(sourceFile, 'counter.ts').getTypeChecker();
+		const { sourceFile, checker } = createSourceAndChecker(sourceCode, 'counter.ts');
 
 		const result = analyzeExports(
 			sourceFile,
@@ -626,8 +602,7 @@ export interface Config {
 }
 `;
 
-		const sourceFile = ts.createSourceFile('config.ts', sourceCode, ts.ScriptTarget.Latest, true);
-		const checker = createTestProgram(sourceFile, 'config.ts').getTypeChecker();
+		const { sourceFile, checker } = createSourceAndChecker(sourceCode, 'config.ts');
 
 		const result = analyzeExports(
 			sourceFile,
@@ -651,8 +626,7 @@ const internalValue = 42;
 export { internalValue as exportedValue };
 `;
 
-		const sourceFile = ts.createSourceFile('reexport.ts', sourceCode, ts.ScriptTarget.Latest, true);
-		const checker = createTestProgram(sourceFile, 'reexport.ts').getTypeChecker();
+		const { sourceFile, checker } = createSourceAndChecker(sourceCode, 'reexport.ts');
 
 		const result = analyzeExports(
 			sourceFile,
@@ -691,8 +665,7 @@ export class Service {
 }
 `;
 
-		const sourceFile = ts.createSourceFile('mixed.ts', sourceCode, ts.ScriptTarget.Latest, true);
-		const checker = createTestProgram(sourceFile, 'mixed.ts').getTypeChecker();
+		const { sourceFile, checker } = createSourceAndChecker(sourceCode, 'mixed.ts');
 
 		const result = analyzeExports(
 			sourceFile,
@@ -750,8 +723,7 @@ export function public_function(): string {
 }
 `;
 
-		const sourceFile = ts.createSourceFile('nodocs.ts', sourceCode, ts.ScriptTarget.Latest, true);
-		const checker = createTestProgram(sourceFile, 'nodocs.ts').getTypeChecker();
+		const { sourceFile, checker } = createSourceAndChecker(sourceCode, 'nodocs.ts');
 
 		const result = analyzeExports(
 			sourceFile,
@@ -785,7 +757,7 @@ export function public_function(): string {
 	test('detects same-name re-exports and tracks in reExports array', () => {
 		const { program, sourceFiles } = createMultiFileProgram([
 			{
-				path: '/src/lib/helpers.ts',
+				path: `${TEST_LIB_DIR}/helpers.ts`,
 				content: `
 /** A helper function. */
 export function helper(): void {}
@@ -794,7 +766,7 @@ export const CONSTANT = 42;
 `
 			},
 			{
-				path: '/src/lib/index.ts',
+				path: `${TEST_LIB_DIR}/index.ts`,
 				content: `
 // Re-export from helpers
 export {helper, CONSTANT} from './helpers.js';
@@ -806,9 +778,9 @@ export const localValue = 'local';
 		]);
 		const checker = program.getTypeChecker();
 
-		const indexFile = sourceFiles.get('/src/lib/index.ts')!;
-		const virtualOptions = createVirtualSourceOptions();
-		const result = analyzeExports(indexFile, checker, virtualOptions, [] as Array<Diagnostic>);
+		const indexFile = sourceFiles.get(`${TEST_LIB_DIR}/index.ts`)!;
+		const options = createTestSourceOptions();
+		const result = analyzeExports(indexFile, checker, options, [] as Array<Diagnostic>);
 
 		// index.ts should only have localValue as a direct export
 		// helper and CONSTANT are re-exports and should be in reExports array
@@ -831,7 +803,7 @@ export const localValue = 'local';
 	test('handles renamed re-exports with aliasOf metadata', () => {
 		const { program, sourceFiles } = createMultiFileProgram([
 			{
-				path: '/src/lib/internal.ts',
+				path: `${TEST_LIB_DIR}/internal.ts`,
 				content: `
 /** Internal implementation. */
 export function internalImpl(): string {
@@ -840,7 +812,7 @@ export function internalImpl(): string {
 `
 			},
 			{
-				path: '/src/lib/public.ts',
+				path: `${TEST_LIB_DIR}/public.ts`,
 				content: `
 // Renamed re-export
 export {internalImpl as public_api} from './internal.js';
@@ -849,9 +821,9 @@ export {internalImpl as public_api} from './internal.js';
 		]);
 		const checker = program.getTypeChecker();
 
-		const publicFile = sourceFiles.get('/src/lib/public.ts')!;
-		const virtualOptions = createVirtualSourceOptions();
-		const result = analyzeExports(publicFile, checker, virtualOptions, [] as Array<Diagnostic>);
+		const publicFile = sourceFiles.get(`${TEST_LIB_DIR}/public.ts`)!;
+		const options = createTestSourceOptions();
+		const result = analyzeExports(publicFile, checker, options, [] as Array<Diagnostic>);
 
 		// Renamed re-export creates a NEW declaration with aliasOf
 		assert.strictEqual(result.declarations.length, 1);
@@ -868,14 +840,14 @@ export {internalImpl as public_api} from './internal.js';
 	test('handles mixed direct exports and re-exports', () => {
 		const { program, sourceFiles } = createMultiFileProgram([
 			{
-				path: '/src/lib/utils.ts',
+				path: `${TEST_LIB_DIR}/utils.ts`,
 				content: `
 export const utilA = 'a';
 export const utilB = 'b';
 `
 			},
 			{
-				path: '/src/lib/mixed.ts',
+				path: `${TEST_LIB_DIR}/mixed.ts`,
 				content: `
 // Direct exports
 export function directFn(): void {}
@@ -891,9 +863,9 @@ export {utilB as renamedUtil} from './utils.js';
 		]);
 		const checker = program.getTypeChecker();
 
-		const mixedFile = sourceFiles.get('/src/lib/mixed.ts')!;
-		const virtualOptions = createVirtualSourceOptions();
-		const result = analyzeExports(mixedFile, checker, virtualOptions, [] as Array<Diagnostic>);
+		const mixedFile = sourceFiles.get(`${TEST_LIB_DIR}/mixed.ts`)!;
+		const options = createTestSourceOptions();
+		const result = analyzeExports(mixedFile, checker, options, [] as Array<Diagnostic>);
 
 		// Should have 3 identifiers: directFn, DirectType, renamedUtil
 		assert.strictEqual(result.declarations.length, 3);
@@ -924,8 +896,7 @@ const fn1 = (a: string): number => a.length;
 export { fn1 };
 `;
 
-		const sourceFile = ts.createSourceFile('test.ts', sourceCode, ts.ScriptTarget.Latest, true);
-		const checker = createTestProgram(sourceFile, 'test.ts').getTypeChecker();
+		const { sourceFile, checker } = createSourceAndChecker(sourceCode);
 
 		const result = analyzeExports(
 			sourceFile,
@@ -949,8 +920,7 @@ const fn1 = (a: string): number => a.length;
 export { fn1 };
 `;
 
-		const sourceFile = ts.createSourceFile('test.ts', sourceCode, ts.ScriptTarget.Latest, true);
-		const checker = createTestProgram(sourceFile, 'test.ts').getTypeChecker();
+		const { sourceFile, checker } = createSourceAndChecker(sourceCode);
 
 		const result = analyzeExports(
 			sourceFile,
@@ -1020,8 +990,7 @@ export const value = 42;
 export function fn(): string { return 'test'; }
 `;
 
-		const sourceFile = ts.createSourceFile('test.ts', sourceCode, ts.ScriptTarget.Latest, true);
-		const checker = createTestProgram(sourceFile, 'test.ts').getTypeChecker();
+		const { sourceFile, checker } = createSourceAndChecker(sourceCode);
 		const diagnostics: Array<Diagnostic> = [];
 
 		const result = analyzeExports(sourceFile, checker, testSourceOptions(), diagnostics);
@@ -1044,8 +1013,7 @@ export class MyClass {
 }
 `;
 
-		const sourceFile = ts.createSourceFile('multi.ts', sourceCode, ts.ScriptTarget.Latest, true);
-		const checker = createTestProgram(sourceFile, 'multi.ts').getTypeChecker();
+		const { sourceFile, checker } = createSourceAndChecker(sourceCode, 'multi.ts');
 		const diagnostics: Array<Diagnostic> = [];
 
 		const result = analyzeExports(sourceFile, checker, testSourceOptions(), diagnostics);
@@ -1066,8 +1034,7 @@ export const second = 2;
 export function third(): void {}
 `;
 
-		const sourceFile = ts.createSourceFile('lines.ts', sourceCode, ts.ScriptTarget.Latest, true);
-		const checker = createTestProgram(sourceFile, 'lines.ts').getTypeChecker();
+		const { sourceFile, checker } = createSourceAndChecker(sourceCode, 'lines.ts');
 		const diagnostics: Array<Diagnostic> = [];
 
 		const result = analyzeExports(sourceFile, checker, testSourceOptions(), diagnostics);
@@ -1092,21 +1059,21 @@ describe('re-export chains', () => {
 		// C.ts exports original, B.ts re-exports from C, A.ts re-exports from B
 		const { program, sourceFiles } = createMultiFileProgram([
 			{
-				path: '/src/lib/c.ts',
+				path: `${TEST_LIB_DIR}/c.ts`,
 				content: `
 /** Original declaration in C. */
 export const original = 'from C';
 `
 			},
 			{
-				path: '/src/lib/b.ts',
+				path: `${TEST_LIB_DIR}/b.ts`,
 				content: `
 // Re-export from C
 export {original} from './c.js';
 `
 			},
 			{
-				path: '/src/lib/a.ts',
+				path: `${TEST_LIB_DIR}/a.ts`,
 				content: `
 // Re-export from B (which re-exports from C)
 export {original} from './b.js';
@@ -1116,26 +1083,26 @@ export {original} from './b.js';
 		const checker = program.getTypeChecker();
 
 		const diagnostics: Array<Diagnostic> = [];
-		const virtualOptions = createVirtualSourceOptions();
+		const options = createTestSourceOptions();
 
 		// Analyze C - should have the original declaration
-		const cFile = sourceFiles.get('/src/lib/c.ts')!;
-		const cResult = analyzeExports(cFile, checker, virtualOptions, diagnostics);
+		const cFile = sourceFiles.get(`${TEST_LIB_DIR}/c.ts`)!;
+		const cResult = analyzeExports(cFile, checker, options, diagnostics);
 		assert.strictEqual(cResult.declarations.length, 1);
 		assert.strictEqual(cResult.declarations[0]!.declaration.name, 'original');
 		assert.strictEqual(cResult.reExports.length, 0);
 
 		// Analyze B - should track re-export from C
-		const bFile = sourceFiles.get('/src/lib/b.ts')!;
-		const bResult = analyzeExports(bFile, checker, virtualOptions, diagnostics);
+		const bFile = sourceFiles.get(`${TEST_LIB_DIR}/b.ts`)!;
+		const bResult = analyzeExports(bFile, checker, options, diagnostics);
 		assert.strictEqual(bResult.declarations.length, 0); // No direct declarations
 		assert.strictEqual(bResult.reExports.length, 1);
 		assert.strictEqual(bResult.reExports[0]!.name, 'original');
 		assert.strictEqual(bResult.reExports[0]!.module, 'c.ts');
 
 		// Analyze A - TypeScript resolves re-export chains to original source
-		const aFile = sourceFiles.get('/src/lib/a.ts')!;
-		const aResult = analyzeExports(aFile, checker, virtualOptions, diagnostics);
+		const aFile = sourceFiles.get(`${TEST_LIB_DIR}/a.ts`)!;
+		const aResult = analyzeExports(aFile, checker, options, diagnostics);
 		assert.strictEqual(aResult.declarations.length, 0);
 		assert.strictEqual(aResult.reExports.length, 1);
 		assert.strictEqual(aResult.reExports[0]!.name, 'original');
@@ -1147,13 +1114,13 @@ export {original} from './b.js';
 	test('handles mixed direct exports and re-export chains', () => {
 		const { program, sourceFiles } = createMultiFileProgram([
 			{
-				path: '/src/lib/base.ts',
+				path: `${TEST_LIB_DIR}/base.ts`,
 				content: `
 export const baseValue = 'base';
 `
 			},
 			{
-				path: '/src/lib/combined.ts',
+				path: `${TEST_LIB_DIR}/combined.ts`,
 				content: `
 // Direct export
 export const localValue = 'local';
@@ -1166,9 +1133,9 @@ export {baseValue} from './base.js';
 		const checker = program.getTypeChecker();
 
 		const diagnostics: Array<Diagnostic> = [];
-		const combinedFile = sourceFiles.get('/src/lib/combined.ts')!;
-		const virtualOptions = createVirtualSourceOptions();
-		const result = analyzeExports(combinedFile, checker, virtualOptions, diagnostics);
+		const combinedFile = sourceFiles.get(`${TEST_LIB_DIR}/combined.ts`)!;
+		const options = createTestSourceOptions();
+		const result = analyzeExports(combinedFile, checker, options, diagnostics);
 
 		// Should have localValue as direct declaration
 		assert.strictEqual(result.declarations.length, 1);
@@ -1184,7 +1151,7 @@ describe('star exports tracking', () => {
 	test('detects export * from statements', () => {
 		const { program, sourceFiles } = createMultiFileProgram([
 			{
-				path: '/src/lib/helpers.ts',
+				path: `${TEST_LIB_DIR}/helpers.ts`,
 				content: `
 export const helperA = 'a';
 export const helperB = 'b';
@@ -1192,7 +1159,7 @@ export function helperFn(): void {}
 `
 			},
 			{
-				path: '/src/lib/index.ts',
+				path: `${TEST_LIB_DIR}/index.ts`,
 				content: `
 // Star export - re-exports all from helpers
 export * from './helpers.js';
@@ -1205,9 +1172,9 @@ export const indexValue = 'index';
 		const checker = program.getTypeChecker();
 
 		const diagnostics: Array<Diagnostic> = [];
-		const indexFile = sourceFiles.get('/src/lib/index.ts')!;
-		const virtualOptions = createVirtualSourceOptions();
-		const result = analyzeExports(indexFile, checker, virtualOptions, diagnostics);
+		const indexFile = sourceFiles.get(`${TEST_LIB_DIR}/index.ts`)!;
+		const options = createTestSourceOptions();
+		const result = analyzeExports(indexFile, checker, options, diagnostics);
 
 		// starExports should contain helpers.ts
 		assert.strictEqual(result.starExports.length, 1);
@@ -1232,20 +1199,20 @@ export const indexValue = 'index';
 		// or a.ts's own interface vanishes depending on bind order.
 		const { program, sourceFiles } = createMultiFileProgram([
 			{
-				path: '/src/lib/a.ts',
+				path: `${TEST_LIB_DIR}/a.ts`,
 				content: `export interface Config {\n\ta: string;\n}\n`
 			},
 			{
-				path: '/src/lib/b.ts',
+				path: `${TEST_LIB_DIR}/b.ts`,
 				content: `import './a.js';\n\ndeclare module './a.js' {\n\texport const Config: number;\n}\n\nexport const other = 1;\n`
 			}
 		]);
 		const checker = program.getTypeChecker();
 
 		const diagnostics: Array<Diagnostic> = [];
-		const aFile = sourceFiles.get('/src/lib/a.ts')!;
-		const virtualOptions = createVirtualSourceOptions();
-		const result = analyzeExports(aFile, checker, virtualOptions, diagnostics);
+		const aFile = sourceFiles.get(`${TEST_LIB_DIR}/a.ts`)!;
+		const options = createTestSourceOptions();
+		const result = analyzeExports(aFile, checker, options, diagnostics);
 
 		assert.ok(
 			result.declarations.some((d) => d.declaration.name === 'Config'),
@@ -1256,15 +1223,15 @@ export const indexValue = 'index';
 	test('handles multiple star exports', () => {
 		const { program, sourceFiles } = createMultiFileProgram([
 			{
-				path: '/src/lib/utilsA.ts',
+				path: `${TEST_LIB_DIR}/utilsA.ts`,
 				content: `export const utilA = 'a';`
 			},
 			{
-				path: '/src/lib/utilsB.ts',
+				path: `${TEST_LIB_DIR}/utilsB.ts`,
 				content: `export const utilB = 'b';`
 			},
 			{
-				path: '/src/lib/barrel.ts',
+				path: `${TEST_LIB_DIR}/barrel.ts`,
 				content: `
 export * from './utilsA.js';
 export * from './utilsB.js';
@@ -1274,9 +1241,9 @@ export * from './utilsB.js';
 		const checker = program.getTypeChecker();
 
 		const diagnostics: Array<Diagnostic> = [];
-		const barrelFile = sourceFiles.get('/src/lib/barrel.ts')!;
-		const virtualOptions = createVirtualSourceOptions();
-		const result = analyzeExports(barrelFile, checker, virtualOptions, diagnostics);
+		const barrelFile = sourceFiles.get(`${TEST_LIB_DIR}/barrel.ts`)!;
+		const options = createTestSourceOptions();
+		const result = analyzeExports(barrelFile, checker, options, diagnostics);
 
 		// Should have both star exports
 		assert.strictEqual(result.starExports.length, 2);
@@ -1293,8 +1260,7 @@ export * from './utilsB.js';
 export const local = 'value';
 `;
 
-		const sourceFile = ts.createSourceFile('test.ts', sourceCode, ts.ScriptTarget.Latest, true);
-		const checker = createTestProgram(sourceFile, 'test.ts').getTypeChecker();
+		const { sourceFile, checker } = createSourceAndChecker(sourceCode);
 		const diagnostics: Array<Diagnostic> = [];
 
 		const result = analyzeExports(sourceFile, checker, testSourceOptions(), diagnostics);
@@ -1306,20 +1272,20 @@ export const local = 'value';
 	test('mixed star exports and named re-exports', () => {
 		const { program, sourceFiles } = createMultiFileProgram([
 			{
-				path: '/src/lib/types.ts',
+				path: `${TEST_LIB_DIR}/types.ts`,
 				content: `
 export type Config = { value: string };
 export type Options = { enabled: boolean };
 `
 			},
 			{
-				path: '/src/lib/utils.ts',
+				path: `${TEST_LIB_DIR}/utils.ts`,
 				content: `
 export const utilFn = (): void => {};
 `
 			},
 			{
-				path: '/src/lib/combined.ts',
+				path: `${TEST_LIB_DIR}/combined.ts`,
 				content: `
 // Star export
 export * from './types.js';
@@ -1335,9 +1301,9 @@ export const combinedValue = 'combined';
 		const checker = program.getTypeChecker();
 
 		const diagnostics: Array<Diagnostic> = [];
-		const combinedFile = sourceFiles.get('/src/lib/combined.ts')!;
-		const virtualOptions = createVirtualSourceOptions();
-		const result = analyzeExports(combinedFile, checker, virtualOptions, diagnostics);
+		const combinedFile = sourceFiles.get(`${TEST_LIB_DIR}/combined.ts`)!;
+		const options = createTestSourceOptions();
+		const result = analyzeExports(combinedFile, checker, options, diagnostics);
 
 		// Star export for types.ts
 		assert.strictEqual(result.starExports.length, 1);
@@ -1357,11 +1323,11 @@ export const combinedValue = 'combined';
 	test('star export and named re-export of same symbol does not duplicate', () => {
 		const { program, sourceFiles } = createMultiFileProgram([
 			{
-				path: '/src/lib/a.ts',
+				path: `${TEST_LIB_DIR}/a.ts`,
 				content: `export const foo = 'value';`
 			},
 			{
-				path: '/src/lib/index.ts',
+				path: `${TEST_LIB_DIR}/index.ts`,
 				content: `
 export * from './a.js';
 export {foo} from './a.js';
@@ -1371,9 +1337,9 @@ export {foo} from './a.js';
 		const checker = program.getTypeChecker();
 
 		const diagnostics: Array<Diagnostic> = [];
-		const indexFile = sourceFiles.get('/src/lib/index.ts')!;
-		const virtualOptions = createVirtualSourceOptions();
-		const result = analyzeExports(indexFile, checker, virtualOptions, diagnostics);
+		const indexFile = sourceFiles.get(`${TEST_LIB_DIR}/index.ts`)!;
+		const options = createTestSourceOptions();
+		const result = analyzeExports(indexFile, checker, options, diagnostics);
 
 		// foo should appear in reExports only once (TypeScript deduplicates symbols)
 		const fooReExports = result.reExports.filter((r) => r.name === 'foo');
@@ -1391,8 +1357,7 @@ export const value = 42;
 export function fn(): void {}
 `;
 
-		const sourceFile = ts.createSourceFile('no_star.ts', sourceCode, ts.ScriptTarget.Latest, true);
-		const checker = createTestProgram(sourceFile, 'no_star.ts').getTypeChecker();
+		const { sourceFile, checker } = createSourceAndChecker(sourceCode, 'no_star.ts');
 		const diagnostics: Array<Diagnostic> = [];
 
 		const result = analyzeExports(sourceFile, checker, testSourceOptions(), diagnostics);
@@ -1407,20 +1372,20 @@ describe('type-only re-exports', () => {
 	test('handles type-only same-name re-exports', () => {
 		const { program, sourceFiles } = createMultiFileProgram([
 			{
-				path: '/src/lib/types.ts',
+				path: `${TEST_LIB_DIR}/types.ts`,
 				content: `export type A = { value: string };`
 			},
 			{
-				path: '/src/lib/index.ts',
+				path: `${TEST_LIB_DIR}/index.ts`,
 				content: `export type {A} from './types.js';`
 			}
 		]);
 		const checker = program.getTypeChecker();
 
 		const diagnostics: Array<Diagnostic> = [];
-		const indexFile = sourceFiles.get('/src/lib/index.ts')!;
-		const virtualOptions = createVirtualSourceOptions();
-		const result = analyzeExports(indexFile, checker, virtualOptions, diagnostics);
+		const indexFile = sourceFiles.get(`${TEST_LIB_DIR}/index.ts`)!;
+		const options = createTestSourceOptions();
+		const result = analyzeExports(indexFile, checker, options, diagnostics);
 
 		// Same-name type re-export should be tracked in reExports, not declarations
 		assert.strictEqual(result.declarations.length, 0);
@@ -1432,20 +1397,20 @@ describe('type-only re-exports', () => {
 	test('handles renamed type-only re-exports with aliasOf', () => {
 		const { program, sourceFiles } = createMultiFileProgram([
 			{
-				path: '/src/lib/types.ts',
+				path: `${TEST_LIB_DIR}/types.ts`,
 				content: `export type A = { value: string };`
 			},
 			{
-				path: '/src/lib/index.ts',
+				path: `${TEST_LIB_DIR}/index.ts`,
 				content: `export type {A as B} from './types.js';`
 			}
 		]);
 		const checker = program.getTypeChecker();
 
 		const diagnostics: Array<Diagnostic> = [];
-		const indexFile = sourceFiles.get('/src/lib/index.ts')!;
-		const virtualOptions = createVirtualSourceOptions();
-		const result = analyzeExports(indexFile, checker, virtualOptions, diagnostics);
+		const indexFile = sourceFiles.get(`${TEST_LIB_DIR}/index.ts`)!;
+		const options = createTestSourceOptions();
+		const result = analyzeExports(indexFile, checker, options, diagnostics);
 
 		// Renamed type re-export creates a new declaration with aliasOf
 		assert.strictEqual(result.declarations.length, 1);
@@ -1463,8 +1428,7 @@ describe('analyzeTypescriptModule with SourceFileInfo dependencies', () => {
 	test('passes dependencies from SourceFileInfo to result', () => {
 		const sourceCode = `export const value = 42;`;
 
-		const sourceFile = ts.createSourceFile('consumer.ts', sourceCode, ts.ScriptTarget.Latest, true);
-		const checker = createTestProgram(sourceFile, 'consumer.ts').getTypeChecker();
+		const { sourceFile, checker } = createSourceAndChecker(sourceCode, 'consumer.ts');
 		const diagnostics: Array<Diagnostic> = [];
 
 		const options = createTestSourceOptions('/project', {
@@ -1503,13 +1467,7 @@ describe('analyzeTypescriptModule with SourceFileInfo dependencies', () => {
 	test('returns empty arrays when SourceFileInfo has no dependencies', () => {
 		const sourceCode = `export const standalone = true;`;
 
-		const sourceFile = ts.createSourceFile(
-			'standalone.ts',
-			sourceCode,
-			ts.ScriptTarget.Latest,
-			true
-		);
-		const checker = createTestProgram(sourceFile, 'standalone.ts').getTypeChecker();
+		const { sourceFile, checker } = createSourceAndChecker(sourceCode, 'standalone.ts');
 		const diagnostics: Array<Diagnostic> = [];
 
 		const options = createTestSourceOptions('/project', {
@@ -1539,8 +1497,7 @@ describe('analyzeTypescriptModule with SourceFileInfo dependencies', () => {
 	test('all array fields are always arrays (never undefined)', () => {
 		const sourceCode = `export const x = 1;`;
 
-		const sourceFile = ts.createSourceFile('simple.ts', sourceCode, ts.ScriptTarget.Latest, true);
-		const checker = createTestProgram(sourceFile, 'simple.ts').getTypeChecker();
+		const { sourceFile, checker } = createSourceAndChecker(sourceCode, 'simple.ts');
 		const diagnostics: Array<Diagnostic> = [];
 
 		const result = analyzeTypescriptModule(
@@ -1564,8 +1521,7 @@ describe('analyzeTypescriptModule with SourceFileInfo dependencies', () => {
 describe('extractSignatureParameters', () => {
 	test('extracts basic parameters with types', () => {
 		const sourceCode = `export function greet(name: string, age: number): void {}`;
-		const sourceFile = ts.createSourceFile('test.ts', sourceCode, ts.ScriptTarget.Latest, true);
-		const checker = createTestProgram(sourceFile, 'test.ts').getTypeChecker();
+		const { sourceFile, checker } = createSourceAndChecker(sourceCode);
 
 		// Get the function's signature
 		const fnSymbol = checker.getSymbolAtLocation(
@@ -1585,8 +1541,7 @@ describe('extractSignatureParameters', () => {
 
 	test('extracts optional parameters', () => {
 		const sourceCode = `export function test(required: string, optional?: number): void {}`;
-		const sourceFile = ts.createSourceFile('test.ts', sourceCode, ts.ScriptTarget.Latest, true);
-		const checker = createTestProgram(sourceFile, 'test.ts').getTypeChecker();
+		const { sourceFile, checker } = createSourceAndChecker(sourceCode);
 
 		const fnSymbol = checker.getSymbolAtLocation(
 			(sourceFile.statements[0] as ts.FunctionDeclaration).name!
@@ -1603,8 +1558,7 @@ describe('extractSignatureParameters', () => {
 
 	test('extracts default values', () => {
 		const sourceCode = `export function test(value: boolean = true): void {}`;
-		const sourceFile = ts.createSourceFile('test.ts', sourceCode, ts.ScriptTarget.Latest, true);
-		const checker = createTestProgram(sourceFile, 'test.ts').getTypeChecker();
+		const { sourceFile, checker } = createSourceAndChecker(sourceCode);
 
 		const fnSymbol = checker.getSymbolAtLocation(
 			(sourceFile.statements[0] as ts.FunctionDeclaration).name!
@@ -1620,8 +1574,7 @@ describe('extractSignatureParameters', () => {
 
 	test('applies TSDoc descriptions from params map', () => {
 		const sourceCode = `export function greet(name: string): void {}`;
-		const sourceFile = ts.createSourceFile('test.ts', sourceCode, ts.ScriptTarget.Latest, true);
-		const checker = createTestProgram(sourceFile, 'test.ts').getTypeChecker();
+		const { sourceFile, checker } = createSourceAndChecker(sourceCode);
 
 		const fnSymbol = checker.getSymbolAtLocation(
 			(sourceFile.statements[0] as ts.FunctionDeclaration).name!
@@ -1637,8 +1590,7 @@ describe('extractSignatureParameters', () => {
 
 	test('returns empty array for function with no parameters', () => {
 		const sourceCode = `export function noop(): void {}`;
-		const sourceFile = ts.createSourceFile('test.ts', sourceCode, ts.ScriptTarget.Latest, true);
-		const checker = createTestProgram(sourceFile, 'test.ts').getTypeChecker();
+		const { sourceFile, checker } = createSourceAndChecker(sourceCode);
 
 		const fnSymbol = checker.getSymbolAtLocation(
 			(sourceFile.statements[0] as ts.FunctionDeclaration).name!
@@ -1779,8 +1731,7 @@ export default function foo(a: string): number {
 	return a.length;
 }
 `;
-		const sourceFile = ts.createSourceFile('test.ts', sourceCode, ts.ScriptTarget.Latest, true);
-		const checker = createTestProgram(sourceFile, 'test.ts').getTypeChecker();
+		const { sourceFile, checker } = createSourceAndChecker(sourceCode);
 
 		const result = analyzeExports(
 			sourceFile,
@@ -1802,8 +1753,7 @@ export default class Foo {
 	constructor(a: string) {}
 }
 `;
-		const sourceFile = ts.createSourceFile('test.ts', sourceCode, ts.ScriptTarget.Latest, true);
-		const checker = createTestProgram(sourceFile, 'test.ts').getTypeChecker();
+		const { sourceFile, checker } = createSourceAndChecker(sourceCode);
 
 		const result = analyzeExports(
 			sourceFile,
@@ -1823,8 +1773,7 @@ export default function (a: string): number {
 	return a.length;
 }
 `;
-		const sourceFile = ts.createSourceFile('test.ts', sourceCode, ts.ScriptTarget.Latest, true);
-		const checker = createTestProgram(sourceFile, 'test.ts').getTypeChecker();
+		const { sourceFile, checker } = createSourceAndChecker(sourceCode);
 
 		const result = analyzeExports(
 			sourceFile,
@@ -1843,8 +1792,7 @@ export default function (a: string): number {
 const x = (a: string) => a.length;
 export {x as default};
 `;
-		const sourceFile = ts.createSourceFile('test.ts', sourceCode, ts.ScriptTarget.Latest, true);
-		const checker = createTestProgram(sourceFile, 'test.ts').getTypeChecker();
+		const { sourceFile, checker } = createSourceAndChecker(sourceCode);
 
 		const result = analyzeExports(
 			sourceFile,
@@ -1866,8 +1814,7 @@ const x = (a: string) => a.length;
 export {x};
 export {x as default};
 `;
-		const sourceFile = ts.createSourceFile('test.ts', sourceCode, ts.ScriptTarget.Latest, true);
-		const checker = createTestProgram(sourceFile, 'test.ts').getTypeChecker();
+		const { sourceFile, checker } = createSourceAndChecker(sourceCode);
 
 		const result = analyzeExports(
 			sourceFile,
@@ -1888,20 +1835,20 @@ export {x as default};
 		// `'default'` but the slot is module-scoped per the JS spec, so
 		// `findDuplicates` skips `name === 'default'` (no collision).
 		const { program } = createMultiFileProgram([
-			{ path: '/src/lib/a.ts', content: 'export default function foo() {}\n' },
-			{ path: '/src/lib/b.ts', content: 'export default function bar() {}\n' }
+			{ path: `${TEST_LIB_DIR}/a.ts`, content: 'export default function foo() {}\n' },
+			{ path: `${TEST_LIB_DIR}/b.ts`, content: 'export default function bar() {}\n' }
 		]);
 		const checker = program.getTypeChecker();
-		const options = createVirtualSourceOptions();
+		const options = createTestSourceOptions();
 
 		const aResult = analyzeExports(
-			program.getSourceFile('/src/lib/a.ts')!,
+			program.getSourceFile(`${TEST_LIB_DIR}/a.ts`)!,
 			checker,
 			options,
 			[] as Array<Diagnostic>
 		);
 		const bResult = analyzeExports(
-			program.getSourceFile('/src/lib/b.ts')!,
+			program.getSourceFile(`${TEST_LIB_DIR}/b.ts`)!,
 			checker,
 			options,
 			[] as Array<Diagnostic>
@@ -1913,14 +1860,14 @@ export {x as default};
 
 	test("renamed re-export of default lands in named slot with aliasOf.name === 'default'", () => {
 		const { program } = createMultiFileProgram([
-			{ path: '/src/lib/a.ts', content: 'export default function foo() {}\n' },
-			{ path: '/src/lib/b.ts', content: "export {default as Foo} from './a.js';\n" }
+			{ path: `${TEST_LIB_DIR}/a.ts`, content: 'export default function foo() {}\n' },
+			{ path: `${TEST_LIB_DIR}/b.ts`, content: "export {default as Foo} from './a.js';\n" }
 		]);
 		const checker = program.getTypeChecker();
-		const options = createVirtualSourceOptions();
+		const options = createTestSourceOptions();
 
 		const bResult = analyzeExports(
-			program.getSourceFile('/src/lib/b.ts')!,
+			program.getSourceFile(`${TEST_LIB_DIR}/b.ts`)!,
 			checker,
 			options,
 			[] as Array<Diagnostic>
@@ -1944,13 +1891,7 @@ declare function $derived<T>(value: T): T;
 `;
 
 	const extractClass = (source: string) => {
-		const sourceFile = ts.createSourceFile(
-			'test.ts',
-			RUNE_AMBIENTS + source,
-			ts.ScriptTarget.Latest,
-			true
-		);
-		const checker = createTestProgram(sourceFile, 'test.ts').getTypeChecker();
+		const { sourceFile, checker } = createSourceAndChecker(RUNE_AMBIENTS + source);
 		const result = analyzeExports(
 			sourceFile,
 			checker,
