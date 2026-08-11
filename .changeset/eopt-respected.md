@@ -19,9 +19,14 @@ fix: respect `exactOptionalPropertyTypes` — stop stripping author-written `und
   `'function'`.
 - Optional parameters and tuple elements keep widening under the flag (it
   governs properties only), so their strips stay unconditional. With the
-  flag off, output is unchanged.
+  flag off, output is unchanged. Note the `getNonNullableType` rewrite above
+  still applies at those two positions in both modes — `(c?: E | F)` reports
+  `"NonNullable<E> | NonNullable<F>"` — since the flag can't gate a strip
+  that genuinely has widening to remove.
 - Breaking for `@internal` subpath callers: `ExtractContext` gains a
   required `exactOptionalPropertyTypes: boolean`, and `analyzeExports` /
   `analyzeTypescriptModule` take the pass's `ExtractContext` in place of
-  `(checker, diagnostics, aliasRegistry)` — constructed from the program by
-  `analyzeModule`/`analyzeSvelteModule`; direct callers construct their own.
+  `(checker, diagnostics, aliasRegistry)` — built by
+  `analyzeModule`/`analyzeSvelteModule` via the new `createExtractContext`
+  (`typescript-extract-shared.ts`), which owns the fields derived from the
+  program and options; direct callers construct their own.

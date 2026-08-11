@@ -36,7 +36,8 @@ import {
 	resolveTypeInfo,
 	type AliasRegistry
 } from './typescript-extract-type-json.ts';
-import { type IsExternalFile } from './typescript-program.ts';
+import { createIsExternalFile, type IsExternalFile } from './typescript-program.ts';
+import type { ModuleSourceOptions } from './source-config.ts';
 
 /**
  * The pass-scoped, cross-cutting state one extraction run threads through the
@@ -71,6 +72,35 @@ export interface ExtractContext {
 	 */
 	exactOptionalPropertyTypes: boolean;
 }
+
+/**
+ * The module dispatchers' `ExtractContext` construction — `analyzeModule` and
+ * `analyzeSvelteModule` are where the program is in hand, and both want the
+ * same answers from it. One owner so the derived fields can't drift or be
+ * forgotten by a third dispatcher: `isExternalFile` comes from the very
+ * `options` the pass will be handed (`analyzeExports` derives its own
+ * `isExternalPath` from that object, and the two axes must agree), and
+ * `exactOptionalPropertyTypes` is read off the *merged* compiler options
+ * rather than the raw tsconfig, so a session-level override reaches the strip
+ * gate (`optionalWidened`).
+ *
+ * Direct callers outside the dispatchers (tests, fixture harnesses, subpath
+ * consumers) build the object literal themselves and decide every field
+ * explicitly — see `mockExtractContext` in `src/test/test-helpers.ts`.
+ */
+export const createExtractContext = (
+	program: ts.Program,
+	checker: ts.TypeChecker,
+	options: ModuleSourceOptions,
+	diagnostics: Array<Diagnostic>,
+	aliasRegistry: AliasRegistry | undefined
+): ExtractContext => ({
+	checker,
+	diagnostics,
+	isExternalFile: createIsExternalFile(options),
+	aliasRegistry,
+	exactOptionalPropertyTypes: !!program.getCompilerOptions().exactOptionalPropertyTypes
+});
 
 /**
  * Whether the checker widened this optional *property* position with

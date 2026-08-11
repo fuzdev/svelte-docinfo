@@ -58,8 +58,7 @@ import { type ModuleSourceOptions, extractPath, extractDependencies } from './so
 import { toPosixPath, isAbsolutePosixPath } from './paths.ts';
 import { buildAliasRegistry, type AliasRegistrySource } from './typescript-alias-registry.ts';
 import type { AliasRegistry } from './typescript-extract-type-json.ts';
-import type { ExtractContext } from './typescript-extract-shared.ts';
-import { createIsExternalFile } from './typescript-program.ts';
+import { createExtractContext } from './typescript-extract-shared.ts';
 import {
 	sortModules,
 	findDuplicates,
@@ -367,14 +366,7 @@ export const analyzeModule = (
 		}
 		// the pass-scoped extraction context — constructed here because the
 		// dispatcher is where the program is in hand (see `analyzeExports`)
-		const ctx: ExtractContext = {
-			checker,
-			diagnostics,
-			isExternalFile: createIsExternalFile(options),
-			aliasRegistry,
-			// gates the optional-widening strip at property sites (`optionalWidened`)
-			exactOptionalPropertyTypes: !!program.getCompilerOptions().exactOptionalPropertyTypes
-		};
+		const ctx = createExtractContext(program, checker, options, diagnostics, aliasRegistry);
 		raw = analyzeTypescriptModule(sourceFile, tsSourceFile, modulePath, ctx, options);
 	} else if (analyzerType === 'css' || analyzerType === 'json') {
 		const { dependencies, dependents } = extractDependencies(sourceFile, options);

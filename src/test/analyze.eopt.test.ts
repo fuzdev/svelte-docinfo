@@ -15,7 +15,7 @@
 import { test, assert, describe } from 'vitest';
 import { join } from 'node:path';
 
-import type { MemberJson, ModuleJson } from '$lib/types.ts';
+import type { MemberJson, ModuleJson, TypeJson } from '$lib/types.ts';
 import { createSourceOptions } from '$lib/source-config.ts';
 import { createAnalysisSession } from '$lib/session.ts';
 
@@ -73,8 +73,16 @@ describe('exactOptionalPropertyTypes property types', () => {
 			// (widening mode collapses `never | undefined` to `undefined`)
 			f: 'never'
 		});
-		assert.ok(
-			declaration.members.every((m) => m.kind !== 'constructor' && m.optional),
+		assert.deepStrictEqual(
+			declaration.members.map((m) => [m.name, m.kind === 'constructor' ? undefined : m.optional]),
+			[
+				['a', true],
+				['b', true],
+				['c', true],
+				['d', true],
+				['e', true],
+				['f', true]
+			],
 			'every member keeps optional: true'
 		);
 	});
@@ -170,10 +178,25 @@ describe('exactOptionalPropertyTypes callability', () => {
 describe('exactOptionalPropertyTypes non-property positions still strip', () => {
 	test('optional parameters keep the widening strip', async () => {
 		// the flag governs properties only — parameters widen under it, so a
-		// written `| undefined` is indistinguishable from the widening and strips
+		// written `| undefined` is indistinguishable from the widening and strips.
+		//
+		// `c` is what makes this discriminating: on a non-union the strip is
+		// identity, so `a` and `b` would report the same whether or not the
+		// checker widened. A multi-member union takes the `getNonNullableType`
+		// fallback, whose `NonNullable<…>` rewrite can only arise from a type
+		// that *was* `E | F | undefined` — so the rewrite is the proof widening
+		// still happens at parameter positions under the flag.
+		//
+		// That rewrite is also a defect, unchanged by the flag and pre-existing:
+		// the declared type is `E | F`. The property-side sibling
+		// (`does not rebuild a type-parameter union` above) escapes it only
+		// because the flag lets that site skip the strip entirely — with the flag
+		// off, an optional property corrupts the same way. A real fix has to
+		// reach the multi-member branch of `optionalWideningTarget`, which needs
+		// to separate the printed target from the callability-query target.
 		const module = await analyzeEoptFile(
 			'src/lib/a.ts',
-			`export const f = (a?: string, b?: number | undefined): void => {};`
+			`export const f = <E, F>(a?: string, b?: number | undefined, c?: E | F): void => {};`
 		);
 
 		const declaration = module.declarations[0];
@@ -182,25 +205,40 @@ describe('exactOptionalPropertyTypes non-property positions still strip', () => 
 			declaration.parameters.map((p) => [p.name, p.type, p.optional]),
 			[
 				['a', 'string', true],
-				['b', 'number', true]
+				['b', 'number', true],
+				['c', 'NonNullable<E> | NonNullable<F>', true]
 			]
 		);
 	});
 
 	test('optional tuple elements keep the widening strip', async () => {
-		// tuple elements widen under the flag too (probed on TS 5.9) — the
-		// structured element reports the declared type with `optional: true`
+		// tuple elements widen under the flag too — `c` discriminates and carries
+		// the same pre-existing rewrite as the parameter case above, here as the
+		// structured `NonNullable` intersections the flat string prints
 		const module = await analyzeEoptFile(
 			'src/lib/a.ts',
-			`export type T = [a: string, b?: number];`
+			`export type T<E, F> = [a: string, b?: number, c?: E | F];`
 		);
 
 		const declaration = module.declarations[0];
 		assert(declaration?.kind === 'type', 'expected a type declaration');
 		assert(declaration.typeInfo?.kind === 'tuple', 'expected a tuple tree');
+		const nonNullable = (name: string): TypeJson => ({
+			kind: 'intersection',
+			alias: 'NonNullable',
+			members: [
+				{ kind: 'other', text: name },
+				{ kind: 'object', text: '{}' }
+			]
+		});
 		assert.deepStrictEqual(declaration.typeInfo.elements, [
 			{ name: 'a', type: { kind: 'intrinsic', text: 'string' } },
-			{ name: 'b', type: { kind: 'intrinsic', text: 'number' }, optional: true }
+			{ name: 'b', type: { kind: 'intrinsic', text: 'number' }, optional: true },
+			{
+				name: 'c',
+				type: { kind: 'union', members: [nonNullable('E'), nonNullable('F')] },
+				optional: true
+			}
 		]);
 	});
 

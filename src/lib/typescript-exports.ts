@@ -373,7 +373,7 @@ const synthesizeCrossFileAlias = (
  * For standard SvelteKit library layouts, use `createSourceOptions(process.cwd())`.
  *
  * @param sourceFile - the TypeScript source file to analyze
- * @param ctx - the extraction pass's context (see `ExtractContext`) — `analyzeModule` and `analyzeSvelteModule` construct it from the program; a direct caller owns the construction, deciding every field explicitly (tests use `mockExtractContext`)
+ * @param ctx - the extraction pass's context (see `ExtractContext`) — `analyzeModule` and `analyzeSvelteModule` construct it via `createExtractContext`; a direct caller owns the construction, deciding every field explicitly (tests use `mockExtractContext`). Its `isExternalFile` must be derived from the same `options` passed here: this function derives its own path-keyed twin (`createIsExternalPath`) from `options`, and the two externality axes are expected to agree
  * @param options - module source options for path extraction in re-exports
  * @returns module comment, declarations, re-exports (source + external), and star exports (source + external)
  */

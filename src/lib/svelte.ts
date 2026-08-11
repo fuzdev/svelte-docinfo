@@ -15,9 +15,8 @@
  * There is no Svelte 4 compatibility layer.
  *
  * @see `typescript-exports.ts` for `analyzeExports`, `extractModuleComment`
- * @see `typescript-extract-shared.ts` for `parseGenericParam`, `filterDocumentedProperties`
+ * @see `typescript-extract-shared.ts` for `parseGenericParam`, `filterDocumentedProperties`, `createExtractContext`
  * @see `typescript-extract-type-json.ts` for `resolveTypeInfo`, `referenceSymbolName`, `tupleElements`, `restElementForms`
- * @see `typescript-program.ts` for `createIsExternalFile`
  * @see `tsdoc.ts` for `parseComment`, `applyToDeclaration`
  * @see `source.ts` for `SourceFileInfo`, `getComponentName`
  *
@@ -46,11 +45,11 @@ import {
 	hasDocContent,
 	type TsdocParsedComment
 } from './tsdoc.ts';
-import { createIsExternalFile } from './typescript-program.ts';
 import {
 	parseGenericParam,
 	filterDocumentedProperties,
 	getTypeSignature,
+	createExtractContext,
 	optionalWidened,
 	type ExtractContext
 } from './typescript-extract-shared.ts';
@@ -1327,15 +1326,8 @@ export const analyzeSvelteModule = (
 	}
 
 	// One pass-scoped extraction context, shared by the export walk (step 1)
-	// and the component synthesis (steps 3+). `exactOptionalPropertyTypes`
-	// gates the optional-widening strip at property sites (`optionalWidened`)
-	const ctx: ExtractContext = {
-		checker,
-		diagnostics,
-		isExternalFile: createIsExternalFile(options),
-		aliasRegistry,
-		exactOptionalPropertyTypes: !!program.getCompilerOptions().exactOptionalPropertyTypes
-	};
+	// and the component synthesis (steps 3+)
+	const ctx = createExtractContext(program, checker, options, diagnostics, aliasRegistry);
 
 	// 1. Use analyzeExports for full checker-backed analysis (same as .ts files).
 	// Its `moduleComment` is undefined for virtuals — the `<script module>`
