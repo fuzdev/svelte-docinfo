@@ -376,6 +376,10 @@ Built on [TypeScript](https://github.com/microsoft/TypeScript) and
 [svelte2tsx](https://github.com/sveltejs/language-tools/tree/master/packages/svelte2tsx),
 see [package.json](package.json) for full dependencies.
 
+## Contributing
+
+[fuz.dev/contributing](https://www.fuz.dev/contributing)
+
 ## License
 
 [MIT](LICENSE)
