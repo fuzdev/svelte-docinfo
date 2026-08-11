@@ -1,0 +1,39 @@
+{
+	"modules": [
+		{
+			"path": "input.ts",
+			"declarations": [
+				{
+					"name": "RunnerOptions",
+					"kind": "interface",
+					"docComment": "Options whose callable member is typed by an external function — the\nexternal overload set, its docs, and its tag-validation warnings must not\nbe harvested into output.",
+					"typeSignature": "RunnerOptions",
+					"sourceLine": 8,
+					"members": [
+						{
+							"name": "run",
+							"kind": "variable",
+							"docComment": "Custom runner for testing.",
+							"typeSignature": "{ (cmd: string, args: Array<string>): number; (cmd: string): number; }",
+							"optional": true
+						},
+						{
+							"name": "local",
+							"kind": "function",
+							"docComment": "Local callable, enumerated as always.",
+							"typeSignature": "(a: string): number",
+							"parameters": [
+								{
+									"name": "a",
+									"type": "string"
+								}
+							],
+							"returnType": "number",
+							"optional": true
+						}
+					]
+				}
+			]
+		}
+	]
+}

@@ -26,3 +26,8 @@ declare module 'extpkg' {
 declare module 'otherpkg' {
 	export const d: boolean;
 }
+
+declare module 'callpkg' {
+	export function spawnish(cmd: string, args: Array<string>): number;
+	export function spawnish(cmd: string): number;
+}

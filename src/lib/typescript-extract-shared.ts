@@ -679,6 +679,9 @@ export const memberNameText = (name: ts.PropertyName): string | undefined =>
  * signatures carry `genericParams` like method signatures do), everything
  * else gets the flat/structured pair (`typeSignature` + `typeInfo`) with the
  * optional-widening strip paired to `optional` like every checker-backed site.
+ * Callability counts local call signatures only (`isExternalSignature`) — a
+ * property typed by an external function documents as the flat type text
+ * rather than enumerating the external package's overloads and docs.
  * TSDoc applies here after the projection; members carry `@default` →
  * `defaultValue` whatever kind the classification settles on (for a callable
  * member it documents the behavior used when the callback is omitted).
@@ -717,7 +720,17 @@ export const populatePropertyMember = (
 	// `optionalWidened`, where a written `undefined` is content, not widening.
 	const widened = optionalWidened(ctx, optional);
 	const callableType = getNonOptionalType(propType, checker, optional);
-	const callSigs = callableType.getCallSignatures();
+	// External-origin call signatures are never enumerated — the membership
+	// rule at signature granularity. A property typed by an external function
+	// (`fn?: typeof externalSpawn`) would otherwise pull the package's whole
+	// overload set, its docs, and their tag-validation warnings into this
+	// project's output. A wholly-external callable falls through to the
+	// variable branch — the flat type text names what it is without
+	// enumerating declarations that aren't this project's to document — and
+	// a mixed callable keeps its local signatures.
+	const callSigs = callableType
+		.getCallSignatures()
+		.filter((sig) => !isExternalSignature(sig, ctx.isExternalFile));
 	if (callSigs.length > 0) {
 		member.kind = 'function';
 		populateCallableMember(member, callSigs, ctx, tsdoc, paramValidationNode, name);

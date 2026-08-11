@@ -311,8 +311,11 @@
 					<code>"function"</code>: methods and call signatures. Adds <code>parameters</code>,
 					<code>returnType</code>, <code>returnTypeInfo</code>, <code>returnDescription</code>,
 					<code>overloads</code>, and optional <code>defaultValue</code> (from
-					<code>@default</code> — the documented behavior when a callable option is omitted; top-level
-					function declarations never carry one)
+					<code>@default</code> — the documented behavior when a callable option is omitted;
+					top-level function declarations never carry one). External-origin call signatures are
+					never enumerated: a property typed by an external function (<code>run?: typeof spawn</code
+					>) documents as <code>"variable"</code> with the flat type text instead of pulling the package's
+					overload set and docs into output; a mixed callable keeps its local signatures
 				</li>
 				<li>
 					<code>"constructor"</code>: class constructors and construct signatures. Adds

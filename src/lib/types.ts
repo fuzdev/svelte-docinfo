@@ -767,7 +767,10 @@ export const ClassDeclarationJson = z.strictObject({
 	...declarationTopLevelFields,
 	kind: z.literal('class'),
 	/**
-	 * Extended base class (single; TypeScript allows only one).
+	 * Extended base class — 0 or 1 entries (TypeScript allows only one base).
+	 * An array so every heritage field (`extends`, `implements`,
+	 * `externalTypes`, `InterfaceDeclarationJson.extends`) shares one shape;
+	 * consumers iterate heritage uniformly instead of branching on kind.
 	 *
 	 * Verbatim text of this declaration's own heritage clause (as is
 	 * `implements`), so it is spelled as this module wrote it and resolves in
@@ -776,9 +779,9 @@ export const ClassDeclarationJson = z.strictObject({
 	 *
 	 * @see `implements` (this variant), `InterfaceDeclarationJson.extends`
 	 *   for the other verbatim heritage fields, `externalTypes` (this variant)
-	 *   for the resolved external reach. Field shapes mirror TS syntax.
+	 *   for the resolved external reach.
 	 */
-	extends: z.string().optional(),
+	extends: z.array(z.string()).default([]),
 	/**
 	 * External types the `extends` chain reaches whose contributions `members`
 	 * never enumerates — the class counterpart of
@@ -816,7 +819,7 @@ export const InterfaceDeclarationJson = z.strictObject({
 	 *
 	 * @see `ClassDeclarationJson.extends`, `ClassDeclarationJson.implements`
 	 *   for the other verbatim heritage fields, `externalTypes` (this variant)
-	 *   for the resolved external reach. Field shapes mirror TS syntax.
+	 *   for the resolved external reach.
 	 */
 	extends: z.array(z.string()).default([]),
 	/**

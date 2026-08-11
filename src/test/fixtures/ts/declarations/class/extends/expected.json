@@ -5,7 +5,9 @@
 			"name": "A",
 			"kind": "class",
 			"sourceLine": 11,
-			"extends": "B",
+			"extends": [
+				"B"
+			],
 			"members": [
 				{
 					"name": "b",
