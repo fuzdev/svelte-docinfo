@@ -1169,18 +1169,35 @@ const extractPropsViaChecker = (
 		ctx.isExternalFile
 	);
 
-	// Emit props in source order — `getPropertiesOfType` returns the binder's
+	// One pick rule for "which declaration represents this prop": the symbol's
+	// declaration in the component's own file when one exists, else the usual
+	// valueDeclaration-first fallback. The sort key, the prop's JSDoc, the
+	// written annotation (typeInfo name recovery resolves identifiers in the
+	// annotation's own scope), and diagnostic position mapping all read it —
+	// a prop redeclared over an external bag (`HTMLAttributes<HTMLElement> &
+	// {onclick?: ...}`, the mainline idiom) merges its symbol with the bag's
+	// declaration, which would otherwise hand each of them the external one:
+	// wrong order group, the author's doc lost, a foreign-scope annotation,
+	// an unmappable position.
+	//
+	// Props emit in source order — `getPropertiesOfType` returns the binder's
 	// order, which visibly interleaves the authored declaration order, and
 	// consumers can't recover source order client-side. Total order: (file,
 	// position); symbols without declarations sort last by name so the result
-	// stays deterministic. Cross-file grouping is by path, not "the component's
-	// own file first" — a prop inherited from a project-local base interface
-	// lands before or after the local ones depending on how the two paths
-	// compare. String ordering goes through `compareStrings` like every other
-	// output ordering, for environment-independent results.
+	// stays deterministic. Cross-file grouping for genuinely-inherited props
+	// is by path, not "the component's own file first" — a prop inherited from
+	// a project-local base interface lands before or after the local ones
+	// depending on how the two paths compare. String ordering goes through
+	// `compareStrings` like every other output ordering, for
+	// environment-independent results.
+	const ownFile = propsTypeNode.getSourceFile();
+	const representativeDeclaration = (symbol: ts.Symbol): ts.Declaration | undefined =>
+		symbol.declarations?.find((d) => d.getSourceFile() === ownFile) ??
+		symbol.valueDeclaration ??
+		symbol.declarations?.[0];
 	const sortedProperties = [...properties].sort((a, b) => {
-		const declA = a.valueDeclaration ?? a.declarations?.[0];
-		const declB = b.valueDeclaration ?? b.declarations?.[0];
+		const declA = representativeDeclaration(a);
+		const declB = representativeDeclaration(b);
 		if (declA && declB) {
 			const fileA = declA.getSourceFile().fileName;
 			const fileB = declB.getSourceFile().fileName;
@@ -1195,7 +1212,7 @@ const extractPropsViaChecker = (
 	const props: Array<ComponentPropJsonInput> = [];
 
 	for (const prop of sortedProperties) {
-		const propDecl = prop.valueDeclaration || prop.declarations?.[0];
+		const propDecl = representativeDeclaration(prop);
 
 		// Check optionality via symbol flags (computed before type resolution
 		// since the type-string path strips the widened `undefined` for optional props)

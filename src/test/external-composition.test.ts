@@ -603,7 +603,7 @@ describe('class externalTypes from the extends chain', () => {
 			],
 			'C'
 		);
-		assert.strictEqual(declaration.extends, 'ExtBase');
+		assert.deepEqual(declaration.extends, ['ExtBase']);
 		assert.deepEqual(declaration.externalTypes, ['ExtBase']);
 		assert.deepEqual(memberNames(declaration), ['own']);
 	});
@@ -623,7 +623,7 @@ describe('class externalTypes from the extends chain', () => {
 			],
 			'C'
 		);
-		assert.strictEqual(declaration.extends, 'Mid');
+		assert.deepEqual(declaration.extends, ['Mid']);
 		assert.deepEqual(declaration.externalTypes, ['ExtBase']);
 	});
 
@@ -677,7 +677,7 @@ describe('class externalTypes from the extends chain', () => {
 			],
 			'C'
 		);
-		assert.strictEqual(declaration.extends, 'Base');
+		assert.deepEqual(declaration.extends, ['Base']);
 		assert.strictEqual(declaration.externalTypes, undefined);
 	});
 });
@@ -956,5 +956,87 @@ describe('indexed access over a local container descends to the property', () =>
 			ts.isTypeAliasDeclaration
 		);
 		assert.strictEqual(declaration.externalTypes, undefined);
+	});
+});
+
+/** External overloaded function for the member-signature policy tests. */
+const EXT_FNS = {
+	path: '/src/lib/external/fns.ts',
+	content: `
+		/**
+		 * External docs that must never be harvested.
+		 *
+		 * @param cmd - the command
+		 * @since 1.0.0
+		 */
+		export function extSpawn(cmd: string, args: Array<string>): number;
+		/**
+		 * Tag bait: harvested, this non-primary overload would emit
+		 * misplaced_tag for @since and unknown_param for the stale @param.
+		 *
+		 * @param arglist - names no parameter
+		 * @since 2.0.0
+		 */
+		export function extSpawn(cmd: string): number;
+		export function extSpawn(cmd: string, args?: Array<string>): number {
+			return args ? 1 : 0;
+		}
+	`
+};
+
+describe('member call-signature membership by declaration origin', () => {
+	test('a member typed by an external function drops the overload harvest and its warnings', () => {
+		const { declaration, diagnostics } = run(
+			[
+				EXT_FNS,
+				{
+					path: '/src/lib/test.ts',
+					content: `
+						import {extSpawn} from './external/fns.js';
+						export type Opts = { run?: typeof extSpawn };
+					`
+				}
+			],
+			'Opts',
+			ts.isTypeAliasDeclaration
+		);
+		const runMember = declaration.members?.find((m) => m.name === 'run');
+		assert.ok(runMember);
+		// wholly-external call signatures demote to the variable shape: the flat
+		// text names the callable, nothing external is enumerated
+		assert.strictEqual(runMember.kind, 'variable');
+		assert.strictEqual(runMember.overloads, undefined);
+		assert.strictEqual(runMember.parameters, undefined);
+		assert.ok(runMember.typeSignature);
+		// the external tag bait never reaches validation
+		assert.deepEqual(diagnostics, []);
+	});
+
+	test('a mixed callable keeps only its local signatures', () => {
+		const { declaration } = run(
+			[
+				EXT,
+				{
+					path: '/src/lib/test.ts',
+					content: `
+						import type {ExtCallable} from './external/ext.js';
+						export type Opts = {
+							m?: ExtCallable & ((a: number) => string);
+							local?: (b: string) => void;
+						};
+					`
+				}
+			],
+			'Opts',
+			ts.isTypeAliasDeclaration
+		);
+		const m = declaration.members?.find((mm) => mm.name === 'm');
+		assert.ok(m);
+		assert.strictEqual(m.kind, 'function');
+		assert.strictEqual(m.typeSignature, '(a: number): string');
+		assert.strictEqual(m.overloads, undefined);
+		// local callables are untouched by the filter
+		const local = declaration.members?.find((mm) => mm.name === 'local');
+		assert.strictEqual(local?.kind, 'function');
 	});
 });

@@ -97,7 +97,7 @@ export interface DeclarationJsonBuild {
 	throws?: Array<{ type?: string; description: string }>;
 	since?: string;
 	mutates?: Record<string, string>;
-	extends?: string | Array<string>;
+	extends?: Array<string>;
 	externalTypes?: Array<string>;
 	implements?: Array<string>;
 	members?: Array<MemberJsonBuild>;

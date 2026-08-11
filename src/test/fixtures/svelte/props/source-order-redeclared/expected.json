@@ -1,0 +1,55 @@
+{
+	"path": "PropsSourceOrderRedeclared.svelte",
+	"declarations": [
+		{
+			"name": "PropsSourceOrderRedeclared",
+			"kind": "component",
+			"sourceLine": 1,
+			"externalTypes": [
+				"HTMLAttributes<HTMLElement>"
+			],
+			"props": [
+				{
+					"name": "status",
+					"type": "string",
+					"optional": true,
+					"defaultValue": "'inform'"
+				},
+				{
+					"name": "color",
+					"type": "string",
+					"optional": true
+				},
+				{
+					"name": "onclick",
+					"type": "MouseEventHandler<HTMLElement> & (() => void)",
+					"typeInfo": {
+						"kind": "intersection",
+						"members": [
+							{
+								"kind": "function",
+								"text": "MouseEventHandler<HTMLElement>"
+							},
+							{
+								"kind": "function",
+								"text": "() => void"
+							}
+						]
+					},
+					"optional": true,
+					"description": "Renders as a button when provided — the doc on a redeclared name."
+				},
+				{
+					"name": "disabled",
+					"type": "boolean",
+					"optional": true
+				},
+				{
+					"name": "children",
+					"type": "Snippet<[]>"
+				}
+			],
+			"acceptsChildren": true
+		}
+	]
+}

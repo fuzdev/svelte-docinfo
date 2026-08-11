@@ -57,7 +57,7 @@ export const extractClassInfo = (
 			(hc) => hc.token === ts.SyntaxKind.ExtendsKeyword
 		);
 		if (extendsClause?.types[0]) {
-			declaration.extends = extendsClause.types[0].getText();
+			declaration.extends = [extendsClause.types[0].getText()];
 			// members are own-only, so external content inherited through the
 			// extends chain is never enumerated — record its contributors like the
 			// interface path does. `implements` adds no members and contributes

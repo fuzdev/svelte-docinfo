@@ -405,7 +405,7 @@ describe('what normalization must not touch', () => {
 		const decl = findDeclaration(result.modules, 'index.ts', 'D');
 		if (decl.kind !== 'class') throw new Error(`expected a class, got ${decl.kind}`);
 		// `extends` is AST text of what was written, not checker output.
-		assert.strictEqual(decl.extends, "(await import('./dep.ts')).C");
+		assert.deepEqual(decl.extends, ["(await import('./dep.ts')).C"]);
 	});
 
 	test('a registry-recovered reference keeps its `module` key', async () => {

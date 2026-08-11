@@ -611,7 +611,7 @@ describe('compactReplacer', () => {
 						name: 'A',
 						kind: 'class',
 						modifiers: ['readonly'],
-						extends: 'B',
+						extends: ['B'],
 						implements: ['I1', 'I2'],
 						members: [
 							{
