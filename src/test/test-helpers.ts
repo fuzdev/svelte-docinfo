@@ -32,9 +32,10 @@ export const collectingLog = (): { infos: Array<string>; log: AnalysisLog } => {
 };
 
 /**
- * A minimal `ExtractContext` for tests driving extractors directly: fresh
+ * A minimal `ExtractContext` for tests driving extraction seams directly
+ * (extractors, `analyzeExports`, `analyzeTypescriptModule`): fresh
  * diagnostics array, nothing external, no alias registry (written-name
- * recovery only). Override per test via `overrides`.
+ * recovery only), widening-mode optionals. Override per test via `overrides`.
  */
 export const mockExtractContext = (
 	checker: ts.TypeChecker,
@@ -44,8 +45,22 @@ export const mockExtractContext = (
 	diagnostics: [],
 	isExternalFile: () => false,
 	aliasRegistry: undefined,
+	exactOptionalPropertyTypes: false,
 	...overrides
 });
+
+/**
+ * Compiler options for `createTestProject`'s default tsconfig. Exported so a
+ * test supplying its own tsconfig (e.g. to add a compiler flag) extends these
+ * rather than restating them — a restated copy drifts silently when the
+ * defaults change.
+ */
+export const TEST_TSCONFIG_COMPILER_OPTIONS = {
+	module: 'ESNext',
+	moduleResolution: 'bundler',
+	target: 'ESNext',
+	strict: true
+} as const;
 
 /**
  * Result of creating a test project.
@@ -144,12 +159,7 @@ export const createTestProject = async (
 	const filesToWrite = { ...files };
 	if (tsconfig && !filesToWrite['tsconfig.json']) {
 		filesToWrite['tsconfig.json'] = JSON.stringify({
-			compilerOptions: {
-				module: 'ESNext',
-				moduleResolution: 'bundler',
-				target: 'ESNext',
-				strict: true
-			}
+			compilerOptions: TEST_TSCONFIG_COMPILER_OPTIONS
 		});
 	}
 

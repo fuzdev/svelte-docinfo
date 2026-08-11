@@ -11,7 +11,9 @@
  * `"unknown"` (`unknown` absorbs the widening; stripping would leave `{}`).
  * These exercise the whole `analyze` pipeline;
  * the extractors are covered directly by the `ts/types/nullable-optional` and
- * `svelte/props/nullable` fixtures.
+ * `svelte/props/nullable` fixtures. The `exactOptionalPropertyTypes`
+ * counterpart — where the property-site strips gate off — is
+ * `analyze.eopt.test.ts`.
  */
 
 import { test, assert, describe } from 'vitest';
@@ -103,6 +105,33 @@ describe('optional type normalization', () => {
 
 		const declaration = module.declarations[0];
 		assert(declaration?.kind === 'interface', 'expected an interface declaration');
+
+		const member = declaration.members[0];
+		assert(member?.kind === 'function', 'expected a function member');
+		assert.strictEqual(member.optional, true);
+		assert.strictEqual(member.typeSignature, '(a: string): number');
+		assert.strictEqual(member.returnType, 'number');
+		assert.deepStrictEqual(
+			member.parameters.map((p) => [p.name, p.type]),
+			[['a', 'string']]
+		);
+	});
+
+	test('keeps call signatures on an optional class method', async () => {
+		// the class-method sibling of the interface case above — `m?(): void {}`
+		// is legal and resolves the same widened union, and the class site
+		// queries call signatures through its own path
+		const module = await analyzeFile(
+			'src/lib/a.ts',
+			`export class A {
+	m?(a: string): number {
+		return a.length;
+	}
+}`
+		);
+
+		const declaration = module.declarations[0];
+		assert(declaration?.kind === 'class', 'expected a class declaration');
 
 		const member = declaration.members[0];
 		assert(member?.kind === 'function', 'expected a function member');

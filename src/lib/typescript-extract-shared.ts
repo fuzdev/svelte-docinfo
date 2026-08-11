@@ -63,7 +63,32 @@ export interface ExtractContext {
 	 * construction site decides explicitly.
 	 */
 	aliasRegistry: AliasRegistry | undefined;
+	/**
+	 * The program's `exactOptionalPropertyTypes` compiler option — read it off
+	 * `program.getCompilerOptions()`. Consumed by `optionalWidened`, which
+	 * documents the strip-gating policy. A required field so every
+	 * construction site decides explicitly, like `aliasRegistry`.
+	 */
+	exactOptionalPropertyTypes: boolean;
 }
+
+/**
+ * Whether the checker widened this optional *property* position with
+ * `undefined` — i.e. whether the optional-widening strip applies. Under
+ * `exactOptionalPropertyTypes` the checker doesn't widen optional properties
+ * at all, so every `undefined` in the type is author-written and stripping
+ * would corrupt it: `x?: T | undefined` trimmed to `T`, `x?: T | null |
+ * undefined` to `T | null`, and a null-free multi-member union rebuilt through
+ * `getNonNullableType` (`x?: E | F` printed as `(E & {}) | (F & {})`).
+ *
+ * Property sites only — component props, type-alias and interface properties,
+ * class properties, and `populatePropertyMember`'s callability query. Optional
+ * *parameters* and optional *tuple elements* widen under both modes (probed on
+ * TS 5.9), so their call sites pass `optional` unconditionally and never route
+ * through this gate.
+ */
+export const optionalWidened = (ctx: ExtractContext, optional: boolean): boolean =>
+	optional && !ctx.exactOptionalPropertyTypes;
 
 /**
  * Whether any of the symbol's declarations lives in `fileName`
@@ -231,13 +256,13 @@ const UNDEFINED_UNION_SUFFIX = ' | undefined';
  * (`getNonNullableType` would answer `{}`). See `optionalWideningTarget` for the full
  * case split.
  *
- * Known limitation: under `exactOptionalPropertyTypes` the checker doesn't widen
- * optional properties at all, so a written `x?: T | undefined` (a distinct type from
- * `x?: T` in that mode) is trimmed to `T` here. The two are indistinguishable from the
- * type alone — both carry one union member whose intrinsic name is `undefined` — so
- * telling them apart needs `compilerOptions.exactOptionalPropertyTypes`, which the
- * extractors don't thread through. Parameters are unaffected: the flag governs
- * properties only.
+ * Under `exactOptionalPropertyTypes` the checker doesn't widen optional
+ * properties at all, so property sites gate the strip off via `optionalWidened`
+ * (passing `false` here) — every `undefined` there is author-written
+ * (`x?: T | undefined` is a distinct type from `x?: T` in that mode) and
+ * stripping would trim it. Parameter and tuple-element sites pass `optional`
+ * unconditionally: the flag governs properties only, and both keep widening
+ * under it.
  */
 export const getTypeSignature = (
 	type: ts.Type,
@@ -272,6 +297,13 @@ export const getTypeSignature = (
  * The selection itself is `optionalWideningTarget`'s — the same owner
  * `getTypeSignature` and the `TypeJson` builder select through, so the
  * structural queries can't drift from the printed and structured outputs.
+ *
+ * Property callers gate the call on `optionalWidened` — under
+ * `exactOptionalPropertyTypes` nothing was widened, and a written
+ * `fn?: (() => void) | undefined` should demote like the `| null` forms.
+ * The *method* sites (interface and class) stay unconditional: method syntax
+ * can't write `| undefined`, so under the flag the type is already the bare
+ * function type and this is identity.
  */
 export const getNonOptionalType = (type: ts.Type, checker: ts.TypeChecker): ts.Type =>
 	optionalWideningTarget(type, checker, true).target;
@@ -632,8 +664,12 @@ export const populatePropertyMember = (
 ): void => {
 	const { checker } = ctx;
 	// an optional property resolves to a union with `undefined`, which reports no
-	// call signatures — strip it so `fn?: () => void` still reads as a function
-	const callableType = optional ? getNonOptionalType(propType, checker) : propType;
+	// call signatures — strip it so `fn?: () => void` still reads as a function.
+	// Under `exactOptionalPropertyTypes` there's no widening to strip, and a
+	// *written* `fn?: (() => void) | undefined` genuinely isn't callable without
+	// a check — it demotes to `kind: 'variable'` like the `| null` forms do
+	const widened = optionalWidened(ctx, optional);
+	const callableType = widened ? getNonOptionalType(propType, checker) : propType;
 	const callSigs = callableType.getCallSignatures();
 	if (callSigs.length > 0) {
 		member.kind = 'function';
@@ -645,8 +681,8 @@ export const populatePropertyMember = (
 			member.genericParams = sigDecl.typeParameters.map(parseGenericParam);
 		}
 	} else {
-		member.typeSignature = getTypeSignature(propType, checker, optional);
-		const typeInfo = resolveTypeInfo(propType, checker, ctx.aliasRegistry, optional, {
+		member.typeSignature = getTypeSignature(propType, checker, widened);
+		const typeInfo = resolveTypeInfo(propType, checker, ctx.aliasRegistry, widened, {
 			writtenNode: annotation
 		});
 		if (typeInfo) member.typeInfo = typeInfo;

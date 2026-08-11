@@ -36,7 +36,7 @@ import {
 	extractPath,
 	isSource
 } from './source-config.ts';
-import { createIsExternalFile, createIsExternalPath } from './typescript-program.ts';
+import { createIsExternalPath } from './typescript-program.ts';
 import {
 	getLocalExportStatement,
 	getNodeLocation,
@@ -48,8 +48,7 @@ import {
 import {
 	isAliasLostType,
 	isBrandLikeIntersection,
-	isLiteralOnlyUnion,
-	type AliasRegistry
+	isLiteralOnlyUnion
 } from './typescript-extract-type-json.ts';
 import { extractFunctionInfo, extractVariableInfo } from './typescript-extract-function.ts';
 import { extractTypeInfo, extractEnumInfo } from './typescript-extract-type.ts';
@@ -67,20 +66,16 @@ import { extractClassInfo } from './typescript-extract-class.ts';
  * @param sourceFileInfo - the source file info (from file system, build pipeline, or other source)
  * @param tsSourceFile - TypeScript source file from the program
  * @param modulePath - the module path (relative to source root)
- * @param checker - TypeScript type checker
+ * @param ctx - the extraction pass's context (see `analyzeExports` for the construction contract)
  * @param options - module source options for path extraction
- * @param diagnostics - diagnostics collector for non-fatal issues
- * @param aliasRegistry - the analyzed set's alias registry (see `buildAliasRegistry`), or `undefined` when no pre-pass ran
  * @returns module metadata and re-export information
  */
 export const analyzeTypescriptModule = (
 	sourceFileInfo: SourceFileInfo & { dependents?: ReadonlyArray<string> },
 	tsSourceFile: ts.SourceFile,
 	modulePath: string,
-	checker: ts.TypeChecker,
-	options: ModuleSourceOptions,
-	diagnostics: Array<Diagnostic>,
-	aliasRegistry?: AliasRegistry
+	ctx: ExtractContext,
+	options: ModuleSourceOptions
 ): ModuleAnalysis => {
 	// Use the mid-level helper for core analysis
 	const {
@@ -90,7 +85,7 @@ export const analyzeTypescriptModule = (
 		starExports,
 		externalReExports,
 		externalStarExports
-	} = analyzeExports(tsSourceFile, checker, options, diagnostics, aliasRegistry);
+	} = analyzeExports(tsSourceFile, ctx, options);
 
 	// Extract dependencies and dependents if provided
 	const { dependencies, dependents } = extractDependencies(sourceFileInfo, options);
@@ -378,29 +373,20 @@ const synthesizeCrossFileAlias = (
  * For standard SvelteKit library layouts, use `createSourceOptions(process.cwd())`.
  *
  * @param sourceFile - the TypeScript source file to analyze
- * @param checker - the TypeScript type checker
+ * @param ctx - the extraction pass's context (see `ExtractContext`) — `analyzeModule` and `analyzeSvelteModule` construct it from the program; a direct caller owns the construction, deciding every field explicitly (tests use `mockExtractContext`)
  * @param options - module source options for path extraction in re-exports
- * @param diagnostics - diagnostics collector for non-fatal issues
- * @param aliasRegistry - the analyzed set's alias registry (see `buildAliasRegistry`), or `undefined` when no pre-pass ran (registry recovery and the `alias_lost` diagnostic are then disabled)
  * @returns module comment, declarations, re-exports (source + external), and star exports (source + external)
  */
 export const analyzeExports = (
 	sourceFile: ts.SourceFile,
-	checker: ts.TypeChecker,
-	options: ModuleSourceOptions,
-	diagnostics: Array<Diagnostic>,
-	aliasRegistry?: AliasRegistry
+	ctx: ExtractContext,
+	options: ModuleSourceOptions
 ): ModuleExportsAnalysis => {
+	const { checker, diagnostics } = ctx;
 	const declarations: Array<DeclarationAnalysis> = [];
 	const reExports: Array<ReExportJsonInput> = [];
 	const externalReExports: Array<ExternalReExportJsonInput> = [];
 
-	const ctx: ExtractContext = {
-		checker,
-		diagnostics,
-		isExternalFile: createIsExternalFile(options),
-		aliasRegistry
-	};
 	// Externality by path, for the re-export arms and star extraction below.
 	// Not the same axis as `isSource`: a project-local file can be gated from
 	// output (`internal/` convention, user excludes) without being external —

@@ -24,9 +24,11 @@ import {
 	detectReactivity,
 	extractModifiers,
 	getNodeLocation,
+	getNonOptionalType,
 	getTypeSignature,
 	isPrivateMemberDeclaration,
 	memberNameText,
+	optionalWidened,
 	parseGenericParam,
 	populateCallableMember,
 	type ExtractContext
@@ -115,7 +117,10 @@ export const extractClassInfo = (
 				kind: memberKind
 			};
 
-			if (ts.isPropertyDeclaration(member) && member.questionToken) {
+			if (
+				(ts.isPropertyDeclaration(member) || ts.isMethodDeclaration(member)) &&
+				member.questionToken
+			) {
 				memberDeclaration.optional = true;
 			}
 
@@ -138,9 +143,11 @@ export const extractClassInfo = (
 					const memberSymbol = checker.getSymbolAtLocation(member.name);
 					if (memberSymbol) {
 						const t = checker.getTypeOfSymbolAtLocation(memberSymbol, member);
-						const optional = !!member.questionToken;
-						memberDeclaration.typeSignature = getTypeSignature(t, checker, optional);
-						const typeInfo = resolveTypeInfo(t, checker, ctx.aliasRegistry, optional, {
+						// `optionalWidened`: under `exactOptionalPropertyTypes` there's no
+						// widening to strip and a written `| undefined` survives
+						const widened = optionalWidened(ctx, !!member.questionToken);
+						memberDeclaration.typeSignature = getTypeSignature(t, checker, widened);
+						const typeInfo = resolveTypeInfo(t, checker, ctx.aliasRegistry, widened, {
 							writtenNode: member.type
 						});
 						if (typeInfo) memberDeclaration.typeInfo = typeInfo;
@@ -168,7 +175,15 @@ export const extractClassInfo = (
 						const memberSymbol = checker.getSymbolAtLocation(member.name);
 						if (memberSymbol) {
 							const memberType = checker.getTypeOfSymbolAtLocation(memberSymbol, member);
-							signatures = memberType.getCallSignatures();
+							// an optional method (`m?(): void {}`) resolves to a union with
+							// `undefined`, which reports no call signatures — strip it before
+							// asking, like the interface-method site. No `optionalWidened`
+							// gate: method syntax can't write `| undefined`, so under
+							// `exactOptionalPropertyTypes` this is identity
+							const callableType = member.questionToken
+								? getNonOptionalType(memberType, checker)
+								: memberType;
+							signatures = callableType.getCallSignatures();
 						}
 					}
 

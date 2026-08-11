@@ -211,7 +211,10 @@ export const extractTypeInfo = (
 					if (memberSymbol) {
 						const memberType = checker.getTypeOfSymbolAtLocation(memberSymbol, member);
 						// an optional method resolves to a union with `undefined`, which
-						// reports no call signatures — strip it before asking
+						// reports no call signatures — strip it before asking. Deliberately
+						// not gated on `optionalWidened`: method syntax can't write
+						// `| undefined`, so under `exactOptionalPropertyTypes` the type is
+						// already the bare function type and the strip is identity
 						const callableType = member.questionToken
 							? getNonOptionalType(memberType, checker)
 							: memberType;
