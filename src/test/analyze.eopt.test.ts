@@ -4,11 +4,14 @@
  * Under the flag the checker doesn't widen optional properties, so every
  * `undefined` in a property type is author-written and the optional-widening
  * strip is gated off at property sites (`optionalWidened` in
- * `typescript-extract-shared.ts`): a written `x?: T | undefined` survives, a
- * type-parameter union isn't rebuilt through `getNonNullableType`, and a
- * written `fn?: (() => void) | undefined` demotes to `kind: 'variable'` like
- * the `| null` forms. Optional parameters and tuple elements widen under both
- * modes, so their strips stay unconditional. The widening-mode behavior is
+ * `typescript-extract-shared.ts`): a written `x?: T | undefined` survives and a
+ * type-parameter union isn't rebuilt through `getNonNullableType`. Callability
+ * is the exception — the callability query strips the optional `undefined` in
+ * both modes (at an optional position explicit `undefined` is the same
+ * observation as absence, carried by `optional: true`), so a written
+ * `fn?: (() => void) | undefined` classifies `kind: 'function'` while the
+ * `| null` forms demote. Optional parameters and tuple elements widen under
+ * both modes, so their strips stay unconditional. The widening-mode behavior is
  * locked by `analyze.optionals.test.ts` and the fixture suite.
  */
 
@@ -148,6 +151,7 @@ describe('exactOptionalPropertyTypes callability', () => {
 	fn2?: (() => void) | undefined;
 	fn3?: (() => void) | (() => number);
 	fn4?: (() => void) | null;
+	fn5: (() => void) | undefined;
 	m?(): void;
 }`
 		);
@@ -158,20 +162,33 @@ describe('exactOptionalPropertyTypes callability', () => {
 		assert.deepStrictEqual(kinds, {
 			// no widening, so the bare function type reports its signature directly
 			fn1: 'function',
-			// a *written* `| undefined` genuinely isn't callable without a check —
-			// demotes like the `| null` form, keeping the union on the wire
-			fn2: 'variable',
+			// the callability query strips the optional `undefined` in both modes:
+			// at an optional position explicit `undefined` is the same observation
+			// as absence, carried by `optional: true` — and the spelling is often
+			// forced under the flag (assigning a possibly-undefined handler)
+			fn2: 'function',
 			// a union of callables carries a combined call signature
 			fn3: 'function',
+			// `null` is a real value absence doesn't imply — stays demoted
 			fn4: 'variable',
+			// a *required* property's written `undefined` has no `optional: true`
+			// to carry it — the union must stay visible, so no strip (both modes)
+			fn5: 'variable',
 			// method syntax can't write `| undefined`; the unconditional method-site
 			// strip is identity here
 			m: 'function'
 		});
 		const fn2 = declaration.members.find((m) => m.name === 'fn2');
-		assert.strictEqual(fn2?.typeSignature, '(() => void) | undefined');
+		assert(fn2?.kind === 'function', 'expected a function member');
+		// the signature prints without the written `undefined`; `optional: true`
+		// is what carries it on a callable member
+		assert.strictEqual(fn2.typeSignature, '(): void');
+		assert.strictEqual(fn2.optional, true);
+		assert.strictEqual(fn2.returnType, 'void');
 		const fn4 = declaration.members.find((m) => m.name === 'fn4');
 		assert.strictEqual(fn4?.typeSignature, '(() => void) | null');
+		const fn5 = declaration.members.find((m) => m.name === 'fn5');
+		assert.strictEqual(fn5?.typeSignature, '(() => void) | undefined');
 	});
 });
 

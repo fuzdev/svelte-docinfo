@@ -112,10 +112,11 @@ export const createExtractContext = (
  * `getNonNullableType` (`x?: E | F` printed as `(E & {}) | (F & {})`).
  *
  * Property sites only — component props, type-alias and interface properties,
- * class properties, and `populatePropertyMember`'s callability query. Optional
- * *parameters* and optional *tuple elements* widen under both modes (probed on
- * TS 5.9), so their call sites pass `optional` unconditionally and never route
- * through this gate.
+ * class properties. Optional *parameters* and optional *tuple elements* widen
+ * under both modes (probed on TS 5.9), so their call sites pass `optional`
+ * unconditionally and never route through this gate.
+ * `populatePropertyMember`'s callability query also bypasses it — an optional
+ * callable strips in both modes (see `getNonOptionalType`).
  */
 export const optionalWidened = (ctx: ExtractContext, optional: boolean): boolean =>
 	optional && !ctx.exactOptionalPropertyTypes;
@@ -309,7 +310,8 @@ export const getTypeSignature = (
 
 /**
  * The type of an optional declaration with the widening `undefined` member removed —
- * the counterpart to `getTypeSignature`'s optional strip for structural queries.
+ * the counterpart to `getTypeSignature`'s optional strip for structural queries,
+ * taking the position's optionality the same way (`false` is identity).
  *
  * A union with `undefined` reports no call signatures of its own, so under
  * `strictNullChecks` an optional method (`fn?(a: string): number`) or function-typed
@@ -328,15 +330,25 @@ export const getTypeSignature = (
  * `getTypeSignature` and the `TypeJson` builder select through, so the
  * structural queries can't drift from the printed and structured outputs.
  *
- * Property callers gate the call on `optionalWidened` — under
- * `exactOptionalPropertyTypes` nothing was widened, and a written
- * `fn?: (() => void) | undefined` should demote like the `| null` forms.
- * The *method* sites (interface and class) stay unconditional: method syntax
- * can't write `| undefined`, so under the flag the type is already the bare
- * function type and this is identity.
+ * Every callability query routes through this with the member's own
+ * optionality, in both widening modes — the property site
+ * (`populatePropertyMember`) and the method sites (interface and class) alike.
+ * At an optional position an `undefined` member — widened or written — is the
+ * same runtime observation as absence, already carried by `optional: true`, so
+ * under `exactOptionalPropertyTypes` a written `fn?: (() => void) | undefined`
+ * classifies callable like `fn?: () => void` (that spelling is often forced
+ * there — assigning a possibly-`undefined` handler to the property requires
+ * it). `| null` stays demoted per the paragraph above — `null` is a real value
+ * absence doesn't imply. The printed and structured outputs still gate their
+ * strips on `optionalWidened`, where a written `undefined` is content. On the
+ * method sites the strip is identity under the flag anyway — method syntax
+ * can't write `| undefined`.
  */
-export const getNonOptionalType = (type: ts.Type, checker: ts.TypeChecker): ts.Type =>
-	optionalWideningTarget(type, checker, true).target;
+export const getNonOptionalType = (
+	type: ts.Type,
+	checker: ts.TypeChecker,
+	optional: boolean
+): ts.Type => optionalWideningTarget(type, checker, optional).target;
 
 /**
  * Extract parameters from a TypeScript signature with TSDoc descriptions and default values.
@@ -695,11 +707,16 @@ export const populatePropertyMember = (
 	const { checker } = ctx;
 	// an optional property resolves to a union with `undefined`, which reports no
 	// call signatures — strip it so `fn?: () => void` still reads as a function.
-	// Under `exactOptionalPropertyTypes` there's no widening to strip, and a
-	// *written* `fn?: (() => void) | undefined` genuinely isn't callable without
-	// a check — it demotes to `kind: 'variable'` like the `| null` forms do
+	// The callability query strips on `optional` in both modes: at an optional
+	// position an explicit `undefined` is the same runtime observation as
+	// absence, already carried by `optional: true`, so a written
+	// `fn?: (() => void) | undefined` under `exactOptionalPropertyTypes`
+	// classifies like `fn?: () => void` instead of demoting. `| null` still
+	// demotes (`getNonOptionalType` leaves `null` in place) — `null` is a real
+	// value the union must keep visible. The variable branch stays gated on
+	// `optionalWidened`, where a written `undefined` is content, not widening.
 	const widened = optionalWidened(ctx, optional);
-	const callableType = widened ? getNonOptionalType(propType, checker) : propType;
+	const callableType = getNonOptionalType(propType, checker, optional);
 	const callSigs = callableType.getCallSignatures();
 	if (callSigs.length > 0) {
 		member.kind = 'function';

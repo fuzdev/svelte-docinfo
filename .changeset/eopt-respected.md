@@ -12,11 +12,19 @@ fix: respect `exactOptionalPropertyTypes` — stop stripping author-written `und
   `"T"`, `x?: T | null | undefined` as `"T | null"`, and `tp?: E | F` was
   corrupted to `"(E & {}) | (F & {})"` by the strip's `getNonNullableType`
   fallback.
-- Callability follows the declared type: a written
-  `fn?: (() => void) | undefined` demotes to `kind: 'variable'` with the
-  union kept — declared `undefined` poisons callability like `| null` —
-  while `fn?: () => void` and unions of callables still classify
-  `'function'`.
+- Callability classification is unchanged by the flag: the callability
+  query strips the optional `undefined` in both modes, so a written
+  `fn?: (() => void) | undefined` — the spelling the flag forces when a
+  possibly-`undefined` handler is assigned to the property — classifies
+  `kind: 'function'` like `fn?: () => void`, keeping
+  `parameters`/`returnType` and `@param`/`@returns` routing. At an optional
+  position an explicit `undefined` is the same runtime observation as
+  absence, already carried by `optional: true` (which is also all that
+  survives of the written `undefined` on a callable member — the signature
+  prints without it). `| null` still demotes to `kind: 'variable'` — `null`
+  is a real value absence doesn't imply — as does a *required* property's
+  written `undefined` (`fn: (() => void) | undefined`), which has no
+  `optional: true` to carry it.
 - Optional parameters and tuple elements keep widening under the flag (it
   governs properties only), so their strips stay unconditional. With the
   flag off, output is unchanged. Note the `getNonNullableType` rewrite above

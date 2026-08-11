@@ -144,6 +144,41 @@ describe('optional type normalization', () => {
 		);
 	});
 
+	test('classifies optional callable properties by their when-present type', async () => {
+		// widening-mode twin of the `analyze.eopt.test.ts` callability test — the
+		// callability query strips the optional `undefined` in both modes, so
+		// classification is spelling- and mode-independent: a written
+		// `| undefined` merges with the widening here and classifies `function`
+		// all the same, while `| null` (a real value absence doesn't imply) and a
+		// *required* property's written `undefined` (no `optional: true` to carry
+		// it) demote to `kind: 'variable'` with the union kept
+		const module = await analyzeFile(
+			'src/lib/a.ts',
+			`export interface C {
+	fn1?: (() => void) | undefined;
+	fn2?: (() => void) | null;
+	fn3: (() => void) | undefined;
+}`
+		);
+
+		const declaration = module.declarations[0];
+		assert(declaration?.kind === 'interface', 'expected an interface declaration');
+		const kinds = Object.fromEntries(declaration.members.map((m) => [m.name, m.kind]));
+		assert.deepStrictEqual(kinds, { fn1: 'function', fn2: 'variable', fn3: 'variable' });
+		const fn1 = declaration.members.find((m) => m.name === 'fn1');
+		assert(fn1?.kind === 'function', 'expected a function member');
+		assert.strictEqual(fn1.typeSignature, '(): void');
+		assert.strictEqual(fn1.optional, true);
+		assert.strictEqual(
+			declaration.members.find((m) => m.name === 'fn2')?.typeSignature,
+			'(() => void) | null'
+		);
+		assert.strictEqual(
+			declaration.members.find((m) => m.name === 'fn3')?.typeSignature,
+			'(() => void) | undefined'
+		);
+	});
+
 	test('keeps `null` in component prop types', async () => {
 		const module = await analyzeFile(
 			'src/lib/A.svelte',

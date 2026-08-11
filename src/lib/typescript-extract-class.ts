@@ -180,9 +180,7 @@ export const extractClassInfo = (
 							// asking, like the interface-method site. No `optionalWidened`
 							// gate: method syntax can't write `| undefined`, so under
 							// `exactOptionalPropertyTypes` this is identity
-							const callableType = member.questionToken
-								? getNonOptionalType(memberType, checker)
-								: memberType;
+							const callableType = getNonOptionalType(memberType, checker, !!member.questionToken);
 							signatures = callableType.getCallSignatures();
 						}
 					}

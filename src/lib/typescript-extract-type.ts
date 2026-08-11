@@ -215,9 +215,7 @@ export const extractTypeInfo = (
 						// not gated on `optionalWidened`: method syntax can't write
 						// `| undefined`, so under `exactOptionalPropertyTypes` the type is
 						// already the bare function type and the strip is identity
-						const callableType = member.questionToken
-							? getNonOptionalType(memberType, checker)
-							: memberType;
+						const callableType = getNonOptionalType(memberType, checker, !!member.questionToken);
 						populateCallableMember(
 							methodDeclaration,
 							callableType.getCallSignatures(),
