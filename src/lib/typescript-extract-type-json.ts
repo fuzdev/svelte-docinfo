@@ -114,10 +114,9 @@ const hasNullMember = (type: ts.Type): boolean =>
  *
  * - a non-union carries no separate widening member to strip, so it passes
  *   through. Three shapes land here: `x?: undefined` (the written type and the
- *   widening coincide), `x?: unknown` and `x?: any` (both absorb `undefined`),
- *   and every optional under `exactOptionalPropertyTypes` (which doesn't widen
- *   at all). `getNonNullableType` must not run on any of them — it answers
- *   `{}` for `unknown`, which would report `x?: unknown` as `"{}"`
+ *   widening coincide), and `x?: unknown` / `x?: any` (both absorb
+ *   `undefined`). `getNonNullableType` must not run on any of them — it
+ *   answers `{}` for `unknown`, which would report `x?: unknown` as `"{}"`
  * - a `null`-bearing union keeps its shape and reports `dropUndefined` — the
  *   walk drops only the widening member (so the alias survives) and the
  *   printer trims the printed suffix
@@ -128,6 +127,12 @@ const hasNullMember = (type: ts.Type): boolean =>
  * - every other union takes `getNonNullableType`, which rebuilds the union
  *   rather than picking a member (so a union of callables keeps its combined
  *   call signature) and preserves the alias symbol
+ *
+ * Under `exactOptionalPropertyTypes` the checker widens optional *properties*
+ * not at all, so property sites gate `optional` off via `optionalWidened`
+ * (in `typescript-extract-shared.ts`) and never reach the strip; optional
+ * parameters and tuple elements widen under both modes and keep passing
+ * `optional` unconditionally.
  */
 export const optionalWideningTarget = (
 	type: ts.Type,

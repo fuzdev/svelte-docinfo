@@ -146,12 +146,7 @@ export class A {
 `;
 		const { sourceFile, checker } = createSourceAndChecker(sourceCode);
 
-		const result = analyzeExports(
-			sourceFile,
-			checker,
-			testSourceOptions(),
-			[] as Array<Diagnostic>
-		);
+		const result = analyzeExports(sourceFile, mockExtractContext(checker), testSourceOptions());
 
 		assert.strictEqual(result.declarations.length, 1, 'Should have 1 class declaration');
 		const classDecl = result.declarations[0]!.declaration;
@@ -186,12 +181,7 @@ export class A {
 `;
 		const { sourceFile, checker } = createSourceAndChecker(sourceCode);
 
-		const result = analyzeExports(
-			sourceFile,
-			checker,
-			testSourceOptions(),
-			[] as Array<Diagnostic>
-		);
+		const result = analyzeExports(sourceFile, mockExtractContext(checker), testSourceOptions());
 
 		const classDecl = result.declarations[0]!.declaration;
 		assert.ok(classDecl.members, 'Class should have members');
@@ -220,12 +210,7 @@ export class A {
 `;
 		const { sourceFile, checker } = createSourceAndChecker(sourceCode);
 
-		const result = analyzeExports(
-			sourceFile,
-			checker,
-			testSourceOptions(),
-			[] as Array<Diagnostic>
-		);
+		const result = analyzeExports(sourceFile, mockExtractContext(checker), testSourceOptions());
 
 		const classDecl = result.declarations[0]!.declaration;
 		assert.ok(classDecl.members, 'Class should have members');
@@ -256,12 +241,7 @@ export class A {
 `;
 		const { sourceFile, checker } = createSourceAndChecker(sourceCode);
 
-		const result = analyzeExports(
-			sourceFile,
-			checker,
-			testSourceOptions(),
-			[] as Array<Diagnostic>
-		);
+		const result = analyzeExports(sourceFile, mockExtractContext(checker), testSourceOptions());
 
 		assert.strictEqual(result.declarations.length, 1, 'Should have 1 class declaration');
 		const classDecl = result.declarations[0]!.declaration;
@@ -281,12 +261,7 @@ export abstract class A {
 `;
 		const { sourceFile, checker } = createSourceAndChecker(sourceCode);
 
-		const result = analyzeExports(
-			sourceFile,
-			checker,
-			testSourceOptions(),
-			[] as Array<Diagnostic>
-		);
+		const result = analyzeExports(sourceFile, mockExtractContext(checker), testSourceOptions());
 
 		assert.strictEqual(result.declarations.length, 1, 'Should have 1 class declaration');
 		const classDecl = result.declarations[0]!.declaration;
@@ -307,12 +282,7 @@ export class A {
 `;
 		const { sourceFile, checker } = createSourceAndChecker(sourceCode);
 
-		const result = analyzeExports(
-			sourceFile,
-			checker,
-			testSourceOptions(),
-			[] as Array<Diagnostic>
-		);
+		const result = analyzeExports(sourceFile, mockExtractContext(checker), testSourceOptions());
 
 		const classDecl = result.declarations[0]!.declaration;
 		const memberNames = classDecl.members!.map((m) => m.name);
@@ -333,12 +303,7 @@ export default class {
 `;
 		const { sourceFile, checker } = createSourceAndChecker(sourceCode);
 
-		const result = analyzeExports(
-			sourceFile,
-			checker,
-			testSourceOptions(),
-			[] as Array<Diagnostic>
-		);
+		const result = analyzeExports(sourceFile, mockExtractContext(checker), testSourceOptions());
 
 		assert.strictEqual(result.declarations.length, 1, 'Should have 1 class declaration');
 		const classDecl = result.declarations[0]!.declaration;
@@ -369,12 +334,7 @@ export default class {
 `;
 		const { sourceFile, checker } = createSourceAndChecker(sourceCode);
 
-		const result = analyzeExports(
-			sourceFile,
-			checker,
-			testSourceOptions(),
-			[] as Array<Diagnostic>
-		);
+		const result = analyzeExports(sourceFile, mockExtractContext(checker), testSourceOptions());
 
 		const classDecl = result.declarations[0]!.declaration;
 		const ctor = classDecl.members?.find((m) => m.name === 'constructor');
@@ -406,12 +366,7 @@ export type Baz = { value: number };
 
 		const { sourceFile, checker } = createSourceAndChecker(sourceCode);
 
-		const result = analyzeExports(
-			sourceFile,
-			checker,
-			testSourceOptions(),
-			[] as Array<Diagnostic>
-		);
+		const result = analyzeExports(sourceFile, mockExtractContext(checker), testSourceOptions());
 
 		// Should have module comment
 		assert.strictEqual(result.moduleComment, 'Test module with exports.');
@@ -443,7 +398,11 @@ export const foo = 42;
 		const { sourceFile, checker } = createSourceAndChecker(sourceCode, 'first.ts');
 
 		const diagnostics: Array<Diagnostic> = [];
-		const result = analyzeExports(sourceFile, checker, testSourceOptions(), diagnostics);
+		const result = analyzeExports(
+			sourceFile,
+			mockExtractContext(checker, { diagnostics }),
+			testSourceOptions()
+		);
 
 		const foo = result.declarations.find((d) => d.declaration.name === 'foo');
 		assert.ok(foo);
@@ -470,7 +429,7 @@ export const foo = 42;
 		const { sourceFile, checker } = createSourceAndChecker(sourceCode, 'clean.ts');
 
 		const diagnostics: Array<Diagnostic> = [];
-		analyzeExports(sourceFile, checker, testSourceOptions(), diagnostics);
+		analyzeExports(sourceFile, mockExtractContext(checker, { diagnostics }), testSourceOptions());
 
 		assert.deepStrictEqual(
 			diagnostics.filter((d) => d.kind === 'misplaced_tag'),
@@ -491,12 +450,7 @@ const internal = 'not exported';
 
 		const { sourceFile, checker } = createSourceAndChecker(sourceCode, 'empty.ts');
 
-		const result = analyzeExports(
-			sourceFile,
-			checker,
-			testSourceOptions(),
-			[] as Array<Diagnostic>
-		);
+		const result = analyzeExports(sourceFile, mockExtractContext(checker), testSourceOptions());
 
 		assert.strictEqual(result.moduleComment, 'Module with no exports.');
 		assert.strictEqual(result.declarations.length, 0);
@@ -510,12 +464,7 @@ export const bar = 123;
 
 		const { sourceFile, checker } = createSourceAndChecker(sourceCode, 'module_no_comment.ts');
 
-		const result = analyzeExports(
-			sourceFile,
-			checker,
-			testSourceOptions(),
-			[] as Array<Diagnostic>
-		);
+		const result = analyzeExports(sourceFile, mockExtractContext(checker), testSourceOptions());
 
 		assert.isUndefined(result.moduleComment);
 		assert.strictEqual(result.declarations.length, 2);
@@ -536,12 +485,7 @@ export function add(a: number, b: number): number {
 
 		const { sourceFile, checker } = createSourceAndChecker(sourceCode, 'math.ts');
 
-		const result = analyzeExports(
-			sourceFile,
-			checker,
-			testSourceOptions(),
-			[] as Array<Diagnostic>
-		);
+		const result = analyzeExports(sourceFile, mockExtractContext(checker), testSourceOptions());
 
 		assert.strictEqual(result.declarations.length, 1);
 
@@ -572,12 +516,7 @@ export class Counter {
 
 		const { sourceFile, checker } = createSourceAndChecker(sourceCode, 'counter.ts');
 
-		const result = analyzeExports(
-			sourceFile,
-			checker,
-			testSourceOptions(),
-			[] as Array<Diagnostic>
-		);
+		const result = analyzeExports(sourceFile, mockExtractContext(checker), testSourceOptions());
 
 		assert.strictEqual(result.declarations.length, 1);
 
@@ -604,12 +543,7 @@ export interface Config {
 
 		const { sourceFile, checker } = createSourceAndChecker(sourceCode, 'config.ts');
 
-		const result = analyzeExports(
-			sourceFile,
-			checker,
-			testSourceOptions(),
-			[] as Array<Diagnostic>
-		);
+		const result = analyzeExports(sourceFile, mockExtractContext(checker), testSourceOptions());
 
 		assert.strictEqual(result.declarations.length, 1);
 
@@ -628,12 +562,7 @@ export { internalValue as exportedValue };
 
 		const { sourceFile, checker } = createSourceAndChecker(sourceCode, 'reexport.ts');
 
-		const result = analyzeExports(
-			sourceFile,
-			checker,
-			testSourceOptions(),
-			[] as Array<Diagnostic>
-		);
+		const result = analyzeExports(sourceFile, mockExtractContext(checker), testSourceOptions());
 
 		// Should have the re-exported value
 		assert.strictEqual(result.declarations.length, 1);
@@ -667,12 +596,7 @@ export class Service {
 
 		const { sourceFile, checker } = createSourceAndChecker(sourceCode, 'mixed.ts');
 
-		const result = analyzeExports(
-			sourceFile,
-			checker,
-			testSourceOptions(),
-			[] as Array<Diagnostic>
-		);
+		const result = analyzeExports(sourceFile, mockExtractContext(checker), testSourceOptions());
 
 		// Should have 5 identifiers of different kinds
 		assert.strictEqual(result.declarations.length, 5);
@@ -725,12 +649,7 @@ export function public_function(): string {
 
 		const { sourceFile, checker } = createSourceAndChecker(sourceCode, 'nodocs.ts');
 
-		const result = analyzeExports(
-			sourceFile,
-			checker,
-			testSourceOptions(),
-			[] as Array<Diagnostic>
-		);
+		const result = analyzeExports(sourceFile, mockExtractContext(checker), testSourceOptions());
 
 		// Should have ALL 4 identifiers - filtering is now consumer responsibility
 		assert.strictEqual(result.declarations.length, 4);
@@ -780,7 +699,7 @@ export const localValue = 'local';
 
 		const indexFile = sourceFiles.get(`${TEST_LIB_DIR}/index.ts`)!;
 		const options = createTestSourceOptions();
-		const result = analyzeExports(indexFile, checker, options, [] as Array<Diagnostic>);
+		const result = analyzeExports(indexFile, mockExtractContext(checker), options);
 
 		// index.ts should only have localValue as a direct export
 		// helper and CONSTANT are re-exports and should be in reExports array
@@ -823,7 +742,7 @@ export {internalImpl as public_api} from './internal.js';
 
 		const publicFile = sourceFiles.get(`${TEST_LIB_DIR}/public.ts`)!;
 		const options = createTestSourceOptions();
-		const result = analyzeExports(publicFile, checker, options, [] as Array<Diagnostic>);
+		const result = analyzeExports(publicFile, mockExtractContext(checker), options);
 
 		// Renamed re-export creates a NEW declaration with aliasOf
 		assert.strictEqual(result.declarations.length, 1);
@@ -865,7 +784,7 @@ export {utilB as renamedUtil} from './utils.js';
 
 		const mixedFile = sourceFiles.get(`${TEST_LIB_DIR}/mixed.ts`)!;
 		const options = createTestSourceOptions();
-		const result = analyzeExports(mixedFile, checker, options, [] as Array<Diagnostic>);
+		const result = analyzeExports(mixedFile, mockExtractContext(checker), options);
 
 		// Should have 3 identifiers: directFn, DirectType, renamedUtil
 		assert.strictEqual(result.declarations.length, 3);
@@ -898,12 +817,7 @@ export { fn1 };
 
 		const { sourceFile, checker } = createSourceAndChecker(sourceCode);
 
-		const result = analyzeExports(
-			sourceFile,
-			checker,
-			testSourceOptions(),
-			[] as Array<Diagnostic>
-		);
+		const result = analyzeExports(sourceFile, mockExtractContext(checker), testSourceOptions());
 
 		assert.strictEqual(result.declarations.length, 1);
 		const decl = result.declarations[0]!;
@@ -922,12 +836,7 @@ export { fn1 };
 
 		const { sourceFile, checker } = createSourceAndChecker(sourceCode);
 
-		const result = analyzeExports(
-			sourceFile,
-			checker,
-			testSourceOptions(),
-			[] as Array<Diagnostic>
-		);
+		const result = analyzeExports(sourceFile, mockExtractContext(checker), testSourceOptions());
 
 		assert.strictEqual(result.declarations.length, 1);
 		assert.strictEqual(result.declarations[0]!.nodocs, true);
@@ -993,7 +902,11 @@ export function fn(): string { return 'test'; }
 		const { sourceFile, checker } = createSourceAndChecker(sourceCode);
 		const diagnostics: Array<Diagnostic> = [];
 
-		const result = analyzeExports(sourceFile, checker, testSourceOptions(), diagnostics);
+		const result = analyzeExports(
+			sourceFile,
+			mockExtractContext(checker, { diagnostics }),
+			testSourceOptions()
+		);
 
 		// Should have successful analysis
 		assert.strictEqual(result.declarations.length, 2);
@@ -1016,7 +929,11 @@ export class MyClass {
 		const { sourceFile, checker } = createSourceAndChecker(sourceCode, 'multi.ts');
 		const diagnostics: Array<Diagnostic> = [];
 
-		const result = analyzeExports(sourceFile, checker, testSourceOptions(), diagnostics);
+		const result = analyzeExports(
+			sourceFile,
+			mockExtractContext(checker, { diagnostics }),
+			testSourceOptions()
+		);
 
 		// All declarations should be extracted successfully
 		assert.strictEqual(result.declarations.length, 5);
@@ -1037,7 +954,11 @@ export function third(): void {}
 		const { sourceFile, checker } = createSourceAndChecker(sourceCode, 'lines.ts');
 		const diagnostics: Array<Diagnostic> = [];
 
-		const result = analyzeExports(sourceFile, checker, testSourceOptions(), diagnostics);
+		const result = analyzeExports(
+			sourceFile,
+			mockExtractContext(checker, { diagnostics }),
+			testSourceOptions()
+		);
 
 		// Each declaration should have a sourceLine
 		for (const { declaration: decl } of result.declarations) {
@@ -1087,14 +1008,14 @@ export {original} from './b.js';
 
 		// Analyze C - should have the original declaration
 		const cFile = sourceFiles.get(`${TEST_LIB_DIR}/c.ts`)!;
-		const cResult = analyzeExports(cFile, checker, options, diagnostics);
+		const cResult = analyzeExports(cFile, mockExtractContext(checker, { diagnostics }), options);
 		assert.strictEqual(cResult.declarations.length, 1);
 		assert.strictEqual(cResult.declarations[0]!.declaration.name, 'original');
 		assert.strictEqual(cResult.reExports.length, 0);
 
 		// Analyze B - should track re-export from C
 		const bFile = sourceFiles.get(`${TEST_LIB_DIR}/b.ts`)!;
-		const bResult = analyzeExports(bFile, checker, options, diagnostics);
+		const bResult = analyzeExports(bFile, mockExtractContext(checker, { diagnostics }), options);
 		assert.strictEqual(bResult.declarations.length, 0); // No direct declarations
 		assert.strictEqual(bResult.reExports.length, 1);
 		assert.strictEqual(bResult.reExports[0]!.name, 'original');
@@ -1102,7 +1023,7 @@ export {original} from './b.js';
 
 		// Analyze A - TypeScript resolves re-export chains to original source
 		const aFile = sourceFiles.get(`${TEST_LIB_DIR}/a.ts`)!;
-		const aResult = analyzeExports(aFile, checker, options, diagnostics);
+		const aResult = analyzeExports(aFile, mockExtractContext(checker, { diagnostics }), options);
 		assert.strictEqual(aResult.declarations.length, 0);
 		assert.strictEqual(aResult.reExports.length, 1);
 		assert.strictEqual(aResult.reExports[0]!.name, 'original');
@@ -1135,7 +1056,11 @@ export {baseValue} from './base.js';
 		const diagnostics: Array<Diagnostic> = [];
 		const combinedFile = sourceFiles.get(`${TEST_LIB_DIR}/combined.ts`)!;
 		const options = createTestSourceOptions();
-		const result = analyzeExports(combinedFile, checker, options, diagnostics);
+		const result = analyzeExports(
+			combinedFile,
+			mockExtractContext(checker, { diagnostics }),
+			options
+		);
 
 		// Should have localValue as direct declaration
 		assert.strictEqual(result.declarations.length, 1);
@@ -1174,7 +1099,7 @@ export const indexValue = 'index';
 		const diagnostics: Array<Diagnostic> = [];
 		const indexFile = sourceFiles.get(`${TEST_LIB_DIR}/index.ts`)!;
 		const options = createTestSourceOptions();
-		const result = analyzeExports(indexFile, checker, options, diagnostics);
+		const result = analyzeExports(indexFile, mockExtractContext(checker, { diagnostics }), options);
 
 		// starExports should contain helpers.ts
 		assert.strictEqual(result.starExports.length, 1);
@@ -1212,7 +1137,7 @@ export const indexValue = 'index';
 		const diagnostics: Array<Diagnostic> = [];
 		const aFile = sourceFiles.get(`${TEST_LIB_DIR}/a.ts`)!;
 		const options = createTestSourceOptions();
-		const result = analyzeExports(aFile, checker, options, diagnostics);
+		const result = analyzeExports(aFile, mockExtractContext(checker, { diagnostics }), options);
 
 		assert.ok(
 			result.declarations.some((d) => d.declaration.name === 'Config'),
@@ -1243,7 +1168,11 @@ export * from './utilsB.js';
 		const diagnostics: Array<Diagnostic> = [];
 		const barrelFile = sourceFiles.get(`${TEST_LIB_DIR}/barrel.ts`)!;
 		const options = createTestSourceOptions();
-		const result = analyzeExports(barrelFile, checker, options, diagnostics);
+		const result = analyzeExports(
+			barrelFile,
+			mockExtractContext(checker, { diagnostics }),
+			options
+		);
 
 		// Should have both star exports
 		assert.strictEqual(result.starExports.length, 2);
@@ -1263,7 +1192,11 @@ export const local = 'value';
 		const { sourceFile, checker } = createSourceAndChecker(sourceCode);
 		const diagnostics: Array<Diagnostic> = [];
 
-		const result = analyzeExports(sourceFile, checker, testSourceOptions(), diagnostics);
+		const result = analyzeExports(
+			sourceFile,
+			mockExtractContext(checker, { diagnostics }),
+			testSourceOptions()
+		);
 
 		// No star exports in this simple case
 		assert.strictEqual(result.starExports.length, 0);
@@ -1303,7 +1236,11 @@ export const combinedValue = 'combined';
 		const diagnostics: Array<Diagnostic> = [];
 		const combinedFile = sourceFiles.get(`${TEST_LIB_DIR}/combined.ts`)!;
 		const options = createTestSourceOptions();
-		const result = analyzeExports(combinedFile, checker, options, diagnostics);
+		const result = analyzeExports(
+			combinedFile,
+			mockExtractContext(checker, { diagnostics }),
+			options
+		);
 
 		// Star export for types.ts
 		assert.strictEqual(result.starExports.length, 1);
@@ -1339,7 +1276,7 @@ export {foo} from './a.js';
 		const diagnostics: Array<Diagnostic> = [];
 		const indexFile = sourceFiles.get(`${TEST_LIB_DIR}/index.ts`)!;
 		const options = createTestSourceOptions();
-		const result = analyzeExports(indexFile, checker, options, diagnostics);
+		const result = analyzeExports(indexFile, mockExtractContext(checker, { diagnostics }), options);
 
 		// foo should appear in reExports only once (TypeScript deduplicates symbols)
 		const fooReExports = result.reExports.filter((r) => r.name === 'foo');
@@ -1360,7 +1297,11 @@ export function fn(): void {}
 		const { sourceFile, checker } = createSourceAndChecker(sourceCode, 'no_star.ts');
 		const diagnostics: Array<Diagnostic> = [];
 
-		const result = analyzeExports(sourceFile, checker, testSourceOptions(), diagnostics);
+		const result = analyzeExports(
+			sourceFile,
+			mockExtractContext(checker, { diagnostics }),
+			testSourceOptions()
+		);
 
 		// starExports should be empty array, not undefined
 		assert.ok(Array.isArray(result.starExports));
@@ -1385,7 +1326,7 @@ describe('type-only re-exports', () => {
 		const diagnostics: Array<Diagnostic> = [];
 		const indexFile = sourceFiles.get(`${TEST_LIB_DIR}/index.ts`)!;
 		const options = createTestSourceOptions();
-		const result = analyzeExports(indexFile, checker, options, diagnostics);
+		const result = analyzeExports(indexFile, mockExtractContext(checker, { diagnostics }), options);
 
 		// Same-name type re-export should be tracked in reExports, not declarations
 		assert.strictEqual(result.declarations.length, 0);
@@ -1410,7 +1351,7 @@ describe('type-only re-exports', () => {
 		const diagnostics: Array<Diagnostic> = [];
 		const indexFile = sourceFiles.get(`${TEST_LIB_DIR}/index.ts`)!;
 		const options = createTestSourceOptions();
-		const result = analyzeExports(indexFile, checker, options, diagnostics);
+		const result = analyzeExports(indexFile, mockExtractContext(checker, { diagnostics }), options);
 
 		// Renamed type re-export creates a new declaration with aliasOf
 		assert.strictEqual(result.declarations.length, 1);
@@ -1448,9 +1389,8 @@ describe('analyzeTypescriptModule with SourceFileInfo dependencies', () => {
 			},
 			sourceFile,
 			'consumer.ts',
-			checker,
-			options,
-			diagnostics
+			mockExtractContext(checker, { diagnostics }),
+			options
 		);
 
 		// Dependencies should be filtered to source modules only
@@ -1482,9 +1422,8 @@ describe('analyzeTypescriptModule with SourceFileInfo dependencies', () => {
 			},
 			sourceFile,
 			'standalone.ts',
-			checker,
-			options,
-			diagnostics
+			mockExtractContext(checker, { diagnostics }),
+			options
 		);
 
 		// Should return empty arrays, not undefined
@@ -1504,9 +1443,8 @@ describe('analyzeTypescriptModule with SourceFileInfo dependencies', () => {
 			{ id: '/project/src/lib/simple.ts', content: sourceCode },
 			sourceFile,
 			'simple.ts',
-			checker,
-			testSourceOptions(),
-			diagnostics
+			mockExtractContext(checker, { diagnostics }),
+			testSourceOptions()
 		);
 
 		// Verify all array fields are arrays
@@ -1733,12 +1671,7 @@ export default function foo(a: string): number {
 `;
 		const { sourceFile, checker } = createSourceAndChecker(sourceCode);
 
-		const result = analyzeExports(
-			sourceFile,
-			checker,
-			testSourceOptions(),
-			[] as Array<Diagnostic>
-		);
+		const result = analyzeExports(sourceFile, mockExtractContext(checker), testSourceOptions());
 
 		assert.strictEqual(result.declarations.length, 1);
 		const decl = result.declarations[0]!.declaration;
@@ -1755,12 +1688,7 @@ export default class Foo {
 `;
 		const { sourceFile, checker } = createSourceAndChecker(sourceCode);
 
-		const result = analyzeExports(
-			sourceFile,
-			checker,
-			testSourceOptions(),
-			[] as Array<Diagnostic>
-		);
+		const result = analyzeExports(sourceFile, mockExtractContext(checker), testSourceOptions());
 
 		const decl = result.declarations[0]!.declaration;
 		assert.strictEqual(decl.name, 'default');
@@ -1775,12 +1703,7 @@ export default function (a: string): number {
 `;
 		const { sourceFile, checker } = createSourceAndChecker(sourceCode);
 
-		const result = analyzeExports(
-			sourceFile,
-			checker,
-			testSourceOptions(),
-			[] as Array<Diagnostic>
-		);
+		const result = analyzeExports(sourceFile, mockExtractContext(checker), testSourceOptions());
 
 		const decl = result.declarations[0]!.declaration;
 		assert.strictEqual(decl.name, 'default');
@@ -1794,12 +1717,7 @@ export {x as default};
 `;
 		const { sourceFile, checker } = createSourceAndChecker(sourceCode);
 
-		const result = analyzeExports(
-			sourceFile,
-			checker,
-			testSourceOptions(),
-			[] as Array<Diagnostic>
-		);
+		const result = analyzeExports(sourceFile, mockExtractContext(checker), testSourceOptions());
 
 		const decl = result.declarations[0]!.declaration;
 		assert.strictEqual(decl.name, 'default', 'Renamed-into-default slot is named default');
@@ -1816,12 +1734,7 @@ export {x as default};
 `;
 		const { sourceFile, checker } = createSourceAndChecker(sourceCode);
 
-		const result = analyzeExports(
-			sourceFile,
-			checker,
-			testSourceOptions(),
-			[] as Array<Diagnostic>
-		);
+		const result = analyzeExports(sourceFile, mockExtractContext(checker), testSourceOptions());
 
 		assert.strictEqual(result.declarations.length, 2);
 		const named = result.declarations.find((d) => d.declaration.name === 'x');
@@ -1843,15 +1756,13 @@ export {x as default};
 
 		const aResult = analyzeExports(
 			program.getSourceFile(`${TEST_LIB_DIR}/a.ts`)!,
-			checker,
-			options,
-			[] as Array<Diagnostic>
+			mockExtractContext(checker),
+			options
 		);
 		const bResult = analyzeExports(
 			program.getSourceFile(`${TEST_LIB_DIR}/b.ts`)!,
-			checker,
-			options,
-			[] as Array<Diagnostic>
+			mockExtractContext(checker),
+			options
 		);
 
 		assert.strictEqual(aResult.declarations[0]!.declaration.name, 'default');
@@ -1868,9 +1779,8 @@ export {x as default};
 
 		const bResult = analyzeExports(
 			program.getSourceFile(`${TEST_LIB_DIR}/b.ts`)!,
-			checker,
-			options,
-			[] as Array<Diagnostic>
+			mockExtractContext(checker),
+			options
 		);
 
 		assert.strictEqual(bResult.declarations.length, 1);
@@ -1892,12 +1802,7 @@ declare function $derived<T>(value: T): T;
 
 	const extractClass = (source: string) => {
 		const { sourceFile, checker } = createSourceAndChecker(RUNE_AMBIENTS + source);
-		const result = analyzeExports(
-			sourceFile,
-			checker,
-			testSourceOptions(),
-			[] as Array<Diagnostic>
-		);
+		const result = analyzeExports(sourceFile, mockExtractContext(checker), testSourceOptions());
 		return result.declarations[0]!.declaration;
 	};
 

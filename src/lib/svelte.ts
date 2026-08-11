@@ -15,9 +15,8 @@
  * There is no Svelte 4 compatibility layer.
  *
  * @see `typescript-exports.ts` for `analyzeExports`, `extractModuleComment`
- * @see `typescript-extract-shared.ts` for `parseGenericParam`, `filterDocumentedProperties`
+ * @see `typescript-extract-shared.ts` for `parseGenericParam`, `filterDocumentedProperties`, `createExtractContext`
  * @see `typescript-extract-type-json.ts` for `resolveTypeInfo`, `referenceSymbolName`, `tupleElements`, `restElementForms`
- * @see `typescript-program.ts` for `createIsExternalFile`
  * @see `tsdoc.ts` for `parseComment`, `applyToDeclaration`
  * @see `source.ts` for `SourceFileInfo`, `getComponentName`
  *
@@ -46,11 +45,12 @@ import {
 	hasDocContent,
 	type TsdocParsedComment
 } from './tsdoc.ts';
-import { createIsExternalFile } from './typescript-program.ts';
 import {
 	parseGenericParam,
 	filterDocumentedProperties,
 	getTypeSignature,
+	createExtractContext,
+	optionalWidened,
 	type ExtractContext
 } from './typescript-extract-shared.ts';
 import {
@@ -937,8 +937,9 @@ export const isSnippetType = (type: ts.Type, checker: ts.TypeChecker): boolean =
  *
  * Returns full `ParameterJson` input objects (with `optional` and `rest` always set)
  * for runtime consistency with `extractSignatureParameters` in `typescript-extract-shared.ts`.
- * Optional tuple elements are widened to include `undefined` like optional properties;
- * the element type is stripped via `getTypeSignature` so `optional: true`
+ * Optional tuple elements are widened to include `undefined` — under
+ * `exactOptionalPropertyTypes` too, unlike properties — so the element type
+ * is stripped unconditionally via `getTypeSignature` and `optional: true`
  * carries it alone. Rest elements report like rest signature parameters —
  * `rest: true` with the printed array form (`...rest: B[]` carries `B[]`) —
  * and a variadic spread (`...T`) carries the spread type itself, mirroring
@@ -1208,12 +1209,15 @@ const extractPropsViaChecker = (
 			const propType = checker.getTypeOfSymbolAtLocation(prop, propsTypeNode);
 			// For optional properties, the checker includes `undefined` in the union.
 			// Strip it to match the declared type (e.g., `number` not `number | undefined`).
-			typeString = getTypeSignature(propType, checker, optional);
+			// Under `exactOptionalPropertyTypes` the checker doesn't widen, so the
+			// strip is gated off and a written `| undefined` survives.
+			const widened = optionalWidened(ctx, optional);
+			typeString = getTypeSignature(propType, checker, widened);
 			// the written annotation (in the svelte2tsx virtual or an imported
 			// props type) feeds name recovery; only symbols are resolved from it,
 			// so source-position remapping is not implicated
 			const annotation = propDecl && ts.isPropertySignature(propDecl) ? propDecl.type : undefined;
-			typeInfo = resolveTypeInfo(propType, checker, ctx.aliasRegistry, optional, {
+			typeInfo = resolveTypeInfo(propType, checker, ctx.aliasRegistry, widened, {
 				writtenNode: annotation
 			});
 
@@ -1321,6 +1325,10 @@ export const analyzeSvelteModule = (
 		return undefined;
 	}
 
+	// One pass-scoped extraction context, shared by the export walk (step 1)
+	// and the component synthesis (steps 3+)
+	const ctx = createExtractContext(program, checker, options, diagnostics, aliasRegistry);
+
 	// 1. Use analyzeExports for full checker-backed analysis (same as .ts files).
 	// Its `moduleComment` is undefined for virtuals — the `<script module>`
 	// comment is extracted from the original source in step 4, because svelte2tsx
@@ -1333,7 +1341,7 @@ export const analyzeSvelteModule = (
 		starExports,
 		externalReExports,
 		externalStarExports
-	} = analyzeExports(virtualTsSource, checker, options, diagnostics, aliasRegistry);
+	} = analyzeExports(virtualTsSource, ctx, options);
 
 	// 2. Filter internal svelte2tsx symbols and the default export (generated component class),
 	//    and reclassify exported snippets from 'function' to 'snippet'
@@ -1446,13 +1454,6 @@ export const analyzeSvelteModule = (
 	if (virtualFile.scriptKind === ts.ScriptKind.JS) {
 		componentDecl.lang = 'js';
 	}
-
-	const ctx: ExtractContext = {
-		checker,
-		diagnostics,
-		isExternalFile: createIsExternalFile(options),
-		aliasRegistry
-	};
 
 	// scan the original source once — the legacy-prop scan reads the instance
 	// script, step 4's module-comment extraction reads both

@@ -58,6 +58,7 @@ import { type ModuleSourceOptions, extractPath, extractDependencies } from './so
 import { toPosixPath, isAbsolutePosixPath } from './paths.ts';
 import { buildAliasRegistry, type AliasRegistrySource } from './typescript-alias-registry.ts';
 import type { AliasRegistry } from './typescript-extract-type-json.ts';
+import { createExtractContext } from './typescript-extract-shared.ts';
 import {
 	sortModules,
 	findDuplicates,
@@ -363,15 +364,10 @@ export const analyzeModule = (
 			log?.warn(`Could not get source file from program: ${sourceFile.id}`);
 			return undefined;
 		}
-		raw = analyzeTypescriptModule(
-			sourceFile,
-			tsSourceFile,
-			modulePath,
-			checker,
-			options,
-			diagnostics,
-			aliasRegistry
-		);
+		// the pass-scoped extraction context — constructed here because the
+		// dispatcher is where the program is in hand (see `analyzeExports`)
+		const ctx = createExtractContext(program, checker, options, diagnostics, aliasRegistry);
+		raw = analyzeTypescriptModule(sourceFile, tsSourceFile, modulePath, ctx, options);
 	} else if (analyzerType === 'css' || analyzerType === 'json') {
 		const { dependencies, dependents } = extractDependencies(sourceFile, options);
 		raw = {

@@ -19,8 +19,8 @@ feat: alias registry recovers lost alias names at unannotated positions; new `al
   intersections — the residue is fixable author-side, e.g.
   `interface Foo extends z.infer<typeof S> {}`.
 - Breaking for `@internal` subpath callers: the extractor seams take an
-  `ExtractContext` (`{checker, diagnostics, isExternalFile, aliasRegistry}`);
-  `resolveTypeInfo`/`restElementForms`/`extractSnippetParameters` require an
-  `AliasRegistry | undefined`; `analyzeExports`/`analyzeTypescriptModule`/
-  `analyzeSvelteModule`/`analyzeModule` accept an optional one.
-  `isSvelte2tsxInternal` moved to `source.ts`.
+  `ExtractContext` (see the `exactOptionalPropertyTypes` changeset for the
+  final field set and the `analyzeExports`/`analyzeTypescriptModule`
+  signatures); `resolveTypeInfo`/`restElementForms`/`extractSnippetParameters`
+  require an `AliasRegistry | undefined`; `analyzeSvelteModule`/`analyzeModule`
+  accept an optional one. `isSvelte2tsxInternal` moved to `source.ts`.
