@@ -1,0 +1,7 @@
+{
+	"text": "See {@link Other} for details.",
+	"params": {
+		"a": "like {@link Other.b}"
+	},
+	"deprecatedMessage": "use {@link replacement} instead"
+}

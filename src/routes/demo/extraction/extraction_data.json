@@ -136,6 +136,7 @@
 							"kind": "function",
 							"docComment": "Increment the count, recording the previous value.",
 							"typeSignature": "(amount?: number): void",
+							"mutates": { "this": "" },
 							"parameters": [
 								{
 									"name": "amount",
@@ -557,6 +558,7 @@
 							"kind": "function",
 							"docComment": "Scale both dimensions in place.",
 							"typeSignature": "(factor: number): void",
+							"mutates": { "this": "" },
 							"parameters": [
 								{
 									"name": "factor",

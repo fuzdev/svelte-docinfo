@@ -110,9 +110,9 @@
 					<tr>
 						<td><code>@mutates</code></td>
 						<td>
-							Non-standard tag for marking params that get mutated by a function. Uses the same
-							format as <code>@param</code>:
-							<code>@mutates key - description</code>
+							Non-standard tag for documenting mutations to parameters or external state:
+							<code>@mutates target - description</code>, splitting at the first
+							<code>-</code> separator so the target can be a compound path or multi-word phrase
 						</td>
 					</tr>
 					<tr>
@@ -199,9 +199,12 @@ export function double(n: number | bigint): number | bigint {
 		<TomeSection>
 			<TomeSectionHeader text="@mutates" />
 			<p>
-				Non-standard tag for documenting mutations to parameters or external state. Same
-				<code>key - description</code> format as <code>@param</code>, but keys are
-				<strong>not validated</strong> against the parameter list. Anything goes:
+				Non-standard tag for documenting mutations to parameters or external state, in the form
+				<code>@mutates target - description</code>. The target is everything before the first
+				<code>-</code> separator — unlike <code>@param</code> it isn't restricted to a single
+				identifier — and targets are <strong>not validated</strong> against the parameter list.
+				Backticks are stripped from the target, so <code>`options`</code> and
+				<code>options</code> are the same key. Anything goes:
 			</p>
 			<ul>
 				<li>
@@ -211,12 +214,17 @@ export function double(n: number | bigint): number | bigint {
 					a compound path: <code>@mutates this.cache - inserts the result</code>
 				</li>
 				<li>
-					an external state reference: <code>@mutates global_registry - registers the handler</code>
+					a multi-word external reference:
+					<code>@mutates `app_settings` row - bumps the revision</code>
+				</li>
+				<li>
+					a bare target with no description: <code>@mutates `this`</code>
 				</li>
 			</ul>
 			<p>
-				The output is a <code>Record&lt;string, string&gt;</code> mapping each key to its description.
-				Consumers decide how to render or group by key shape.
+				The output is a <code>Record&lt;string, string&gt;</code> mapping each target to its description
+				— empty for the bare form. Without a separator the first line is the target and any continuation
+				lines are the description. Consumers decide how to render or group by key shape.
 			</p>
 		</TomeSection>
 
