@@ -214,8 +214,8 @@ const {modules} = await analyze({
 			<p>
 				svelte-docinfo additionally tracks re-exports across modules, computes dependency graphs,
 				and records source locations. It does not currently support Svelte 4 features like legacy
-				slots, dispatched events, or the context API. Svelte 5 replaces most of these with snippets
-				and callback props.
+				slots and dispatched events, or the context API. Svelte 5 replaces most of these with
+				snippets and callback props.
 			</p>
 		</TomeSection>
 		<TomeSection>
