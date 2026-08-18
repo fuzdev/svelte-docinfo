@@ -1,5 +1,27 @@
 # svelte-docinfo
 
+## 0.7.0
+
+### Minor Changes
+
+- fix: `@mutates` targets split at the first `-` separator ([#40](https://github.com/fuzdev/svelte-docinfo/pull/40))
+
+  Compound paths and multi-word targets parse whole instead of truncating
+  at the first word; backticks are stripped so `` `a` `` and `a` are one
+  key; a separator-less tag is a bare target (empty description, previously
+  dropped) with continuation lines as the description; multiline
+  descriptions no longer truncate at the first newline.
+
+### Patch Changes
+
+- fix: `{@link}` preserved in extracted text; `@throws` keeps braced types and multiline descriptions ([#40](https://github.com/fuzdev/svelte-docinfo/pull/40))
+
+  Inline `{@link X}` no longer drops from `docComment` and tag-sourced
+  fields (TS renders `{@link A|b}` as `{@link A |b}`). `@throws {TypeError}`
+  bare and `@throws {RangeError} - x` now keep their types (unions
+  included) instead of losing them or vanishing, and descriptions no
+  longer truncate at the first newline.
+
 ## 0.6.0
 
 ### Minor Changes
