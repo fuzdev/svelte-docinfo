@@ -559,8 +559,10 @@ const declarationSharedFields = {
 	 * Mutation documentation from `@mutates` tags (non-standard), mapping keys to descriptions.
 	 *
 	 * Keys are intentionally unvalidated — typically a parameter name, but
-	 * authors may also use compound paths (`this.foo`, `obj.field`) or external
-	 * state references (`globalCache`). The schema accepts any string key so
+	 * authors may also use compound paths (`this.foo`, `obj.field`) or
+	 * multi-word external state references. Backticks are stripped from keys
+	 * so `` `a` `` and `a` normalize to one key; an empty-string value is a
+	 * bare tag with no description. The schema accepts any string key so
 	 * consumers can render whatever the author wrote.
 	 */
 	mutates: z.record(z.string(), z.string()).optional(),

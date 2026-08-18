@@ -1,0 +1,7 @@
+{
+	"text": "Description.",
+	"params": {},
+	"mutates": {
+		"this.items": "Description 1"
+	}
+}

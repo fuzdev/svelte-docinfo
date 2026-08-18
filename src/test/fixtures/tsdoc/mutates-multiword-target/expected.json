@@ -1,0 +1,7 @@
+{
+	"text": "Description.",
+	"params": {},
+	"mutates": {
+		"app_settings row": "Description 1"
+	}
+}

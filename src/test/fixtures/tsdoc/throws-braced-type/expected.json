@@ -1,0 +1,18 @@
+{
+	"text": "Description.",
+	"params": {},
+	"throws": [
+		{
+			"type": "TypeError",
+			"description": ""
+		},
+		{
+			"type": "RangeError",
+			"description": "Description 1"
+		},
+		{
+			"type": "SyntaxError | URIError",
+			"description": "Description 2"
+		}
+	]
+}

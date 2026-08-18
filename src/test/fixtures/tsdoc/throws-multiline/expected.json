@@ -1,0 +1,10 @@
+{
+	"text": "Description.",
+	"params": {},
+	"throws": [
+		{
+			"type": "TypeError",
+			"description": "Description 1\ncontinuing on a second line"
+		}
+	]
+}

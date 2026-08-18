@@ -29,9 +29,11 @@
  * The declaration is still exported and usable, just not documented.
  *
  * Also supports `@mutates` (non-standard) for documenting mutations to parameters or external state.
- * Uses same format as `@param`: `@mutates key - description of mutation`. The key is
- * unvalidated — typically a parameter name, but compound paths (`this.foo`, `obj.field`)
- * and external state references are accepted as-is.
+ * Format: `@mutates target - description of mutation` — the target is everything before the
+ * first ` - ` separator. It is unvalidated: typically a parameter name, but compound paths
+ * (`this.foo`, `obj.field`) and multi-word external references are accepted; backticks are
+ * stripped from the target so `` `a` `` and `a` are one key. Without a separator the first
+ * line is a bare target (empty description) and any continuation lines are the description.
  *
  * The `@see` tag supports multiple formats: plain URLs (`https://...`), `{@link}` syntax, and module names.
  * Relative/absolute path support in `@see` is TBD.
@@ -48,7 +50,8 @@
  *
  * Due to TS Compiler API limitations:
  * - TS API includes dash separator in `@param` tag text; we strip the leading `- ` as it's syntax, not content
- * - `@throws` tags have `{Type}` stripped by TS API; fallback regex extracts first word as error type
+ * - `@throws` braced types (`{TypeError}`) parse into the tag's typeExpression, not its text —
+ *   the type is read from there; unbraced text falls back to a first-word-as-type regex
  * - TS API strips URL protocols from `@see` tag text; we use `getText()` to preserve original format including `{@link}` syntax
  *
  * @see `declaration-build.ts` for `DeclarationJsonBuild`
@@ -93,7 +96,11 @@ export interface TsdocParsedComment {
 	since?: string;
 	/** Default value from `@default` (or its `@defaultValue`/`@defaultvalue` spellings). */
 	defaultValue?: string;
-	/** Mutation documentation from `@mutates` (non-standard), mapped by parameter name. */
+	/**
+	 * Mutation documentation from `@mutates` (non-standard), mapped by target —
+	 * typically a parameter name, possibly a compound path (`this.foo`) or a
+	 * multi-word external reference. Empty string for a bare tag with no description.
+	 */
 	mutates?: Record<string, string>;
 	/** Whether to exclude from documentation. From `@nodocs` tag. */
 	nodocs?: boolean;
@@ -108,6 +115,37 @@ export interface TsdocParsedComment {
  * @returns cleaned text with leading `- ` removed if present
  */
 const cleanTagDescription = (text: string): string => text.trim().replace(/^-\s+/, '');
+
+/**
+ * Parse an `@mutates` tag's text into target and description.
+ *
+ * The target is everything before the first ` - ` separator — a parameter
+ * name, a compound path (`this.foo`, `obj.field`), or a multi-word external
+ * reference — with backticks stripped so `` `a` `` and `a` normalize to one
+ * key (matching `params` keys) and renderers apply their own code styling.
+ * Without a separator the first line is a bare target (empty description)
+ * and any continuation lines are the description.
+ *
+ * @returns target and description, or undefined when no target remains after stripping
+ */
+const parseMutatesTag = (text: string): { target: string; description: string } | undefined => {
+	const cleaned = text.trim();
+	const match = /^(.+?)\s+-\s+([\s\S]+)$/.exec(cleaned);
+	let rawTarget: string;
+	let description: string;
+	if (match) {
+		rawTarget = match[1]!;
+		// the regex consumed the separator, so a leading `- ` here is
+		// content (a markdown list bullet) — trim only, no strip
+		description = match[2]!.trim();
+	} else {
+		const newlineIndex = cleaned.indexOf('\n');
+		rawTarget = newlineIndex === -1 ? cleaned : cleaned.slice(0, newlineIndex);
+		description = newlineIndex === -1 ? '' : cleaned.slice(newlineIndex + 1).trim();
+	}
+	const target = rawTarget.replaceAll('`', '').trim();
+	return target ? { target, description } : undefined;
+};
 
 /**
  * Whether a JSDoc block is a module-level comment (carries a `@module` tag).
@@ -200,22 +238,22 @@ export const parseComment = (
 	let mutates: Record<string, string> | undefined;
 	let nodocs: boolean | undefined;
 
-	// Extract main comment text
+	// Extract main comment text. `getTextOfJSDocComment` keeps inline `{@link}`
+	// tags — a link node carries its target in `name`, not `text`, so a manual
+	// `.map((c) => c.text)` join would silently drop it.
 	for (const comment of tsdocComments) {
 		if (ts.isJSDoc(comment) && comment.comment) {
-			const text =
-				typeof comment.comment === 'string'
-					? comment.comment
-					: comment.comment.map((c) => c.text).join('');
-			fullText += text + '\n';
+			const text = ts.getTextOfJSDocComment(comment.comment);
+			if (text) {
+				fullText += text + '\n';
+			}
 		}
 	}
 
 	// Extract tags (module-block tags filtered like their text above)
 	const tags = ts.getJSDocTags(node).filter((tag) => !belongsToModuleBlock(tag));
 	for (const tag of tags) {
-		const tagText =
-			typeof tag.comment === 'string' ? tag.comment : tag.comment?.map((c) => c.text).join('');
+		const tagText = ts.getTextOfJSDocComment(tag.comment);
 		const tagName = tag.tagName.text;
 
 		if (tagName === 'param' && ts.isJSDocParameterTag(tag)) {
@@ -226,13 +264,24 @@ export const parseComment = (
 			}
 		} else if ((tagName === 'returns' || tagName === 'return') && tagText) {
 			returns = tagText.trim();
-		} else if (tagName === 'throws' && tagText) {
-			// Try to extract error type and description
-			const match = /^\{?(\w+)\}?\s+(.+)/.exec(tagText);
-			if (match) {
-				(throws ??= []).push({ type: match[1], description: cleanTagDescription(match[2]!) });
-			} else {
-				(throws ??= []).push({ description: cleanTagDescription(tagText) });
+		} else if (tagName === 'throws') {
+			// The standard braced form (`@throws {TypeError} - description`) parses
+			// its type into the tag's typeExpression — the comment text carries only
+			// the description (or nothing at all, for a bare `@throws {TypeError}`)
+			const typeNode = ts.isJSDocThrowsTag(tag) ? tag.typeExpression?.type : undefined;
+			if (typeNode) {
+				(throws ??= []).push({
+					type: typeNode.getText(sourceFile),
+					description: tagText ? cleanTagDescription(tagText) : ''
+				});
+			} else if (tagText) {
+				// Unbraced text: heuristically extract a leading word as the error type
+				const match = /^\{?(\w+)\}?\s+([\s\S]+)/.exec(tagText);
+				if (match) {
+					(throws ??= []).push({ type: match[1], description: cleanTagDescription(match[2]!) });
+				} else {
+					(throws ??= []).push({ description: cleanTagDescription(tagText) });
+				}
 			}
 		} else if (tagName === 'example' && tagText) {
 			(examples ??= []).push(tagText.trim());
@@ -261,16 +310,12 @@ export const parseComment = (
 		) {
 			defaultValue = tagText.trim();
 		} else if (tagName === 'mutates' && tagText) {
-			// Extract parameter name and description (format: @mutates paramName - description)
-			const cleanedText = cleanTagDescription(tagText);
-			const match = /^(\w+)\s+-?\s*(.+)/.exec(cleanedText);
-			if (match) {
-				const paramName = match[1]!;
-				const description = match[2]!.trim();
-				// Null-prototype map: `paramName` comes from source (`\w+` matches
-				// `__proto__`, `constructor`, …); a plain object would let such a key
-				// pollute the prototype on write and read back later by key.
-				(mutates ??= Object.create(null))[paramName] = description;
+			const parsed = parseMutatesTag(tagText);
+			if (parsed) {
+				// Null-prototype map: the target comes from source (it can be
+				// `__proto__`, `constructor`, …); a plain object would let such a
+				// key pollute the prototype on write and read back later by key.
+				(mutates ??= Object.create(null))[parsed.target] = parsed.description;
 			}
 		} else if (tagName === 'nodocs') {
 			nodocs = true;
