@@ -38,9 +38,9 @@ npx svelte-docinfo --pretty           # pretty-print the JSON output`}
 			</p>
 			<p>
 				<code>--source-dir</code> sets the source directory (default <code>src/lib</code>,
-				repeatable for monorepos) and seeds the implicit include glob.
-				<code>--source-root</code> controls module-path stripping in the output (defaults to the
-				single <code>--source-dir</code> or their longest common prefix).
+				repeatable for monorepos) and seeds the implicit include glob. <code>--source-root</code>
+				controls module-path stripping in the output (defaults to the single
+				<code>--source-dir</code> or their longest common prefix).
 			</p>
 			<p>Compact JSON pairs well with <code>jq</code>:</p>
 			<Code
@@ -95,8 +95,8 @@ npx svelte-docinfo | jq -r '.modules[].declarations[].name'  # list all exported
 						<td class="white-space:nowrap"><code>--discovery &lt;mode&gt;</code></td>
 						<td>
 							<code>auto</code> | <code>exports</code> | <code>glob</code> (default:
-							<code>auto</code>: exports first, glob fallback). <code>exports</code> is strict and fails
-							when package.json exports is missing.
+							<code>auto</code>: exports first, glob fallback). <code>exports</code> is strict and
+							fails when package.json exports is missing.
 						</td>
 					</tr>
 					<tr>
@@ -155,9 +155,8 @@ npx svelte-docinfo | jq -r '.modules[].declarations[].name'  # list all exported
 				with no base (<code>**/*.ts</code>, a literal root file) scopes the whole project root as
 				source and logs an info line. Beneath any <code>--exclude</code>, an always-on baseline
 				applies: <code>node_modules</code> and dot-directories below a source dir are never source.
-				The default excludes cover tests and the <code>src/lib/internal/</code> convention (<code
-					>**/internal/**</code
-				>); exports-based discovery additionally honors
+				The default excludes cover tests and the <code>src/lib/internal/</code> convention
+				(<code>**/internal/**</code>); exports-based discovery additionally honors
 				<code>null</code>-target exports keys (<code>"./internal/*": null</code>) with Node's
 				best-match resolution, so blocked subpaths are never discovered. Absolute paths and patterns
 				inside the project root are accepted (relativized); out-of-root ones fail loudly instead of

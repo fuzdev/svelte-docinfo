@@ -22,39 +22,38 @@
 			svelte-docinfo extracts JSON describing the exports of TypeScript and Svelte modules for
 			open-ended use cases like docs, code search, and dev tools. It uses the TypeScript compiler
 			API and
-			<a href="https://github.com/sveltejs/language-tools/tree/master/packages/svelte2tsx"
-				>svelte2tsx</a
-			>
+			<a href="https://github.com/sveltejs/language-tools/tree/master/packages/svelte2tsx">
+				svelte2tsx
+			</a>
 			to resolve types, track exports+imports, and extract semantic details. The
-			<a href="https://www.npmjs.com/package/svelte-docinfo">npm package</a> has a Vite plugin, CLI, and
-			programmatic API.
+			<a href="https://www.npmjs.com/package/svelte-docinfo">npm package</a> has a Vite plugin, CLI,
+			and programmatic API.
 		</p>
 		<p>
-			svelte-docinfo is largely inspired by <a href="https://github.com/carbon-design-system/sveld"
-				>sveld</a
-			>, but instead of AST-only inspection it uses the TypeScript compiler API for richer
-			information, and also analyzes TypeScript modules. See the
-			<a href="#Compared-to-sveld">comparison</a> below.
+			svelte-docinfo is largely inspired by
+			<a href="https://github.com/carbon-design-system/sveld">sveld</a>, but instead of AST-only
+			inspection it uses the TypeScript compiler API for richer information, and also analyzes
+			TypeScript modules. See the <a href="#Compared-to-sveld">comparison</a> below.
 		</p>
 		<p>
 			The library is mostly complete for Svelte 5 and used in production websites, but you may find
-			gaps and flaws -- please open issues for bugs, and <a
-				href="https://github.com/fuzdev/svelte-docinfo/discussions">discussions</a
-			>
-			for everything else!
+			gaps and flaws -- please open issues for bugs, and
+			<a href="https://github.com/fuzdev/svelte-docinfo/discussions">discussions</a> for everything
+			else!
 		</p>
 		<p>
 			Dependencies are minimal and the tool's scope is limited to data, not presentation. These docs
-			were made using the data produced by svelte-docinfo, like the <TomeLink slug="architecture" /> and
-			<TomeLink slug="api">API reference</TomeLink>, with <a href="https://ui.fuz.dev/">fuz_ui</a> components.
+			were made using the data produced by svelte-docinfo, like the <TomeLink slug="architecture" />
+			and <TomeLink slug="api">API reference</TomeLink>, with
+			<a href="https://ui.fuz.dev/">fuz_ui</a> components.
 		</p>
 		<p class="panel p_md">
 			<strong>AI disclosure:</strong> the code and docs beyond the intro were mostly written by
 			Claude Code with uneven human guidance. The first release took 5 months of intermittent work
 			and ~500 manual commits to
-			<a href="https://github.com/fuzdev/fuz_ui/pull/107"
-				>extract its initial implementation from fuz_ui</a
-			>, which was more limited, lacking the fancy TS compiler usage, and grew slowly over years
+			<a href="https://github.com/fuzdev/fuz_ui/pull/107">
+				extract its initial implementation from fuz_ui
+			</a>, which was more limited, lacking the fancy TS compiler usage, and grew slowly over years
 			without AI assistance.
 		</p>
 		<TomeSection>
@@ -72,9 +71,9 @@
 				rough order from most opinionated to most flexible:
 			</p>
 			<p>
-				For SvelteKit and Vite projects, the
-				<TomeLink slug="vite-plugin">Vite plugin</TomeLink> is the recommended path. It runs the analysis
-				at build time and serves the result as a virtual module with HMR:
+				For SvelteKit and Vite projects, the <TomeLink slug="vite-plugin">Vite plugin</TomeLink> is
+				the recommended path. It runs the analysis at build time and serves the result as a virtual
+				module with HMR:
 			</p>
 			<Code lang="ts" content={`import {modules} from 'virtual:svelte-docinfo';`} />
 			<p>
@@ -101,10 +100,9 @@ const {modules, diagnostics} = await analyzeFromFiles({
 });`}
 			/>
 			<p>
-				If your build tool already has file contents in memory, use <DeclarationLink
-					name="analyze"
-				/> directly to skip file discovery. See the <TomeLink slug="build-tools" /> guide for the full
-				integration surface:
+				If your build tool already has file contents in memory, use
+				<DeclarationLink name="analyze" /> directly to skip file discovery. See the
+				<TomeLink slug="build-tools" /> guide for the full integration surface:
 			</p>
 			<Code
 				lang="ts"
@@ -117,11 +115,11 @@ const {modules} = await analyze({
 			/>
 			<p>
 				For long-lived consumers (Vite plugin, LSP-style tools) that re-analyze the same source set
-				repeatedly, <DeclarationLink name="createAnalysisSession" /> returns a persistent handle backed
-				by a TypeScript <code>LanguageService</code>. Parsed ASTs and svelte2tsx output are reused
-				across calls. The one-shot <code>analyze</code> and <code>analyzeFromFiles</code> are thin
-				wrappers over single-use sessions. See the <TomeLink slug="session" /> guide for the full incremental
-				API.
+				repeatedly, <DeclarationLink name="createAnalysisSession" /> returns a persistent handle
+				backed by a TypeScript <code>LanguageService</code>. Parsed ASTs and svelte2tsx output are
+				reused across calls. The one-shot <code>analyze</code> and <code>analyzeFromFiles</code> are
+				thin wrappers over single-use sessions. See the <TomeLink slug="session" /> guide for the
+				full incremental API.
 			</p>
 			<p>
 				See the <TomeLink slug="api">API reference</TomeLink> for all exported functions and types.
@@ -133,10 +131,11 @@ const {modules} = await analyze({
 				A few constructs are silently skipped: standalone <code>namespace Foo {`{}`}</code>
 				declarations (namespace re-exports <em>are</em> supported), decorators, and per-parameter
 				doc fields beyond <code>@param</code> descriptions. <code>ParameterJson</code> deliberately
-				doesn't carry <code>@example</code>/<code>@deprecated</code>/<code>@since</code>/<code
-					>@see</code
-				>/<code>@throws</code>. Per the TSDoc spec, those tags are scoped to the function symbol and
-				live on the parent declaration.
+				doesn't carry
+				<code>@example</code>/<code>@deprecated</code>/<code>@since</code>/<code>@see</code>/<code>
+					@throws
+				</code>. Per the TSDoc spec, those tags are scoped to the function symbol and live on the
+				parent declaration.
 			</p>
 			<p>
 				Svelte 4 features like slots are not supported. Svelte context usage is one gap that could
@@ -158,10 +157,8 @@ const {modules} = await analyze({
 					<code>@mutates</code> to flag side effects
 				</li>
 				<li>
-					<strong>merged value+type symbols</strong>: a schema/type pair (<code
-						>{`const Foo = z.strictObject({...})`}</code
-					>
-					+
+					<strong>merged value+type symbols</strong>: a schema/type pair
+					(<code>{`const Foo = z.strictObject({...})`}</code> +
 					<code>{`type Foo = z.infer<typeof Foo>`}</code>) documents the type meaning with full
 					structure, marked <code>mergedValue</code> so consumers know the name is also a runtime
 					value — see the <TomeLink slug="output-format">output format</TomeLink>
@@ -174,14 +171,15 @@ const {modules} = await analyze({
 				<li>
 					<strong>Svelte 5 reactivity runes</strong>: detects <code>$state</code>,
 					<code>$state.raw</code>, <code>$derived</code>, and <code>$derived.by</code> on variables
-					and class fields and exposes them via the <code>reactivity</code> field. Detection is syntactic,
-					so the same patterns can be captured in any analyzed file
+					and class fields and exposes them via the <code>reactivity</code> field. Detection is
+					syntactic, so the same patterns can be captured in any analyzed file
 				</li>
 				<li>
 					<strong>re-export tracking</strong>: <code>alsoExportedFrom</code> arrays with the forward
 					view on <code>ModuleJson.reExports</code>, <code>aliasOf</code> for renames, default-slot
 					entries named <code>"default"</code>, <code>export * from</code> patterns, direct external
-					re-exports, and <code>resolveExportSurface()</code> to combine them all with ES star semantics
+					re-exports, and <code>resolveExportSurface()</code> to combine them all with ES star
+					semantics
 				</li>
 				<li>
 					<strong>dependency graphs</strong>: tracks imports between modules and computes dependents

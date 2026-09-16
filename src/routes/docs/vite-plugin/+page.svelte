@@ -20,8 +20,8 @@
 <TomeContent {tome}>
 	<section>
 		<p>
-			The <ModuleLink module_path="vite.ts">Vite plugin</ModuleLink> is the recommended path for SvelteKit
-			and Vite projects. It runs analysis at build time and serves the result as
+			The <ModuleLink module_path="vite.ts">Vite plugin</ModuleLink> is the recommended path for
+			SvelteKit and Vite projects. It runs analysis at build time and serves the result as
 			<Code lang="ts" inline content="'virtual:svelte-docinfo'" />; in dev mode it watches source
 			files and sends HMR updates as you edit.
 		</p>
@@ -60,8 +60,8 @@ import data from 'virtual:svelte-docinfo';
 // data.modules and data.diagnostics are the same as the named exports`}
 				/>
 				<p>
-					Both exports match the programmatic <DeclarationLink name="AnalyzeResultJson" /> shape. See
-					<TomeLink slug="diagnostics" /> for what flows through <code>diagnostics</code>.
+					Both exports match the programmatic <DeclarationLink name="AnalyzeResultJson" /> shape.
+					See <TomeLink slug="diagnostics" /> for what flows through <code>diagnostics</code>.
 				</p>
 			</li>
 		</ol>
@@ -128,28 +128,29 @@ svelteDocinfo({
 })`}
 		/>
 		<p>
-			The plugin runs the same pipeline as <DeclarationLink name="analyzeFromFiles" /> internally: discover
-			via <DeclarationLink name="discoverSourceFiles" />, resolve dependencies, then analyze.
-			<code>sourceOptions</code> is merged with defaults via
+			The plugin runs the same pipeline as <DeclarationLink name="analyzeFromFiles" /> internally:
+			discover via <DeclarationLink name="discoverSourceFiles" />, resolve dependencies, then
+			analyze. <code>sourceOptions</code> is merged with defaults via
 			<DeclarationLink name="createSourceOptions" /> before discovery; <code>hmrDebounceMs</code>
 			only affects the dev-mode watcher.
 		</p>
 		<p>
-			Paths and patterns resolve against <code>projectRoot</code>: absolute
-			<code>sourcePaths</code> / <code>sourceRoot</code> entries and
-			<code>include</code> / <code>exclude</code> patterns inside the root are accepted (stored root-relative),
-			while anything resolving outside it throws at config time instead of silently emitting nothing.
+			Paths and patterns resolve against <code>projectRoot</code>: absolute <code>sourcePaths</code>
+			/ <code>sourceRoot</code> entries and <code>include</code> / <code>exclude</code> patterns
+			inside the root are accepted (stored root-relative), while anything resolving outside it
+			throws at config time instead of silently emitting nothing.
 		</p>
 	</TomeSection>
 
 	<TomeSection>
 		<TomeSectionHeader text="CLI vs Vite plugin" />
 		<p>
-			The CLI calls <DeclarationLink name="analyzeFromFiles" /> once, so use it for CI pipelines and one-off
-			generation. The plugin owns a persistent <DeclarationLink name="createAnalysisSession" />, so
-			HMR re-analyses reuse parsed TypeScript ASTs and svelte2tsx output across cycles. Use it when
-			the analysis feeds the SvelteKit/Vite bundle. See the <TomeLink slug="session" /> guide if you're
-			driving a session directly (custom bundler, LSP, etc.).
+			The CLI calls <DeclarationLink name="analyzeFromFiles" /> once, so use it for CI pipelines and
+			one-off generation. The plugin owns a persistent
+			<DeclarationLink name="createAnalysisSession" />, so HMR re-analyses reuse parsed TypeScript
+			ASTs and svelte2tsx output across cycles. Use it when the analysis feeds the SvelteKit/Vite
+			bundle. See the <TomeLink slug="session" /> guide if you're driving a session directly (custom
+			bundler, LSP, etc.).
 		</p>
 	</TomeSection>
 
@@ -158,16 +159,15 @@ svelteDocinfo({
 		<p>The plugin hooks into four Vite lifecycle stages:</p>
 		<ol>
 			<li>
-				<strong>configResolved</strong>: throws synchronously when
-				<code>discovery: 'exports'</code> is combined with <code>include</code>, or when a source
-				path or include pattern escapes the project root, so bad configs fail at startup rather than
-				at first analysis
+				<strong>configResolved</strong>: throws synchronously when <code>discovery: 'exports'</code>
+				is combined with <code>include</code>, or when a source path or include pattern escapes the
+				project root, so bad configs fail at startup rather than at first analysis
 			</li>
 			<li>
 				<strong>buildStart</strong>: creates a fresh
-				<DeclarationLink name="createAnalysisSession" /> session, discovers the source set, ingests file
-				contents via <code>setFiles</code>, and runs <code>query</code>; caches the serialized JSON
-				result
+				<DeclarationLink name="createAnalysisSession" /> session, discovers the source set, ingests
+				file contents via <code>setFiles</code>, and runs <code>query</code>; caches the serialized
+				JSON result
 			</li>
 			<li>
 				<strong>resolveId / load</strong>: serves the cached result as

@@ -35,13 +35,13 @@
 					with gravity, so dependencies fall downward toward the foundation.
 				</li>
 				<li>
-					<strong>Layers</strong> are assigned by longest-path-from-sink. A module's layer is one plus
-					the deepest layer it transitively depends on. Sinks (no internal imports) land at the bottom.
+					<strong>Layers</strong> are assigned by longest-path-from-sink. A module's layer is one
+					plus the deepest layer it transitively depends on. Sinks (no internal imports) land at the
+					bottom.
 				</li>
 				<li>
 					<strong>Hover</strong> a module to isolate its immediate neighbors. Edges split by
-					direction:
-					<span class="swatch swatch-out"></span> what the module <em>depends on</em> and
+					direction: <span class="swatch swatch-out"></span> what the module <em>depends on</em> and
 					<span class="swatch swatch-in"></span> what <em>depends on</em> it.
 				</li>
 			</ul>
@@ -58,8 +58,8 @@
 				<TomeLink slug="vite-plugin" /> and <TomeLink slug="cli" /> entries.
 			</p>
 			<p>
-				Across {dependency_graph.nodes.length} modules and {dependency_graph.edges.length} internal imports,
-				the graph is naturally acyclic, so no back-edges had to be reversed to lay it out.
+				Across {dependency_graph.nodes.length} modules and {dependency_graph.edges.length} internal
+				imports, the graph is naturally acyclic, so no back-edges had to be reversed to lay it out.
 			</p>
 		</TomeSection>
 
@@ -67,11 +67,10 @@
 			<TomeSectionHeader text="How this was drawn" />
 			<p>
 				The layout is precomputed at build time by <code>dependency_graph.gen.json.ts</code>, which
-				calls
-				<TomeLink slug="api">analyzeFromFiles</TomeLink>
-				on this project and runs a Sugiyama-style layered layout: longest-path-from-sink for layer assignment,
-				dummy nodes on long edges, median-heuristic crossing reduction. The result is a small JSON sibling
-				the Svelte component renders to SVG. No layout libraries. About 300 lines, end to end.
+				calls <TomeLink slug="api">analyzeFromFiles</TomeLink> on this project and runs a
+				Sugiyama-style layered layout: longest-path-from-sink for layer assignment, dummy nodes on
+				long edges, median-heuristic crossing reduction. The result is a small JSON sibling the
+				Svelte component renders to SVG. No layout libraries. About 300 lines, end to end.
 			</p>
 		</TomeSection>
 	</section>

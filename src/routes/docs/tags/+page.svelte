@@ -28,9 +28,9 @@
 			the two standards spell a tag differently (JSDoc <code>@default</code> vs TSDoc
 			<code>@defaultValue</code>, JSDoc's <code>@return</code> synonym vs <code>@returns</code>),
 			both spellings are accepted — plus the custom tags <code>@nodocs</code> and
-			<code>@mutates</code>. Inline tags like <code>{`{@link}`}</code> are not processed: they stay verbatim
-			in the extracted text, and rendering them is the consumer's concern. Please submit issues if it's
-			missing something you need or if any tags are off-spec.
+			<code>@mutates</code>. Inline tags like <code>{`{@link}`}</code> are not processed: they stay
+			verbatim in the extracted text, and rendering them is the consumer's concern. Please submit
+			issues if it's missing something you need or if any tags are off-spec.
 		</p>
 
 		<TomeSection>
@@ -56,14 +56,15 @@
 						<td><code>@returns</code></td>
 						<td>
 							<code>returnDescription</code> on functions, function members, and per-overload
-							<DeclarationLink name="OverloadJson" />. <code>@return</code> (JSDoc synonym) parses identically
+							<DeclarationLink name="OverloadJson" />. <code>@return</code> (JSDoc synonym) parses
+							identically
 						</td>
 					</tr>
 					<tr>
 						<td><code>@throws</code></td>
 						<td>
-							<code>throws</code> array on the parent declaration. <code>{`{Type}`}</code> hints are extracted
-							as the leading error type
+							<code>throws</code> array on the parent declaration. <code>{`{Type}`}</code> hints are
+							extracted as the leading error type
 						</td>
 					</tr>
 					<tr>
@@ -73,23 +74,23 @@
 					<tr>
 						<td><code>@deprecated</code></td>
 						<td>
-							<code>deprecatedMessage</code> on the parent declaration. Empty body still marks the symbol
-							deprecated
+							<code>deprecatedMessage</code> on the parent declaration. Empty body still marks the
+							symbol deprecated
 						</td>
 					</tr>
 					<tr>
 						<td><code>@internal</code></td>
 						<td>
-							<code>internalMessage</code> on the parent declaration or member. A marker, not an exclusion
-							— the declaration stays documented; trailing prose is kept, and an empty body still marks
-							the symbol internal
+							<code>internalMessage</code> on the parent declaration or member. A marker, not an
+							exclusion — the declaration stays documented; trailing prose is kept, and an empty
+							body still marks the symbol internal
 						</td>
 					</tr>
 					<tr>
 						<td><code>@see</code></td>
 						<td>
-							<code>seeAlso</code> array. Plain URLs, <code>{`{@link}`}</code> syntax, and module names
-							all preserved in their source form
+							<code>seeAlso</code> array. Plain URLs, <code>{`{@link}`}</code> syntax, and module
+							names all preserved in their source form
 						</td>
 					</tr>
 					<tr>
@@ -103,16 +104,16 @@
 							a function member it documents the behavior used when the callback is omitted; falls
 							back for <DeclarationLink name="ComponentPropJson" />.<code>defaultValue</code> when
 							no destructuring default is present. Never lands on top-level function declarations or
-							overloads. <code>@defaultValue</code> (TSDoc spelling) and
-							<code>@defaultvalue</code> (JSDoc synonym) parse identically
+							overloads. <code>@defaultValue</code> (TSDoc spelling) and <code>@defaultvalue</code>
+							(JSDoc synonym) parse identically
 						</td>
 					</tr>
 					<tr>
 						<td><code>@mutates</code></td>
 						<td>
 							Non-standard tag for documenting mutations to parameters or external state:
-							<code>@mutates target - description</code>, splitting at the first
-							<code>-</code> separator so the target can be a compound path or multi-word phrase
+							<code>@mutates target - description</code>, splitting at the first <code>-</code>
+							separator so the target can be a compound path or multi-word phrase
 						</td>
 					</tr>
 					<tr>
@@ -126,9 +127,9 @@
 					<tr>
 						<td><code>@module</code></td>
 						<td>
-							Promotes the comment to <DeclarationLink name="ModuleJson" />.<code
-								>moduleComment</code
-							> instead of attaching to a declaration
+							Promotes the comment to
+							<DeclarationLink name="ModuleJson" />.<code>moduleComment</code> instead of attaching
+							to a declaration
 						</td>
 					</tr>
 				</tbody>
@@ -152,11 +153,11 @@
 				</li>
 			</ul>
 			<p>
-				Placing a symbol-scope tag on a non-primary overload emits
-				<code>misplaced_tag</code> and the tag is dropped, with no synthetic content and no silent
-				loss. Move it to the primary signature (typically the first overload, or the implementation
-				signature's JSDoc which feeds the symbol-level extraction). See
-				<TomeLink slug="diagnostics" /> for the diagnostic details.
+				Placing a symbol-scope tag on a non-primary overload emits <code>misplaced_tag</code> and
+				the tag is dropped, with no synthetic content and no silent loss. Move it to the primary
+				signature (typically the first overload, or the implementation signature's JSDoc which feeds
+				the symbol-level extraction). See <TomeLink slug="diagnostics" /> for the diagnostic
+				details.
 			</p>
 			<Code
 				lang="ts"
@@ -191,8 +192,9 @@ export function double(n: number | bigint): number | bigint {
 			</p>
 			<p>
 				A key matching no parameter — or a dotted key whose root segment matches none — drops its
-				description and fires an <code>unknown_param</code> diagnostic with the orphaned key, usually
-				a typo or stale doc after a rename. Fix the JSDoc rather than relying on the silent fallback.
+				description and fires an <code>unknown_param</code> diagnostic with the orphaned key,
+				usually a typo or stale doc after a rename. Fix the JSDoc rather than relying on the silent
+				fallback.
 			</p>
 		</TomeSection>
 
@@ -203,8 +205,8 @@ export function double(n: number | bigint): number | bigint {
 				<code>@mutates target - description</code>. The target is everything before the first
 				<code>-</code> separator — unlike <code>@param</code> it isn't restricted to a single
 				identifier — and targets are <strong>not validated</strong> against the parameter list.
-				Backticks are stripped from the target, so <code>`options`</code> and
-				<code>options</code> are the same key. Anything goes:
+				Backticks are stripped from the target, so <code>`options`</code> and <code>options</code>
+				are the same key. Anything goes:
 			</p>
 			<ul>
 				<li>
@@ -222,9 +224,10 @@ export function double(n: number | bigint): number | bigint {
 				</li>
 			</ul>
 			<p>
-				The output is a <code>Record&lt;string, string&gt;</code> mapping each target to its description
-				— empty for the bare form. Without a separator the first line is the target and any continuation
-				lines are the description. Consumers decide how to render or group by key shape.
+				The output is a <code>Record&lt;string, string&gt;</code> mapping each target to its
+				description — empty for the bare form. Without a separator the first line is the target and
+				any continuation lines are the description. Consumers decide how to render or group by key
+				shape.
 			</p>
 		</TomeSection>
 
@@ -240,16 +243,16 @@ export function double(n: number | bigint): number | bigint {
 			<p>
 				It is a <strong>marker, not an exclusion</strong>: the declaration remains fully documented,
 				so consumers can render a badge or filter as they see fit. To remove a declaration from
-				output entirely, use <code>@nodocs</code>; to omit whole modules, use
-				<code>exclude</code> patterns.
+				output entirely, use <code>@nodocs</code>; to omit whole modules, use <code>exclude</code>
+				patterns.
 			</p>
 		</TomeSection>
 
 		<TomeSection>
 			<TomeSectionHeader text="@nodocs" />
 			<p>
-				<code>@nodocs</code> on a declaration removes it from the analysis output entirely. Two follow-on
-				effects:
+				<code>@nodocs</code> on a declaration removes it from the analysis output entirely. Two
+				follow-on effects:
 			</p>
 			<ul>
 				<li>
@@ -259,13 +262,13 @@ export function double(n: number | bigint): number | bigint {
 				</li>
 				<li>
 					<strong>Re-export synthesis is suppressed</strong>: <code>@nodocs</code> on a re-export
-					statement drops both the <code>alsoExportedFrom</code> link and any synthesized alias declaration.
-					The canonical entry stays untouched.
+					statement drops both the <code>alsoExportedFrom</code> link and any synthesized alias
+					declaration. The canonical entry stays untouched.
 				</li>
 				<li>
 					<strong>Merged value+type pairs honor it from either side</strong>: a
-					<code>const Foo</code> + <code>type Foo</code> pair is one merged symbol, so the tag on either
-					declaration excludes the pair's single declaration.
+					<code>const Foo</code> + <code>type Foo</code> pair is one merged symbol, so the tag on
+					either declaration excludes the pair's single declaration.
 				</li>
 			</ul>
 		</TomeSection>
@@ -301,7 +304,8 @@ export function add_days(d: Date, n: number): Date { /* ... */ }`}
 			<p>
 				A re-export that carries its own JSDoc synthesizes an alias in the re-exporting module so
 				the local content has somewhere to live, even when the name is unchanged. See
-				<TomeLink slug="output-format">Re-exports</TomeLink> for the full encoding rules and merge order.
+				<TomeLink slug="output-format">Re-exports</TomeLink> for the full encoding rules and merge
+				order.
 			</p>
 		</TomeSection>
 

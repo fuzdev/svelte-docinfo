@@ -22,16 +22,17 @@
 		<p>
 			Analysis accumulates errors and warnings without halting. A failing declaration is marked
 			<code>partial: true</code> and the rest of the module still analyzes. Detail lands in an array
-			of <DeclarationLink name="Diagnostic" /> entries, alongside <code>modules</code> in the result.
+			of <DeclarationLink name="Diagnostic" /> entries, alongside <code>modules</code> in the
+			result.
 		</p>
 
 		<TomeSection>
 			<TomeSectionHeader text="Two-tier error model" />
 			<p>
 				<strong>Accumulated (non-fatal)</strong>: appended to the
-				<DeclarationLink name="Diagnostic" /> array, analysis continues. Covers type resolution failures,
-				member or prop extraction failures, and JSDoc tag misuse. The return value is still valid but
-				may carry <code>partial: true</code> on affected declarations.
+				<DeclarationLink name="Diagnostic" /> array, analysis continues. Covers type resolution
+				failures, member or prop extraction failures, and JSDoc tag misuse. The return value is
+				still valid but may carry <code>partial: true</code> on affected declarations.
 			</p>
 			<p>
 				<strong>Thrown (fatal)</strong>: a small set of setup-level conditions throws from public
@@ -67,17 +68,17 @@
 				<li>
 					<code>file</code>: POSIX-form, project-relative (no leading <code>./</code>). Rejoin with
 					<code>projectRoot</code> for absolute paths — including a file outside the project, which
-					takes the <code>../</code> form so the rejoin still recovers it. It names a
-					<em>file</em>, not a module:
-					<code>ModuleJson.path</code> is relative to <code>sourceRoot</code>, so
-					<code>modules.find((m) =&gt; m.path === d.file)</code> is not a valid lookup (that idiom applies
-					to module paths in printed type text, which are a different string).
+					takes the <code>../</code> form so the rejoin still recovers it. It names a <em>file</em>,
+					not a module: <code>ModuleJson.path</code> is relative to <code>sourceRoot</code>, so
+					<code>modules.find((m) =&gt; m.path === d.file)</code> is not a valid lookup (that idiom
+					applies to module paths in printed type text, which are a different string).
 				</li>
 				<li>
 					<code>line</code>, <code>column</code>: 1-based, optional. Absent when there's no precise
 					AST node (e.g., a module-level skip). Positions from a Svelte
-					<code>&lt;script module&gt;</code> are remapped to the original <code>.svelte</code> source;
-					an unmappable position is dropped rather than published as a line in the svelte2tsx output
+					<code>&lt;script module&gt;</code> are remapped to the original <code>.svelte</code>
+					source; an unmappable position is dropped rather than published as a line in the
+					svelte2tsx output
 				</li>
 				<li>
 					<code>message</code>: human-readable description. Scrubbed of project-root paths and
@@ -118,9 +119,9 @@
 						<td><code>signature_analysis_failed</code></td>
 						<td>
 							<strong>Trigger:</strong> function or method signature analysis threw, usually
-							circular generics or unresolved call signatures.
-							<strong>Consequence:</strong> declaration included with <code>partial: true</code>;
-							parameters and overloads may be empty.
+							circular generics or unresolved call signatures. <strong>Consequence:</strong>
+							declaration included with <code>partial: true</code>; parameters and overloads may be
+							empty.
 						</td>
 					</tr>
 					<tr>
@@ -193,20 +194,20 @@
 						<td>
 							<strong>Trigger:</strong> symbol-scope tag (<code>@example</code>,
 							<code>@deprecated</code>, <code>@internal</code>, <code>@since</code>,
-							<code>@see</code>, <code>@throws</code>, <code>@mutates</code>,
-							<code>@default</code>, <code>@nodocs</code>) found on a non-primary overload
-							signature, or
+							<code>@see</code>, <code>@throws</code>, <code>@mutates</code>, <code>@default</code>,
+							<code>@nodocs</code>) found on a non-primary overload signature, or
 							<code>@nodocs</code> in a <code>@module</code> comment (where it has no meaning;
-							<code>functionName</code> is absent in that case).
-							<strong>Consequence:</strong> the tag is dropped; move it to the primary signature —
-							or, to omit a module from analysis, use <code>exclude</code> patterns.
+							<code>functionName</code> is absent in that case). <strong>Consequence:</strong> the
+							tag is dropped; move it to the primary signature — or, to omit a module from analysis,
+							use <code>exclude</code> patterns.
 						</td>
 					</tr>
 					<tr>
 						<td><code>unknown_param</code></td>
 						<td>
 							<strong>Trigger:</strong> <code>@param</code> key didn't match any actual parameter
-							(typo or stale doc after a rename). <strong>Consequence:</strong> the description is dropped.
+							(typo or stale doc after a rename). <strong>Consequence:</strong> the description is
+							dropped.
 						</td>
 					</tr>
 					<tr>
@@ -220,9 +221,8 @@
 							unions (<code>z.enum</code> outputs) and brand intersections — readable degradations
 							with no author-side fix. <code>aliasName</code> names the alias.
 							<strong>Consequence:</strong> unannotated positions document the alias's structure
-							instead of its name; where applicable, an author-side nominal symbol (<code
-								>interface Foo extends z.infer&lt;typeof S&gt; &#123;&#125;</code
-							>) restores it.
+							instead of its name; where applicable, an author-side nominal symbol
+							(<code>interface Foo extends z.infer&lt;typeof S&gt; &#123;&#125;</code>) restores it.
 						</td>
 					</tr>
 					<tr>
@@ -233,20 +233,17 @@
 							<code>modules</code> name the conflict — <code>modules</code> holds
 							<code>ModuleJson.path</code> values, so it is on a different base than this record's
 							<code>file</code> and the two read differently for the same module.
-							<strong>Consequence:</strong> always emitted;
-							<code>onDuplicates</code> only controls whether to additionally throw, log, or invoke a
-							callback.
+							<strong>Consequence:</strong> always emitted; <code>onDuplicates</code> only controls
+							whether to additionally throw, log, or invoke a callback.
 						</td>
 					</tr>
 					<tr>
 						<td><code>transform_failed</code></td>
 						<td>
 							<strong>Trigger:</strong> svelte2tsx threw on a <code>.svelte</code> file.
-							<strong>Consequence:</strong> the file's
-							<DeclarationLink name="ModuleJson" /> is synthesized as a placeholder (<code
-								>partial: true</code
-							>, empty <code>declarations</code>).
-							<strong>Ingest-time.</strong>
+							<strong>Consequence:</strong> the file's <DeclarationLink name="ModuleJson" /> is
+							synthesized as a placeholder (<code>partial: true</code>, empty
+							<code>declarations</code>). <strong>Ingest-time.</strong>
 						</td>
 					</tr>
 					<tr>
@@ -256,8 +253,7 @@
 							<strong>Consequence:</strong> analysis continues without position mapping — query-time
 							diagnostics drop <code>line</code>/<code>column</code> rather than point into the
 							generated TS, while declaration <code>sourceLine</code>s fall back to virtual
-							positions.
-							<strong>Ingest-time.</strong>
+							positions. <strong>Ingest-time.</strong>
 						</td>
 					</tr>
 					<tr>
@@ -289,9 +285,9 @@ for (const d of byKind(diagnostics, 'misplaced_tag')) {
 		<TomeSection>
 			<TomeSectionHeader text="severity vs partial" />
 			<p>
-				<code>severity</code> says how loud to be about a problem;
-				<code>partial: true</code> says a specific declaration or member has incomplete data,
-				typically from <code>type_extraction_failed</code>, <code>signature_analysis_failed</code>,
+				<code>severity</code> says how loud to be about a problem; <code>partial: true</code> says a
+				specific declaration or member has incomplete data, typically from
+				<code>type_extraction_failed</code>, <code>signature_analysis_failed</code>,
 				<code>class_member_failed</code>, or <code>svelte_prop_failed</code>. Branch on
 				<code>partial</code> directly; no need to cross-reference diagnostics by file and line.
 			</p>
@@ -328,9 +324,8 @@ for (const d of byKind(diagnostics, 'misplaced_tag')) {
 			<p>
 				The <TomeLink slug="cli">CLI</TomeLink> emits the structured <code>diagnostics</code> field
 				alongside <code>modules</code> in JSON output — stripped from the wire when empty, so parse
-				through <DeclarationLink name="AnalyzeResultJson" /> to restore the default
-				<code>[]</code>. Progress messages go to stderr; the structured diagnostics appear only in
-				the JSON:
+				through <DeclarationLink name="AnalyzeResultJson" /> to restore the default <code>[]</code>.
+				Progress messages go to stderr; the structured diagnostics appear only in the JSON:
 			</p>
 			<Code
 				lang="bash"
@@ -374,11 +369,11 @@ if (hasErrors(diagnostics)) {
 			<TomeSectionHeader text="Absence rule" />
 			<p>
 				Optional scalar fields (<code>line</code>, <code>column</code>) drop on serialize per the
-				same compact-output rules as the rest of the schema. See <TomeLink slug="output-format" /> for
-				the full rule. The Vite plugin's virtual module exposes <code>modules</code> and
+				same compact-output rules as the rest of the schema. See <TomeLink slug="output-format" />
+				for the full rule. The Vite plugin's virtual module exposes <code>modules</code> and
 				<code>diagnostics</code> as separate ES module exports, so they're always present even when
-				empty. See <ModuleLink module_path="diagnostics.ts">diagnostics.ts</ModuleLink> for the Zod schemas
-				and helper signatures.
+				empty. See <ModuleLink module_path="diagnostics.ts">diagnostics.ts</ModuleLink> for the Zod
+				schemas and helper signatures.
 			</p>
 		</TomeSection>
 	</section>

@@ -20,11 +20,10 @@
 <TomeContent {tome}>
 	<section>
 		<p>
-			<DeclarationLink name="createAnalysisSession" /> returns a persistent analysis handle backed by
-			a TypeScript <code>LanguageService</code>. Use it when the same source set is re-analyzed
+			<DeclarationLink name="createAnalysisSession" /> returns a persistent analysis handle backed
+			by a TypeScript <code>LanguageService</code>. Use it when the same source set is re-analyzed
 			repeatedly (Vite plugin, LSP-style tools) so parsed ASTs, svelte2tsx output, and the
-			dependency graph are reused across cycles. The one-shot
-			<DeclarationLink name="analyze" /> and
+			dependency graph are reused across cycles. The one-shot <DeclarationLink name="analyze" /> and
 			<DeclarationLink name="analyzeFromFiles" /> are thin wrappers over single-use sessions.
 		</p>
 	</section>
@@ -47,16 +46,16 @@ const session = createAnalysisSession({
 		/>
 		<p>
 			<DeclarationLink name="AnalysisSessionOptions" /> requires a fully-constructed
-			<code>ModuleSourceOptions</code>. Use <DeclarationLink name="createSourceOptions" /> to merge with
-			<DeclarationLink name="DEFAULT_SOURCE_OPTIONS" />. The session re-runs
+			<code>ModuleSourceOptions</code>. Use <DeclarationLink name="createSourceOptions" /> to merge
+			with <DeclarationLink name="DEFAULT_SOURCE_OPTIONS" />. The session re-runs
 			<code>normalizeSourceOptions</code> (idempotent) but does not apply any further defaults.
 		</p>
 		<p>
 			<code>tsconfig</code> and <code>compilerOptions</code> drive the underlying
 			<code>LanguageService</code>'s construction-time tsconfig parse — the session's only one. The
-			lazy default <DeclarationLink name="ImportResolver" /> reuses the parsed result, so both see the
-			same merge. User-supplied <code>compilerOptions</code> merge over the parsed tsconfig per key, but
-			the tsconfig file is still required.
+			lazy default <DeclarationLink name="ImportResolver" /> reuses the parsed result, so both see
+			the same merge. User-supplied <code>compilerOptions</code> merge over the parsed tsconfig per
+			key, but the tsconfig file is still required.
 		</p>
 	</TomeSection>
 
@@ -144,8 +143,7 @@ const session = createAnalysisSession({
 			<li>
 				<strong>lex+resolve</strong> (default): cache key is
 				<code>(content, resolverIdentity)</code>. Match requires byte-for-byte content equality AND
-				identity equality on the
-				<DeclarationLink name="ImportResolver" />.
+				identity equality on the <DeclarationLink name="ImportResolver" />.
 			</li>
 			<li>
 				<strong>pre-resolved</strong> (caller supplies <code>SourceFileInfo.dependencies</code>):
@@ -159,10 +157,10 @@ const session = createAnalysisSession({
 			<code>dependencies</code>, or vice versa) always cache-misses and rewrites the entry.
 		</p>
 		<p>
-			On a cache hit, <code>SetFileResult.changed</code> is <code>false</code> and the cached ingest diagnostics
-			are returned with no work run. On a miss, the entry is rewritten. The LS push happens on miss for
-			TS/JS files and for Svelte files with a successful svelte2tsx virtual; CSS/JSON and transform-failed
-			Svelte rewrite the entry without touching the LS.
+			On a cache hit, <code>SetFileResult.changed</code> is <code>false</code> and the cached ingest
+			diagnostics are returned with no work run. On a miss, the entry is rewritten. The LS push
+			happens on miss for TS/JS files and for Svelte files with a successful svelte2tsx virtual;
+			CSS/JSON and transform-failed Svelte rewrite the entry without touching the LS.
 		</p>
 	</TomeSection>
 
@@ -170,8 +168,8 @@ const session = createAnalysisSession({
 		<TomeSectionHeader text="ImportResolver and identity" />
 		<p>
 			<DeclarationLink name="ImportResolver" /> is a token pair:
-			<code>{`{resolve, identity}`}</code>. <code>identity</code> is a stable opaque token (string or
-			symbol) that keys the resolve cache alongside content.
+			<code>{`{resolve, identity}`}</code>. <code>identity</code> is a stable opaque token (string
+			or symbol) that keys the resolve cache alongside content.
 		</p>
 		<Code
 			lang="ts"
@@ -197,10 +195,8 @@ const myResolver: ImportResolver = {
 			<DeclarationLink name="SetFileOptions" />.<code>resolveImport</code> is supplied, the session
 			lazily constructs a TS + tsconfig default with a fresh symbol identity on first use. It reuses
 			the compiler options the session's <code>LanguageService</code> parsed at construction, so no
-			second tsconfig parse runs; if every file in every batch arrives fully pre-resolved (<code
-				>SourceFileInfo.dependencies</code
-			>
-			populated), the default is never built at all.
+			second tsconfig parse runs; if every file in every batch arrives fully pre-resolved
+			(<code>SourceFileInfo.dependencies</code> populated), the default is never built at all.
 		</p>
 	</TomeSection>
 
@@ -212,8 +208,8 @@ const myResolver: ImportResolver = {
 			<code>ModuleJson.dependencies</code> / <code>dependents</code> with no warning. The
 			lex+resolve fallback is always grounded in syntactic imports, so switch to it if you don't
 			control the dependency source. See
-			<TomeLink slug="build-tools">build-tool integration</TomeLink> for the full trust contract and type-only-edge
-			policy.
+			<TomeLink slug="build-tools">build-tool integration</TomeLink> for the full trust contract and
+			type-only-edge policy.
 		</p>
 	</TomeSection>
 
@@ -222,11 +218,10 @@ const myResolver: ImportResolver = {
 		<p>Diagnostic kinds split into two categories with different lifecycles:</p>
 		<ul>
 			<li>
-				<strong>Ingest-time</strong> (<code>transform_failed</code>,
-				<code>source_map_failed</code>, <code>import_parse_failed</code>,
-				<code>resolver_failed</code>): surfaced via <code>setFile</code> / <code>setFiles</code>
-				returns and durable on the owned entry. Survive subsequent <code>query</code> calls until the
-				entry is replaced or deleted.
+				<strong>Ingest-time</strong> (<code>transform_failed</code>, <code>source_map_failed</code>,
+				<code>import_parse_failed</code>, <code>resolver_failed</code>): surfaced via
+				<code>setFile</code> / <code>setFiles</code> returns and durable on the owned entry. Survive
+				subsequent <code>query</code> calls until the entry is replaced or deleted.
 			</li>
 			<li>
 				<strong>Query-time</strong> (the rest): recomputed on every <code>query</code> call.
@@ -236,8 +231,8 @@ const myResolver: ImportResolver = {
 		<p>
 			<code>query()</code> returns analysis-pass diagnostics only; it does NOT include ingest
 			diagnostics. Concat with prior <code>setFile</code> / <code>setFiles</code> returns for the
-			full picture, or call <code>allIngestDiagnostics()</code> for the cumulative ingest view across
-			every owned entry:
+			full picture, or call <code>allIngestDiagnostics()</code> for the cumulative ingest view
+			across every owned entry:
 		</p>
 		<Code
 			lang="ts"
@@ -248,9 +243,10 @@ const fullDiagnostics = [
 ];`}
 		/>
 		<p>
-			<code>allIngestDiagnostics</code> is the publish path for long-lived consumers. It lets the Vite
-			plugin republish the cumulative ingest picture on every HMR cycle without tracking per-batch returns,
-			and lets an LSP push a complete diagnostic set to the client on demand. Cheap: walks the owned map.
+			<code>allIngestDiagnostics</code> is the publish path for long-lived consumers. It lets the
+			Vite plugin republish the cumulative ingest picture on every HMR cycle without tracking
+			per-batch returns, and lets an LSP push a complete diagnostic set to the client on demand.
+			Cheap: walks the owned map.
 		</p>
 		<p>
 			Discovery-time diagnostics (<code>module_unreadable</code> from
@@ -264,8 +260,8 @@ const fullDiagnostics = [
 		<TomeSectionHeader text="Worked example: incremental loop" />
 		<p>
 			Sketch of an LSP-style edit/save/query loop. Each <code>setFile</code> updates a single file;
-			<code>query</code> reanalyzes the whole owned set but reuses parsed ASTs and svelte2tsx output for
-			unchanged files.
+			<code>query</code> reanalyzes the whole owned set but reuses parsed ASTs and svelte2tsx output
+			for unchanged files.
 		</p>
 		<Code
 			lang="ts"
@@ -301,8 +297,8 @@ session.dispose();`}
 		<p>
 			For HMR / file-watcher consumers, <code>setFiles</code> on the batch of changed paths in one
 			call is preferable to looping <code>setFile</code>: it shares the
-			<code>ensureLexerReady</code> warmup and runs the resolve phase in parallel with a bounded worker
-			pool.
+			<code>ensureLexerReady</code> warmup and runs the resolve phase in parallel with a bounded
+			worker pool.
 		</p>
 	</TomeSection>
 
@@ -310,9 +306,9 @@ session.dispose();`}
 		<TomeSectionHeader text="When to use one-shot APIs instead" />
 		<p>
 			If you only call analysis once (CLI, CI pipeline, one-off doc generation), use
-			<DeclarationLink name="analyze" /> or
-			<DeclarationLink name="analyzeFromFiles" /> directly. They create a single-use session, run it,
-			and dispose. There's no caching benefit to keeping a session alive across one call. See
+			<DeclarationLink name="analyze" /> or <DeclarationLink name="analyzeFromFiles" /> directly.
+			They create a single-use session, run it, and dispose. There's no caching benefit to keeping a
+			session alive across one call. See
 			<ModuleLink module_path="session.ts">session.ts</ModuleLink> for the full type definitions and
 			<TomeLink slug="diagnostics" /> for the diagnostic kinds.
 		</p>
