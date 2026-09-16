@@ -28,5 +28,5 @@ export const gen: Gen = async ({ origin_id, log }) => {
 		`architecture layout: ${layout.nodes.length} nodes, ${layout.edges.length} edges, ${layout.layer_count} layers`
 	);
 
-	return JSON.stringify(layout);
+	return JSON.stringify(layout, null, '\t') + '\n';
 };

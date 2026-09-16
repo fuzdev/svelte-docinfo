@@ -33,5 +33,5 @@ export const gen: Gen = async ({ origin_id, log }) => {
 
 	// `compactReplacer` keeps `modules` in the same compact wire form the Vite
 	// plugin publishes, so the demo shows exactly what consumers get
-	return JSON.stringify({ modules, diagnostics, sources }, compactReplacer);
+	return JSON.stringify({ modules, diagnostics, sources }, compactReplacer, '\t') + '\n';
 };

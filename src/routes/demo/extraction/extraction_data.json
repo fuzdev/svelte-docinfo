@@ -29,8 +29,16 @@
 							"typeInfo": {
 								"kind": "union",
 								"members": [
-									{ "kind": "literal", "value": "add", "text": "\"add\"" },
-									{ "kind": "literal", "value": "multiply", "text": "\"multiply\"" }
+									{
+										"kind": "literal",
+										"value": "add",
+										"text": "\"add\""
+									},
+									{
+										"kind": "literal",
+										"value": "multiply",
+										"text": "\"multiply\""
+									}
 								]
 							},
 							"optional": true,
@@ -48,8 +56,12 @@
 				}
 			],
 			"moduleComment": "Module docs via the HTML comment form — coexists with the component\ndoc comment above. See `Card.svelte` for the in-script JSDoc form.",
-			"dependencies": ["math.ts"],
-			"dependents": ["index.ts"]
+			"dependencies": [
+				"math.ts"
+			],
+			"dependents": [
+				"index.ts"
+			]
 		},
 		{
 			"path": "Card.svelte",
@@ -76,22 +88,39 @@
 									{
 										"kind": "tuple",
 										"elements": [
-											{ "name": "title", "type": { "kind": "intrinsic", "text": "string" } }
+											{
+												"name": "title",
+												"type": {
+													"kind": "intrinsic",
+													"text": "string"
+												}
+											}
 										]
 									}
 								]
 							},
 							"optional": true,
 							"description": "Custom header content, receives the resolved title.",
-							"parameters": [{ "name": "title", "type": "string" }]
+							"parameters": [
+								{
+									"name": "title",
+									"type": "string"
+								}
+							]
 						},
-						{ "name": "children", "type": "Snippet<[]>", "description": "Card body content." }
+						{
+							"name": "children",
+							"type": "Snippet<[]>",
+							"description": "Card body content."
+						}
 					],
 					"acceptsChildren": true
 				}
 			],
 			"moduleComment": "Module docs via the in-script JSDoc form — the `@module` tag marks this\nblock as the `moduleComment` rather than docs for the statement below.\nSee `Calculator.svelte` for the HTML comment form.",
-			"dependents": ["index.ts"]
+			"dependents": [
+				"index.ts"
+			]
 		},
 		{
 			"path": "counter.svelte.ts",
@@ -101,7 +130,9 @@
 					"kind": "class",
 					"docComment": "A reactive counter built on Svelte 5 runes.",
 					"sourceLine": 9,
-					"alsoExportedFrom": ["index.ts"],
+					"alsoExportedFrom": [
+						"index.ts"
+					],
 					"members": [
 						{
 							"name": "count",
@@ -136,7 +167,9 @@
 							"kind": "function",
 							"docComment": "Increment the count, recording the previous value.",
 							"typeSignature": "(amount?: number): void",
-							"mutates": { "this": "" },
+							"mutates": {
+								"this": ""
+							},
 							"parameters": [
 								{
 									"name": "amount",
@@ -151,7 +184,9 @@
 				}
 			],
 			"moduleComment": "A reactive counter demonstrating Svelte 5 rune detection in plain\n`.svelte.ts` modules — `$state`, `$state.raw`, `$derived`, and\n`$derived.by` initializers surface on the `reactivity` field.",
-			"dependents": ["index.ts"]
+			"dependents": [
+				"index.ts"
+			]
 		},
 		{
 			"path": "has-issues.ts",
@@ -162,7 +197,12 @@
 					"docComment": "Demonstrates a documentation mistake the analyzer catches.",
 					"typeSignature": "(value: number): number",
 					"sourceLine": 15,
-					"parameters": [{ "name": "value", "type": "number" }],
+					"parameters": [
+						{
+							"name": "value",
+							"type": "number"
+						}
+					],
 					"returnType": "number",
 					"returnDescription": "the input doubled"
 				}
@@ -176,7 +216,10 @@
 					"name": "Calculator",
 					"kind": "component",
 					"sourceLine": 10,
-					"aliasOf": { "module": "Calculator.svelte", "name": "Calculator" },
+					"aliasOf": {
+						"module": "Calculator.svelte",
+						"name": "Calculator"
+					},
 					"props": [
 						{
 							"name": "result",
@@ -198,8 +241,16 @@
 							"typeInfo": {
 								"kind": "union",
 								"members": [
-									{ "kind": "literal", "value": "add", "text": "\"add\"" },
-									{ "kind": "literal", "value": "multiply", "text": "\"multiply\"" }
+									{
+										"kind": "literal",
+										"value": "add",
+										"text": "\"add\""
+									},
+									{
+										"kind": "literal",
+										"value": "multiply",
+										"text": "\"multiply\""
+									}
 								]
 							},
 							"optional": true,
@@ -220,7 +271,10 @@
 					"name": "Card",
 					"kind": "component",
 					"sourceLine": 11,
-					"aliasOf": { "module": "Card.svelte", "name": "Card" },
+					"aliasOf": {
+						"module": "Card.svelte",
+						"name": "Card"
+					},
 					"props": [
 						{
 							"name": "title",
@@ -238,16 +292,31 @@
 									{
 										"kind": "tuple",
 										"elements": [
-											{ "name": "title", "type": { "kind": "intrinsic", "text": "string" } }
+											{
+												"name": "title",
+												"type": {
+													"kind": "intrinsic",
+													"text": "string"
+												}
+											}
 										]
 									}
 								]
 							},
 							"optional": true,
 							"description": "Custom header content, receives the resolved title.",
-							"parameters": [{ "name": "title", "type": "string" }]
+							"parameters": [
+								{
+									"name": "title",
+									"type": "string"
+								}
+							]
 						},
-						{ "name": "children", "type": "Snippet<[]>", "description": "Card body content." }
+						{
+							"name": "children",
+							"type": "Snippet<[]>",
+							"description": "Card body content."
+						}
 					],
 					"acceptsChildren": true,
 					"docComment": "Card layout demonstrating `children` and snippet props —\n`acceptsChildren` and structured snippet parameters in the output.\nComponent docs via the in-script JSDoc form — attached to the `$props()`\ndeclaration, this block becomes the component's `docComment`, with no\n`@component` tag required (only the HTML form needs that tag). See\n`Calculator.svelte` for the HTML comment form."
@@ -258,15 +327,33 @@
 					"docComment": "Add vectors in place.",
 					"typeSignature": "(target: Vector2, source: Vector2): void",
 					"sourceLine": 14,
-					"mutates": { "target": "modifies x and y fields" },
-					"aliasOf": { "module": "math.ts", "name": "add_vector" },
+					"mutates": {
+						"target": "modifies x and y fields"
+					},
+					"aliasOf": {
+						"module": "math.ts",
+						"name": "add_vector"
+					},
 					"parameters": [
-						{ "name": "target", "type": "Vector2", "description": "vector to mutate" },
-						{ "name": "source", "type": "Vector2", "description": "vector to add" }
+						{
+							"name": "target",
+							"type": "Vector2",
+							"description": "vector to mutate"
+						},
+						{
+							"name": "source",
+							"type": "Vector2",
+							"description": "vector to add"
+						}
 					],
 					"returnType": "void"
 				},
-				{ "name": "shapes", "kind": "namespace", "sourceLine": 17, "module": "shapes.ts" }
+				{
+					"name": "shapes",
+					"kind": "namespace",
+					"sourceLine": 17,
+					"module": "shapes.ts"
+				}
 			],
 			"moduleComment": "Public entry point demonstrating the re-export forms svelte-docinfo tracks.",
 			"dependencies": [
@@ -277,13 +364,35 @@
 				"shapes.ts"
 			],
 			"reExports": [
-				{ "name": "add", "module": "math.ts", "sourceLine": 8 },
-				{ "name": "Counter", "module": "counter.svelte.ts", "sourceLine": 9 },
-				{ "name": "MathConfig", "module": "math.ts", "typeOnly": true, "sourceLine": 8 },
-				{ "name": "multiply", "module": "math.ts", "sourceLine": 8 }
+				{
+					"name": "add",
+					"module": "math.ts",
+					"sourceLine": 8
+				},
+				{
+					"name": "Counter",
+					"module": "counter.svelte.ts",
+					"sourceLine": 9
+				},
+				{
+					"name": "MathConfig",
+					"module": "math.ts",
+					"typeOnly": true,
+					"sourceLine": 8
+				},
+				{
+					"name": "multiply",
+					"module": "math.ts",
+					"sourceLine": 8
+				}
 			],
 			"externalReExports": [
-				{ "name": "Snippet", "specifier": "svelte", "typeOnly": true, "sourceLine": 20 }
+				{
+					"name": "Snippet",
+					"specifier": "svelte",
+					"typeOnly": true,
+					"sourceLine": 20
+				}
 			]
 		},
 		{
@@ -295,11 +404,23 @@
 					"docComment": "Add two numbers.",
 					"typeSignature": "(a: number, b: number): number",
 					"sourceLine": 16,
-					"examples": ["```ts\nadd(2, 3) // 5\n```"],
-					"alsoExportedFrom": ["index.ts"],
+					"examples": [
+						"```ts\nadd(2, 3) // 5\n```"
+					],
+					"alsoExportedFrom": [
+						"index.ts"
+					],
 					"parameters": [
-						{ "name": "a", "type": "number", "description": "first number" },
-						{ "name": "b", "type": "number", "description": "second number" }
+						{
+							"name": "a",
+							"type": "number",
+							"description": "first number"
+						},
+						{
+							"name": "b",
+							"type": "number",
+							"description": "second number"
+						}
 					],
 					"returnType": "number",
 					"returnDescription": "the sum"
@@ -310,10 +431,20 @@
 					"docComment": "Multiply two numbers.",
 					"typeSignature": "(a: number, b: number): number",
 					"sourceLine": 24,
-					"alsoExportedFrom": ["index.ts"],
+					"alsoExportedFrom": [
+						"index.ts"
+					],
 					"parameters": [
-						{ "name": "a", "type": "number", "description": "first number" },
-						{ "name": "b", "type": "number", "description": "second number" }
+						{
+							"name": "a",
+							"type": "number",
+							"description": "first number"
+						},
+						{
+							"name": "b",
+							"type": "number",
+							"description": "second number"
+						}
 					],
 					"returnType": "number",
 					"returnDescription": "the product"
@@ -324,7 +455,9 @@
 					"docComment": "Configuration for math operations.",
 					"typeSignature": "MathConfig",
 					"sourceLine": 27,
-					"alsoExportedFrom": ["index.ts"],
+					"alsoExportedFrom": [
+						"index.ts"
+					],
 					"members": [
 						{
 							"name": "precision",
@@ -347,8 +480,16 @@
 					"typeSignature": "Vector2",
 					"sourceLine": 35,
 					"members": [
-						{ "name": "x", "kind": "variable", "typeSignature": "number" },
-						{ "name": "y", "kind": "variable", "typeSignature": "number" }
+						{
+							"name": "x",
+							"kind": "variable",
+							"typeSignature": "number"
+						},
+						{
+							"name": "y",
+							"kind": "variable",
+							"typeSignature": "number"
+						}
 					]
 				},
 				{
@@ -357,16 +498,29 @@
 					"docComment": "Add vectors in place.",
 					"typeSignature": "(target: Vector2, source: Vector2): void",
 					"sourceLine": 46,
-					"mutates": { "target": "modifies x and y fields" },
+					"mutates": {
+						"target": "modifies x and y fields"
+					},
 					"parameters": [
-						{ "name": "target", "type": "Vector2", "description": "vector to mutate" },
-						{ "name": "source", "type": "Vector2", "description": "vector to add" }
+						{
+							"name": "target",
+							"type": "Vector2",
+							"description": "vector to mutate"
+						},
+						{
+							"name": "source",
+							"type": "Vector2",
+							"description": "vector to add"
+						}
 					],
 					"returnType": "void"
 				}
 			],
 			"moduleComment": "Math utilities for demonstrating svelte-docinfo analysis.",
-			"dependents": ["Calculator.svelte", "index.ts"]
+			"dependents": [
+				"Calculator.svelte",
+				"index.ts"
+			]
 		},
 		{
 			"path": "schema.ts",
@@ -377,14 +531,23 @@
 					"docComment": "Minimal stand-in for a schema library's parser type.",
 					"typeSignature": "Parser<O>",
 					"sourceLine": 10,
-					"genericParams": [{ "name": "O" }],
+					"genericParams": [
+						{
+							"name": "O"
+						}
+					],
 					"members": [
 						{
 							"name": "parse",
 							"kind": "function",
 							"docComment": "Parse unknown input, returning the output type.",
 							"typeSignature": "(input: unknown): O",
-							"parameters": [{ "name": "input", "type": "unknown" }],
+							"parameters": [
+								{
+									"name": "input",
+									"type": "unknown"
+								}
+							],
 							"returnType": "O"
 						}
 					]
@@ -395,8 +558,16 @@
 					"docComment": "Extract a parser's output type — the `z.infer` analogue.",
 					"typeSignature": "Infer<P>",
 					"sourceLine": 16,
-					"genericParams": [{ "name": "P", "constraint": "Parser<unknown>" }],
-					"typeInfo": { "kind": "other", "text": "P extends Parser<infer O> ? O : never" }
+					"genericParams": [
+						{
+							"name": "P",
+							"constraint": "Parser<unknown>"
+						}
+					],
+					"typeInfo": {
+						"kind": "other",
+						"text": "P extends Parser<infer O> ? O : never"
+					}
 				},
 				{
 					"name": "Point",
@@ -405,8 +576,16 @@
 					"typeSignature": "{ x: number; y: number; }",
 					"sourceLine": 27,
 					"members": [
-						{ "name": "x", "kind": "variable", "typeSignature": "number" },
-						{ "name": "y", "kind": "variable", "typeSignature": "number" }
+						{
+							"name": "x",
+							"kind": "variable",
+							"typeSignature": "number"
+						},
+						{
+							"name": "y",
+							"kind": "variable",
+							"typeSignature": "number"
+						}
 					],
 					"mergedValue": true
 				}
@@ -426,13 +605,21 @@
 						"```ts\nshape_area(new Rectangle(2, 3)) // 6\nshape_area(1) // Math.PI\n```"
 					],
 					"parameters": [
-						{ "name": "shape", "type": "HasArea", "description": "the shape to measure" }
+						{
+							"name": "shape",
+							"type": "HasArea",
+							"description": "the shape to measure"
+						}
 					],
 					"overloads": [
 						{
 							"typeSignature": "(shape: HasArea): number",
 							"parameters": [
-								{ "name": "shape", "type": "HasArea", "description": "the shape to measure" }
+								{
+									"name": "shape",
+									"type": "HasArea",
+									"description": "the shape to measure"
+								}
 							],
 							"returnType": "number",
 							"docComment": "Compute the area of a shape.",
@@ -441,7 +628,11 @@
 						{
 							"typeSignature": "(radius: number): number",
 							"parameters": [
-								{ "name": "radius", "type": "number", "description": "circle radius in units" }
+								{
+									"name": "radius",
+									"type": "number",
+									"description": "circle radius in units"
+								}
 							],
 							"returnType": "number",
 							"docComment": "Compute the area of a circle from its radius.",
@@ -458,8 +649,16 @@
 					"typeSignature": "ShapeKind",
 					"sourceLine": 8,
 					"members": [
-						{ "name": "Circle", "kind": "variable", "typeSignature": "ShapeKind.Circle" },
-						{ "name": "Rectangle", "kind": "variable", "typeSignature": "ShapeKind.Rectangle" }
+						{
+							"name": "Circle",
+							"kind": "variable",
+							"typeSignature": "ShapeKind.Circle"
+						},
+						{
+							"name": "Rectangle",
+							"kind": "variable",
+							"typeSignature": "ShapeKind.Rectangle"
+						}
 					]
 				},
 				{
@@ -469,10 +668,26 @@
 					"typeSignature": "Direction",
 					"sourceLine": 14,
 					"members": [
-						{ "name": "North", "kind": "variable", "typeSignature": "Direction.North" },
-						{ "name": "East", "kind": "variable", "typeSignature": "Direction.East" },
-						{ "name": "South", "kind": "variable", "typeSignature": "Direction.South" },
-						{ "name": "West", "kind": "variable", "typeSignature": "Direction.West" }
+						{
+							"name": "North",
+							"kind": "variable",
+							"typeSignature": "Direction.North"
+						},
+						{
+							"name": "East",
+							"kind": "variable",
+							"typeSignature": "Direction.East"
+						},
+						{
+							"name": "South",
+							"kind": "variable",
+							"typeSignature": "Direction.South"
+						},
+						{
+							"name": "West",
+							"kind": "variable",
+							"typeSignature": "Direction.West"
+						}
 					]
 				},
 				{
@@ -487,7 +702,9 @@
 							"kind": "variable",
 							"docComment": "Area in square units.",
 							"typeSignature": "number",
-							"modifiers": ["readonly"]
+							"modifiers": [
+								"readonly"
+							]
 						}
 					]
 				},
@@ -520,16 +737,23 @@
 					"kind": "class",
 					"docComment": "An axis-aligned rectangle.",
 					"sourceLine": 43,
-					"seeAlso": ["`shape_area`"],
+					"seeAlso": [
+						"`shape_area`"
+					],
 					"since": "0.6.0",
-					"implements": ["HasArea"],
+					"implements": [
+						"HasArea"
+					],
 					"members": [
 						{
 							"name": "kind",
 							"kind": "variable",
 							"docComment": "Shared kind tag for all rectangles.",
 							"typeSignature": "ShapeKind.Rectangle",
-							"modifiers": ["static", "readonly"]
+							"modifiers": [
+								"static",
+								"readonly"
+							]
 						},
 						{
 							"name": "width",
@@ -547,10 +771,22 @@
 							"name": "constructor",
 							"kind": "constructor",
 							"typeSignature": "(width: number, height: number): Rectangle",
-							"throws": [{ "description": "`RangeError` when either dimension is negative" }],
+							"throws": [
+								{
+									"description": "`RangeError` when either dimension is negative"
+								}
+							],
 							"parameters": [
-								{ "name": "width", "type": "number", "description": "initial width" },
-								{ "name": "height", "type": "number", "description": "initial height" }
+								{
+									"name": "width",
+									"type": "number",
+									"description": "initial width"
+								},
+								{
+									"name": "height",
+									"type": "number",
+									"description": "initial height"
+								}
 							]
 						},
 						{
@@ -558,7 +794,9 @@
 							"kind": "function",
 							"docComment": "Scale both dimensions in place.",
 							"typeSignature": "(factor: number): void",
-							"mutates": { "this": "" },
+							"mutates": {
+								"this": ""
+							},
 							"parameters": [
 								{
 									"name": "factor",
@@ -573,7 +811,9 @@
 							"kind": "function",
 							"docComment": "Number of times this rectangle has been drawn, for subclasses.",
 							"typeSignature": "(): number",
-							"modifiers": ["protected"],
+							"modifiers": [
+								"protected"
+							],
 							"returnType": "number"
 						},
 						{
@@ -581,14 +821,19 @@
 							"kind": "variable",
 							"docComment": "Area in square units.",
 							"typeSignature": "number",
-							"modifiers": ["getter"]
+							"modifiers": [
+								"getter"
+							]
 						},
 						{
 							"name": "size",
 							"kind": "variable",
 							"docComment": "Longest side; setting it makes the rectangle a square.",
 							"typeSignature": "number",
-							"modifiers": ["getter", "setter"]
+							"modifiers": [
+								"getter",
+								"setter"
+							]
 						}
 					]
 				},
@@ -599,7 +844,11 @@
 					"typeSignature": "(shape: HasArea, options?: { precision?: number | undefined; label?: string | undefined; }): string",
 					"sourceLine": 127,
 					"parameters": [
-						{ "name": "shape", "type": "HasArea", "description": "the shape to describe" },
+						{
+							"name": "shape",
+							"type": "HasArea",
+							"description": "the shape to describe"
+						},
 						{
 							"name": "options",
 							"type": "{ precision?: number | undefined; label?: string | undefined; }",
@@ -623,7 +872,9 @@
 				}
 			],
 			"moduleComment": "Geometric shapes demonstrating classes, interfaces, enums, function\noverloads, const assertions, and richer JSDoc tags.",
-			"dependents": ["index.ts"]
+			"dependents": [
+				"index.ts"
+			]
 		}
 	],
 	"diagnostics": [
