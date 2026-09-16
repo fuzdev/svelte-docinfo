@@ -6,7 +6,7 @@ import svelte_docinfo from 'svelte-docinfo/vite.js';
 
 export default defineConfig({
 	plugins: [sveltekit(), svelte_docinfo(), vite_plugin_fuz_css(), vite_plugin_pkg_json()],
-	optimizeDeps: { exclude: ['@fuzdev/blake3_wasm'] },
+	optimizeDeps: { exclude: ['@fuzdev/blake3-wasm'] },
 	test: {
 		// Cap the fork pool. The suite is TS-typecheck + svelte2tsx bound, so
 		// per-worker memory and cache/bandwidth pressure — not core count — is
