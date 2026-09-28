@@ -9,11 +9,14 @@
  *   when content matches AND the mode-specific cache key matches (resolver
  *   identity for lex+resolve, dependency-snapshot equality for pre-resolved).
  * - `deleteFile` — drop owned entry, evict from LS.
- * - `has` / `list` — owned-set introspection (covers what consumers used to
- *   get from their own mirror caches).
- * - `query` — sync analysis pass against the current owned set; returns
- *   analysis-pass diagnostics only (ingest diagnostics surface via the
- *   `setFile`/`setFiles` returns).
+ * - `has` / `list` — owned-set introspection, so consumers need no mirror
+ *   cache of their own.
+ * - `query` — sync analysis pass against the source-gated owned set; returns
+ *   analysis-pass diagnostics only (ingest diagnostics come from the
+ *   `setFile`/`setFiles` returns, and cumulatively, context-closure ingest
+ *   included, from `allIngestDiagnostics`).
+ * - `getProgram` — the LS-backed `ts.Program`, for consumers doing their own
+ *   checker work.
  * - `dispose` — release LS resources.
  *
  * The session owns a single `Map<id, OwnedEntry>` covering content, svelte
@@ -21,7 +24,8 @@
  * or pre-resolved snapshot), and ingest-time diagnostics. svelte2tsx runs
  * at most once per content change. Resolver work parallelizes across the
  * batch in phase 2 of the three-phase setFiles pipeline; fully pre-resolved
- * batches skip phase 2 (and the default-resolver construction) entirely.
+ * batches skip phase 2 and the default-resolver construction (see
+ * `AnalysisSessionOptions.contextClosure` for the exception).
  * A batch that adds paths then retries the import specifiers earlier batches
  * couldn't resolve, since the file that settles one is the dep rather than
  * the importer (see `AnalysisSession` → Deferred resolutions).
@@ -42,7 +46,7 @@ import {
 	type AnalysisLanguageServiceOptions
 } from './typescript-program.ts';
 import type { Diagnostic } from './diagnostics.ts';
-import { to_error_message } from './error.ts';
+import { toErrorMessage } from './error.ts';
 import type { AnalysisLog } from './log.ts';
 import { transformSvelteSource, type SvelteVirtualFile } from './svelte.ts';
 import {
@@ -62,7 +66,7 @@ import {
 	normalizeSourceOptions
 } from './source-config.ts';
 import { toPosixPath } from './paths.ts';
-import { MAX_FILE_CONCURRENCY, MAX_RESOLVE_CONCURRENCY, map_concurrent } from './concurrency.ts';
+import { MAX_FILE_CONCURRENCY, MAX_RESOLVE_CONCURRENCY, mapConcurrent } from './concurrency.ts';
 import {
 	analyzeCore,
 	normalizeDiagnosticPaths,
@@ -73,10 +77,6 @@ import { computeDependents } from './postprocess.ts';
 
 /**
  * Options for a per-file or per-batch resolver override.
- *
- * Identity is required (not optional) — silently coalescing missing identities
- * to a function reference would destroy cache reuse when the same logical
- * resolver is wrapped in fresh closures across calls.
  */
 export interface SetFileOptions {
 	/**
@@ -335,6 +335,11 @@ export interface AnalysisSessionOptions extends Omit<
 	 * the Vite plugin, watched) for the session's lifetime, even when no
 	 * importer remains.
 	 *
+	 * A context file created after its importer's last ingest becomes owned on
+	 * the importer's next change only if its specifier re-resolves — with the
+	 * default resolver a cached miss sticks until owned-set membership changes
+	 * (the Vite dev resolver doesn't cache).
+	 *
 	 * Set `false` only when the caller supplies every file the checker needs
 	 * (the internal `analyze()` wrapper does): TS/JS context is covered by the
 	 * LS disk fallback either way, but a gated `.svelte` dependency resolves
@@ -485,8 +490,9 @@ interface PendingIngest {
  *
  * @example One-shot via the public wrapper
  * ```ts
- * // Equivalent to `analyze(...)` — the wrapper goes through a session internally.
- * const session = createAnalysisSession({sourceOptions});
+ * // Equivalent to `analyze(...)` — the wrapper goes through a session internally
+ * // (and opts out of the context closure, since its callers supply the inputs).
+ * const session = createAnalysisSession({sourceOptions, contextClosure: false});
  * try {
  *   await session.setFiles(sourceFiles);
  *   return session.query({onDuplicates: 'throw'});
@@ -570,8 +576,9 @@ export const createAnalysisSession = (options: AnalysisSessionOptions): Analysis
 	// Lazy default resolver — only constructed when needed: a `setFiles` batch
 	// has at least one file lacking `dependencies`, the call doesn't supply a
 	// per-call override, and no session-default resolver was configured. Fully
-	// pre-resolved batches skip the construction entirely (see `needsResolver`
-	// gating below). Compiler options come from the LS handle — the session's
+	// pre-resolved batches skip the construction (see `needsResolver` gating
+	// below), though a context-closure batch can still trigger it, since
+	// context files always lex+resolve. Compiler options come from the LS handle — the session's
 	// one tsconfig parse, at LS construction — so the resolver and the checker
 	// see the same merged config. The TS module-resolution cache is kept on
 	// the resolver so consecutive resolves share state.
@@ -684,7 +691,7 @@ export const createAnalysisSession = (options: AnalysisSessionOptions): Analysis
 				ingestDiagnostics.push({
 					kind: 'import_parse_failed',
 					file: file.id,
-					message: `Failed to parse imports: ${to_error_message(err)}`,
+					message: `Failed to parse imports: ${toErrorMessage(err)}`,
 					severity: 'warning'
 				});
 			}
@@ -919,7 +926,7 @@ export const createAnalysisSession = (options: AnalysisSessionOptions): Analysis
 					'svelte-docinfo: phase-2 invariant violated — tasks pending without a resolver'
 				);
 			}
-			const taskResults = await map_concurrent(tasks, MAX_RESOLVE_CONCURRENCY, async (t) => {
+			const taskResults = await mapConcurrent(tasks, MAX_RESOLVE_CONCURRENCY, async (t) => {
 				const pending = pendings[t.pendingIdx]!;
 				try {
 					const resolved = await resolver!.resolve(t.specifier, pending.file.id);
@@ -937,7 +944,7 @@ export const createAnalysisSession = (options: AnalysisSessionOptions): Analysis
 					return {
 						...t,
 						resolved: null,
-						error: to_error_message(err)
+						error: toErrorMessage(err)
 					};
 				}
 			});
@@ -1049,7 +1056,7 @@ export const createAnalysisSession = (options: AnalysisSessionOptions): Analysis
 		let candidates = [...seedDeps].filter(isContextCandidate);
 		while (candidates.length > 0) {
 			for (const c of candidates) attempted.add(c);
-			const loaded = await map_concurrent(candidates, MAX_FILE_CONCURRENCY, async (id) => {
+			const loaded = await mapConcurrent(candidates, MAX_FILE_CONCURRENCY, async (id) => {
 				try {
 					return { id, content: await readFile(id, 'utf-8') };
 				} catch {
@@ -1090,11 +1097,13 @@ export const createAnalysisSession = (options: AnalysisSessionOptions): Analysis
 	// `runBatch` cleared those at the top.
 	//
 	// A settled slot also retires the `resolver_failed` its ingest emitted, if
-	// any — the claim was true then and isn't now. Two margins remain, both
-	// self-healing on the importer's next ingest: a resolver that throws *here*
-	// leaves the slot deferred and its original diagnostic standing, and a
-	// newly-resolved edge pointing at an in-root non-source file doesn't itself
-	// seed a context-closure round.
+	// any — the claim was true then and isn't now. Gaps, each corrected only on
+	// the importer's next content change: a resolver that throws *here* leaves
+	// the slot deferred with its original diagnostic standing; a newly resolved
+	// edge to an in-root non-source file doesn't seed a context-closure round;
+	// and an owned file *shadowing* a target that already resolved from disk
+	// (`dep.ts` displacing `dep.js`) is outside this pass entirely, since the
+	// entry has no deferred slot to retry.
 	const healUnresolvedEdges = async (opts: SetFileOptions | undefined): Promise<void> => {
 		// A scan of the owned set rather than a side index of deferred entries:
 		// it can't desync, and it only runs on a batch that added paths.
@@ -1119,7 +1128,7 @@ export const createAnalysisSession = (options: AnalysisSessionOptions): Analysis
 		}
 		if (retries.length === 0) return;
 
-		const results = await map_concurrent(retries, MAX_RESOLVE_CONCURRENCY, async (r) => {
+		const results = await mapConcurrent(retries, MAX_RESOLVE_CONCURRENCY, async (r) => {
 			try {
 				const resolved = await resolver.resolve(r.entry.unresolved!.specifiers[r.slot]!, r.id);
 				return { ...r, resolved: resolved === null ? null : toPosixPath(resolved) };

@@ -15,7 +15,7 @@
 import ts from 'typescript';
 
 import type { DeclarationJsonBuild } from './declaration-build.ts';
-import { to_error_message } from './error.ts';
+import { toErrorMessage } from './error.ts';
 import type { TsdocParsedComment } from './tsdoc.ts';
 import { resolveTypeInfo } from './typescript-extract-type-json.ts';
 import {
@@ -59,7 +59,7 @@ export const extractFunctionInfo = (
 			file: loc.file,
 			line: loc.line,
 			column: loc.column,
-			message: `Failed to analyze signature for "${symbol.name}": ${to_error_message(err)}`,
+			message: `Failed to analyze signature for "${symbol.name}": ${toErrorMessage(err)}`,
 			severity: 'warning',
 			functionName: symbol.name
 		});
@@ -121,7 +121,7 @@ export const extractVariableInfo = (
 			file: loc.file,
 			line: loc.line,
 			column: loc.column,
-			message: `Failed to extract type for variable "${symbol.name}": ${to_error_message(err)}`,
+			message: `Failed to extract type for variable "${symbol.name}": ${toErrorMessage(err)}`,
 			severity: 'warning',
 			symbolName: symbol.name
 		});

@@ -32,11 +32,8 @@ import { discoverFromExports } from './exports.ts';
  *   always declare their public surface via `exports`)
  * - `'glob'` — skip `exports` entirely, use glob patterns
  *
- * Providing `include` patterns implies `'glob'` semantics regardless of mode
- * — when `discovery: 'auto'` and `include` is set, the auto fallback chain
- * collapses to glob immediately. Combining `discovery: 'exports'` with
- * `include` is a configuration error (the modes are contradictory) and
- * throws at discovery time.
+ * Under `'auto'`, `include` skips `exports` and goes straight to glob.
+ * Combining `'exports'` with `include` is a configuration error and throws.
  */
 export type Discovery = 'auto' | 'exports' | 'glob';
 
@@ -67,6 +64,11 @@ export interface DiscoverSourceFilesOptions {
 	 * `sourceOptions.sourcePaths` via `deriveIncludePatterns`, so custom
 	 * `sourcePaths` (e.g., `['packages/foo']`) discover files instead of
 	 * silently defaulting to `src/lib`.
+	 *
+	 * Discovery alone doesn't widen the source scope: files outside
+	 * `sourcePaths` are dropped at query time unless the options came from
+	 * `createSourceOptionsWithInclude` (as `analyzeFromFiles` and the Vite
+	 * plugin do).
 	 */
 	include?: Array<string>;
 
@@ -74,7 +76,7 @@ export interface DiscoverSourceFilesOptions {
 	 * Discovery strategy.
 	 *
 	 * @default 'auto'
-	 * @see {@link Discovery} for semantics of each variant
+	 * @see `Discovery` for semantics of each variant
 	 */
 	discovery?: Discovery;
 
@@ -106,24 +108,17 @@ export interface DiscoverSourceFilesResult {
  * consumers can call it directly when they want the discovered file list
  * without running full analysis.
  *
- * Strategy is selected by `discovery`:
- * - `'auto'` (default) — try `exports` first, fall back to glob.
- * - `'exports'` — `exports` only; **throws** if `exports` is missing or
- *   resolves to no source files. Combining with `include` is a configuration
- *   error and also throws.
- * - `'glob'` — glob only; `include` parameterizes the search.
- *
- * Exclusion globs come from `sourceOptions.exclude` (the single source of
- * truth, also applied at analysis time by `isSource()`). Beneath it, the
- * always-on baseline (`node_modules` + dot-directories, see
- * `hasBaselineExcludedSegment` in `source-config.ts`) applies at both stages
- * and is not affected by `exclude` overrides.
+ * Strategy is selected by `discovery` (see `Discovery`). Exclusion globs come
+ * from `sourceOptions.exclude`, also applied at analysis time by `isSource()`;
+ * the always-on baseline (`hasBaselineExcludedSegment`) applies beneath it at
+ * both stages.
  *
  * @param options - discovery configuration
  * @returns discovered files (content loaded) and any diagnostics from the exports step
- * @throws Error in strict `'exports'` mode when `exports` is missing or
- *   resolves to no source files, or when `include` is combined with
- *   `discovery: 'exports'`.
+ * @throws Error when `include` is combined with `discovery: 'exports'`, when an
+ *   absolute `include` pattern falls outside `projectRoot`, or in strict
+ *   `'exports'` mode when `exports` is missing, resolves to no source files, or
+ *   can't map a multi-`sourcePaths` layout with no common prefix
  *
  * @example
  * ```ts
@@ -220,8 +215,7 @@ export const discoverSourceFiles = async (
 	// Fall back to glob-based discovery (auto fallback or explicit glob mode).
 	// Derive include from `sourceOptions.sourcePaths` when none is supplied so
 	// custom `sourcePaths` (e.g. `['packages/foo']`) discover files instead of
-	// silently defaulting to `src/lib`. Mirrors the CLI's prior local
-	// derivation — single source of truth lives here now.
+	// silently defaulting to `src/lib`.
 	if (!files) {
 		files = await globFiles({
 			projectRoot,

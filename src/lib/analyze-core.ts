@@ -1,21 +1,21 @@
 /**
  * Pure two-phase analysis orchestrator.
  *
- * Extracted from `analyze.ts` to break what would otherwise be a circular
- * import: `session.ts` → `analyze.ts` (for the orchestrator) → `session.ts`
- * (for the wrappers). With the orchestrator here, both `session.ts` and
- * `analyze.ts` import downward into this module without depending on each
- * other.
+ * Separate from `analyze.ts` so `session.ts` (which needs the orchestrator)
+ * and `analyze.ts` (which needs the session) both import downward into this
+ * module without a cycle.
  *
  * Public surface:
  *
  * - `analyzeCore` — runs phase 1 module dispatch + phase 2 re-export merge,
  *   returns `AnalyzeResultJson`. Caller supplies pre-prepared inputs (program,
  *   svelte virtuals, transform-failed IDs).
- * - `analyzeModule` — the per-module dispatcher (TS / Svelte / CSS / JSON).
- *   `@internal`; exposed for tests and power users via the subpath.
- * - `AnalyzeResultJson` / `OnDuplicates` / `OnDuplicatesCallback` — shared types
- *   surfaced through the main barrel directly from this module.
+ * - `analyzeModule` — the per-module dispatcher for non-Svelte files (TS / CSS /
+ *   JSON; Svelte needs `analyzeSvelteModule`). `@internal`; exposed for tests
+ *   and power users via the subpath.
+ * - `AnalyzeResultJson` / `AnalyzeResultJsonWire` / `OnDuplicates` /
+ *   `OnDuplicatesCallback` — shared types surfaced through the main barrel
+ *   directly from this module.
  * - `throwOnDuplicates` — convenience callback paired with `OnDuplicates`.
  * - `finalizeDiagnostics` — the diagnostic boundary passes (virtual position
  *   remap, then path normalization) in their required order; the one call for
@@ -28,8 +28,9 @@
  *   assembling modules itself through `analyzeModule` can meet the same
  *   output contract.
  *
- * @internal — module split is implementation detail; consumers go through
- * `analyze.ts` / `session.ts` for the stable surface.
+ * The barrel-surfaced schemas, types, and `throwOnDuplicates` are stable API.
+ * Everything else is subpath-only; `analyzeCore` and `analyzeModule` are
+ * `@internal`.
  *
  * @module
  */
@@ -295,12 +296,8 @@ const toModuleJson = (raw: ModuleAnalysis): ModuleJson => {
 // Module dispatch
 
 /**
- * Analyze a single non-Svelte source file and extract module metadata.
- *
- * @internal Single-module dispatcher used internally by the two-phase
- * orchestrator. Importable from `svelte-docinfo/analyze-core.js` for tests
- * and power users — not part of the stable barrel API and not guaranteed
- * across minor versions.
+ * Analyze a single non-Svelte source file and extract module metadata — the
+ * per-module dispatcher behind `analyzeCore`.
  *
  * Dispatches on file type:
  * - TypeScript/JS → `analyzeTypescriptModule`
@@ -318,6 +315,9 @@ const toModuleJson = (raw: ModuleAnalysis): ModuleJson => {
  * `aliasRegistry` is optional at this boundary: direct callers assembling
  * modules themselves get written-name recovery only, while `analyzeCore`
  * passes the registry its pre-pass built (see `buildAliasRegistry`).
+ *
+ * @internal Importable from `svelte-docinfo/analyze-core.js` for tests and
+ * power users; not stable API.
  */
 export const analyzeModule = (
 	sourceFile: SourceFileInfo & { dependents?: ReadonlyArray<string> },
@@ -423,29 +423,17 @@ export interface AnalyzeCoreInputs {
 	 * context for `resolveComponentAliases` — their modules never emit and
 	 * their analysis diagnostics are dropped (`partial` on the canonical
 	 * propagates to the filled alias instead).
+	 *
+	 * Resolution requires the component's virtual to exist — via the context
+	 * closure (`analyzeFromFiles` included) or by passing the file as `analyze()`
+	 * input. Without it a gated component re-export degrades silently to an
+	 * empty `kind: 'variable'` husk.
 	 */
 	contextSvelteFiles?: ReadonlyArray<SourceFileInfo>;
 	onDuplicates?: OnDuplicates;
 	log?: AnalysisLog;
 }
 
-/**
- * Run the two-phase analysis loop on pre-prepared inputs.
- *
- * @internal Shared two-phase orchestrator used internally by `session.query`
- * and the one-shot wrappers. Importable from `svelte-docinfo/analyze-core.js`
- * for tests and power users — not part of the stable barrel API and not
- * guaranteed across minor versions.
- *
- * Phase 1: per-file dispatch (TS / Svelte / CSS / JSON / placeholder for
- * transform-failed Svelte). Phase 2: re-export merge, component-alias fill,
- * sort, duplicate detection. Diagnostic paths are normalized to
- * project-root-relative form before return.
- *
- * Dependents are read from `sourceFile.dependents` (caller-supplied via
- * `extractDependencies`); `analyzeCore` does not compute them. `session.query`
- * runs `computeDependents` on the owned set before invoking this.
- */
 /**
  * Analyze the gated Svelte canonicals referenced by an emitted component
  * alias, as `resolveComponentAliases` fill context only (see
@@ -489,6 +477,25 @@ const analyzeContextComponents = (
 	return contextModules;
 };
 
+/**
+ * Run the two-phase analysis loop on pre-prepared inputs. The orchestrator
+ * behind `session.query`, and so behind the one-shot wrappers, which query a
+ * single-use session.
+ *
+ * Runs the alias-registry pre-pass (`buildAliasRegistry`) over the emitted
+ * set, then phase 1: per-file dispatch (TS / Svelte / CSS / JSON /
+ * placeholder for transform-failed Svelte), plus gated Svelte canonicals
+ * analyzed as fill context. Phase 2: re-export merge, component-alias fill,
+ * sort, duplicate detection, and module-path normalization in printed types
+ * (`normalizeModulePathsInTypes`), then `finalizeDiagnostics`.
+ *
+ * Dependents are read from `sourceFile.dependents` via `extractDependencies`;
+ * `analyzeCore` does not compute them. `session.query` runs
+ * `computeDependents` on the emitted set before invoking this.
+ *
+ * @internal Importable from `svelte-docinfo/analyze-core.js` for tests and
+ * power users; not stable API.
+ */
 export const analyzeCore = (inputs: AnalyzeCoreInputs): AnalyzeResultJson => {
 	const {
 		sourceFiles,
@@ -645,7 +652,7 @@ export const analyzeCore = (inputs: AnalyzeCoreInputs): AnalyzeResultJson => {
  * ordering unrepresentable instead of a contract to remember. Omit
  * `virtualFiles` when no Svelte virtuals are in play.
  *
- * @mutates diagnostics — rewrites positions, `file`, and `message`
+ * @mutates diagnostics - rewrites positions, `file`, and `message`
  */
 export const finalizeDiagnostics = (
 	diagnostics: Array<Diagnostic>,
@@ -665,9 +672,8 @@ export const finalizeDiagnostics = (
  * paths (svelte2tsx output like `Foo.svelte.__svelte2tsx__.ts`). This pass
  * collapses both to the public contract: a path relative to `projectRoot`
  * with no leading slash and no `./` prefix. A file outside the root gets the
- * `../` form, matching module paths in printed type text — and making the
- * documented "rejoin with `projectRoot` to get an absolute path" actually
- * hold for it, which dropping the leading slash did not.
+ * `../` form, matching module paths in printed type text — so the documented
+ * "rejoin with `projectRoot` to get an absolute path" holds for it too.
  *
  * `message` gets the same treatment as `file`, by textual substitution. A
  * message is free-form, and not every path in one comes from a field this
@@ -683,7 +689,7 @@ export const finalizeDiagnostics = (
  * pass can only correct the absolute form — a relative path on a base other
  * than the project root passes through and ships as-is.
  *
- * @mutates diagnostics — rewrites each diagnostic's `file` and `message`
+ * @mutates diagnostics - rewrites each diagnostic's `file` and `message`
  * @see `finalizeDiagnostics` — when Svelte virtuals are in play, the position
  * remap must run before this pass (it strips the suffix the remap matches on)
  */
@@ -706,7 +712,7 @@ export const normalizeDiagnosticPaths = (
 			file = file.slice(prefix.length);
 		} else if (isAbsolutePosixPath(file)) {
 			// Outside the root. Relativize rather than dropping the leading slash,
-			// which produced a string that reads as root-relative but resolves
+			// which would produce a string that reads as root-relative but resolves
 			// somewhere else entirely. A path already relative is left alone —
 			// `relative` would resolve it against `cwd`.
 			file = toPosixPath(relative(root, file));
@@ -960,22 +966,27 @@ const rewriteTypeText = (value: unknown, rewrite: (printed: string) => string): 
  *
  * The checker prints a module object as `typeof import("<absolute path>")`,
  * which reaches output through every checker-printed field — `typeSignature`
- * on declarations and members, `returnType`, and the `text`/`name` of a
- * `TypeJson` node. Left alone it makes output machine-dependent (two checkouts
+ * on declarations and members, `returnType`, and the `text` of a
+ * `TypeJson` node (a module object is a terminal `other` node, never a
+ * `reference`). Left alone it makes output machine-dependent (two checkouts
  * of the same source produce different bytes), publishes local filesystem
  * paths on any site that renders `typeSignature`, and exposes the svelte2tsx
- * virtual suffix that `stripVirtualSuffix` exists to hide.
+ * virtual suffix that `stripVirtualSuffix` exists to hide. A written
+ * `import('./x').T` annotation resolves to the type's own name and never
+ * carries a path.
  *
  * A path that resolves to a module in this output is rewritten to that
  * module's `ModuleJson.path`, so the string doubles as a lookup key: a
  * consumer linkifies with `modules.find((m) => m.path === s)` and reads a miss
  * as "not a module here." See `createModulePathNormalizer` for the remaining
- * tiers.
+ * tiers. The string's shape doesn't distinguish them (`sub/nested.ts` and
+ * `pkg/index.d.ts` look alike) — the lookup does, which keeps `sourceRoot` out
+ * of the output envelope.
  *
  * Runs as a whole-output pass rather than at the ~20 `typeToString` /
  * `signatureToString` call sites, so a new printing site can't miss it.
  *
- * @mutates modules — rewrites printed type text on declarations and members
+ * @mutates modules - rewrites printed type text on declarations and members
  */
 export const normalizeModulePathsInTypes = (
 	modules: Array<ModuleJson>,

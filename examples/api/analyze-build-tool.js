@@ -39,8 +39,8 @@ const sourceFiles = await Promise.all([
 	])
 ]);
 
-// Let analyze() auto-create the TypeScript program with Svelte virtual files
-// for full checker-backed component analysis.
+// `analyze()` runs a single-use AnalysisSession, which serves Svelte files to
+// the checker as svelte2tsx virtuals for full checker-backed component analysis.
 const { modules } = await analyze({
 	sourceFiles,
 	sourceOptions: createSourceOptions(dir)

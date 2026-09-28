@@ -28,13 +28,15 @@
  *
  * ## Why this file lives at the package root, not `src/lib/`
  *
- * `svelte.config.js` aliases `'svelte-docinfo' → 'src/lib'` (load-bearing
- * for fuz_ui's `library_gen`, a circular dev-dep). `@sveltejs/package`
- * applies that alias to every file under `src/lib/`, including hand-written
- * `.d.ts`, rewriting the `'svelte-docinfo'` import below to a relative
- * path. TypeScript doesn't resolve relative imports inside ambient
- * `declare module` blocks in consumer projects — types silently collapse
- * to `any`.
+ * `svelte.config.js` aliases `'svelte-docinfo' → 'src/lib'` — load-bearing for
+ * the site build, where dependencies (fuz_ui, gro) import `svelte-docinfo` at
+ * runtime and the package isn't installed in its own `node_modules`, so only
+ * the alias resolves those imports (package self-reference doesn't apply to
+ * imports from inside another package). `@sveltejs/package` applies that
+ * alias to every file under `src/lib/`, including hand-written `.d.ts`,
+ * rewriting the `'svelte-docinfo'` import below to a relative path.
+ * TypeScript doesn't resolve relative imports inside ambient `declare module`
+ * blocks in consumer projects — types silently collapse to `any`.
  *
  * Living at the root keeps the file out of `svelte-package`'s reach;
  * `gro.config.ts` and `package.json` `files` re-register it for npm.

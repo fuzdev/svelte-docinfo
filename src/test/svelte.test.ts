@@ -474,8 +474,8 @@ describe('extractScriptContent', () => {
 <p>Content</p>`;
 
 		const result = extractScriptContent(svelteSource);
-		// exact equality — the old regex ended the opening tag at the arrow's
-		// `>`, prefixing the content with the tag remainder (` void">`)
+		// exact equality — a quote-unaware scan would end the opening tag at the
+		// arrow's `>`, prefixing the content with the tag remainder (` void">`)
 		assert.strictEqual(result, '\n\tlet {callback}: {callback: T} = $props();\n');
 	});
 

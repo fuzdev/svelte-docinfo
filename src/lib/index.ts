@@ -96,7 +96,7 @@ export {
 } from './postprocess.ts';
 export type { DuplicateDeclaration, ExportSurface, ExportSurfaceEntry } from './postprocess.ts';
 
-// File system constants
+// File system helpers
 
 export { deriveIncludePatterns } from './files.ts';
 

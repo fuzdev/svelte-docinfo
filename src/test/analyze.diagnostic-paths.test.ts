@@ -268,9 +268,8 @@ describe('producers agree on one base', () => {
 describe('the base does not track sourceRoot', () => {
 	test('a wider sourceRoot shifts module paths but not diagnostic files', async () => {
 		// `sourcePaths: ['src']` makes `sourceRoot` `src`, so module paths gain
-		// the `lib/` segment. Diagnostics must not move with them — this is the
-		// divergence the old behavior encoded, and it is invisible whenever
-		// `sourceRoot` happens to be empty.
+		// the `lib/` segment. Diagnostics must not move with them — a divergence
+		// that's invisible whenever `sourceRoot` happens to be empty.
 		await withTestProject(
 			{
 				'src/lib/Legacy.svelte': `<script lang="ts">\n\texport let prop1: string;\n</script>\n`,

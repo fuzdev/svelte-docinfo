@@ -1,8 +1,7 @@
 /**
  * Diagnostic collection for source analysis.
  *
- * Provides structured error/warning collection during TypeScript and Svelte
- * analysis, replacing silent catch blocks with actionable diagnostics.
+ * Structured error/warning collection during TypeScript and Svelte analysis.
  *
  * ## Error Handling Contract
  *
@@ -14,11 +13,12 @@
  * construction failures, import lex / resolver failures, and duplicate
  * declarations.
  *
- * A small set of conditions still throws from public entry points — these are
- * setup-level, not per-file: missing `tsconfig.json` (`loadTsconfig`), Svelte
- * <5 detected (`transformSvelteSource`), or strict `discovery: 'exports'`
- * mode with no resolvable exports (`discoverSourceFiles`). Wrap the top-level
- * `analyze` / `analyzeFromFiles` call if you want to handle these.
+ * A few conditions still throw from the public entry points. These are
+ * configuration and environment errors, not per-file failures: invalid or
+ * contradictory options (see the `@throws` on `createSourceOptions` and
+ * `discoverSourceFiles`), a missing `tsconfig.json`, Svelte <5, and failed
+ * strict `'exports'` discovery. `onDuplicates: 'throw'` also throws, by
+ * request. Wrap the top-level call to handle these.
  *
  * ## Usage Pattern
  *
@@ -55,7 +55,8 @@
  * (`setFile`/`setFiles` at ingest, `query` at analysis) normalize paths from
  * all sources (extraction, discovery, dependency resolution) before
  * returning. Consumers that need an absolute path can rejoin with
- * `projectRoot`.
+ * `projectRoot` — a file outside the root takes the `../` form, so the rejoin
+ * holds for it too.
  *
  * It names a *file*, not a module: `ModuleJson.path` is relative to
  * `sourceRoot`, so `file` is not a lookup key into `modules`.
@@ -80,6 +81,9 @@ export type DiagnosticSeverity = z.infer<typeof DiagnosticSeverity>;
 
 /**
  * Discriminant for `Diagnostic` variant types.
+ *
+ * Severity is a stable per-kind property: `transform_failed` and
+ * `module_unreadable` are always `error`, every other kind always `warning`.
  */
 export const DiagnosticKind = z.enum([
 	'type_extraction_failed',
@@ -408,6 +412,8 @@ export type TransformFailedDiagnostic = z.infer<typeof TransformFailedDiagnostic
  * "external package" case); resolvers that *throw* surface here so consumers
  * can fix the resolver. Recoverable — the session treats the throw as `null`
  * and continues, so analysis still runs but with a missing dependency edge.
+ * Durable on the entry until a later `setFiles` that adds paths resolves the
+ * specifier, which retires the diagnostic and adds the edge.
  *
  * Emitted at ingest time by the session's resolve phase.
  */
@@ -445,8 +451,13 @@ export const AliasLostDiagnostic = z.strictObject({
 export type AliasLostDiagnostic = z.infer<typeof AliasLostDiagnostic>;
 
 /**
- * Discriminated union of all diagnostic variants.
+ * Discriminated union of all diagnostic variants. Ingest-time kinds:
+ * `transform_failed`, `source_map_failed`, `import_parse_failed`, and
+ * `resolver_failed`; discovery-time: `module_unreadable`; every other kind is
+ * query-time.
  */
+// the explicit `ZodDiscriminatedUnion` annotation means a new variant must
+// land in both the type-parameter tuple and the runtime array
 export const Diagnostic: z.ZodDiscriminatedUnion<
 	[
 		typeof TypeExtractionDiagnostic,

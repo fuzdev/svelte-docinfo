@@ -21,7 +21,7 @@
 import ts from 'typescript';
 
 import type { DeclarationJsonBuild, MemberJsonBuild } from './declaration-build.ts';
-import { to_error_message } from './error.ts';
+import { toErrorMessage } from './error.ts';
 import { parseComment, applyToDeclaration } from './tsdoc.ts';
 import {
 	applyHeritageExternalTypes,
@@ -79,7 +79,7 @@ export const extractTypeInfo = (
 			file: loc.file,
 			line: loc.line,
 			column: loc.column,
-			message: `Failed to extract type for "${declaration.name}": ${to_error_message(err)}`,
+			message: `Failed to extract type for "${declaration.name}": ${toErrorMessage(err)}`,
 			severity: 'warning',
 			symbolName: declaration.name ?? '<default export>'
 		});
@@ -167,7 +167,7 @@ export const extractTypeInfo = (
 						file: loc.file,
 						line: loc.line,
 						column: loc.column,
-						message: `Failed to extract type for interface property "${propName}" in "${declaration.name}": ${to_error_message(err)}`,
+						message: `Failed to extract type for interface property "${propName}" in "${declaration.name}": ${toErrorMessage(err)}`,
 						severity: 'warning',
 						symbolName: propName
 					});
@@ -233,7 +233,7 @@ export const extractTypeInfo = (
 						file: loc.file,
 						line: loc.line,
 						column: loc.column,
-						message: `Failed to analyze interface method "${methodName}": ${to_error_message(err)}`,
+						message: `Failed to analyze interface method "${methodName}": ${toErrorMessage(err)}`,
 						severity: 'warning',
 						functionName: methodName
 					});
@@ -272,7 +272,7 @@ export const extractTypeInfo = (
 								file: loc.file,
 								line: loc.line,
 								column: loc.column,
-								message: `Failed to extract type for index signature "${name}" in "${declaration.name}": ${to_error_message(err)}`,
+								message: `Failed to extract type for index signature "${name}" in "${declaration.name}": ${toErrorMessage(err)}`,
 								severity: 'warning',
 								symbolName: name
 							});
@@ -358,7 +358,7 @@ export const extractEnumInfo = (
 			file: loc.file,
 			line: loc.line,
 			column: loc.column,
-			message: `Failed to extract type for "${declaration.name}": ${to_error_message(err)}`,
+			message: `Failed to extract type for "${declaration.name}": ${toErrorMessage(err)}`,
 			severity: 'warning',
 			symbolName: declaration.name ?? '<default export>'
 		});
@@ -398,7 +398,7 @@ export const extractEnumInfo = (
 				file: loc.file,
 				line: loc.line,
 				column: loc.column,
-				message: `Failed to extract type for enum member "${memberName}" in "${declaration.name}": ${to_error_message(err)}`,
+				message: `Failed to extract type for enum member "${memberName}" in "${declaration.name}": ${toErrorMessage(err)}`,
 				severity: 'warning',
 				symbolName: memberName
 			});

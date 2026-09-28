@@ -22,7 +22,9 @@ You can analyze the sibling `api/` example to see real output:
 npx svelte-docinfo ../api --pretty
 ```
 
-You'll get back JSON describing the example's source files:
+You'll get back JSON describing the example's source files (abridged — the
+real output has eight modules plus a `diagnostics` array carrying the
+deliberate `unknown_param` warning from `has-issues.ts`):
 
 ```json
 {
@@ -55,7 +57,7 @@ Control which files are analyzed and how output is formatted:
 npx svelte-docinfo -i "src/**/*.ts"   # custom include pattern (forces glob discovery)
 npx svelte-docinfo -e "**/*.test.ts"  # exclude files matching a pattern
 npx svelte-docinfo --discovery glob   # skip package.json exports, use glob instead
-npx svelte-docinfo --discovery exports  # strict — fail if package.json exports is missing
+npx svelte-docinfo --discovery exports  # strict — fail if package.json exports is missing or resolves to no files
 npx svelte-docinfo --no-resolve-dependencies  # skip dependency graph resolution
 npx svelte-docinfo --on-duplicates throw  # enforce flat namespace (fail on duplicate names)
 npx svelte-docinfo --only 'components/**'  # emit only modules matching glob (analysis still runs on full project)
@@ -65,7 +67,7 @@ npx svelte-docinfo -q                 # suppress info messages on stderr
 ## Discovery strategies
 
 The default `--discovery auto` reads your `package.json` `exports` field and
-falls back to glob patterns when `exports` is missing or empty. Two other
+falls back to glob patterns when `exports` is missing or resolves to no files. Two other
 strategies are explicit:
 
 | Mode      | Behavior                                                                           |
@@ -130,4 +132,4 @@ npx svelte-docinfo | jq '.modules[].declarations[]
 | ---- | --------------- |
 | 0    | Success         |
 | 1    | Analysis errors |
-| 2    | CLI errors      |
+| 2    | CLI errors or a thrown analysis error (missing `tsconfig.json`, `--on-duplicates throw` collision) |

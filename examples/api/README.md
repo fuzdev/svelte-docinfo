@@ -14,13 +14,11 @@ from a single function call to full control over file discovery and diagnostics.
 
 ## Dependencies
 
-This example lists `svelte` and `svelte2tsx` as explicit dependencies because
-the `file:../..` link doesn't auto-install peer dependencies. `svelte-docinfo`
-has three peer deps — `svelte`, `svelte2tsx`, and `zod` — but `zod` resolves
-through the linked package's own `node_modules`, so only the Svelte pair needs
-declaring here. Everything else (`typescript`, `tinyglobby`, `picomatch`,
-`es-module-lexer`, `@jridgewell/trace-mapping`) is a regular dependency of
-`svelte-docinfo` and is installed transitively.
+This example lists `svelte` and `svelte2tsx` as explicit dependencies
+because the `file:../..` link doesn't auto-install peer dependencies. Of the
+four peers (`svelte`, `svelte2tsx`, `typescript`, `zod`), the other two resolve
+through the linked package's own `node_modules`, as do its regular
+dependencies.
 
 ## Run
 
@@ -95,11 +93,10 @@ if (hasErrors(diagnostics)) {
 }
 ```
 
-`diagnostics` is a plain `Array<Diagnostic>` — inner entries conform to the
-schema by construction (no re-`.parse()` at the envelope boundary) and are
-round-trip-safe through `JSON.stringify` / `z.array(Diagnostic).parse` (or
-the full envelope via `AnalyzeResultJson.parse`). Use the free helpers
-(`hasErrors`, `hasWarnings`, `errorsOf`, `warningsOf`, `byKind`) for queries.
+`diagnostics` is a plain `Array<Diagnostic>`, round-trip-safe through
+`JSON.stringify` and `z.array(Diagnostic).parse` (or the whole envelope via
+`AnalyzeResultJson.parse`). Query it with the free helpers (`hasErrors`,
+`hasWarnings`, `errorsOf`, `warningsOf`, `byKind`).
 
 See [analyze-diagnostics.js](analyze-diagnostics.js) for the full script.
 
@@ -108,10 +105,11 @@ See [analyze-diagnostics.js](analyze-diagnostics.js) for the full script.
 For long-lived consumers (a Vite plugin reacting to file edits, an LSP-style
 tool) `createAnalysisSession` returns a persistent handle backed by a TypeScript
 `LanguageService`. The incremental API maps cleanly onto LSP `didOpen`/`didChange`/
-`didDelete`: ingest current state with `setFile` / `setFiles`, drop with
-`deleteFile`, run analysis with `query`. Cache hits (unchanged content + same
-resolver identity) are no-ops; only files whose content changed pay re-analysis
-cost:
+`didDeleteFiles`: ingest current state with `setFile` / `setFiles`, drop with
+`deleteFile`, run analysis with `query`. Cache hits (unchanged content plus the
+same resolver identity, or element-wise-equal `dependencies` for pre-resolved
+files) are no-ops, so only changed files are re-parsed and re-transformed; each
+`query()` still re-analyzes every module:
 
 ```js
 const session = createAnalysisSession({ sourceOptions: createSourceOptions(dir) });
@@ -134,8 +132,10 @@ try {
 
 `setFile`/`setFiles` return ingest-time diagnostics (`transform_failed`,
 `source_map_failed`, `import_parse_failed`, `resolver_failed`); `query` returns
-analysis-pass diagnostics. The two are disjoint subsets — concat is safe.
-`session.has(id)` and `session.list()` introspect the owned set. The one-shot
+analysis-pass diagnostics. The two are disjoint, so concat is safe;
+`session.allIngestDiagnostics()` is the cumulative ingest view (it also covers
+context files the session ingested on its own). `session.has(id)` and
+`session.list()` introspect the owned set. The one-shot
 `analyze` and `analyzeFromFiles` are thin wrappers over single-use sessions.
 
 See [analyze-session.js](analyze-session.js) for the full script.

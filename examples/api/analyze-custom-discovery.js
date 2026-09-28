@@ -17,10 +17,11 @@ const files = await globFiles({
 // `analyze()` ingests via a single-use AnalysisSession internally. The session
 // owns dependency resolution: it lexes import specifiers, resolves them via
 // the configured `ImportResolver`, and filters to the source set. The default
-// resolver loads tsconfig and uses TypeScript's module resolution. Supply a
-// custom `resolveImport` (the `{resolve, identity}` pair) to
-// bypass — wrap a bare function like Vite's `pluginContainer.resolveId` with
-// a synthesized `identity` string for cache-key purposes.
+// resolver uses TypeScript's module resolution over the session's parsed
+// tsconfig options. Supply a custom `resolveImport` to bypass it: a bare
+// function (a cache identity is synthesized for you), or an `ImportResolver`
+// (`{resolve, identity}`) with a stable `identity` when the same logical
+// resolver is rebuilt as a fresh closure (Vite/Rollup plugins).
 const { modules } = await analyze({
 	sourceFiles: files,
 	sourceOptions: createSourceOptions(dir)

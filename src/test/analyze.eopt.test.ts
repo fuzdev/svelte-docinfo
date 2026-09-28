@@ -109,7 +109,7 @@ describe('exactOptionalPropertyTypes property types', () => {
 
 	test('does not rebuild a type-parameter union', async () => {
 		// the multi-member fallback runs `getNonNullableType`, which rewrites
-		// bare type parameters as `E & {}` — corruption when nothing was widened
+		// bare type parameters as `NonNullable<E>` — corruption when nothing was widened
 		const module = await analyzeEoptFile('src/lib/a.ts', `export interface G<E, F> { tp?: E | F }`);
 
 		const declaration = module.declarations[0];

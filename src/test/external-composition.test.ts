@@ -255,8 +255,8 @@ describe('index signature membership by declaration origin', () => {
 	});
 
 	test('an index sig inherited through a local base is dropped and attributed', () => {
-		// the old branch test was node-level: `LocalBase` is declared locally,
-		// so the inherited external info leaked through it
+		// guards the constituent-level test: a node-level check would see
+		// `LocalBase` declared locally and leak the inherited external info
 		const { declaration } = run(
 			[
 				EXT,
@@ -703,8 +703,8 @@ describe('local generic instantiations extract members', () => {
 	});
 
 	test('a local generic base reaching an external bag keeps members and attribution', () => {
-		// one type parameter used to erase the whole declaration: the
-		// Reference-flagged gate returned before members or labels ran
+		// guards against one type parameter erasing the whole declaration (a
+		// Reference-flagged gate returning before members or labels run)
 		const { declaration } = run(
 			[
 				EXT,
@@ -804,7 +804,7 @@ describe('local generic instantiations extract members', () => {
 
 describe('indexed access over a local container descends to the property', () => {
 	test('a wholly external property type records the bag, not the container', () => {
-		// the leaf fallback used to emit `LocalMap['a']` — a project-local,
+		// the leaf fallback must not emit `LocalMap['a']` — a project-local,
 		// possibly-unexported name — into the external-contributors field
 		const { declaration } = run(
 			[

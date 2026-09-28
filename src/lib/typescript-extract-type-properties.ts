@@ -19,7 +19,7 @@ import ts from 'typescript';
 
 import type { DeclarationModifier } from './types.ts';
 import type { DeclarationJsonBuild, MemberJsonBuild } from './declaration-build.ts';
-import { to_error_message } from './error.ts';
+import { toErrorMessage } from './error.ts';
 import { parseComment } from './tsdoc.ts';
 import { resolveTypeInfo } from './typescript-extract-type-json.ts';
 import { type IsExternalFile } from './typescript-program.ts';
@@ -112,7 +112,7 @@ const extractLocalIndexInfo = (
 /**
  * Resolve, emit, and diagnose a local index signature for a type alias.
  *
- * Wraps `extractLocalIndexType` with the boilerplate shared by string and
+ * Wraps `extractLocalIndexInfo` with the boilerplate shared by string and
  * number kinds: push a `[key: string]` / `[key: number]` member when found,
  * flip `partial: true` and add a `type_extraction_failed` diagnostic on
  * checker errors. Pulled out of the call site to avoid copy-paste drift
@@ -155,7 +155,7 @@ const emitLocalIndexSignature = (
 			file: loc.file,
 			line: loc.line,
 			column: loc.column,
-			message: `Failed to extract ${kind} index signature for type "${declaration.name ?? '<default export>'}": ${to_error_message(err)}`,
+			message: `Failed to extract ${kind} index signature for type "${declaration.name ?? '<default export>'}": ${toErrorMessage(err)}`,
 			severity: 'warning',
 			symbolName: declaration.name ?? '<default export>'
 		});

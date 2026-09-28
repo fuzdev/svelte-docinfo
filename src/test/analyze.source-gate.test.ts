@@ -234,8 +234,8 @@ export const m: Mode = 'x';`
 	});
 
 	test('an absolute in-root include pattern works like its relative form', async () => {
-		// pre-normalization: the base scan leading-slash-stripped the absolute
-		// pattern into a bogus relative base — silent dead config
+		// without normalization the base scan would strip the leading slash into
+		// a bogus relative base — silent dead config
 		const files: Record<string, string> = {
 			'src/lib/a.ts': `export const a = 1;`,
 			'src/other/b.ts': `export const b = 2;`
@@ -254,9 +254,9 @@ export const m: Mode = 'x';`
 	});
 
 	test('an absolute in-root exclude glob gates at analysis, not just discovery', async () => {
-		// the previously-broken half of the stage disagreement: direct analyze()
-		// never runs discovery, so only isSource's matcher can apply the exclude —
-		// and it matches root-relative paths, which an absolute pattern never hit
+		// direct analyze() never runs discovery, so only isSource's matcher can
+		// apply the exclude — and it matches root-relative paths, which an
+		// unnormalized absolute pattern never hits
 		const files: Record<string, string> = {
 			'src/lib/a.ts': `export const a = 1;`,
 			'src/lib/gen.ts': `export const gen = 2;`
@@ -281,8 +281,8 @@ export const m: Mode = 'x';`
 
 	test('an absolute in-root exclude glob still excludes at discovery', async () => {
 		// the other consumer of the relativized pattern: analyzeFromFiles routes
-		// exclude through the glob's `ignore` (which happened to honor absolute
-		// patterns pre-normalization — lock that relativizing didn't break it)
+		// exclude through the glob's `ignore`, which must keep matching once the
+		// pattern is relativized
 		const files: Record<string, string> = {
 			'src/lib/a.ts': `export const a = 1;`,
 			'src/lib/gen.ts': `export const gen = 2;`

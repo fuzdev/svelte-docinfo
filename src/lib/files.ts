@@ -4,9 +4,6 @@
  * Composable primitives for `analyzeFromFiles` / `discoverSourceFiles`. For
  * most use cases prefer those higher-level entry points.
  *
- * Build tools that want to drive resolve outside the session can construct an
- * `ImportResolver` directly and pass it to `createAnalysisSession`.
- *
  * @see `analyzeFromFiles` for the high-level disk-discovery wrapper
  * @see `discoverSourceFiles` for exports-first discovery with glob fallback
  *
@@ -19,7 +16,7 @@ import { glob } from 'tinyglobby';
 
 import type { SourceFileInfo } from './source.ts';
 import { toPosixPath } from './paths.ts';
-import { MAX_FILE_CONCURRENCY, map_concurrent } from './concurrency.ts';
+import { MAX_FILE_CONCURRENCY, mapConcurrent } from './concurrency.ts';
 import { baselineExcludesForBase, includePatternBase } from './source-config.ts';
 
 /**
@@ -155,7 +152,7 @@ export const globFiles = async (options: GlobFilesOptions): Promise<Array<Source
 
 	// Bounded concurrency to keep FD pressure under the typical ulimit on
 	// large projects. See `concurrency.ts`.
-	return map_concurrent(filePaths, MAX_FILE_CONCURRENCY, async (id) => {
+	return mapConcurrent(filePaths, MAX_FILE_CONCURRENCY, async (id) => {
 		const content = await readFile(id, 'utf-8');
 		return { id: toPosixPath(id), content };
 	});

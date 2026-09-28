@@ -28,7 +28,7 @@ import type { OnDuplicates } from './analyze-core.ts';
 import { DEFAULT_SOURCE_OPTIONS } from './source-config.ts';
 import type { Discovery } from './discovery.ts';
 import { hasErrors } from './diagnostics.ts';
-import { to_error_message } from './error.ts';
+import { toErrorMessage } from './error.ts';
 import type { AnalysisLog } from './log.ts';
 import { compactReplacer } from './declaration-helpers.ts';
 
@@ -62,12 +62,8 @@ export interface CliOptions {
 	 * File patterns to exclude (undefined = use defaults — test/spec files and
 	 * `internal/` directories).
 	 *
-	 * When provided, **fully replaces** the defaults — no array merge. Passing
-	 * a custom `--exclude` pattern drops the default test/spec/`internal/`
-	 * filters unless the caller re-includes them explicitly (the API's
-	 * exclude-callback form has no CLI equivalent). The always-on baseline
-	 * (`node_modules` + dot-directories below a source path) applies beneath
-	 * it and is unaffected by overrides.
+	 * When provided, **fully replaces** the defaults (the API's callback form
+	 * has no CLI equivalent) — see `ExcludeOption`.
 	 */
 	exclude?: Array<string>;
 	/** Output file path (undefined = stdout). */
@@ -132,7 +128,8 @@ export interface CliOptions {
  * Run the CLI with the given arguments.
  *
  * @param argv - command line arguments (defaults to `process.argv`)
- * @returns exit code: 0 for success, 1 if errors in diagnostics, 2 for CLI errors
+ * @returns exit code: 0 for success, 1 if errors in diagnostics, 2 for CLI errors or any
+ *   thrown analysis error (including an `--on-duplicates throw` collision)
  */
 export const runCli = async (argv: Array<string> = process.argv): Promise<number> => {
 	// Track exit code from action (commander actions don't return values)
@@ -344,7 +341,7 @@ Examples:
 			} catch (error) {
 				// Friendly one-line error for users; full stack only on DEBUG=1
 				// so CI logs and bug reports can still capture it on demand.
-				const message = to_error_message(error);
+				const message = toErrorMessage(error);
 				console.error(`error: ${message}`);
 				if (process.env.DEBUG) {
 					console.error(error);

@@ -17,12 +17,10 @@ npm run build    # production build
 ## Dependencies
 
 This example lists `svelte` and `svelte2tsx` as explicit devDependencies
-because the `file:../..` link doesn't auto-install peer dependencies.
-`svelte-docinfo` has three peer deps — `svelte`, `svelte2tsx`, and `zod` — but
-`zod` resolves through the linked package's own `node_modules`, so only the
-Svelte pair needs declaring here. Everything else (`typescript`, `tinyglobby`,
-`picomatch`, `es-module-lexer`, `@jridgewell/trace-mapping`) is a regular
-dependency of `svelte-docinfo` and flows through transitively.
+because the `file:../..` link doesn't auto-install peer dependencies. Of the
+four peers (`svelte`, `svelte2tsx`, `typescript`, `zod`), the other two resolve
+through the linked package's own `node_modules`, as do its regular
+dependencies.
 
 ## Setup
 

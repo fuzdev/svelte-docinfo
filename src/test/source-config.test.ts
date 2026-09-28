@@ -900,7 +900,7 @@ describe('normalizeSourceOptions', () => {
 		});
 
 		test('a root-anchored sourcePath is absolute, not shorthand — throws with a hint', () => {
-			// previously '/src/lib' was silently reinterpreted as 'src/lib'
+			// '/src/lib' must not be silently reinterpreted as 'src/lib'
 			assert.throws(
 				() => normalizeSourceOptions(invalidOptions({ sourcePaths: ['/src/lib'] })),
 				/drop the leading slash \("src\/lib"\)/
@@ -932,9 +932,9 @@ describe('normalizeSourceOptions', () => {
 		});
 
 		test('relativizes an absolute in-root exclude glob', () => {
-			// pre-normalization the two stages disagreed: tinyglobby's ignore
-			// honored the absolute pattern at discovery while isSource matched
-			// against the root-relative path and silently never excluded
+			// unnormalized, the two stages disagree: tinyglobby's ignore honors
+			// the absolute pattern at discovery while isSource matches against
+			// the root-relative path and silently never excludes
 			const result = normalizeSourceOptions(
 				invalidOptions({ exclude: ['/home/user/project/src/lib/gen/**'] })
 			);

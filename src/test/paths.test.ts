@@ -139,7 +139,7 @@ describe('normalizeSourceOptions — Windows-shaped inputs', () => {
 	});
 
 	test('strips trailing slashes and posixifies in one pass', () => {
-		// a leading slash is no longer stripped — it marks a filesystem-absolute
+		// a leading slash isn't stripped — it marks a filesystem-absolute
 		// entry (accepted in-root, thrown out-of-root); see source-config.test.ts
 		const normalized = normalizeSourceOptions({
 			projectRoot: PROJECT_ROOT_POSIX,

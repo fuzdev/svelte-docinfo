@@ -5,14 +5,18 @@
  *
  * 1. **Validation** — `findDuplicates` checks flat namespace constraints
  * 2. **Transformation** — `mergeReExports` resolves re-export relationships,
+ *    `resolveComponentAliases` fills component aliases from their canonicals,
  *    `computeDependents` builds bidirectional dependency graphs
- * 3. **Output** — `sortModules` prepares deterministic output
+ * 3. **Output** — `sortModules` prepares deterministic output (`compareStrings`
+ *    is the one comparator for all output ordering)
+ * 4. **Queries** — `resolveExportSurface` combines a module's declarations and
+ *    re-export facts into its full export surface
  *
  * Every function here is pure — transformation passes return new arrays with
  * structural sharing (unchanged objects flow through `===`-equal) and never
  * mutate their input.
  *
- * @see `analyze.ts` for the main analysis entry point
+ * @see `analyze-core.ts` for the phase-2 pipeline that runs these
  *
  * @module
  */
@@ -315,6 +319,9 @@ export const mergeReExports = (modules: Array<ModuleJson>): Array<ModuleJson> =>
  * are shared by reference, not cloned); everything else flows through
  * `===`-equal.
  *
+ * Doc-comment fields fill gaps only: local doc fields applied to the alias
+ * before phase 2 (from JSDoc on the re-export statement) stick.
+ *
  * @param modules - the analyzed modules (parsed `ModuleJson`s)
  * @param contextModules - canonical-lookup-only modules that never appear in
  *   output — gated component canonicals (the `internal/` convention) analyzed
@@ -392,10 +399,10 @@ export const resolveComponentAliases = (
 /**
  * Compute bidirectional dependencies from source files.
  *
- * This function ensures that if file A has file B in its `dependencies`,
- * then file B will have file A in its `dependents`. This provides consistent
- * output regardless of whether callers provide one-directional or bidirectional
- * dependency information.
+ * If file A has file B in its `dependencies`, file B gets file A in its
+ * `dependents`. Dependents are derived solely from the forward `dependencies`
+ * edges within `files` (`SourceFileInfo` carries no `dependents` field);
+ * edges to files outside the set are ignored.
  *
  * Returns new `SourceFileInfo` objects when computed dependents exist or when
  * paths needed posixification; otherwise the original input objects flow

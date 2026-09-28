@@ -22,11 +22,9 @@
  *
  * `@internal` is a marker, not an exclusion: it means "not stable public API"
  * and lands as `internalMessage` (with any trailing prose; empty string for a
- * bare tag) while the declaration stays documented. Use `@nodocs` to exclude
- * a declaration from output entirely.
- *
- * The `@nodocs` tag excludes exports from documentation and flat namespace validation.
- * The declaration is still exported and usable, just not documented.
+ * bare tag) while the declaration stays documented. `@nodocs` excludes a
+ * declaration from documentation and flat-namespace validation — it's still
+ * exported and usable, just not documented.
  *
  * Also supports `@mutates` (non-standard) for documenting mutations to parameters or external state.
  * Format: `@mutates target - description of mutation` — the target is everything before the
@@ -40,9 +38,7 @@
  *
  * ## Behavioral notes
  *
- * JSDoc blocks tagged `@module` are excluded from `parseComment` entirely (text
- * and tags) — module comments attach to the file's first statement in the AST
- * and are owned by `extractModuleComment` instead.
+ * `@module` blocks are excluded from `parseComment` (see there).
  *
  * `JSDocPropertyLikeTag` nodes (`@property`/`@param` declaring a symbol in a
  * typedef or callback) parse to their own tag description — the only doc such

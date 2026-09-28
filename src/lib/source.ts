@@ -1,12 +1,9 @@
 /**
- * Source file type predicates and path helpers.
- *
- * Pure functions for detecting file types by extension and extracting
- * component names from paths. No configuration dependency — these are
- * the building blocks used by `source-config.ts`.
+ * Source file shapes (`SourceFileInfo`, `AnalyzerType`), extension predicates,
+ * and svelte2tsx virtual-path and generated-name helpers. No configuration
+ * dependency; the building blocks under `source-config.ts`.
  *
  * @see `source-config.ts` for configuration-aware functions (`isSource`, `extractPath`, etc.)
- * @see `analyze.ts` for consumers (`analyze`, `analyzeFromFiles`)
  *
  * @module
  */
@@ -27,13 +24,17 @@ export type AnalyzerType = 'typescript' | 'svelte' | 'css' | 'json';
  * Provides file content to analysis functions from any source:
  * file system, build pipeline, or in-memory.
  *
- * Note: `content` is required to keep analysis functions pure (no hidden I/O).
- * Callers are responsible for reading file content before analysis.
+ * Note: `content` is required so callers control what the checker sees for
+ * the files they supply. Files they don't (context-closure files,
+ * `node_modules`, other unowned imports) are read from disk.
  */
 export interface SourceFileInfo {
-	/** Absolute path to the file. */
+	/**
+	 * Absolute path to the file. Native paths are fine at the boundary — ids
+	 * are posixified at ingest (see `paths.ts`).
+	 */
 	id: string;
-	/** File content (required - analysis functions don't read from disk). */
+	/** File content (required — the checker sees this, not the disk, for ingested files). */
 	content: string;
 	/**
 	 * Pre-resolved absolute file paths of modules this file imports.
@@ -61,8 +62,11 @@ export interface SourceFileInfo {
 	 *
 	 * Type-only imports (`import type {...}`) are the most common asymmetry
 	 * versus the lex+resolve path: the default lex (`es-module-lexer`) keeps
-	 * them; pre-resolved callers backed by a Gro-style filer typically drop
-	 * them. Both are intentional within their respective contracts.
+	 * `import type` and inline `type` specifiers; pre-resolved callers backed
+	 * by a Gro-style filer typically drop them. Both are intentional within
+	 * their respective contracts. The default lex does drop type-only
+	 * re-exports (see `lexImports`), so such a re-export has a `reExports`
+	 * edge with no `dependencies` entry and seeds no context closure.
 	 *
 	 * Cache semantics: the session compares this array element-wise (shallow
 	 * equality) against the snapshot stored from the prior call — a fresh
@@ -84,7 +88,7 @@ export interface SourceFileInfo {
  * Default analyzer resolver based on file extension.
  *
  * - `.svelte` → `'svelte'`
- * - `.ts`, `.js` → `'typescript'`
+ * - `.ts` (not `.d.ts`), `.js` → `'typescript'`
  * - `.css` → `'css'`
  * - `.json` → `'json'`
  * - Other extensions → `null` (skip)

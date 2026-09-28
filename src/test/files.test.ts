@@ -228,7 +228,7 @@ describe('globFiles', () => {
 		});
 	});
 
-	// Trip-wire: `globFiles` uses `map_concurrent` with `MAX_FILE_CONCURRENCY = 100`.
+	// Trip-wire: `globFiles` uses `mapConcurrent` with `MAX_FILE_CONCURRENCY = 100`.
 	// A previous unbounded `Promise.all` could trip `EMFILE` on large projects;
 	// the bound prevents that. This test just verifies the bound doesn't break
 	// loading more than 100 files.

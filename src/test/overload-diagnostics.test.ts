@@ -9,12 +9,11 @@
  *
  * - `unknown_param` — `@param` key that doesn't reference a real parameter on
  *   the signature being documented. Catches typos (`@param argz` for `args`)
- *   and stale doc after a rename. The description is dropped (status quo);
- *   the diagnostic surfaces the drop without halting analysis.
+ *   and stale doc after a rename. The description is dropped; the diagnostic
+ *   surfaces the drop without halting analysis.
  *
- * Also locks in the fold-in fix: per-overload `@param` descriptions now flow
- * through to that overload's `parameters[i].description` (they were silently
- * dropped before this work).
+ * Also locks that per-overload `@param` descriptions flow through to that
+ * overload's `parameters[i].description`.
  */
 
 import { join } from 'node:path';

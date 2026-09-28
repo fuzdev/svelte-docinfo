@@ -5,8 +5,8 @@
  * plumbing, `.svelte` module resolution):
  *
  * - `createAnalysisProgram` — one-shot `ts.Program` from a `ts.CompilerHost`.
- *   Lower-level escape hatch for power users + dependency resolution. Does not
- *   support incremental updates.
+ *   Lower-level escape hatch for power users. Does not support incremental
+ *   updates.
  * - `createAnalysisLanguageService` — persistent `ts.LanguageService` with
  *   versioned `IScriptSnapshot`s. Incremental: subsequent `getProgram()` calls
  *   reuse parsed ASTs and checker state for unchanged files. Used by
@@ -61,7 +61,9 @@ export interface VirtualFileEntry {
 	content: string;
 	/**
 	 * Overrides script-kind inference from the path's extension; `undefined`
-	 * defers to the extension.
+	 * defers to the extension. JS-lang Svelte virtuals set this to parse as JS
+	 * despite their `.ts` suffix; no `allowJs` needed, since virtuals are
+	 * host-served.
 	 */
 	scriptKind?: ts.ScriptKind;
 }
@@ -309,7 +311,10 @@ export interface AnalysisLanguageService {
  * resolution via `ts.resolveModuleName`) without the cost of building a full
  * `ts.Program`.
  *
- * @throws Error if tsconfig.json (or the requested `tsconfigName`) is not found.
+ * Each call globs the tsconfig `include` to build `rootFileNames`; reuse the
+ * result rather than calling per resolve.
+ *
+ * @throws Error if tsconfig.json (or the file named by `options.tsconfig`) is not found.
  */
 export const loadTsconfig = (
 	options?: LoadTsconfigOptions,
@@ -598,24 +603,14 @@ export const createAnalysisLanguageService = (
 
 /**
  * Predicate for determining whether a TypeScript source file is external to the project.
- * Used by intersection type filtering to separate user-authored properties from
- * library/framework properties.
+ * Used by external-contribution filtering (`filterDocumentedProperties` and the
+ * index/call-signature origin checks) and `externalTypes` attribution to separate
+ * project-authored contributions from library/framework ones.
  *
- * Constructed from `ModuleSourceOptions` at analysis entry points — files under the
- * source root (e.g., `src/lib/`) are internal, everything else is external.
+ * Built by `createIsExternalFile`, which defines externality.
  */
 export type IsExternalFile = (sourceFile: ts.SourceFile) => boolean;
 
-/**
- * Create an `IsExternalFile` predicate from `ModuleSourceOptions`.
- *
- * A file is external if it is:
- * - Outside the project root
- * - Inside `node_modules/`
- * - A `.d.ts` declaration file outside the source root (catches framework-generated
- *   declarations like `.svelte-kit/non-ambient.d.ts` while keeping user `.d.ts` files
- *   in the source tree)
- */
 /** The project/source prefixes both externality predicates compare against. */
 const externalityPrefixes = (
 	options: ModuleSourceOptions
@@ -628,6 +623,16 @@ const externalityPrefixes = (
 	};
 };
 
+/**
+ * Create an `IsExternalFile` predicate from `ModuleSourceOptions`.
+ *
+ * A file is external if it is:
+ * - Outside the project root
+ * - Inside `node_modules/`
+ * - A `.d.ts` declaration file outside the source root (catches framework-generated
+ *   declarations like `.svelte-kit/non-ambient.d.ts` while keeping user `.d.ts` files
+ *   in the source tree)
+ */
 export const createIsExternalFile = (options: ModuleSourceOptions): IsExternalFile => {
 	const { projectPrefix, sourcePrefix } = externalityPrefixes(options);
 	return (sf) =>

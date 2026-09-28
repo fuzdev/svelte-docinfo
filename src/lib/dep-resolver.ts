@@ -1,7 +1,7 @@
 /**
  * Import resolver primitives for the analysis session.
  *
- * Exposes the `ImportResolver` token contract (`{resolve, identity}`) plus
+ * Exposes the `ImportResolver` token contract (`{resolve, identity, invalidate?}`) plus
  * building blocks the session uses inside its three-phase setFiles pipeline:
  *
  * - `ensureLexerReady` — one-time wasm init for `es-module-lexer`. Phase 1 is
@@ -18,8 +18,9 @@
  *   wraps a bare function in an `ImportResolver`, synthesizing a throwaway
  *   identity unless a stable one is passed.
  *
- * @internal — subpath-importable for power users who want to drive resolution
- * outside the session, but not part of the stable barrel surface.
+ * `ImportResolver`, `ResolveImport`, `ResolveImportFn`, and
+ * `normalizeResolveImport` are on the main barrel; the lexing and
+ * default-resolver building blocks are subpath-only and not stable API.
  *
  * @see `session.ts` for the three-phase ingestion pipeline that consumes these
  * @see `loadTsconfig` in `typescript-program.ts` for producing the merged
@@ -142,6 +143,8 @@ export const ensureLexerReady = async (): Promise<void> => {
  * content, not the raw `.svelte` source (which isn't lex-able as JS/TS).
  *
  * Dynamic imports (`import(specifier)` with non-literal arg) are omitted.
+ * `import type` and inline `type` specifiers are kept, but the lexer drops
+ * type-only re-exports (`export type {...} from`, `export type * from`).
  *
  * @throws Error if lexing fails (malformed source). Callers should catch and
  *   emit `import_parse_failed`.

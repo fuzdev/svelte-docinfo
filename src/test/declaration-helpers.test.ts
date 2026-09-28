@@ -794,9 +794,8 @@ describe('compactReplacer', () => {
 	});
 
 	test('AnalyzeResultJson envelope round-trips through compactReplacer (both empty)', () => {
-		// Both arrays empty — wire form collapses to `{}`, schema restores `[]`.
-		// This is the case the old CLI top-level carve-out worked around;
-		// schema-validated round-trip makes the carve-out unnecessary.
+		// Both arrays empty — wire form collapses to `{}`, schema restores `[]`,
+		// so the CLI needs no top-level carve-out.
 		const original = AnalyzeResultJson.parse({ modules: [], diagnostics: [] });
 
 		const json = JSON.stringify(original, compactReplacer);

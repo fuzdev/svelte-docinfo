@@ -123,7 +123,7 @@ const hasNullMember = (type: ts.Type): boolean =>
  * - a union left with exactly one member after dropping `undefined` takes that
  *   member directly — it *is* the annotated type. Matters for a bare
  *   unconstrained type parameter (`c?: E`), where `getNonNullableType` can
- *   only answer `NonNullable<E>` and would print `E & {}`
+ *   only answer `NonNullable<E>`
  * - every other union takes `getNonNullableType`, which rebuilds the union
  *   rather than picking a member (so a union of callables keeps its combined
  *   call signature) and preserves the alias symbol
@@ -179,11 +179,14 @@ const isModuleObjectType = (type: ts.Type): boolean => {
  * type: no alias symbol (the checker still prints `type A = B` as `B`), no
  * nominal symbol (interfaces/classes/enums print their own name), and not an
  * interned terminal (`type A = string` and `type A = 'x'` carry no alias
- * symbol either but print fine). True exactly for the expansion-prone class
- * the alias registry targets and the `alias_lost` diagnostic reports —
+ * symbol either but print fine). True for the expansion-prone class the alias
+ * registry targets and the `alias_lost` diagnostic reports —
  * indexed-access and conditional right-hand sides (`z.infer<typeof S>` et
  * al.), whose resolution lands on a pre-existing interned type that TypeScript
  * never retroactively stamps an alias symbol on.
+ *
+ * The exception is a lost alias over an array root: `namedSymbolName` names it
+ * `Array`, so the predicate is false and it never registers.
  */
 export const isAliasLostType = (type: ts.Type): boolean =>
 	type.aliasSymbol === undefined &&
@@ -222,6 +225,11 @@ export interface AliasRegistryEntry {
  * per analysis cycle by `buildAliasRegistry` (`typescript-alias-registry.ts`);
  * `undefined` wherever no pre-pass ran (registry recovery disabled, written
  * recovery unaffected).
+ *
+ * Registry hits must be linkable: identity-exact matches against aliases the
+ * output documents. That's why `@nodocs` aliases and aliases in gated modules
+ * (`internal/`) never register, and why package aliases never do ("never name
+ * what the project didn't declare").
  */
 export interface AliasRegistry {
 	/** Checker type identity → the winning alias (`compareStrings` name-then-module tie-break). */
@@ -881,12 +889,12 @@ const buildTypeJson = (
 			return { kind: 'reference', name: type.aliasSymbol.name };
 		}
 
-		// one consult for every nameless object shape, tuples included (sub-cap
-		// tuples never consulted before — tuple references carry no symbol, so
-		// they *did* recover at the cap, an inconsistency this placement closes).
-		// Arrays and named instantiations decline via the nameless gate
-		// (`Array`/`ReadonlyArray`/the instantiation's own symbol), so their
-		// structural branches below still run
+		// one consult for every nameless object shape, tuples included — tuple
+		// references carry no symbol and recover at the cap, so consulting here
+		// keeps sub-cap tuples consistent with capped ones. Arrays and named
+		// instantiations decline via the nameless gate (`Array`/`ReadonlyArray`/
+		// the instantiation's own symbol), so their structural branches below
+		// still run
 		const recovered = recoveredReference(type, recovery, depth);
 		if (recovered) return recovered;
 

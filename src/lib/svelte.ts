@@ -76,7 +76,7 @@ import {
 import { type ModuleSourceOptions, extractDependencies } from './source-config.ts';
 import { compareStrings } from './postprocess.ts';
 import { type Diagnostic } from './diagnostics.ts';
-import { to_error_message } from './error.ts';
+import { toErrorMessage } from './error.ts';
 import { toPosixPath } from './paths.ts';
 
 /** Resolved source map type (avoids repeating the verbose `InstanceType<...>` inline). */
@@ -126,8 +126,9 @@ export interface TransformResult {
  *
  * Produces a `SvelteVirtualFile` containing the transformed TypeScript content
  * and source map. The virtual file can be included in a TypeScript program
- * (via `createAnalysisProgram({ virtualFiles })`) so that the checker can
- * resolve imported types, `<script module>` exports, and re-exports.
+ * (via `createAnalysisProgram({ virtualFiles })`, or the language service's
+ * `setFile` in sessions) so that the checker can resolve imported types,
+ * `<script module>` exports, and re-exports.
  *
  * Errors at ingest are returned via `diagnostics` rather than thrown:
  * - svelte2tsx throws → `transform_failed`, `virtual: undefined`
@@ -171,7 +172,7 @@ export const transformSvelteSource = (sourceFile: SourceFileInfo): TransformResu
 		diagnostics.push({
 			kind: 'transform_failed',
 			file: posixId,
-			message: `svelte2tsx failed to transform Svelte source: ${to_error_message(err)}`,
+			message: `svelte2tsx failed to transform Svelte source: ${toErrorMessage(err)}`,
 			severity: 'error'
 		});
 		return { virtual: undefined, diagnostics };
@@ -186,7 +187,7 @@ export const transformSvelteSource = (sourceFile: SourceFileInfo): TransformResu
 		diagnostics.push({
 			kind: 'source_map_failed',
 			file: posixId,
-			message: `Failed to parse svelte2tsx source map: ${to_error_message(err)}. Line/column positions for this file will reference virtual TypeScript output instead of the original Svelte source.`,
+			message: `Failed to parse svelte2tsx source map: ${toErrorMessage(err)}. Line/column positions for this file will reference virtual TypeScript output instead of the original Svelte source.`,
 			severity: 'warning'
 		});
 	}
@@ -667,6 +668,9 @@ const extractComponentTsdoc = (
  * documented statement in a propless runes component or a legacy `export let`
  * component is some local's doc, not the component's). The HTML `@component`
  * comment is the authoring path for anchorless components.
+ *
+ * A JSDoc above the instance script's first import is missed: svelte2tsx
+ * hoists imports out of `$$render`, taking their leading comments with them.
  */
 const findInstanceTsdoc = (
 	renderBody: ts.Block,
@@ -705,6 +709,13 @@ const isPropsDeclaration = (statement: ts.Statement): boolean =>
  * annotation (or the one svelte2tsx synthesizes for untyped `$props()`)
  * parses to an empty result and would otherwise claim the doc slot, masking
  * the HTML `@component` fallback.
+ *
+ * Two JS-component caveats: a description block written above a separate
+ * `/** @type {...} *\/` block never attaches (TypeScript binds only the last
+ * block — write docs in the HTML comment, or inside the `@type` block), and
+ * svelte2tsx consumes descriptions merged into an inline `@type {{...}}`
+ * literal when it rewrites it into a synthesized typedef (the HTML fallback
+ * still applies).
  */
 const findComponentTsdoc = (
 	root: ts.Node,
@@ -757,7 +768,7 @@ const findComponentTsdoc = (
  * assembling modules themselves through `analyzeModule` /
  * `analyzeSvelteModule`.
  *
- * @mutates diagnostics — rewrites `line`/`column` on virtual-file entries
+ * @mutates diagnostics - rewrites `line`/`column` on virtual-file entries
  */
 export const remapVirtualDiagnosticPositions = (
 	diagnostics: Array<Diagnostic>,
@@ -1069,7 +1080,7 @@ const detectChildrenSnippet = (
 		ctx.diagnostics.push({
 			kind: 'svelte_prop_failed',
 			file: diagnosticFile,
-			message: `Failed to resolve type for "children" in ${componentName} while detecting acceptsChildren: ${to_error_message(err)}`,
+			message: `Failed to resolve type for "children" in ${componentName} while detecting acceptsChildren: ${toErrorMessage(err)}`,
 			severity: 'warning',
 			componentName,
 			propName: 'children'
@@ -1146,11 +1157,11 @@ const extractPropsViaChecker = (
 	const { type: propsType, node: propsTypeNode } = resolvedProps;
 
 	// Detect `acceptsChildren` via type inference: `children` must resolve to a
-	// `Snippet<...>` type. Checking the symbol name alone (the previous approach)
-	// misreports a non-Snippet `children` (e.g. `children: string`) as accepting
-	// children. The lookup runs on the unfiltered props type so inherited
-	// `children` from `SvelteHTMLElements`/`DOMAttributes` (declared as `Snippet`)
-	// is honored even when its declaration lives in node_modules.
+	// `Snippet<...>` type. Checking the symbol name alone would misreport a
+	// non-Snippet `children` (e.g. `children: string`) as accepting children.
+	// The lookup runs on the unfiltered props type so inherited `children` from
+	// `SvelteHTMLElements`/`DOMAttributes` (declared as `Snippet`) is honored
+	// even when its declaration lives in node_modules.
 	const acceptsChildren = detectChildrenSnippet(
 		propsType,
 		propsTypeNode,
@@ -1162,6 +1173,9 @@ const extractPropsViaChecker = (
 	// Drop properties contributed by external types (node_modules / svelte's
 	// element-attribute bags like `SvelteHTMLElements['li']`); those external
 	// types are summarized in `externalTypes` rather than enumerated as props.
+	// No `hasExtractableProperties` gate here, unlike the type-alias path, so
+	// union prop types (`HTMLButtonAttributes | HTMLAnchorAttributes`) still get
+	// `externalTypes`.
 	const { properties, externalTypes } = filterDocumentedProperties(
 		propsType,
 		propsTypeNode,
@@ -1273,7 +1287,7 @@ const extractPropsViaChecker = (
 				file: diagnosticFile,
 				line: finalLine,
 				column: finalColumn,
-				message: `Failed to resolve type for prop "${prop.name}" in ${componentName}, falling back to 'any': ${to_error_message(err)}`,
+				message: `Failed to resolve type for prop "${prop.name}" in ${componentName}, falling back to 'any': ${toErrorMessage(err)}`,
 				severity: 'warning',
 				componentName,
 				propName: prop.name
@@ -1292,10 +1306,26 @@ const extractPropsViaChecker = (
  * Analyze a Svelte module using checker-backed analysis.
  *
  * Requires the svelte2tsx virtual output to be included in the TypeScript program
- * (via `createAnalysisProgram({ virtualFiles })`). Provides full type resolution for:
+ * (via `createAnalysisProgram({ virtualFiles })`, or the language service's
+ * `setFile` in sessions). Provides full type resolution for:
  * - Imported prop types (`let {x}: ImportedProps = $props()`)
  * - `<script module>` exports (constants, types, re-exports)
  * - Star exports and re-exports from Svelte files
+ *
+ * Mirrors the numbered steps in the body:
+ *
+ * 1. `analyzeExports` on the virtual collects `<script module>` exports,
+ *    re-exports, and star exports
+ * 2. svelte2tsx internals are filtered (`isSvelte2tsxGeneratedExport`) and
+ *    exported snippets reclassified to `kind: 'snippet'` (`isSnippetReturnType`);
+ *    2b remaps module-level `sourceLine`s to the original `.svelte` source
+ * 3. the component declaration is synthesized: props via `extractPropsViaChecker`,
+ *    `acceptsChildren` from a `Snippet`-typed `children` prop or, failing that,
+ *    template use (`__sveltets_2_ensureSnippet`), plus generics, doc comment, and
+ *    source line from the landmarks `findComponentNodes` locates
+ * 4. the module comment is read from the original source
+ * 5. declarations combine, component first
+ * 6. dependencies are extracted
  *
  * @param sourceFile - the original Svelte source file
  * @param modulePath - module path relative to source root; feeds
@@ -1605,7 +1635,10 @@ export const analyzeSvelteModule = (
 		});
 	}
 
-	// 5. Combine: component declaration first (primary export), then <script module> exports
+	// 5. Combine: component declaration first (primary export), then <script module> exports;
+	// `@nodocs` is read from whichever doc source won (in-script JSDoc over the
+	// HTML `@component` comment), so an HTML `@nodocs` is ignored when in-script
+	// JSDoc supplies the doc
 	const allDeclarations: Array<DeclarationAnalysis> = [
 		{ declaration: componentDecl, nodocs: componentTsdoc?.tsdoc.nodocs === true },
 		...moduleDeclarations

@@ -1,7 +1,7 @@
 /**
  * Tests for `src/lib/concurrency.ts`:
  *
- * - `map_concurrent` ordering, bounding, fail-fast, and degenerate inputs.
+ * - `mapConcurrent` ordering, bounding, fail-fast, and degenerate inputs.
  *
  * The constants `MAX_FILE_CONCURRENCY` / `MAX_RESOLVE_CONCURRENCY` are exercised
  * indirectly via integration trip-wires elsewhere (`files.test.ts`,
@@ -10,7 +10,7 @@
 
 import { test, assert, describe } from 'vitest';
 
-import { map_concurrent } from '$lib/concurrency.ts';
+import { mapConcurrent } from '$lib/concurrency.ts';
 
 // Tiny resolved-after-N-microtasks delay; avoids real timers so suite stays fast.
 const microtask_delay = (n: number): Promise<void> => {
@@ -19,12 +19,12 @@ const microtask_delay = (n: number): Promise<void> => {
 	return p;
 };
 
-describe('map_concurrent', () => {
+describe('mapConcurrent', () => {
 	describe('basic functionality', () => {
 		test('preserves input order regardless of resolve order', async () => {
 			const items = [0, 1, 2, 3, 4];
 			// fn for index 0 settles last, index 4 first — order must still match input.
-			const result = await map_concurrent(items, 4, async (n) => {
+			const result = await mapConcurrent(items, 4, async (n) => {
 				await microtask_delay(10 - n * 2);
 				return n * 10;
 			});
@@ -33,7 +33,7 @@ describe('map_concurrent', () => {
 
 		test('passes index to fn', async () => {
 			const indices: Array<number> = [];
-			await map_concurrent(['a', 'b', 'c'], 2, async (_item, i) => {
+			await mapConcurrent(['a', 'b', 'c'], 2, async (_item, i) => {
 				indices.push(i);
 				return null;
 			});
@@ -42,7 +42,7 @@ describe('map_concurrent', () => {
 		});
 
 		test('returns empty array for empty input', async () => {
-			const result = await map_concurrent([], 5, async () => {
+			const result = await mapConcurrent([], 5, async () => {
 				throw new Error('should not run');
 			});
 			assert.deepStrictEqual(result, []);
@@ -54,7 +54,7 @@ describe('map_concurrent', () => {
 			const items = Array.from({ length: 50 }, (_, i) => i);
 			let in_flight = 0;
 			let peak = 0;
-			await map_concurrent(items, 5, async () => {
+			await mapConcurrent(items, 5, async () => {
 				in_flight++;
 				if (in_flight > peak) peak = in_flight;
 				await microtask_delay(3);
@@ -67,7 +67,7 @@ describe('map_concurrent', () => {
 		test('concurrency=1 runs serially', async () => {
 			const order: Array<number> = [];
 			const items = [0, 1, 2, 3];
-			await map_concurrent(items, 1, async (n) => {
+			await mapConcurrent(items, 1, async (n) => {
 				order.push(n);
 				await microtask_delay(2);
 				order.push(n);
@@ -84,7 +84,7 @@ describe('map_concurrent', () => {
 			const items = [0, 1, 2];
 			let in_flight = 0;
 			let peak = 0;
-			await map_concurrent(items, 100, async () => {
+			await mapConcurrent(items, 100, async () => {
 				in_flight++;
 				if (in_flight > peak) peak = in_flight;
 				await microtask_delay(2);
@@ -100,7 +100,7 @@ describe('map_concurrent', () => {
 			const items = [0, 1, 2, 3];
 			let err: unknown;
 			try {
-				await map_concurrent(items, 2, async (n) => {
+				await mapConcurrent(items, 2, async (n) => {
 					if (n === 1) throw new Error('boom');
 					await microtask_delay(5);
 					return n;
@@ -120,7 +120,7 @@ describe('map_concurrent', () => {
 			const items = Array.from({ length: 100 }, (_, i) => i);
 			let started = 0;
 			try {
-				await map_concurrent(items, 2, async (n) => {
+				await mapConcurrent(items, 2, async (n) => {
 					started++;
 					if (n === 0) throw new Error('boom');
 					await microtask_delay(20);
@@ -139,7 +139,7 @@ describe('map_concurrent', () => {
 			const items = [0, 1];
 			let err: unknown;
 			try {
-				await map_concurrent(items, 2, async (n) => {
+				await mapConcurrent(items, 2, async (n) => {
 					await microtask_delay(n + 1);
 					throw new Error(`err${n}`);
 				});
@@ -155,7 +155,7 @@ describe('map_concurrent', () => {
 	describe('result placement', () => {
 		test('results land at correct indices even with one slow item in the middle', async () => {
 			const items = [10, 20, 30, 40, 50];
-			const result = await map_concurrent(items, 3, async (n, i) => {
+			const result = await mapConcurrent(items, 3, async (n, i) => {
 				await microtask_delay(i === 2 ? 8 : 1);
 				return n + i;
 			});

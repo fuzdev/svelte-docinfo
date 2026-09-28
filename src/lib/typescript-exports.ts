@@ -57,11 +57,9 @@ import { extractClassInfo } from './typescript-extract-class.ts';
 /**
  * Analyze a TypeScript file and extract module metadata.
  *
- * Wraps `analyzeExports` and adds dependency information via `extractDependencies`
- * from the source file info if available.
- *
- * This is a high-level function suitable for building documentation or library metadata.
- * For lower-level analysis, use `analyzeExports` directly.
+ * The TypeScript arm of `analyzeModule`: wraps `analyzeExports` and adds
+ * dependency information via `extractDependencies`. For whole-project analysis
+ * use `analyze`/`analyzeFromFiles`.
  *
  * @param sourceFileInfo - the source file info (from file system, build pipeline, or other source)
  * @param tsSourceFile - TypeScript source file from the program
@@ -199,7 +197,7 @@ const classifyNamespaceReExport = (
 	// './internal/x.ts'` documents as a namespace instead of falling through
 	// to the external arm with a relative path as its "package" specifier.
 	// Truly external targets (`export * as ns from 'pkg'`) return null and
-	// take the external arm as before.
+	// take the external arm.
 	const sourceModuleFile = getPrimaryDeclarationFile(deeplyAliased);
 	if (!sourceModuleFile || isExternalPath(sourceModuleFile)) return null;
 
@@ -373,7 +371,10 @@ const synthesizeCrossFileAlias = (
  * For standard SvelteKit library layouts, use `createSourceOptions(process.cwd())`.
  *
  * @param sourceFile - the TypeScript source file to analyze
- * @param ctx - the extraction pass's context (see `ExtractContext`) — `analyzeModule` and `analyzeSvelteModule` construct it via `createExtractContext`; a direct caller owns the construction, deciding every field explicitly (tests use `mockExtractContext`). Its `isExternalFile` must be derived from the same `options` passed here: this function derives its own path-keyed twin (`createIsExternalPath`) from `options`, and the two externality axes are expected to agree
+ * @param ctx - the extraction pass's context (see `createExtractContext`); its
+ *   `isExternalFile` must derive from the same `options` passed here, since this
+ *   function derives its path-keyed twin (`createIsExternalPath`) from `options`
+ *   and the two must agree
  * @param options - module source options for path extraction in re-exports
  * @returns module comment, declarations, re-exports (source + external), and star exports (source + external)
  */
@@ -817,7 +818,8 @@ export const analyzeDeclaration = (
 	}
 	applyToDeclaration(result, tsdoc);
 
-	// Extract source line
+	// Extract source line — from the selected node, so a merged value+type
+	// symbol points at its type-space declaration
 	const start = declNode.getStart(sourceFile);
 	const startPos = sourceFile.getLineAndCharacterOfPosition(start);
 	result.sourceLine = startPos.line + 1;
@@ -995,7 +997,6 @@ export const extractModuleComment = (sourceFile: ts.SourceFile): string | undefi
  * instance-script comments would read as module comments — so
  * `analyzeSvelteModule` owns all three Svelte sources (instance script,
  * `<script module>`, HTML comment), reading each from the original file.
- * Those are the two callers this parameter's base once disagreed across.
  */
 export const warnModuleCommentNodocs = (
 	moduleComment: string | undefined,
@@ -1030,10 +1031,11 @@ const stripModuleTag = (text: string): string => {
 /**
  * Extract star exports (`export * from './module'` / `'pkg'`) from a source file.
  *
- * Uses the type checker to resolve module specifiers: source modules land in
- * `starExports` (as `sourceRoot`-relative paths), external modules in
- * `externalStarExports` (specifier as written). Unresolvable specifiers
- * (missing package, typo) are silently skipped.
+ * Uses the type checker to resolve module specifiers. Project-local targets land
+ * in `starExports` as `sourceRoot`-relative paths, gated ones included (they
+ * aren't in the analyzed set, so `resolveExportSurface` reports them in
+ * `unresolvedStarExports`). External targets land in `externalStarExports` as
+ * written. Unresolvable specifiers (missing package, typo) are silently skipped.
  *
  * Statement-level `@nodocs` suppresses the entry — the same rule as the other
  * re-export encodings (same-name edges and renamed aliases).

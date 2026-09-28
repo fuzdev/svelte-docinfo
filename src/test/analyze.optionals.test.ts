@@ -95,7 +95,7 @@ describe('optional type normalization', () => {
 
 	test('keeps call signatures on an optional method', async () => {
 		// `fn?(): T` resolves to a union with `undefined`, which reports no call
-		// signatures — the member used to ship with none of the callable fields
+		// signatures, so without the strip the member ships with no callable fields
 		const module = await analyzeFile(
 			'src/lib/a.ts',
 			`export interface A {
@@ -223,7 +223,7 @@ let {a, b}: {a?: A; b: A} = $props();
 		assert(declaration?.kind === 'component', 'expected a component declaration');
 
 		// the optional prop prints like the required one — stripping optionality
-		// through `getNonNullableType` used to rebuild the union and lose the alias
+		// through `getNonNullableType` would rebuild the union and lose the alias
 		assert.deepStrictEqual(propTypes(declaration.props), { a: 'A', b: 'A' });
 	});
 
@@ -279,7 +279,7 @@ let {a}: {a?: Snippet<[b: string, c?: number]>} = $props();
 		const prop = declaration.props[0];
 		assert.ok(prop, 'expected a prop');
 		// the prop's `type` is the checker's canonical rendering — nested positions
-		// keep the widening (see the `optional` notes in CLAUDE.md)
+		// keep the widening (see `getTypeSignature`)
 		assert.strictEqual(prop.type, 'Snippet<[b: string, c?: number | undefined]>');
 		assert.deepStrictEqual(
 			prop.parameters?.map((p) => [p.name, p.type, p.optional]),

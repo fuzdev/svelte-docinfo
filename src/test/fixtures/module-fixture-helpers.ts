@@ -26,7 +26,7 @@ import {
 	type AnalyzeResultJson
 } from '$lib/analyze-core.ts';
 import { ensureLexerReady, lexImports } from '$lib/dep-resolver.ts';
-import { to_error_message } from '$lib/error.ts';
+import { toErrorMessage } from '$lib/error.ts';
 import { computeDependents } from '$lib/postprocess.ts';
 import type { SvelteVirtualFile } from '$lib/svelte.ts';
 import type { SourceFileInfo } from '$lib/source.ts';
@@ -200,7 +200,7 @@ export const captureFixtureProject = async (
 			ingestDiagnostics.push({
 				kind: 'import_parse_failed',
 				file: id,
-				message: `Failed to parse imports: ${to_error_message(err)}`,
+				message: `Failed to parse imports: ${toErrorMessage(err)}`,
 				severity: 'warning'
 			});
 		}

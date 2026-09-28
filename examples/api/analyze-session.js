@@ -70,7 +70,7 @@ try {
 	// === Cycle 2: single-file edit (the δ shape an LSP/HMR consumer drives) ==
 	// Simulate an editor saving math.ts with a tweaked docstring. Only that one
 	// entry is dirty — `setFile` returns `{changed: true}` for it, and parsed
-	// ASTs for the other two files survive untouched.
+	// ASTs for the other files survive untouched.
 	const mathSource = await readFile(mathPath, 'utf-8');
 	const editedMath = mathSource.replace('Add two numbers.', 'Add two numbers together.');
 	const ingest2 = await session.setFile({

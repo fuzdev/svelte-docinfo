@@ -3,10 +3,10 @@
  *
  * Provides `ModuleSourceOptions` configuration management and functions
  * that operate on source files using those options: path extraction,
- * source detection, dependency filtering, and file collection.
+ * source detection, dependency filtering, include-pattern widening, and
+ * glob-pattern normalization.
  *
  * @see `source.ts` for pure file type predicates (`isTypescript`, `isSvelte`, etc.)
- * @see `analyze.ts` for consumers (`analyze`, `analyzeFromFiles`)
  *
  * @module
  */
@@ -107,8 +107,7 @@ export interface ModuleSourceOptions {
 	 * Applied at both stages of the pipeline:
 	 * - **Discovery time** by `globFiles`/`discoverFromExports`, preventing matched files from being loaded.
 	 * - **Analysis time** by `isSource()` against `relative(projectRoot, absolutePath)`,
-	 *   catching files that enter through TypeScript import resolution
-	 *   (e.g., a source file imports a test helper).
+	 *   which gates both the emitted module set (`query()`) and dependency edges.
 	 *
 	 * Beneath it, the always-on baseline (`node_modules` + dot-directories
 	 * below a matched source path — see `hasBaselineExcludedSegment`) applies
@@ -123,7 +122,8 @@ export interface ModuleSourceOptions {
 	 * defaults doesn't require restating them; this normalized field is always
 	 * a plain array.
 	 *
-	 * `analyzeFromFiles` accepts a top-level `exclude` shortcut that merges into this field.
+	 * `analyzeFromFiles` and the Vite plugin accept a top-level `exclude` that
+	 * replaces this field (no merge).
 	 *
 	 * Compiled to a matcher once per options object via picomatch and cached by reference;
 	 * mutating this array post-`isSource`-call has no effect — pass through
@@ -136,14 +136,9 @@ export interface ModuleSourceOptions {
 	/**
 	 * Determine which analyzer to use for a file path.
 	 *
-	 * Called for files in source directories. Return an `AnalyzerType` or `null` to skip:
-	 * - `'typescript'` — TypeScript/JS files analyzed via TypeScript compiler API
-	 * - `'svelte'` — Svelte components analyzed via svelte2tsx + TypeScript compiler API
-	 * - `'css'` — CSS files included as modules with no declarations
-	 * - `'json'` — JSON files included as modules with no declarations
-	 * - `null` — skip the file
-	 *
-	 * @default Uses file extension: `.svelte` → svelte, `.ts`/`.js` → typescript, `.css` → css, `.json` → json
+	 * Called wherever the pipeline classifies a path (ingest, every `isSource`
+	 * check, context-closure candidates), so keep it cheap and pure. Return an
+	 * `AnalyzerType` (see there for what each analyzes) or `null` to skip.
 	 *
 	 * Extend the default table by delegating to `getDefaultAnalyzer` (exported
 	 * from the main barrel) for everything but the added case — restating the
@@ -160,6 +155,8 @@ export interface ModuleSourceOptions {
 	 * // Include .d.ts files (the default excludes them)
 	 * getAnalyzerType: (path) => (path.endsWith('.d.ts') ? 'typescript' : getDefaultAnalyzer(path))
 	 * ```
+	 *
+	 * @default `getDefaultAnalyzer` (by file extension)
 	 */
 	getAnalyzerType: (path: string) => AnalyzerType | null;
 }
@@ -178,9 +175,10 @@ export type SourceOptionsDefaults = Omit<ModuleSourceOptions, 'projectRoot'>;
  * `analyzeFromFiles`, the Vite plugin — not the CLI, whose `--exclude` is
  * array-only).
  *
- * An array **replaces** `DEFAULT_SOURCE_OPTIONS.exclude` wholesale; the
- * callback form receives a fresh copy of those defaults and returns the list
- * to use, so extending them doesn't require restating them:
+ * An array **replaces** `DEFAULT_SOURCE_OPTIONS.exclude` wholesale (the test,
+ * spec, and `internal/` filters are dropped unless restated); the callback
+ * form receives a fresh copy of those defaults and returns the list to use,
+ * so extending them doesn't require restating them:
  *
  * ```ts
  * exclude: (defaults) => [...defaults, '**\/*.gen.ts']         // add a pattern
@@ -190,7 +188,9 @@ export type SourceOptionsDefaults = Omit<ModuleSourceOptions, 'projectRoot'>;
  * The callback runs at most once per built options object (include-pattern
  * widening rebuilds options from the already-resolved array). Resolved to a
  * plain array before normalization; `ModuleSourceOptions.exclude` never
- * carries the function form.
+ * carries the function form. The always-on baseline (`node_modules` +
+ * dot-directories below a matched source path, `hasBaselineExcludedSegment`)
+ * applies beneath either form and is unaffected by overrides.
  */
 export type ExcludeOption = Array<string> | ((defaults: Array<string>) => Array<string>);
 
@@ -234,7 +234,9 @@ export const DEFAULT_SOURCE_OPTIONS: SourceOptionsDefaults = {
  *
  * @param projectRoot - path to project root (typically `process.cwd()`); resolved to absolute
  * @param overrides - optional overrides for default options
- * @throws Error if validation fails (empty `sourcePaths`, or `sourceRoot` not a prefix of all `sourcePaths`)
+ * @throws Error if validation fails (empty `sourcePaths`; a `sourcePaths` entry, `sourceRoot`,
+ *   or absolute `exclude` glob escaping `projectRoot`; or `sourceRoot` not a prefix of all
+ *   `sourcePaths`)
  *
  * @example
  * ```ts
@@ -349,11 +351,10 @@ export const normalizeSourceOptions = (options: ModuleSourceOptions): ModuleSour
 	// resolve inside the project root by storing them root-relative (matching
 	// `loadFile`'s treatment of path inputs). An entry that resolves outside
 	// the project root throws: out-of-root modules are unrepresentable
-	// (`ModuleJson.path` is relative to `sourceRoot` and `Diagnostic.file` to
-	// the project root — different bases, neither able to reach outside the
-	// root), so the config would be silently dead — discovery finds the
-	// files, ingest accepts them, the query-time source gate drops every one
-	// with no trace beyond its info log. Include-pattern widening re-runs
+	// (`ModuleJson.path` is relative to `sourceRoot` and cannot name a file
+	// outside the root), so the config would be silently dead — discovery finds
+	// the files, ingest accepts them, and the query-time source gate drops every
+	// one with no trace beyond its info log. Include-pattern widening re-runs
 	// `createSourceOptions`, so an out-of-root include base fails here too.
 	const sourcePaths = options.sourcePaths.map((p) =>
 		toRootRelativePath(
@@ -413,9 +414,9 @@ export const normalizeSourceOptions = (options: ModuleSourceOptions): ModuleSour
 	// Normalize exclude globs the same way include patterns normalize at the
 	// discovery seams: an in-root absolute pattern relativizes (textual prefix
 	// strip — glob metacharacters aren't path segments), an out-of-root one
-	// throws. Closes a stage disagreement: tinyglobby's glob `ignore` honored
-	// absolute excludes at discovery while `isSource` and the concrete-export
-	// check match against root-relative paths and silently never excluded.
+	// throws. Keeps the stages agreeing: tinyglobby's glob `ignore` honors
+	// absolute excludes at discovery, while `isSource` and the concrete-export
+	// check match root-relative paths and would silently never exclude.
 	const exclude = options.exclude.map((p) => normalizeGlobPattern(p, projectRoot, 'exclude glob'));
 
 	return { ...options, projectRoot, sourcePaths, sourceRoot, exclude };
@@ -735,7 +736,8 @@ export const extractPath = (sourceId: string, options: ModuleSourceOptions): str
  *
  * Deliberately NOT part of `DEFAULT_SOURCE_OPTIONS.exclude`: user `exclude`
  * replaces the defaults wholesale and would silently strip the baseline.
- * `baselineExcludesForBase` is the discovery-time glob form.
+ * `baselineExcludesForBase` is the discovery-time glob form; at analysis it
+ * applies wherever `isSource` does.
  *
  * @param relPath - POSIX path relative to a matched source path / discovery base
  */

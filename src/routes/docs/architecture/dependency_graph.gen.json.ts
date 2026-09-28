@@ -10,7 +10,7 @@ export const gen: Gen = async ({ origin_id, log }) => {
 
 	const { modules } = await analyzeFromFiles({
 		projectRoot: project_root,
-		exclude: ['**/*.test.ts', '**/index.ts'],
+		exclude: (defaults) => [...defaults, '**/index.ts'],
 		log
 	});
 

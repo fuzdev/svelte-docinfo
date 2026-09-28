@@ -4,11 +4,14 @@
  *
  * - `MAX_FILE_CONCURRENCY` — parallel `readFile` cap. Bounds FD pressure so
  *   projects with thousands of source files don't trip `EMFILE` against the
- *   typical 1024-FD ulimit. Used by `files.globFiles` and `exports.discoverFromExports`.
+ *   typical 1024-FD ulimit. Used by `files.globFiles`, `exports.discoverFromExports`,
+ *   and the session's context-closure reads.
  * - `MAX_RESOLVE_CONCURRENCY` — parallel resolver-call cap for session phase 2.
  *   Async resolvers (Vite/Rollup `resolveId`, user-supplied) get backpressure
  *   instead of a 20k+ task fan-out at once. Sync resolvers (TS default,
- *   no-deps stub) settle in microtasks regardless of the bound.
+ *   no-deps stub) settle in microtasks regardless of the bound. Also bounds
+ *   `healUnresolvedEdges` retries.
+ * - `mapConcurrent` — order-preserving, fail-fast worker pool applying either cap.
  *
  * Same numerical value today, separately named so a future tuning pass can
  * move them independently (FD pressure and resolver backpressure are unrelated
@@ -37,7 +40,7 @@ export const MAX_RESOLVE_CONCURRENCY = 100;
  * @param fn - mapping function (receives item and index)
  * @returns array of results in input order
  */
-export const map_concurrent = async <T, R>(
+export const mapConcurrent = async <T, R>(
 	items: ReadonlyArray<T>,
 	concurrency: number,
 	fn: (item: T, index: number) => Promise<R>

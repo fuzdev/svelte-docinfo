@@ -3,6 +3,7 @@
 	import TomeSection from '@fuzdev/fuz_ui/TomeSection.svelte';
 	import TomeSectionHeader from '@fuzdev/fuz_ui/TomeSectionHeader.svelte';
 	import TomeLink from '@fuzdev/fuz_ui/TomeLink.svelte';
+	import DeclarationLink from '@fuzdev/fuz_ui/DeclarationLink.svelte';
 	import { tome_get_by_slug } from '@fuzdev/fuz_ui/tome.ts';
 
 	import DependencyGraph from './DependencyGraph.svelte';
@@ -50,12 +51,13 @@
 		<TomeSection>
 			<TomeSectionHeader text="What the layers say" />
 			<p>
-				The bottom rows are the primitives that nothing in the library depends on transitively: path
+				The bottom rows are the primitives that import nothing else in the library: path
 				normalization, types, concurrency caps, the diagnostics schema. The middle rows are the
 				per-kind TypeScript extractors and the file-system helpers. The top rows are the
 				orchestrators: the persistent <TomeLink slug="session" /> on top of
-				<TomeLink slug="api">core analysis</TomeLink>, then the one-shot wrappers, then the
-				<TomeLink slug="vite-plugin" /> and <TomeLink slug="cli" /> entries.
+				<TomeLink slug="api">core analysis</TomeLink>, then the one-shot wrappers and the
+				<TomeLink slug="vite-plugin" /> (both built directly on the session), then the
+				<TomeLink slug="cli" />.
 			</p>
 			<p>
 				Across {dependency_graph.nodes.length} modules and {dependency_graph.edges.length} internal
@@ -67,10 +69,10 @@
 			<TomeSectionHeader text="How this was drawn" />
 			<p>
 				The layout is precomputed at build time by <code>dependency_graph.gen.json.ts</code>, which
-				calls <TomeLink slug="api">analyzeFromFiles</TomeLink> on this project and runs a
-				Sugiyama-style layered layout: longest-path-from-sink for layer assignment, dummy nodes on
-				long edges, median-heuristic crossing reduction. The result is a small JSON sibling the
-				Svelte component renders to SVG. No layout libraries. About 300 lines, end to end.
+				calls <DeclarationLink name="analyzeFromFiles" /> on this project and runs a Sugiyama-style
+				layered layout: longest-path-from-sink for layer assignment, dummy nodes on long edges,
+				median-heuristic crossing reduction. The result is a small JSON sibling the Svelte component
+				renders to SVG. No layout libraries — a few hundred lines, end to end.
 			</p>
 		</TomeSection>
 	</section>

@@ -27,7 +27,7 @@ import type {
 } from './types.ts';
 import type { DeclarationJsonBuild, MemberJsonBuild } from './declaration-build.ts';
 import { type Diagnostic, type MisplacedTagDiagnostic } from './diagnostics.ts';
-import { to_error_message } from './error.ts';
+import { toErrorMessage } from './error.ts';
 import { stripVirtualSuffix } from './source.ts';
 import { applyToDeclaration, parseComment, type TsdocParsedComment } from './tsdoc.ts';
 import {
@@ -109,7 +109,7 @@ export const createExtractContext = (
  * at all, so every `undefined` in the type is author-written and stripping
  * would corrupt it: `x?: T | undefined` trimmed to `T`, `x?: T | null |
  * undefined` to `T | null`, and a null-free multi-member union rebuilt through
- * `getNonNullableType` (`x?: E | F` printed as `(E & {}) | (F & {})`).
+ * `getNonNullableType` (`x?: E | F` printed as `NonNullable<E> | NonNullable<F>`).
  *
  * Property sites only — component props, type-alias and interface properties,
  * class properties. Optional *parameters* and optional *tuple elements* widen
@@ -192,6 +192,10 @@ export const getLocalExportStatement = (
  * call here on a `ValueModule` symbol would fall through to `'variable'` and
  * leak `typeof import("/abs/path")` into the output — keep the namespace
  * dispatch in `analyzeExports`.
+ *
+ * Standalone `namespace Foo {}` declarations aren't modeled: they fall through
+ * to `'variable'` and document as `typeof Foo` (or `any` for a type-only
+ * namespace) with no members.
  */
 export const inferDeclarationKind = (symbol: ts.Symbol, node: ts.Node): DeclarationKind => {
 	// Check symbol flags
@@ -234,7 +238,9 @@ export const inferDeclarationKind = (symbol: ts.Symbol, node: ts.Node): Declarat
  * selected instead; value-space kinds (and unmerged symbols) keep the
  * `valueDeclaration`-first selection. The merged value meaning goes
  * undocumented under the one-declaration-per-export-name model — the type is
- * what consumers look up.
+ * what consumers look up. A class+interface merge resolves value-space
+ * (`class`), so it documents the class with no doc fallback and no
+ * `mergedValue` marker — a class already implies value+type.
  */
 export const selectDeclarationNode = (symbol: ts.Symbol): ts.Declaration | undefined => {
 	// Class/Function flags win in inferDeclarationKind, so only a flag set
@@ -279,7 +285,14 @@ const UNDEFINED_UNION_SUFFIX = ' | undefined';
  *
  * Applies to the structured fields only. A callable's `typeSignature` comes from
  * `checker.signatureToString`, which has no flag to omit the widening, so it renders
- * optional parameters as the checker does — `(a?: number | undefined): void`.
+ * optional parameters as the checker does — `(a?: number | undefined): void`. The strip
+ * is top-level only, so an optional property nested in a printed object type keeps its
+ * widening too (`b: {c?: boolean}` → `"{ c?: boolean | undefined; }"`).
+ *
+ * The result is the checker's canonical rendering, not what an editor shows on hover:
+ * the language service prints from the declaration node, so for an alias-lost
+ * `type Foo = z.infer<typeof S>` (any alias over an indexed access or conditional) hover
+ * reads `Foo` while this carries the expanded, possibly truncated, structure.
  *
  * A non-union optional is printed as written, since there's no widening member to
  * remove: `x?: undefined` stays `"undefined"` (stripping would leave `never`, the same
@@ -338,11 +351,12 @@ export const getTypeSignature = (
  * under `exactOptionalPropertyTypes` a written `fn?: (() => void) | undefined`
  * classifies callable like `fn?: () => void` (that spelling is often forced
  * there — assigning a possibly-`undefined` handler to the property requires
- * it). `| null` stays demoted per the paragraph above — `null` is a real value
- * absence doesn't imply. The printed and structured outputs still gate their
- * strips on `optionalWidened`, where a written `undefined` is content. On the
- * method sites the strip is identity under the flag anyway — method syntax
- * can't write `| undefined`.
+ * it). Two cases stay non-callable and land as `kind: 'variable'` with the
+ * union kept: `| null` (a real value, per the paragraph above) and a
+ * *required* property's written `undefined` (nothing else carries it; `false`
+ * here is identity). The printed and structured outputs still gate their
+ * strips on `optionalWidened`, where a written `undefined` is content; on
+ * method sites the gate is moot, since method syntax can't write `| undefined`.
  */
 export const getNonOptionalType = (
 	type: ts.Type,
@@ -531,14 +545,12 @@ const applyReturnType = (
  * `returnDescription`. These are signature-scope: each overload may
  * describe its own parameters and return value distinctly.
  *
- * Symbol-scope tags (`@example`, `@deprecated`, `@internal`, `@since`, `@see`,
- * `@throws`, `@mutates`) describe the function as a whole and belong on the parent
+ * Symbol-scope tags describe the function as a whole and belong on the parent
  * declaration. The primary overload — the one whose JSDoc text matches the
- * parent's `docComment` — already feeds the parent's symbol-level extraction,
- * so its symbol-scope tags reach the parent through that path. On non-primary
- * overloads, symbol-scope tags would otherwise be silently dropped from
- * output; this function emits a `misplaced_tag` warning instead, pointing the
- * author at the primary signature.
+ * parent's `docComment` — already feeds the parent's symbol-level extraction.
+ * Tags on non-primary overloads are still dropped, but not silently: this
+ * function emits `misplaced_tag` for each (tag set and rationale on
+ * `MisplacedTagDiagnostic`).
  *
  * @param signatures - all call signatures from the type checker
  * @param ctx - the extraction pass's context
@@ -579,10 +591,10 @@ const extractOverloads = (
 		}
 
 		// Detect primary overload by matching JSDoc text against the parent's.
-		// The TS API resolves the parent declaration's JSDoc by walking from the
-		// implementation node to the first overload signature with JSDoc; that
-		// signature is the "primary" — its symbol-scope tags already reach the
-		// parent through symbol-level extraction. Non-primary overloads with
+		// The parent's JSDoc comes from the symbol's first declaration — the
+		// first overload signature, JSDoc or not — so that signature is the
+		// "primary": its symbol-scope tags already reach the parent through
+		// symbol-level extraction. Non-primary overloads with
 		// symbol-scope tags would silently lose them; surface as warnings instead.
 		const isPrimary =
 			tsdoc?.text !== undefined &&
@@ -799,10 +811,10 @@ const isExternalProperty = (prop: ts.Symbol, isExternalFile: IsExternalFile): bo
  * The one visibility rule, shared by the two ways a class's members reach
  * output: `extractClassInfo` walking `node.members` at the class's own
  * declaration, and `filterDocumentedProperties` projecting a class *type* at a
- * structural container (`type X = LocalClass`, and since generic
- * instantiations extract, `type X = LocalGen<string>`). Held in one place
- * because the two paths disagreeing is what let `#` fields reach `members`
- * through an alias while the class itself dropped them.
+ * structural container (`type X = LocalClass`, `type X = LocalGen<string>`).
+ * Held in one place so an alias over a class hides exactly what the class
+ * hides — the two paths disagreeing would leak `#` fields into `members`
+ * through the alias.
  *
  * `protected` is deliberately not private: it is part of the extension API a
  * subclass author documents against. Only classes can declare either form —
@@ -858,10 +870,9 @@ export const isExternalSignature = (sig: ts.Signature, isExternalFile: IsExterna
  * signatures. An empty entry is a contribution the checker synthesized, with
  * no origin to test.
  *
- * The enumeration membership filters against, in one place — so a contribution
- * kind can't be dropped from `members` without also counting toward
- * attribution, which is how call/construct signatures came to be filtered
- * nowhere and labeled nowhere.
+ * The enumeration membership filters against, held in one place so membership
+ * filtering and `externalTypes` labeling cover the same contribution kinds and
+ * can't disagree.
  */
 const contributionOrigins = (
 	type: ts.Type,
@@ -942,6 +953,10 @@ const pushExternalTypeRef = (out: Array<string>, text: string): void => {
  * spelling already matches. That is also why the shared rule's export-specifier
  * arm never fires here: it answers with the specifier's own published name,
  * which is what an identifier reaching it was already spelled as.
+ *
+ * The substitution is one hop — the `ImportSpecifier`'s exported name — so a
+ * package's own `export {Foo as Bar}` and a local re-export chain both keep the
+ * importable name rather than walking to the declaration's own.
  */
 const importedNameOf = (symbol: ts.Symbol, writtenText: string): string | undefined => {
 	const name = specifierExportedName(symbol);
@@ -1402,11 +1417,11 @@ const collectExternalTypeRefs = (
  * local names itself, so a reference to a local alias — the generated
  * `$$ComponentProps` the svelte2tsx props annotation names, or an author's own
  * `type Props = …` — reaches the composition behind it without unwrapping the
- * node first. Unwrapping was lossy at exactly the position the leaf fallback
- * covers: it replaced a generic reference with the definition's right-hand
- * side, dropping the written type arguments, and left an untraversable
- * definition (mapped, conditional) with no node to attribute at all, where the
- * root reference is the name the contract says to record.
+ * node first. Unwrapping would be lossy at exactly the position the leaf
+ * fallback covers: it would replace a generic reference with the definition's
+ * right-hand side, dropping the written type arguments, and leave an
+ * untraversable definition (mapped, conditional) with no node to attribute at
+ * all, where the root reference is the name the contract says to record.
  */
 const resolveAnnotationTypeNode = (typeNode: ts.Node): ts.TypeNode | undefined =>
 	ts.isTypeNode(typeNode) ? typeNode : undefined;
@@ -1478,6 +1493,12 @@ export const filterDocumentedProperties = (
  *
  * Only `extends` entries are passed by either caller: an interface has no
  * other clause kind, and a class's `implements` adds no members.
+ *
+ * Scoped to the processed declaration's own heritage clauses — the same node
+ * `extends` and `members` come from — so on a merged interface only the
+ * selected block contributes, while a reference to that interface elsewhere
+ * descends every block. The three fields stay consistent with each other rather
+ * than with the descent.
  *
  * @mutates declaration - sets `externalTypes` when the walk finds any, left absent when not
  */
@@ -1678,7 +1699,7 @@ export const emitCallOrConstructSignature = (
 			file: loc.file,
 			line: loc.line,
 			column: loc.column,
-			message: `Failed to analyze ${signatureKind} signatures for ${errorContext.kindLabel} "${declaration.name}": ${to_error_message(err)}`,
+			message: `Failed to analyze ${signatureKind} signatures for ${errorContext.kindLabel} "${declaration.name}": ${toErrorMessage(err)}`,
 			severity: 'warning',
 			functionName: declaration.name ?? '<default export>'
 		});

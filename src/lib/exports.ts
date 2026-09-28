@@ -5,7 +5,7 @@
  * enabling zero-config file discovery without glob patterns.
  *
  * @see `source.ts` for `SourceFileInfo`
- * @see `analyze.ts` for `analyzeFromFiles` (primary consumer)
+ * @see `discovery.ts` for `discoverSourceFiles` (the consumer)
  *
  * @module
  */
@@ -17,9 +17,9 @@ import { glob } from 'tinyglobby';
 
 import type { SourceFileInfo } from './source.ts';
 import type { Diagnostic } from './diagnostics.ts';
-import { to_error_message } from './error.ts';
+import { toErrorMessage } from './error.ts';
 import { toPosixPath } from './paths.ts';
-import { MAX_FILE_CONCURRENCY, map_concurrent } from './concurrency.ts';
+import { MAX_FILE_CONCURRENCY, mapConcurrent } from './concurrency.ts';
 import { baselineExcludesForBase, hasBaselineExcludedSegment } from './source-config.ts';
 
 // Types
@@ -75,12 +75,12 @@ export interface ParsedExports {
 	entries: Array<ExportEntry>;
 	/**
 	 * Specifiers (exact or wildcard patterns) whose export target resolves
-	 * nothing — a literal `null`, or a conditions object with no usable
-	 * target. Node's explicit-exclusion form: `"./internal/*": null` blocks
-	 * the subpaths a broader wildcard would otherwise expose. Discovery
-	 * honors these with Node's best-match semantics: a subpath whose
-	 * most-specific matching key is blocked is not exported, so its source
-	 * file is not discovered.
+	 * nothing — a literal `null`, a conditions object with no usable target
+	 * (all-null or empty), or a fallback array with no usable element. Node's
+	 * explicit-exclusion form: `"./internal/*": null` blocks the subpaths a
+	 * broader wildcard would otherwise expose. Discovery honors these with
+	 * Node's best-match semantics: a subpath whose most-specific matching key
+	 * is blocked is not exported, so its source file is not discovered.
 	 *
 	 * Interpret via `createBlockedSpecifierChecker` — a naive membership
 	 * check (`blocked.includes(specifier)`) is wrong for wildcard keys and
@@ -453,7 +453,7 @@ export const discoverFromExports = async (
 	// the typical ulimit on large projects. See `concurrency.ts`.
 	const diagnostics: Array<Diagnostic> = [];
 	const absPaths = Array.from(discovered.keys());
-	const results = await map_concurrent(
+	const results = await mapConcurrent(
 		absPaths,
 		MAX_FILE_CONCURRENCY,
 		async (absPath): Promise<SourceFileInfo | null> => {
@@ -465,7 +465,7 @@ export const discoverFromExports = async (
 					kind: 'module_unreadable',
 					severity: 'error',
 					file: toPosixPath(relative(projectRoot, absPath)),
-					message: `Could not read file discovered via package.json exports: ${to_error_message(err)}`
+					message: `Could not read file discovered via package.json exports: ${toErrorMessage(err)}`
 				});
 				return null;
 			}
@@ -537,8 +537,7 @@ const resolveConcreteExport = async (
  *   project-root `**` that rakes in `node_modules`/`dist`. Empty `sourceDir`
  *   only arises from the multi-`sourcePaths` no-common-prefix layout (which
  *   `discoverSourceFiles` short-circuits before reaching here) or an explicit
- *   `sourceRoot: ''`; leaving it non-recursive matches the prior behavior
- *   without the explosion risk.
+ *   `sourceRoot: ''`; it stays non-recursive, avoiding the explosion risk.
  *
  * Both fall through to matching same-directory files only.
  */

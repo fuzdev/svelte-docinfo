@@ -1506,10 +1506,10 @@ describe('createAnalysisSession', { timeout: 30_000 }, () => {
 describe('dependency edges for in-memory files', { timeout: 30_000 }, () => {
 	test('an owned file with no disk counterpart is a resolvable dependency target', async () => {
 		// The narrow half of the guarantee — a directory that exists on disk,
-		// with content that only exists in memory. The resolver used to run
-		// against `ts.sys` alone, so *every* such edge was silently dropped
-		// (build pipelines handing over content, unsaved editor buffers);
-		// its host now answers from the owned set like the LS host does.
+		// with content that only exists in memory. A resolver running against
+		// `ts.sys` alone would silently drop every such edge (build pipelines
+		// handing over content, unsaved editor buffers); its host answers from
+		// the owned set like the LS host does.
 		await withTestProject({ 'src/lib/keep.ts': 'export const k = 1;\n' }, async (projectRoot) => {
 			const dir = join(projectRoot, 'src/lib');
 			const session = createAnalysisSession({

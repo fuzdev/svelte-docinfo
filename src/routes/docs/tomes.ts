@@ -78,7 +78,8 @@ export const tomes: Array<Tome> = [
 			'SetFileResult',
 			'SetFilesResult',
 			'QueryOptions',
-			'ImportResolver'
+			'ImportResolver',
+			'ResolveImport'
 		]
 	},
 	{
@@ -94,7 +95,10 @@ export const tomes: Array<Tome> = [
 			'DiscoverSourceFilesOptions',
 			'DiscoverSourceFilesResult',
 			'createSourceOptions',
+			'createSourceOptionsWithInclude',
 			'ModuleSourceOptions',
+			'ExcludeOption',
+			'SourceOptionsOverrides',
 			'ImportResolver',
 			'analyze',
 			'analyzeFromFiles'

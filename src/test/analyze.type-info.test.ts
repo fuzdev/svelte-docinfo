@@ -1,6 +1,6 @@
 /**
- * Tests for structured type extraction (`typeInfo` / `TypeJson`) and the
- * source-order prop emission that landed with it.
+ * Tests for structured type extraction (`typeInfo` / `TypeJson`) and
+ * source-order prop emission.
  *
  * Exercises the whole `analyze` pipeline: the absence contract (terminal roots
  * carry no `typeInfo`) and its type-alias-root exception, the module-object
@@ -159,7 +159,7 @@ export type O = {
 		assert.strictEqual(eager.typeSignature, 'typeof import("dep.ts")');
 		assert.strictEqual(eager.typeInfo, undefined);
 		// an array over one stays absent too — the terminal element doesn't
-		// qualify the container the way the old bogus reference node did
+		// qualify the container
 		const arr = entry.declarations.find((d) => d.name === 'arr');
 		assert(arr?.kind === 'variable');
 		assert.strictEqual(arr.typeSignature, 'typeof import("dep.ts")[]');
@@ -538,7 +538,7 @@ export class C {
 	test('an optional unconstrained type parameter keeps its bare name', async () => {
 		// the widened `E | undefined` has exactly one member after dropping
 		// `undefined`, which is taken directly — `getNonNullableType` can only
-		// answer `NonNullable<E>` for a bare type parameter and prints `E & {}`
+		// answer `NonNullable<E>` for a bare type parameter
 		const module = await analyzeFile(
 			'src/lib/a.ts',
 			`export interface I<E> {

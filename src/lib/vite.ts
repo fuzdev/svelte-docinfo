@@ -6,9 +6,8 @@
  * `setFiles` + one `query` per debounce window — multi-file editor saves
  * collapse to a single re-analysis instead of N serialized round-trips.
  *
- * The plugin no longer maintains a `fileCache.content` mirror — `setFile`
- * returns `{changed: boolean}` so HMR invalidation reacts to that flag
- * directly. `session.list()` / `session.has()` cover owned-set introspection.
+ * HMR invalidation keys on `setFiles`'s `changedIds`; the watcher gates on
+ * `isSource(file) || session.has(file)`.
  *
  * Consumers import the analysis result:
  *
@@ -72,40 +71,18 @@ export interface VitePluginSvelteDocinfoOptions {
 	 */
 	projectRoot?: string;
 	/**
-	 * Glob patterns to include (relative to `projectRoot`; an absolute pattern
-	 * inside the root relativizes, an out-of-root one throws — see
-	 * `normalizeIncludePatterns`).
-	 *
-	 * When provided under the default `discovery: 'auto'`, collapses the chain
-	 * to glob (exports discovery is skipped). Combining `include` with
-	 * `discovery: 'exports'` throws at config-resolve time — `exports` mode
-	 * has no concept of include patterns.
-	 *
-	 * Explicit patterns also widen the source scope: their static bases join
-	 * `sourceOptions.sourcePaths` (see `widenSourcePathsForInclude`), so
-	 * include-discovered files outside the configured source paths still emit
-	 * modules — and the watcher tracks their changes. A pattern with no static
-	 * base (`'**\/*.ts'`, a literal root file) scopes the whole project root
-	 * as source and logs an info line; an out-of-root base throws.
-	 *
-	 * When omitted, the glob fallback derives an include from
-	 * `sourceOptions.sourcePaths` via `deriveIncludePatterns`, so custom
-	 * `sourcePaths` survive the fallback instead of silently defaulting to
-	 * `src/lib`.
+	 * Glob patterns to include, relative to `projectRoot`. Collapses
+	 * `discovery: 'auto'` to glob (combining with `'exports'` throws at
+	 * config-resolve time), and each pattern's static base widens
+	 * `sourceOptions.sourcePaths` so the matched files emit modules and the
+	 * watcher tracks them (see `createSourceOptionsWithInclude`).
 	 */
 	include?: Array<string>;
 	/**
-	 * Glob patterns to exclude, applied at both discovery and analysis time.
-	 *
-	 * Takes precedence over `sourceOptions.exclude` (no merge between the
-	 * two). An array **replaces** the default patterns wholesale — the test,
-	 * spec, and `internal/` filters are dropped unless re-included — while the
-	 * callback form extends them without restating them
-	 * (`(defaults) => [...defaults, '**\/*.gen.ts']` — see `ExcludeOption`).
-	 * The callback always receives the built-in defaults, even when
-	 * `sourceOptions.exclude` is also set (that value is superseded whole).
-	 * The always-on baseline (`node_modules` + dot-directories below a matched
-	 * source path) applies beneath it and is unaffected by overrides.
+	 * Glob patterns to exclude, applied at both discovery and analysis time —
+	 * supersedes `sourceOptions.exclude` whole (no merge; the callback form
+	 * still receives the built-in defaults). An array replaces the defaults, a
+	 * callback extends them — see `ExcludeOption`.
 	 */
 	exclude?: ExcludeOption;
 	/**
@@ -121,7 +98,7 @@ export interface VitePluginSvelteDocinfoOptions {
 	 * Discovery strategy for source files.
 	 *
 	 * @default 'auto'
-	 * @see {@link Discovery}
+	 * @see `Discovery`
 	 */
 	discovery?: Discovery;
 	/**
@@ -295,8 +272,10 @@ const svelteDocinfo = (options: VitePluginSvelteDocinfoOptions = {}): Plugin => 
 	// session's context closure — e.g. `internal/` modules public files
 	// import), whose edits change public output through the checker even
 	// though they emit no module themselves. A context file created *after*
-	// its importer's last ingest becomes owned on that importer's next
-	// change (the closure re-walks); until then its events are dropped.
+	// its importer's last ingest becomes owned on that importer's next change
+	// (the dev resolver doesn't cache misses; see
+	// `AnalysisSessionOptions.contextClosure`); until then its events are
+	// dropped.
 	const isWatchedFile = (file: string): boolean =>
 		isSource(file, resolvedSourceOptions) || (session?.has(file) ?? false);
 
@@ -403,7 +382,7 @@ const svelteDocinfo = (options: VitePluginSvelteDocinfoOptions = {}): Plugin => 
 			const mergedSourceOptions =
 				exclude !== undefined ? { ...sourceOptions, exclude } : sourceOptions;
 			// Explicit include patterns widen the source scope (same as
-			// `analyzeFromFiles`) — also fixes the watcher, whose `isWatchedFile`
+			// `analyzeFromFiles`), which the watcher needs too: its `isWatchedFile`
 			// gate reads `sourcePaths` and would otherwise ignore changes to
 			// include-discovered files outside them.
 			resolvedSourceOptions = createSourceOptionsWithInclude(

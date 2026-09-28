@@ -16,7 +16,7 @@ import ts from 'typescript';
 
 import type { MemberKind, DeclarationModifier } from './types.ts';
 import type { DeclarationJsonBuild, MemberJsonBuild } from './declaration-build.ts';
-import { to_error_message } from './error.ts';
+import { toErrorMessage } from './error.ts';
 import { parseComment, applyToDeclaration } from './tsdoc.ts';
 import { resolveTypeInfo } from './typescript-extract-type-json.ts';
 import {
@@ -35,7 +35,8 @@ import {
 } from './typescript-extract-shared.ts';
 
 /**
- * Extract class information with rich member metadata.
+ * Extract class information with rich member metadata. Decorators aren't
+ * modeled.
  *
  * @internal Used by `analyzeDeclaration` — not part of the public barrel export.
  *
@@ -129,15 +130,14 @@ export const extractClassInfo = (
 				memberDeclaration.modifiers = modifierFlags;
 			}
 
-			// Extract TSDoc (applies docComment, examples, deprecated, seeAlso, since, mutates)
+			// Extract TSDoc (see `applyToDeclaration` for the fields it sets)
 			const memberTsdoc = parseComment(member, node.getSourceFile());
 			applyToDeclaration(memberDeclaration, memberTsdoc, true);
 
 			// Extract type information and parameters for methods and constructors
 			try {
 				if (ts.isPropertyDeclaration(member)) {
-					// Checker-backed for annotated and inferred fields alike (annotated
-					// ones used to report raw source text with no `typeInfo`); the
+					// Checker-backed for annotated and inferred fields alike; the
 					// annotation feeds `typeInfo` name recovery, and the optional strip
 					// pairs the widening with `optional` like every checker-backed site.
 					const memberSymbol = checker.getSymbolAtLocation(member.name);
@@ -204,7 +204,7 @@ export const extractClassInfo = (
 					file: loc.file,
 					line: loc.line,
 					column: loc.column,
-					message: `Failed to analyze member "${memberName}" in class "${className}": ${to_error_message(err)}`,
+					message: `Failed to analyze member "${memberName}" in class "${className}": ${toErrorMessage(err)}`,
 					severity: 'warning',
 					className,
 					memberName
@@ -306,7 +306,7 @@ export const extractClassInfo = (
 				file: loc.file,
 				line: loc.line,
 				column: loc.column,
-				message: `Failed to analyze accessor "${accessorName}" in class "${className}": ${to_error_message(err)}`,
+				message: `Failed to analyze accessor "${accessorName}" in class "${className}": ${toErrorMessage(err)}`,
 				severity: 'warning',
 				className,
 				memberName: accessorName

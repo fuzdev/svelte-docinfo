@@ -1,8 +1,8 @@
 /**
  * One-shot analysis wrappers — `analyze` and `analyzeFromFiles`.
  *
- * Both wrap a single-use `AnalysisSession`: `createSession → setFiles → query
- * → dispose`. Incremental consumers (Vite plugin, LSP) should use
+ * Both wrap a single-use `AnalysisSession`: `createAnalysisSession → setFiles →
+ * query → dispose`. Incremental consumers (Vite plugin, LSP) should use
  * `createAnalysisSession` directly so parsed ASTs and svelte2tsx output
  * survive between calls.
  *
@@ -125,37 +125,16 @@ export interface AnalyzeFromFilesOptions {
 	/** Optional logger for status and diagnostic messages. */
 	log?: AnalysisLog;
 	/**
-	 * Glob patterns to include (relative to `projectRoot`; an absolute pattern
-	 * inside the root relativizes, an out-of-root one throws — see
-	 * `normalizeIncludePatterns`).
-	 *
-	 * Filters glob-based discovery. Providing `include` under the default
-	 * `discovery: 'auto'` collapses the chain to glob immediately; combining
-	 * with `discovery: 'exports'` throws.
-	 *
-	 * Explicit patterns also widen the source scope: their static bases join
-	 * `sourceOptions.sourcePaths` (see `widenSourcePathsForInclude`), so
-	 * include-discovered files outside the configured source paths still emit
-	 * modules, with paths relative to the widened set's common root. A pattern
-	 * with no static base (`'**\/*.ts'`, a literal root file) scopes the whole
-	 * project root as source and logs an info line; an out-of-root base
-	 * (`'../other/**'`) throws.
-	 *
-	 * When omitted, the glob fallback derives an include from
-	 * `sourceOptions.sourcePaths` via `deriveIncludePatterns`, so custom
-	 * `sourcePaths` (e.g., `['packages/foo']`) survive the fallback instead of
-	 * silently defaulting to `src/lib`.
+	 * Glob patterns to include, relative to `projectRoot`. Collapses
+	 * `discovery: 'auto'` to glob (combining with `'exports'` throws), and each
+	 * pattern's static base widens `sourceOptions.sourcePaths` so the matched
+	 * files emit modules (see `createSourceOptionsWithInclude`).
 	 */
 	include?: Array<string>;
 	/**
-	 * Glob patterns to exclude — takes precedence over `sourceOptions.exclude`
-	 * (no merge between the two). An array replaces the default patterns
-	 * wholesale; the callback form extends them without restating them
-	 * (`(defaults) => [...defaults, '**\/*.gen.ts']` — see `ExcludeOption`).
-	 * The callback always receives the built-in defaults, even when
-	 * `sourceOptions.exclude` is also set (that value is superseded whole).
-	 * The always-on baseline (`node_modules` + dot-directories below a matched
-	 * source path) applies beneath it and is unaffected by overrides.
+	 * Glob patterns to exclude — supersedes `sourceOptions.exclude` whole (no
+	 * merge; the callback form still receives the built-in defaults). An array
+	 * replaces the defaults, a callback extends them — see `ExcludeOption`.
 	 */
 	exclude?: ExcludeOption;
 	/**
@@ -200,7 +179,9 @@ export interface AnalyzeFromFilesOptions {
  * 3. **Analysis** — `session.query()`
  *
  * @returns analyzed modules + concatenated ingest, discovery, and query diagnostics
- * @throws Error if `sourceOptions` validation fails or `tsconfig.json` is missing
+ * @throws Error on invalid or contradictory options, a missing `tsconfig.json`,
+ *   failed strict `'exports'` discovery, or a collision under
+ *   `onDuplicates: 'throw'`
  */
 export const analyzeFromFiles = async (
 	options: AnalyzeFromFilesOptions

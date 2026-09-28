@@ -1,6 +1,6 @@
 import { page } from '$app/state';
 import { create_context } from '@fuzdev/fuz_ui/context_helpers.ts';
-import type { AnalyzeResultJsonWire } from '$lib/index.js';
+import type { AnalyzeResultJsonWire } from '$lib/index.ts';
 import { isCss, isJson, isSvelte } from '$lib/source.ts';
 
 /**

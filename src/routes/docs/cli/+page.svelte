@@ -18,8 +18,8 @@
 <TomeContent {tome}>
 	<section>
 		<p>
-			Run in any directory with TypeScript or Svelte source files. Prints JSON describing your
-			project's exports to stdout.
+			Run in a project with TypeScript or Svelte source and a <code>tsconfig.json</code> at or above
+			its root. The CLI prints JSON describing the project's exports to stdout.
 		</p>
 
 		<TomeSection>
@@ -32,15 +32,14 @@ npx svelte-docinfo -o output.json     # write to a file instead
 npx svelte-docinfo --pretty           # pretty-print the JSON output`}
 			/>
 			<p>
-				Discovery defaults to <code>package.json</code> exports, falling back to glob.
-				<code>-i</code> forces explicit patterns; <code>--discovery glob</code> skips exports;
-				<code>--discovery exports</code> is strict (fails when exports is missing).
+				Files are discovered from <code>package.json</code> exports, falling back to glob.
+				<code>-i</code> supplies explicit patterns, <code>--discovery glob</code> skips exports, and
+				<code>--discovery exports</code> fails when exports is missing or resolves to no files.
 			</p>
 			<p>
 				<code>--source-dir</code> sets the source directory (default <code>src/lib</code>,
-				repeatable for monorepos) and seeds the implicit include glob. <code>--source-root</code>
-				controls module-path stripping in the output (defaults to the single
-				<code>--source-dir</code> or their longest common prefix).
+				repeatable for monorepos). <code>--source-root</code> sets the base of output module paths
+				(default: the single source dir, or the longest common prefix of several).
 			</p>
 			<p>Compact JSON pairs well with <code>jq</code>:</p>
 			<Code
@@ -49,9 +48,8 @@ npx svelte-docinfo --pretty           # pretty-print the JSON output`}
 npx svelte-docinfo | jq -r '.modules[].declarations[].name'  # list all exported names`}
 			/>
 			<p>
-				JSON goes to stdout; info, warnings, and errors go to stderr, so the terminal interleaves
-				them, but <code>&gt;</code> and <code>|</code> capture clean JSON.
-				<code>-q</code>/<code>--quiet</code> silences info; warnings and errors still print.
+				JSON goes to stdout and messages go to stderr, so <code>&gt;</code> and <code>|</code>
+				capture clean JSON. <code>-q</code> silences info messages; warnings and errors still print.
 			</p>
 		</TomeSection>
 
@@ -72,22 +70,22 @@ npx svelte-docinfo | jq -r '.modules[].declarations[].name'  # list all exported
 					<tr>
 						<td class="white-space:nowrap"><code>-i, --include &lt;pattern&gt;</code></td>
 						<td>
-							include pattern (repeatable, replaces exports discovery, widens the source scope — see
-							the note below)
+							include pattern (repeatable). Replaces exports discovery and widens the source scope
+							(see below); incompatible with <code>--discovery exports</code>
 						</td>
 					</tr>
 					<tr>
 						<td class="white-space:nowrap"><code>-e, --exclude &lt;pattern&gt;</code></td>
 						<td>
-							exclude glob, applied at discovery and analysis (repeatable; fully replaces the
-							defaults <code>**/*.test.ts</code>, <code>**/*.spec.ts</code>,
-							<code>**/internal/**</code> — no merge; the always-on baseline below applies beneath)
+							exclude glob, applied at discovery and analysis (repeatable). Replaces the defaults
+							<code>**/*.test.ts</code>, <code>**/*.spec.ts</code>, <code>**/internal/**</code>
+							entirely
 						</td>
 					</tr>
 					<tr>
 						<td class="white-space:nowrap"><code>-o, --output &lt;file&gt;</code></td>
 						<td>
-							output file (default: stdout; pass <code>-</code> for explicit stdout, so
+							output file (default: stdout; <code>-</code> also means stdout, so
 							<code>-o "$OUT"</code> works when <code>$OUT=-</code>)
 						</td>
 					</tr>
@@ -95,8 +93,8 @@ npx svelte-docinfo | jq -r '.modules[].declarations[].name'  # list all exported
 						<td class="white-space:nowrap"><code>--discovery &lt;mode&gt;</code></td>
 						<td>
 							<code>auto</code> | <code>exports</code> | <code>glob</code> (default:
-							<code>auto</code>: exports first, glob fallback). <code>exports</code> is strict and
-							fails when package.json exports is missing.
+							<code>auto</code>: exports first, glob fallback). <code>exports</code> fails when
+							package.json exports is missing or resolves to no files
 						</td>
 					</tr>
 					<tr>
@@ -106,15 +104,15 @@ npx svelte-docinfo | jq -r '.modules[].declarations[].name'  # list all exported
 					<tr>
 						<td class="white-space:nowrap"><code>--source-dir &lt;dir&gt;</code></td>
 						<td>
-							source directory, relative to project root or absolute inside it (default: src/lib).
-							Repeatable for monorepos; also seeds the implicit include glob.
+							source directory, relative to the project root or absolute inside it (default:
+							src/lib). Repeatable; also sets the default include glob
 						</td>
 					</tr>
 					<tr>
 						<td class="white-space:nowrap"><code>--source-root &lt;dir&gt;</code></td>
 						<td>
-							source root for module-path stripping (default: single source-dir or longest common
-							prefix)
+							base of output module paths (default: single source dir or longest common prefix;
+							<code>.</code> for project-relative)
 						</td>
 					</tr>
 					<tr>
@@ -127,13 +125,16 @@ npx svelte-docinfo | jq -r '.modules[].declarations[].name'  # list all exported
 					<tr>
 						<td class="white-space:nowrap"><code>--only &lt;pattern&gt;</code></td>
 						<td>
-							glob filter applied to module paths in output (repeatable). Full project is still
-							analyzed (re-exports/dependents stay correct); diagnostics aren't filtered
+							glob filter on output module paths (repeatable). The full project is still analyzed,
+							so re-exports and dependents stay correct; diagnostics aren't filtered
 						</td>
 					</tr>
 					<tr>
 						<td><code>--no-resolve-dependencies</code></td>
-						<td>disable dependency resolution</td>
+						<td>
+							disable dependency resolution (<code>dependencies</code>/<code>dependents</code> stay
+							empty)
+						</td>
 					</tr>
 					<tr>
 						<td><code>--pretty</code></td>
@@ -150,21 +151,27 @@ npx svelte-docinfo | jq -r '.modules[].declarations[].name'  # list all exported
 				</tbody>
 			</table>
 			<p>
-				Explicit <code>--include</code> patterns widen the source scope: each pattern's static base
-				joins the source paths, so module paths become relative to the widened root, and a pattern
-				with no base (<code>**/*.ts</code>, a literal root file) scopes the whole project root as
-				source and logs an info line. Beneath any <code>--exclude</code>, an always-on baseline
-				applies: <code>node_modules</code> and dot-directories below a source dir are never source.
-				The default excludes cover tests and the <code>src/lib/internal/</code> convention
-				(<code>**/internal/**</code>); exports-based discovery additionally honors
-				<code>null</code>-target exports keys (<code>"./internal/*": null</code>) with Node's
-				best-match resolution, so blocked subpaths are never discovered. Absolute paths and patterns
-				inside the project root are accepted (relativized); out-of-root ones fail loudly instead of
-				silently emitting nothing.
+				<code>--include</code> patterns widen the source scope: each pattern's static base joins the
+				source dirs, and module paths become relative to the widened root. A pattern with no base
+				(<code>**/*.ts</code>, a root file) makes the whole project root source and logs an info
+				line.
+			</p>
+			<p>
+				Regardless of <code>--exclude</code>, <code>node_modules</code> and dot-directories below a
+				source dir are never source. The default excludes cover tests and the
+				<code>src/lib/internal/</code> convention (<code>**/internal/**</code>). Exports discovery
+				also skips subpaths blocked by <code>null</code> exports entries
+				(<code>"./internal/*": null</code>), using Node's best-match rules.
+			</p>
+			<p>
+				Absolute paths and patterns inside the project root are accepted; ones outside it are an
+				error.
 			</p>
 			<p>
 				Exit codes: <strong>0</strong> success, <strong>1</strong> analysis errors,
-				<strong>2</strong> CLI errors.
+				<strong>2</strong> CLI errors or a thrown analysis error (missing
+				<code>tsconfig.json</code>, an <code>--on-duplicates throw</code> collision, strict exports
+				discovery failing).
 			</p>
 		</TomeSection>
 
