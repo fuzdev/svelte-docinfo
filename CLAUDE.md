@@ -562,8 +562,6 @@ gro test      # run tests
 gro gen       # run code generators
 ```
 
-**IMPORTANT**: Do not run `gro dev` — the developer manages the dev server.
-
 The docs site imports the plugin as `svelte-docinfo/vite.js`, a package self-reference that
 resolves to `dist/`. After `src/lib` changes, run `npm run build` before expecting the dev
 server to reflect them.
