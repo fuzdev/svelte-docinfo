@@ -562,9 +562,11 @@ gro test      # run tests
 gro gen       # run code generators
 ```
 
-The docs site imports the plugin as `svelte-docinfo/vite.js`, a package self-reference that
-resolves to `dist/`. After `src/lib` changes, run `npm run build` before expecting the dev
-server to reflect them.
+`vite.config.ts` imports the plugin from source (`./src/lib/vite.ts`), not via the
+`svelte-docinfo/vite.js` self-reference: Gro resolves the Vite config before building, so a
+`dist/` import breaks `gro check` on a fresh checkout. Vite bundles the config once at startup,
+so restart the dev server to pick up `src/lib` changes. The packaged entry is exercised by the
+examples.
 
 **Standards**: TypeScript strict mode, Svelte 5 runes, tabs, 100-char width, tests in
 `src/test/` (not co-located), and real source extensions in imports (`.ts`, `.svelte`; the
