@@ -234,13 +234,13 @@
 			stroke-width 120ms ease;
 	}
 	/* `out` = hovered module's dependencies; `in` = its dependents. Distinct hues
-	   (blue/orange — a colorblind-safe pair) read the direction at a glance. */
+	   (blue/orange, a colorblind-safe pair) read the direction at a glance. */
 	.edge.out {
-		stroke: var(--color_a_50);
+		stroke: var(--palette_a_50);
 		stroke-width: 2;
 	}
 	.edge.in {
-		stroke: var(--color_f_50);
+		stroke: var(--palette_h_50);
 		stroke-width: 2;
 	}
 	.has-hover .edge.dim {
@@ -269,7 +269,7 @@
 		outline: none;
 	}
 	a:focus-visible .node rect {
-		stroke: var(--color_a_50);
+		stroke: var(--palette_a_50);
 		stroke-width: 2;
 	}
 
@@ -279,12 +279,12 @@
 	.node.self rect,
 	.node.out rect {
 		fill: var(--bg_20);
-		stroke: var(--color_a_50);
+		stroke: var(--palette_a_50);
 		stroke-width: 2;
 	}
 	.node.in rect {
 		fill: var(--bg_20);
-		stroke: var(--color_f_50);
+		stroke: var(--palette_h_50);
 		stroke-width: 2;
 	}
 	.has-hover .node.dim rect {

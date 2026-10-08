@@ -24,7 +24,7 @@
 	<div class="tabs">
 		<button
 			type="button"
-			class="color_d"
+			class="palette_d"
 			class:selected={extraction.active_view === 'modules'}
 			onclick={() => (extraction.active_view = 'modules')}
 		>
@@ -32,7 +32,7 @@
 		</button>
 		<button
 			type="button"
-			class="color_d"
+			class="palette_d"
 			class:selected={extraction.active_view === 'source'}
 			onclick={() => (extraction.active_view = 'source')}
 		>
@@ -40,7 +40,7 @@
 		</button>
 		<button
 			type="button"
-			class="color_d"
+			class="palette_d"
 			class:selected={extraction.active_view === 'data'}
 			onclick={() => (extraction.active_view = 'data')}
 		>

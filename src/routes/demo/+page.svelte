@@ -7,7 +7,7 @@
 	<title>demo - svelte-docinfo</title>
 </svelte:head>
 
-<div class="box w_100 py_xl4">
+<div class="box width:100% py_xl4">
 	<h1>demo</h1>
 	<nav class="column gap_lg mt_xl">
 		<a href={resolve('/demo/extraction')} class="panel px_xl py_md">

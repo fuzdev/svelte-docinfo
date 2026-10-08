@@ -87,9 +87,9 @@
 		vertical-align: middle;
 	}
 	.swatch-out {
-		background: var(--color_a_50);
+		background: var(--palette_a_50);
 	}
 	.swatch-in {
-		background: var(--color_f_50);
+		background: var(--palette_h_50);
 	}
 </style>
