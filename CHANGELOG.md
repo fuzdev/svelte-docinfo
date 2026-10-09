@@ -1,5 +1,19 @@
 # svelte-docinfo
 
+## 0.8.0
+
+### Minor Changes
+
+- **breaking:** rename `map_concurrent` → `mapConcurrent` (`concurrency.ts`) and `to_error_message` → `toErrorMessage` (`error.ts`) to match the camelCase API ([d359d67](https://github.com/fuzdev/svelte-docinfo/commit/d359d67))
+
+### Patch Changes
+
+- fix: make output independent of the order files are discovered or ingested ([8221754](https://github.com/fuzdev/svelte-docinfo/commit/8221754))
+
+  The same files now give the same output whether they come from discovery, one batch,
+  or many `setFile` calls. Before, a union with no alias origin, like `z.enum` members,
+  could print its members in a different order from run to run.
+
 ## 0.7.0
 
 ### Minor Changes
@@ -870,6 +884,7 @@ LocalGen<string>` emitted no members, and when the generic base reached an
   are remapped to the original source.
 
   Breaking:
+
   - `mergeReExports(modules, collectedReExports)` → `mergeReExports(modules)`;
     `analyzeModule` returns `ModuleJson` directly (`ModuleAnalyzeResult` removed);
     removed `ReExportEntry`/`ReExportInfo` types (`ModuleExportsAnalysis.reExports`
