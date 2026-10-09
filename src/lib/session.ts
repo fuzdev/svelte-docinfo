@@ -73,7 +73,7 @@ import {
 	AnalyzeResultJson,
 	type OnDuplicates
 } from './analyze-core.ts';
-import { computeDependents } from './postprocess.ts';
+import { compareStrings, computeDependents } from './postprocess.ts';
 
 /**
  * Options for a per-file or per-batch resolver override.
@@ -202,6 +202,20 @@ export interface QueryOptions {
  * in-root non-source dependency closure (e.g. `internal/` modules public
  * files import) so those files are version-tracked rather than pinned at
  * their first disk read.
+ *
+ * **Input order**: `query()` analyzes the owned set in `compareStrings` order
+ * of file ID, and the language-service host returns owned program roots in
+ * that order too, so the same files ingested in any order, in one batch or
+ * across many `setFile` calls, give identical output from a fresh session.
+ * Analysis order matters because TypeScript prints a union with no alias
+ * origin (`z.enum` members, literal unions) in type-creation order, which
+ * follows the order the checker first visits files; root order matters
+ * because it sets the merge order of `declare global`, module augmentations,
+ * and interface merging. Two limits remain, both from type-creation order:
+ * an edit to an unrelated file can still reorder such a union's members,
+ * since it can change which file first creates a member type, and checker
+ * work done through `getProgram()` before the first `query()` on a fresh
+ * program can reorder them in that query's output.
  */
 export interface AnalysisSession {
 	/**
@@ -255,6 +269,10 @@ export interface AnalysisSession {
 	 * retained reference goes stale after any `setFile` / `setFiles` /
 	 * `deleteFile`; re-call after mutating. Subject to the session's
 	 * concurrency contract above; invalid after `dispose()`.
+	 *
+	 * Checker work done before `query()` on a fresh program can reorder
+	 * origin-less unions in that query's output (see "Input order" above);
+	 * call `query()` first.
 	 */
 	getProgram(): ts.Program;
 	/**
@@ -1258,7 +1276,14 @@ export const createAnalysisSession = (options: AnalysisSessionOptions): Analysis
 		const svelteVirtualFiles = new Map<string, SvelteVirtualFile>();
 		const transformFailedIds = new Set<string>();
 
-		for (const [id, entry] of owned) {
+		// Analysis order is sorted, not ingest order, so output is a function of
+		// the owned file set. TypeScript prints a union with no alias origin
+		// (`z.enum` members, literal unions) in type-creation order, so the
+		// order the checker first visits files in reorders those members;
+		// ingest order varies with the filesystem crawl and with which files
+		// an incremental session received first.
+		const ownedSorted = [...owned].sort((a, b) => compareStrings(a[0], b[0]));
+		for (const [id, entry] of ownedSorted) {
 			if (!emittedIds.has(id)) {
 				// Gated Svelte file with a good virtual (context closure, or a
 				// caller-pushed input): offered to `analyzeCore` as canonical-fill

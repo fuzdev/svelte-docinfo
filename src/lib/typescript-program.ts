@@ -26,6 +26,7 @@ import type { AnalysisLog } from './log.ts';
 import { SVELTE_VIRTUAL_SUFFIX } from './source.ts';
 import { type ModuleSourceOptions, getSourceRoot } from './source-config.ts';
 import { toPosixPath } from './paths.ts';
+import { compareStrings } from './postprocess.ts';
 
 /**
  * Base configuration shared by every entry point in this module.
@@ -525,10 +526,15 @@ export const createAnalysisLanguageService = (
 		getCompilationSettings: () => compilerOptions,
 		getScriptFileNames: () => {
 			// Combine tsconfig roots with owned virtual roots. Set semantics
-			// dedupe when an owned file was also a tsconfig root.
+			// dedupe when an owned file was also a tsconfig root. Owned roots
+			// are sorted rather than kept in ingest order: root order sets the
+			// program's file order, and with it the merge order of
+			// `declare global`, module augmentations, and interface merging.
+			// The LS compares root lists by content, so a stable sort keeps
+			// program reuse intact.
 			if (ownedRoots.size === 0) return [...tsconfigRoots];
 			const combined = new Set(tsconfigRoots);
-			for (const path of ownedRoots) combined.add(path);
+			for (const path of [...ownedRoots].sort(compareStrings)) combined.add(path);
 			return [...combined];
 		},
 		getScriptVersion: (fileName) => {

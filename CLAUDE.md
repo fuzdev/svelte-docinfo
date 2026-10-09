@@ -165,6 +165,17 @@ points to the TSDoc that owns its policy; read it before changing behavior. User
   - `resolveExportSurface`.
   - `compareStrings`: the comparator for all output ordering. Never use bare
     `localeCompare` or a default `.sort()`.
+  - Input order is sorted too: `query()` analyzes the owned set in `compareStrings` order
+    of file ID, the language-service host returns owned program roots in that order, and
+    `globFiles`/`discoverFromExports` return files in it, so output is a function of the
+    file set, not the crawl or ingest order. Analysis order matters because TypeScript
+    prints an origin-less union (`z.enum` members, literal unions) in type-creation order,
+    which follows the order the checker first visits files; root order sets the merge
+    order of `declare global`, module augmentations, and interface merging. Two limits
+    remain: an edit to an unrelated file can still reorder such a union's members, since
+    it can change which file first creates a member type, and checker work through
+    `getProgram()` before the first `query()` on a fresh program can reorder them in that
+    query's output.
 
 **High-level**
 
@@ -302,6 +313,9 @@ authoritative.
     lazily from the session's single tsconfig parse.
   - The session's resolution host sees owned files and the in-flight batch, so in-memory
     files get dependency edges.
+- **Input order** — `query()` analyzes in sorted file-ID order and owned program roots are
+  sorted, so the same files ingested in any order, in one batch or across many `setFile`
+  calls, give identical output from a fresh session (limits under `compareStrings` above).
 - **Context closure** (`contextClosure`, default `true`; `analyze()` passes `false`) — after
   each batch, the session reads in-root, non-source, analyzable targets from disk and
   ingests them, transitively. Context files emit nothing and add no edges, but they're

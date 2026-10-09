@@ -19,6 +19,7 @@ import type { SourceFileInfo } from './source.ts';
 import type { Diagnostic } from './diagnostics.ts';
 import { toErrorMessage } from './error.ts';
 import { toPosixPath } from './paths.ts';
+import { compareStrings } from './postprocess.ts';
 import { MAX_FILE_CONCURRENCY, mapConcurrent } from './concurrency.ts';
 import { baselineExcludesForBase, hasBaselineExcludedSegment } from './source-config.ts';
 
@@ -452,7 +453,7 @@ export const discoverFromExports = async (
 	// Load file contents with bounded concurrency to keep FD pressure under
 	// the typical ulimit on large projects. See `concurrency.ts`.
 	const diagnostics: Array<Diagnostic> = [];
-	const absPaths = Array.from(discovered.keys());
+	const absPaths = Array.from(discovered.keys()).sort(compareStrings);
 	const results = await mapConcurrent(
 		absPaths,
 		MAX_FILE_CONCURRENCY,

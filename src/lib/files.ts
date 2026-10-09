@@ -16,6 +16,7 @@ import { glob } from 'tinyglobby';
 
 import type { SourceFileInfo } from './source.ts';
 import { toPosixPath } from './paths.ts';
+import { compareStrings } from './postprocess.ts';
 import { MAX_FILE_CONCURRENCY, mapConcurrent } from './concurrency.ts';
 import { baselineExcludesForBase, includePatternBase } from './source-config.ts';
 
@@ -149,6 +150,9 @@ export const globFiles = async (options: GlobFilesOptions): Promise<Array<Source
 			}
 		}
 	}
+
+	// the crawl's order varies run to run; sort so logs and diagnostics are stable
+	filePaths.sort(compareStrings);
 
 	// Bounded concurrency to keep FD pressure under the typical ulimit on
 	// large projects. See `concurrency.ts`.

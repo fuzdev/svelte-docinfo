@@ -103,6 +103,29 @@ describe('globFiles', () => {
 		);
 	});
 
+	test('returns files in compareStrings order across include groups', async () => {
+		await withTestProject(
+			{
+				'src/routes/a.ts': 'export const a = 1;',
+				'src/lib/z/b.ts': 'export const b = 2;',
+				'src/lib/Z.ts': 'export const z = 3;',
+				'src/lib/a.ts': 'export const a = 4;'
+			},
+			async (projectRoot) => {
+				// the routes group is globbed first, but sorting spans every group
+				const files = await globFiles({
+					projectRoot,
+					include: ['src/routes/**/*.ts', 'src/lib/**/*.ts']
+				});
+
+				assert.deepStrictEqual(
+					files.map((f) => f.id.slice(projectRoot.length + 1)),
+					['src/lib/a.ts', 'src/lib/Z.ts', 'src/lib/z/b.ts', 'src/routes/a.ts']
+				);
+			}
+		);
+	});
+
 	test('discovers mixed file types with multi-extension glob', async () => {
 		await withTestProject(
 			{
