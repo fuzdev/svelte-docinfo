@@ -1,0 +1,1 @@
+import{p as r}from"./BQ5p5V6X.js";import{s as t}from"./Dcr--AH2.js";const e={get error(){return r.error},get params(){return r.params},get status(){return r.status},get url(){return r.url}};t.updated.check;const p=e;export{p};
