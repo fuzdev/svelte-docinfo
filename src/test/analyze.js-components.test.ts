@@ -21,9 +21,9 @@
 import { test, assert, describe } from 'vitest';
 import { join } from 'node:path';
 
-import { createAnalysisSession } from '$lib/session.ts';
-import { createSourceOptions } from '$lib/source-config.ts';
-import type { ComponentDeclarationJson, ModuleJson } from '$lib/types.ts';
+import { createAnalysisSession } from '#lib/session.ts';
+import { createSourceOptions } from '#lib/source-config.ts';
+import type { ComponentDeclarationJson, ModuleJson } from '#lib/types.ts';
 
 import { assertHasComponentDeclaration, findModule, withTestProject } from './test-helpers.ts';
 import { analyzeTestProject } from './test-module-helpers.ts';

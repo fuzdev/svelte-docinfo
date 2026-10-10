@@ -13,7 +13,7 @@ import { mkdtemp, rm, writeFile, mkdir, chmod } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import svelteDocinfo from '$lib/vite.ts';
+import svelteDocinfo from '#lib/vite.ts';
 
 const withTempProject = async (
 	files: Record<string, string>,

@@ -21,7 +21,7 @@ import {
 	type ConstructorMemberJson,
 	ModuleJson,
 	TypeJson
-} from '$lib/types.ts';
+} from '#lib/types.ts';
 import {
 	getDisplayName,
 	generateImport,
@@ -30,8 +30,8 @@ import {
 	typeJsonToTokens,
 	typeJsonToText,
 	type TypeJsonToken
-} from '$lib/declaration-helpers.ts';
-import { AnalyzeResultJson } from '$lib/analyze-core.ts';
+} from '#lib/declaration-helpers.ts';
+import { AnalyzeResultJson } from '#lib/analyze-core.ts';
 
 const d = (input: { name?: string; kind: string; [key: string]: unknown }): DeclarationJson =>
 	DeclarationJson.parse(input);

@@ -18,7 +18,7 @@
 
 import { test, assert, describe } from 'vitest';
 
-import type { ModuleJson } from '$lib/types.ts';
+import type { ModuleJson } from '#lib/types.ts';
 
 import { analyzeTestProject } from './test-module-helpers.ts';
 

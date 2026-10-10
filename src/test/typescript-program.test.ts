@@ -13,7 +13,7 @@ import {
 	createAnalysisLanguageService,
 	createOwnedDirIndex,
 	loadTsconfig
-} from '$lib/typescript-program.ts';
+} from '#lib/typescript-program.ts';
 
 import { withTestProject } from './test-helpers.ts';
 

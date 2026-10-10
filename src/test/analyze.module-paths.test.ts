@@ -24,11 +24,11 @@ import { writeFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { test, assert, describe } from 'vitest';
 
-import { analyzeFromFiles } from '$lib/analyze.ts';
-import { normalizeDiagnosticPaths } from '$lib/analyze-core.ts';
-import type { Diagnostic } from '$lib/diagnostics.ts';
-import { SVELTE_VIRTUAL_SUFFIX } from '$lib/source.ts';
-import type { ModuleJson } from '$lib/types.ts';
+import { analyzeFromFiles } from '#lib/analyze.ts';
+import { normalizeDiagnosticPaths } from '#lib/analyze-core.ts';
+import type { Diagnostic } from '#lib/diagnostics.ts';
+import { SVELTE_VIRTUAL_SUFFIX } from '#lib/source.ts';
+import type { ModuleJson } from '#lib/types.ts';
 
 import { withTestProject, withTestDir } from './test-helpers.ts';
 

@@ -21,10 +21,10 @@
 import { test, assert, describe, beforeAll } from 'vitest';
 import { join } from 'node:path';
 
-import { analyze } from '$lib/analyze.ts';
-import type { AnalyzeResultJson } from '$lib/analyze-core.ts';
-import { byKind } from '$lib/diagnostics.ts';
-import type { DeclarationJson, ModuleJson, TypeJson } from '$lib/types.ts';
+import { analyze } from '#lib/analyze.ts';
+import type { AnalyzeResultJson } from '#lib/analyze-core.ts';
+import { byKind } from '#lib/diagnostics.ts';
+import type { DeclarationJson, ModuleJson, TypeJson } from '#lib/types.ts';
 
 import { testSourceOptions } from './test-module-helpers.ts';
 

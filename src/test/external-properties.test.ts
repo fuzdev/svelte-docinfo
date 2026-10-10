@@ -12,11 +12,11 @@
 
 import { test, assert, describe } from 'vitest';
 
-import { filterDocumentedProperties } from '$lib/typescript-extract-shared.ts';
-import { extractTypeInfo } from '$lib/typescript-extract-type.ts';
-import type { IsExternalFile } from '$lib/typescript-program.ts';
-import { type Diagnostic } from '$lib/diagnostics.ts';
-import type { DeclarationJsonBuild, MemberJsonBuild } from '$lib/declaration-build.ts';
+import { filterDocumentedProperties } from '#lib/typescript-extract-shared.ts';
+import { extractTypeInfo } from '#lib/typescript-extract-type.ts';
+import type { IsExternalFile } from '#lib/typescript-program.ts';
+import { type Diagnostic } from '#lib/diagnostics.ts';
+import type { DeclarationJsonBuild, MemberJsonBuild } from '#lib/declaration-build.ts';
 
 import { createMultiFileProgram, findTypeAlias } from './fixtures/ts/ts-test-helpers.ts';
 import { mockExtractContext } from './test-helpers.ts';

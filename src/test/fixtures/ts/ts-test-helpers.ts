@@ -14,8 +14,8 @@
 
 import ts from 'typescript';
 
-import type { AnalyzeResultJson } from '$lib/analyze-core.ts';
-import { isSource } from '$lib/source-config.ts';
+import type { AnalyzeResultJson } from '#lib/analyze-core.ts';
+import { isSource } from '#lib/source-config.ts';
 
 import { loadFixturesGeneric, type FixtureExtraFile } from '../../test-helpers.ts';
 import { createTestSourceOptions, TEST_PROJECT_ROOT } from '../../test-module-helpers.ts';

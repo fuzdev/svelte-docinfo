@@ -1,11 +1,11 @@
 import { test, assert, describe, beforeAll } from 'vitest';
 import ts from 'typescript';
 
-import { createAnalysisProgram } from '$lib/typescript-program.ts';
-import { detectReactivity, extractSignatureParameters } from '$lib/typescript-extract-shared.ts';
-import { analyzeExports, analyzeTypescriptModule } from '$lib/typescript-exports.ts';
-import { type Diagnostic, hasErrors, hasWarnings } from '$lib/diagnostics.ts';
-import { AnalyzeResultJson } from '$lib/analyze-core.ts';
+import { createAnalysisProgram } from '#lib/typescript-program.ts';
+import { detectReactivity, extractSignatureParameters } from '#lib/typescript-extract-shared.ts';
+import { analyzeExports, analyzeTypescriptModule } from '#lib/typescript-exports.ts';
+import { type Diagnostic, hasErrors, hasWarnings } from '#lib/diagnostics.ts';
+import { AnalyzeResultJson } from '#lib/analyze-core.ts';
 
 import {
 	loadFixtures,

@@ -1,8 +1,8 @@
 import ts from 'typescript';
 import { z } from 'zod';
 
-import type { TsdocParsedComment } from '$lib/tsdoc.ts';
-import { parseComment } from '$lib/tsdoc.ts';
+import type { TsdocParsedComment } from '#lib/tsdoc.ts';
+import { parseComment } from '#lib/tsdoc.ts';
 
 import { loadFixturesGeneric, type GenericFixture } from '../../test-helpers.ts';
 

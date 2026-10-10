@@ -20,11 +20,11 @@
 import { test, assert, describe } from 'vitest';
 import { join } from 'node:path';
 
-import { analyze, analyzeFromFiles } from '$lib/analyze.ts';
-import { createAnalysisSession, type AnalysisSession } from '$lib/session.ts';
-import { createSourceOptions } from '$lib/source-config.ts';
-import type { SourceFileInfo } from '$lib/source.ts';
-import type { AnalyzeResultJson } from '$lib/analyze-core.ts';
+import { analyze, analyzeFromFiles } from '#lib/analyze.ts';
+import { createAnalysisSession, type AnalysisSession } from '#lib/session.ts';
+import { createSourceOptions } from '#lib/source-config.ts';
+import type { SourceFileInfo } from '#lib/source.ts';
+import type { AnalyzeResultJson } from '#lib/analyze-core.ts';
 
 import { assertHasDeclaration, findModule, withTestProject } from './test-helpers.ts';
 

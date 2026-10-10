@@ -18,7 +18,7 @@ in the [npm package](https://www.npmjs.com/package/svelte-docinfo).
 npm i -D svelte-docinfo
 ```
 
-Peer dependencies: `svelte` 5+, `svelte2tsx`, `typescript` 5.9+, and `zod` 4+
+Peer dependencies: `svelte` 5+, `svelte2tsx`, `typescript` 5.9+ or 6, and `zod` 4+
 (npm 7+ installs them automatically).
 
 - [Quick start](#quick-start)

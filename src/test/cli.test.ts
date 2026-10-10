@@ -18,7 +18,7 @@ import { join } from 'node:path';
 
 import { withTestProject } from './test-helpers.ts';
 import { runCliCapture, runNodeSubprocess, PROJECT_ROOT } from './test-cli-helpers.ts';
-import { AnalyzeResultJson } from '$lib/analyze-core.ts';
+import { AnalyzeResultJson } from '#lib/analyze-core.ts';
 
 /** Simple project with one module. */
 const SIMPLE_PROJECT = {

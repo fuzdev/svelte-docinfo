@@ -33,10 +33,10 @@
 import { test, assert, describe, vi, beforeEach, afterEach } from 'vitest';
 import { join } from 'node:path';
 
-import { createAnalysisSession } from '$lib/session.ts';
-import * as svelteModule from '$lib/svelte.ts';
-import type { SourceFileInfo } from '$lib/source.ts';
-import { createSourceOptions } from '$lib/source-config.ts';
+import { createAnalysisSession } from '#lib/session.ts';
+import * as svelteModule from '#lib/svelte.ts';
+import type { SourceFileInfo } from '#lib/source.ts';
+import { createSourceOptions } from '#lib/source-config.ts';
 
 import { collectingLog, withTestProject } from './test-helpers.ts';
 

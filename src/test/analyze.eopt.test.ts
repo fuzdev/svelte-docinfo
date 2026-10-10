@@ -18,9 +18,9 @@
 import { test, assert, describe } from 'vitest';
 import { join } from 'node:path';
 
-import type { MemberJson, ModuleJson, TypeJson } from '$lib/types.ts';
-import { createSourceOptions } from '$lib/source-config.ts';
-import { createAnalysisSession } from '$lib/session.ts';
+import type { MemberJson, ModuleJson, TypeJson } from '#lib/types.ts';
+import { createSourceOptions } from '#lib/source-config.ts';
+import { createAnalysisSession } from '#lib/session.ts';
 
 import { TEST_TSCONFIG_COMPILER_OPTIONS, withTestProject } from './test-helpers.ts';
 import { analyzeTestProject } from './test-module-helpers.ts';

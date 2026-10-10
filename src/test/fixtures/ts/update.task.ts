@@ -1,6 +1,6 @@
 import type { Task } from '@fuzdev/gro';
 
-import { compactReplacer } from '$lib/declaration-helpers.ts';
+import { compactReplacer } from '#lib/declaration-helpers.ts';
 
 import { runUpdateTask } from '../../test-helpers.ts';
 import { analyzeTsFixture } from './ts-test-helpers.ts';

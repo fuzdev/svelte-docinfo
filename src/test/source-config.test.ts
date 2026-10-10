@@ -14,7 +14,7 @@
 
 import { test, assert, describe } from 'vitest';
 
-import { type SourceFileInfo, getDefaultAnalyzer } from '$lib/source.ts';
+import { type SourceFileInfo, getDefaultAnalyzer } from '#lib/source.ts';
 import {
 	extractPath,
 	extractDependencies,
@@ -30,7 +30,7 @@ import {
 	baselineExcludesForBase,
 	DEFAULT_SOURCE_OPTIONS,
 	type ModuleSourceOptions
-} from '$lib/source-config.ts';
+} from '#lib/source-config.ts';
 
 import { testMockOptions } from './test-module-helpers.ts';
 import { TEST_PATHS, TEST_FILES } from './test-constants.ts';

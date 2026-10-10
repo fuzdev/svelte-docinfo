@@ -12,7 +12,7 @@
 import { test, assert, describe, beforeAll } from 'vitest';
 import ts from 'typescript';
 
-import { cleanComment, parseComment } from '$lib/tsdoc.ts';
+import { cleanComment, parseComment } from '#lib/tsdoc.ts';
 
 import {
 	loadFixtures,

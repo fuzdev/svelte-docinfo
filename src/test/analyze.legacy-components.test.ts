@@ -22,8 +22,8 @@
 
 import { test, assert, describe } from 'vitest';
 
-import type { ComponentDeclarationJson, ModuleJson } from '$lib/types.ts';
-import { byKind } from '$lib/diagnostics.ts';
+import type { ComponentDeclarationJson, ModuleJson } from '#lib/types.ts';
+import { byKind } from '#lib/diagnostics.ts';
 
 import { assertHasComponentDeclaration, assertHasProps, findModule } from './test-helpers.ts';
 import { analyzeTestProject } from './test-module-helpers.ts';

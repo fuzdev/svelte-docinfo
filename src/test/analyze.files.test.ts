@@ -6,8 +6,8 @@
 
 import { test, assert, describe } from 'vitest';
 
-import { analyzeFromFiles } from '$lib/analyze.ts';
-import { errorsOf } from '$lib/diagnostics.ts';
+import { analyzeFromFiles } from '#lib/analyze.ts';
+import { errorsOf } from '#lib/diagnostics.ts';
 
 import {
 	createTestProject,
@@ -778,7 +778,7 @@ export function add(a: number, b: number): number {
 
 				await analyzeFromFiles({
 					projectRoot,
-					log: mockLog as any
+					log: mockLog
 				});
 
 				// Should have some info logs about discovery

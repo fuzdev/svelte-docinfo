@@ -26,12 +26,12 @@ import { test, assert, describe } from 'vitest';
 
 import ts from 'typescript';
 
-import { analyze, analyzeFromFiles } from '$lib/analyze.ts';
-import { analyzeCore } from '$lib/analyze-core.ts';
-import { byKind } from '$lib/diagnostics.ts';
-import { createSourceOptions } from '$lib/source-config.ts';
-import { SVELTE_VIRTUAL_SUFFIX } from '$lib/source.ts';
-import type { SvelteVirtualFile } from '$lib/svelte.ts';
+import { analyze, analyzeFromFiles } from '#lib/analyze.ts';
+import { analyzeCore } from '#lib/analyze-core.ts';
+import { byKind } from '#lib/diagnostics.ts';
+import { createSourceOptions } from '#lib/source-config.ts';
+import { SVELTE_VIRTUAL_SUFFIX } from '#lib/source.ts';
+import type { SvelteVirtualFile } from '#lib/svelte.ts';
 
 import { withTestProject } from './test-helpers.ts';
 import {

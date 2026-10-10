@@ -17,7 +17,7 @@ import {
 	type SveltePropDiagnostic,
 	type TypeExtractionDiagnostic,
 	type UnknownParamDiagnostic
-} from '$lib/diagnostics.ts';
+} from '#lib/diagnostics.ts';
 
 /**
  * Create a type extraction diagnostic for testing.

@@ -21,8 +21,8 @@
 import { test, assert, describe } from 'vitest';
 import { join } from 'node:path';
 
-import { createAnalysisSession } from '$lib/session.ts';
-import { createSourceOptions } from '$lib/source-config.ts';
+import { createAnalysisSession } from '#lib/session.ts';
+import { createSourceOptions } from '#lib/source-config.ts';
 
 import { withTestProject } from './test-helpers.ts';
 

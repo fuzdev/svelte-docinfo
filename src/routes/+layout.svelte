@@ -7,7 +7,7 @@
 	import type { Snippet } from 'svelte';
 	import pkg_json from 'virtual:pkg.json';
 
-	import { logo_svelte_docinfo } from '$lib/logo.ts';
+	import { logo_svelte_docinfo } from '#lib/logo.ts';
 
 	const {
 		children

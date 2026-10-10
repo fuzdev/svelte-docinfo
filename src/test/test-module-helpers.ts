@@ -15,12 +15,12 @@ import {
 	createSourceOptions,
 	type ModuleSourceOptions,
 	type SourceOptionsOverrides
-} from '$lib/source-config.ts';
-import { applyVirtualFiles, type VirtualFileEntry } from '$lib/typescript-program.ts';
-import { analyze } from '$lib/analyze.ts';
-import type { AnalyzeResultJson } from '$lib/analyze-core.ts';
-import { transformSvelteSource, type SvelteVirtualFile } from '$lib/svelte.ts';
-import type { SourceFileInfo } from '$lib/source.ts';
+} from '#lib/source-config.ts';
+import { applyVirtualFiles, type VirtualFileEntry } from '#lib/typescript-program.ts';
+import { analyze } from '#lib/analyze.ts';
+import type { AnalyzeResultJson } from '#lib/analyze-core.ts';
+import { transformSvelteSource, type SvelteVirtualFile } from '#lib/svelte.ts';
+import type { SourceFileInfo } from '#lib/source.ts';
 
 import { withTestProject } from './test-helpers.ts';
 

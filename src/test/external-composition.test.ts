@@ -16,11 +16,11 @@
 import { test, assert, describe } from 'vitest';
 import ts from 'typescript';
 
-import { extractTypeInfo } from '$lib/typescript-extract-type.ts';
-import { extractClassInfo } from '$lib/typescript-extract-class.ts';
-import type { IsExternalFile } from '$lib/typescript-program.ts';
-import { type Diagnostic } from '$lib/diagnostics.ts';
-import type { DeclarationJsonBuild } from '$lib/declaration-build.ts';
+import { extractTypeInfo } from '#lib/typescript-extract-type.ts';
+import { extractClassInfo } from '#lib/typescript-extract-class.ts';
+import type { IsExternalFile } from '#lib/typescript-program.ts';
+import { type Diagnostic } from '#lib/diagnostics.ts';
+import type { DeclarationJsonBuild } from '#lib/declaration-build.ts';
 
 import { createMultiFileProgram } from './fixtures/ts/ts-test-helpers.ts';
 import { mockExtractContext } from './test-helpers.ts';

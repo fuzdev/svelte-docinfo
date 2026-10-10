@@ -8,9 +8,9 @@
 
 import { test, assert, describe } from 'vitest';
 
-import type { ModuleJson } from '$lib/types.ts';
-import type { AnalyzeResultJson } from '$lib/analyze-core.ts';
-import { byKind } from '$lib/diagnostics.ts';
+import type { ModuleJson } from '#lib/types.ts';
+import type { AnalyzeResultJson } from '#lib/analyze-core.ts';
+import { byKind } from '#lib/diagnostics.ts';
 
 import { analyzeTestProject } from './test-module-helpers.ts';
 

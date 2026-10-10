@@ -1,5 +1,5 @@
 import type { Gen } from '@fuzdev/gro/gen.ts';
-import { analyzeFromFiles } from '$lib/analyze.ts';
+import { analyzeFromFiles } from '#lib/analyze.ts';
 import { dirname, join } from 'node:path';
 
 import { compute_layout, type LayoutInput } from './graph_layout.ts';

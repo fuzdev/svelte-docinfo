@@ -12,7 +12,7 @@
 import { test, assert, describe } from 'vitest';
 import { join } from 'node:path';
 
-import { loadFile, globFiles, deriveIncludePatterns } from '$lib/files.ts';
+import { loadFile, globFiles, deriveIncludePatterns } from '#lib/files.ts';
 
 import { withTestProject } from './test-helpers.ts';
 

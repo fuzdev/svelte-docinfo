@@ -5,7 +5,7 @@ import { readdir, readFile, rm } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { AnalyzeResultJson } from '$lib/analyze-core.ts';
+import { AnalyzeResultJson } from '#lib/analyze-core.ts';
 
 import {
 	EXAMPLES_API_DIR,

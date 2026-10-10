@@ -15,12 +15,12 @@ import ts from 'typescript';
 import { TraceMap } from '@jridgewell/trace-mapping';
 import { dirname, join } from 'node:path';
 
-import { byKind, type Diagnostic } from '$lib/diagnostics.ts';
+import { byKind, type Diagnostic } from '#lib/diagnostics.ts';
 import {
 	analyzeSvelteModule,
 	remapVirtualDiagnosticPositions,
 	type SvelteVirtualFile
-} from '$lib/svelte.ts';
+} from '#lib/svelte.ts';
 
 import {
 	analyzeTestProject,

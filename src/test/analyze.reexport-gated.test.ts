@@ -24,10 +24,10 @@
 import { join } from 'node:path';
 import { test, assert, describe } from 'vitest';
 
-import { analyze, analyzeFromFiles } from '$lib/analyze.ts';
-import type { AnalyzeResultJson } from '$lib/analyze-core.ts';
-import { createSourceOptions } from '$lib/source-config.ts';
-import { findDuplicates, resolveExportSurface } from '$lib/postprocess.ts';
+import { analyze, analyzeFromFiles } from '#lib/analyze.ts';
+import type { AnalyzeResultJson } from '#lib/analyze-core.ts';
+import { createSourceOptions } from '#lib/source-config.ts';
+import { findDuplicates, resolveExportSurface } from '#lib/postprocess.ts';
 
 import { withTestProject } from './test-helpers.ts';
 

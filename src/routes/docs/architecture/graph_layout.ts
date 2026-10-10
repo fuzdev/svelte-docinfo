@@ -9,7 +9,7 @@
  * @module
  */
 
-import { compareStrings } from '$lib/postprocess.ts';
+import { compareStrings } from '#lib/postprocess.ts';
 
 export interface LayoutInputNode {
 	id: string;

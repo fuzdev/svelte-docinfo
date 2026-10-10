@@ -10,15 +10,15 @@ import { tmpdir } from 'node:os';
 import type ts from 'typescript';
 import { assert } from 'vitest';
 
-import { compareStrings } from '$lib/postprocess.ts';
-import type { AnalysisLog } from '$lib/log.ts';
-import type { ExtractContext } from '$lib/typescript-extract-shared.ts';
+import { compareStrings } from '#lib/postprocess.ts';
+import type { AnalysisLog } from '#lib/log.ts';
+import type { ExtractContext } from '#lib/typescript-extract-shared.ts';
 import type {
 	DeclarationJson,
 	FunctionDeclarationJson,
 	ComponentDeclarationJson,
 	ModuleJson
-} from '$lib/types.ts';
+} from '#lib/types.ts';
 
 /**
  * Create an `AnalysisLog` that collects info messages for assertions.

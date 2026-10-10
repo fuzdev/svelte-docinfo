@@ -25,9 +25,9 @@
 import { join } from 'node:path';
 import { test, assert, describe } from 'vitest';
 
-import { analyze, analyzeFromFiles } from '$lib/analyze.ts';
-import { createAnalysisSession } from '$lib/session.ts';
-import { createSourceOptions } from '$lib/source-config.ts';
+import { analyze, analyzeFromFiles } from '#lib/analyze.ts';
+import { createAnalysisSession } from '#lib/session.ts';
+import { createSourceOptions } from '#lib/source-config.ts';
 
 import { withTestProject, collectingLog } from './test-helpers.ts';
 

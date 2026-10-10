@@ -11,12 +11,12 @@ import {
 	extractSvelteModuleComment,
 	extractHtmlModuleComment,
 	synthesizeSnippetTypeSignature
-} from '$lib/svelte.ts';
-import { type Diagnostic, hasErrors, hasWarnings, warningsOf } from '$lib/diagnostics.ts';
-import { AnalyzeResultJson } from '$lib/analyze-core.ts';
-import type { ModuleAnalysis } from '$lib/declaration-build.ts';
-import type { SourceFileInfo } from '$lib/source.ts';
-import type { ModuleSourceOptions } from '$lib/source-config.ts';
+} from '#lib/svelte.ts';
+import { type Diagnostic, hasErrors, hasWarnings, warningsOf } from '#lib/diagnostics.ts';
+import { AnalyzeResultJson } from '#lib/analyze-core.ts';
+import type { ModuleAnalysis } from '#lib/declaration-build.ts';
+import type { SourceFileInfo } from '#lib/source.ts';
+import type { ModuleSourceOptions } from '#lib/source-config.ts';
 
 import {
 	buildSvelteFixtureRegistry,

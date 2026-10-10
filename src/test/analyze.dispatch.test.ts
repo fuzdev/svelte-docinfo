@@ -1,8 +1,8 @@
 import { test, assert, describe } from 'vitest';
 
-import { analyzeModule } from '$lib/analyze-core.ts';
-import { type ModuleSourceOptions } from '$lib/source-config.ts';
-import { byKind, hasErrors, hasWarnings, warningsOf, type Diagnostic } from '$lib/diagnostics.ts';
+import { analyzeModule } from '#lib/analyze-core.ts';
+import { type ModuleSourceOptions } from '#lib/source-config.ts';
+import { byKind, hasErrors, hasWarnings, warningsOf, type Diagnostic } from '#lib/diagnostics.ts';
 
 import { createTestSourceOptions, createVirtualFileProgram } from './test-module-helpers.ts';
 

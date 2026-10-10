@@ -2,14 +2,14 @@ import type ts from 'typescript';
 import { existsSync } from 'node:fs';
 import { posix } from 'node:path';
 
-import type { SvelteVirtualFile } from '$lib/svelte.ts';
-import { createAnalysisProgram, type VirtualFileEntry } from '$lib/typescript-program.ts';
-import { buildAliasRegistry } from '$lib/typescript-alias-registry.ts';
-import type { AliasRegistry } from '$lib/typescript-extract-type-json.ts';
-import type { AnalyzeResultJson } from '$lib/analyze-core.ts';
-import { ensureLexerReady, lexImports } from '$lib/dep-resolver.ts';
-import { isSource } from '$lib/source-config.ts';
-import type { SourceFileInfo } from '$lib/source.ts';
+import type { SvelteVirtualFile } from '#lib/svelte.ts';
+import { createAnalysisProgram, type VirtualFileEntry } from '#lib/typescript-program.ts';
+import { buildAliasRegistry } from '#lib/typescript-alias-registry.ts';
+import type { AliasRegistry } from '#lib/typescript-extract-type-json.ts';
+import type { AnalyzeResultJson } from '#lib/analyze-core.ts';
+import { ensureLexerReady, lexImports } from '#lib/dep-resolver.ts';
+import { isSource } from '#lib/source-config.ts';
+import type { SourceFileInfo } from '#lib/source.ts';
 
 import { loadFixturesGeneric, type FixtureExtraFile } from '../../test-helpers.ts';
 import { testSourceOptions, transformOrThrow } from '../../test-module-helpers.ts';

@@ -548,12 +548,12 @@ fuz_ui and fuz_css consume `virtual:svelte-docinfo` directly: a hand-written
 - **Peers** (required):
   - `svelte` 5+ and `svelte2tsx`, eagerly imported by every entry, so they're needed even
     for TS-only analysis.
-  - `typescript` 5.9+, so consumers don't carry a second TS.
+  - `typescript` 5.9+ or 6, so consumers don't carry a second TS.
   - `zod` 4+, so schema types resolve to one instance.
 
 ## Testing
 
-Tests live in `src/test/` and import source via `$lib/*.ts`. Fixtures
+Tests live in `src/test/` and import source via `#lib/*.ts`. Fixtures
 (`src/test/fixtures/{tsdoc,ts,svelte}/`) hold an input plus a generated `expected.json`:
 
 - **tsdoc** captures `parseComment` output.

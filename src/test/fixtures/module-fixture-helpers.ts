@@ -18,19 +18,19 @@ import type ts from 'typescript';
 import { z } from 'zod';
 import { posix } from 'node:path';
 
-import { ModuleJson } from '$lib/types.ts';
-import { Diagnostic } from '$lib/diagnostics.ts';
+import { ModuleJson } from '#lib/types.ts';
+import { Diagnostic } from '#lib/diagnostics.ts';
 import {
 	analyzeCore,
 	normalizeDiagnosticPaths,
 	type AnalyzeResultJson
-} from '$lib/analyze-core.ts';
-import { ensureLexerReady, lexImports } from '$lib/dep-resolver.ts';
-import { toErrorMessage } from '$lib/error.ts';
-import { computeDependents } from '$lib/postprocess.ts';
-import type { SvelteVirtualFile } from '$lib/svelte.ts';
-import type { SourceFileInfo } from '$lib/source.ts';
-import type { ModuleSourceOptions } from '$lib/source-config.ts';
+} from '#lib/analyze-core.ts';
+import { ensureLexerReady, lexImports } from '#lib/dep-resolver.ts';
+import { toErrorMessage } from '#lib/error.ts';
+import { computeDependents } from '#lib/postprocess.ts';
+import type { SvelteVirtualFile } from '#lib/svelte.ts';
+import type { SourceFileInfo } from '#lib/source.ts';
+import type { ModuleSourceOptions } from '#lib/source-config.ts';
 
 import type { GenericFixture } from '../test-helpers.ts';
 

@@ -420,8 +420,8 @@ const svelteDocinfo = (options: VitePluginSvelteDocinfoOptions = {}): Plugin => 
 				// toolchain (vite → rollup → esbuild) into the client bundle.
 				// It tree-shakes away, but floods the log with "externalized for
 				// browser" warnings. `ts.resolveModuleName` is side-effect-free
-				// and honors tsconfig `paths` (incl. SvelteKit's generated
-				// `$lib`), which covers internal dependency edges. Node builtins
+				// and honors tsconfig `paths` and package.json `imports` (e.g.
+				// `#lib/*`), which covers internal dependency edges. Node builtins
 				// are already filtered before the resolver (see `session.ts`).
 				sessionResolver = undefined;
 			}

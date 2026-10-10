@@ -14,13 +14,13 @@
 import { test, assert, describe } from 'vitest';
 import { join } from 'node:path';
 
-import { analyze, type AnalyzeOptions } from '$lib/analyze.ts';
-import { throwOnDuplicates } from '$lib/analyze-core.ts';
-import { byKind, errorsOf, hasErrors, hasWarnings, warningsOf } from '$lib/diagnostics.ts';
-import type { SourceFileInfo } from '$lib/source.ts';
-import { createSourceOptions } from '$lib/source-config.ts';
-import { type DuplicateDeclaration } from '$lib/postprocess.ts';
-import { ModuleJson } from '$lib/types.ts';
+import { analyze, type AnalyzeOptions } from '#lib/analyze.ts';
+import { throwOnDuplicates } from '#lib/analyze-core.ts';
+import { byKind, errorsOf, hasErrors, hasWarnings, warningsOf } from '#lib/diagnostics.ts';
+import type { SourceFileInfo } from '#lib/source.ts';
+import { createSourceOptions } from '#lib/source-config.ts';
+import { type DuplicateDeclaration } from '#lib/postprocess.ts';
+import { ModuleJson } from '#lib/types.ts';
 
 import { withTestProject } from './test-helpers.ts';
 
@@ -682,7 +682,7 @@ export const undocVar = 2;`
 				await analyze({
 					sourceFiles,
 					sourceOptions,
-					log: mockLog as any
+					log: mockLog
 				});
 
 				// Valid code should produce no error/warn log calls

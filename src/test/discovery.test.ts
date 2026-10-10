@@ -9,8 +9,8 @@
 
 import { test, assert, describe } from 'vitest';
 
-import { discoverSourceFiles } from '$lib/discovery.ts';
-import { createSourceOptions } from '$lib/source-config.ts';
+import { discoverSourceFiles } from '#lib/discovery.ts';
+import { createSourceOptions } from '#lib/source-config.ts';
 
 import { withTestProject } from './test-helpers.ts';
 

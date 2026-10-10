@@ -11,10 +11,10 @@
 import { test, assert, describe } from 'vitest';
 import { join } from 'node:path';
 
-import { analyze } from '$lib/analyze.ts';
-import { hasErrors, hasWarnings } from '$lib/diagnostics.ts';
-import type { SourceFileInfo } from '$lib/source.ts';
-import { createSourceOptions } from '$lib/source-config.ts';
+import { analyze } from '#lib/analyze.ts';
+import { hasErrors, hasWarnings } from '#lib/diagnostics.ts';
+import type { SourceFileInfo } from '#lib/source.ts';
+import { createSourceOptions } from '#lib/source-config.ts';
 
 import { withTestProject } from './test-helpers.ts';
 

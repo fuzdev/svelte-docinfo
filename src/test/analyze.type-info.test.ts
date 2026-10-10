@@ -32,9 +32,9 @@
 
 import { test, assert, describe } from 'vitest';
 
-import { AnalyzeResultJson } from '$lib/analyze-core.ts';
-import { compactReplacer } from '$lib/declaration-helpers.ts';
-import { TypeJson, type ModuleJson } from '$lib/types.ts';
+import { AnalyzeResultJson } from '#lib/analyze-core.ts';
+import { compactReplacer } from '#lib/declaration-helpers.ts';
+import { TypeJson, type ModuleJson } from '#lib/types.ts';
 
 import { analyzeTestProject } from './test-module-helpers.ts';
 
