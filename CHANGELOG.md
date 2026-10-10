@@ -1,5 +1,11 @@
 # svelte-docinfo
 
+## 0.8.1
+
+### Patch Changes
+
+- feat: support TypeScript 6 (`typescript` peer `^5.9.3 || ^6`) ([aebad62](https://github.com/fuzdev/svelte-docinfo/commit/aebad62))
+
 ## 0.8.0
 
 ### Minor Changes
