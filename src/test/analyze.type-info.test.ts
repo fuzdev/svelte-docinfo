@@ -5,10 +5,10 @@
  * Exercises the whole `analyze` pipeline: the absence contract (terminal roots
  * carry no `typeInfo`) and its type-alias-root exception, the module-object
  * terminal (`typeof import` classifies `other`, never a quoted-path
- * reference), alias preservation
- * through the optional-widening strip, the origin walk (flat-string member
- * order with nullish last, written sub-aliases as nested union nodes, the
- * null-bearing optional alias surviving), enum `{value, text}` pairs,
+ * reference), alias preservation through the optional-widening strip, the
+ * origin walk (nullish members last, written sub-aliases as nested union
+ * nodes, the null-bearing optional alias surviving; written member order is
+ * `analyze.type-info-union-order.test.ts`), enum `{value, text}` pairs,
  * reference/array linkability, the boolean collapse, checker-backed class
  * members, the depth cap on recursive aliases, the terminal-text size budget,
  * and the `compactReplacer`
@@ -268,7 +268,7 @@ export const fn = (b?: number | 'a'): void => {
 		});
 	});
 
-	test('union members follow the flat string: written order, nullish last', async () => {
+	test('union members sink nullish last, like the flat string', async () => {
 		const module = await analyzeFile(
 			'src/lib/a.ts',
 			`export type O = {
@@ -281,8 +281,8 @@ export const fn = (b?: number | 'a'): void => {
 		const [a, b] = declaration.members;
 		assert(a?.kind === 'variable' && b?.kind === 'variable');
 		// the printer sinks null/undefined to the end of whatever it prints, so
-		// the flat strings read `"a" | null` and `string | number | null` — the
-		// tree matches them, not the written order
+		// the flat strings read `"a" | null` and `string | number | null`, and
+		// the tree sinks them too, keeping the rest in written order
 		assert.strictEqual(a.typeSignature, '"a" | null');
 		assert.deepStrictEqual(a.typeInfo, {
 			kind: 'union',
@@ -312,15 +312,14 @@ export type O = { a: A | number };`
 		assert(declaration?.kind === 'type', 'expected a type declaration');
 		const member = declaration.members[0];
 		assert(member?.kind === 'variable', 'expected a variable member');
-		// the checker's `origin` lists plain members before named sub-unions
-		// (written `A | number` prints `number | A`) — the tree matches the flat
-		// string, and `A` survives as a node where the normalized list would
-		// flatten it into its literals
+		// the checker's `origin` orders by internal type id (written `A | number`
+		// prints `number | A`), while the tree follows the written order — and
+		// `A` survives as a node where the normalized list would flatten it into
+		// its literals
 		assert.strictEqual(member.typeSignature, 'number | A');
 		assert.deepStrictEqual(member.typeInfo, {
 			kind: 'union',
 			members: [
-				{ kind: 'intrinsic', text: 'number' },
 				{
 					kind: 'union',
 					alias: 'A',
@@ -328,7 +327,8 @@ export type O = { a: A | number };`
 						{ kind: 'literal', value: 'a', text: '"a"' },
 						{ kind: 'literal', value: 'b', text: '"b"' }
 					]
-				}
+				},
+				{ kind: 'intrinsic', text: 'number' }
 			]
 		});
 	});

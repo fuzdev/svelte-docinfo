@@ -35,21 +35,6 @@
 								"members": [
 									{
 										"kind": "literal",
-										"value": "number",
-										"text": "\"number\""
-									},
-									{
-										"kind": "literal",
-										"value": "hidden",
-										"text": "\"hidden\""
-									},
-									{
-										"kind": "literal",
-										"value": "color",
-										"text": "\"color\""
-									},
-									{
-										"kind": "literal",
 										"value": "button",
 										"text": "\"button\""
 									},
@@ -57,6 +42,11 @@
 										"kind": "literal",
 										"value": "checkbox",
 										"text": "\"checkbox\""
+									},
+									{
+										"kind": "literal",
+										"value": "color",
+										"text": "\"color\""
 									},
 									{
 										"kind": "literal",
@@ -80,6 +70,11 @@
 									},
 									{
 										"kind": "literal",
+										"value": "hidden",
+										"text": "\"hidden\""
+									},
+									{
+										"kind": "literal",
 										"value": "image",
 										"text": "\"image\""
 									},
@@ -87,6 +82,11 @@
 										"kind": "literal",
 										"value": "month",
 										"text": "\"month\""
+									},
+									{
+										"kind": "literal",
+										"value": "number",
+										"text": "\"number\""
 									},
 									{
 										"kind": "literal",

@@ -229,7 +229,10 @@ Where each behavior is locked. Unit and behavior-level mechanics live in
   rest, dotted `@param` docs), module comments
 - Structured types and name recovery: `types/type-info*`,
   `declarations/*/type-info-recovery`, `declarations/*/alias-lost-*`; merged
-  value+type symbols: `declarations/*/merged-value-*`
+  value+type symbols: `declarations/*/merged-value-*`; union members in
+  written order against a sibling that created the literals in reverse first
+  (`types/union-written-order`; mechanics in
+  `analyze.type-info-union-order.test.ts`)
 - TSDoc placement on declarations and members (`ts/tsdoc/*`), including
   `@default` (`declarations/*/jsdoc-default*`)
 - Type aliases: object literals, intersections, mapped, unions, tuples,

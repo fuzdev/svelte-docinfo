@@ -27,12 +27,14 @@ points to the TSDoc that owns its policy; read it before changing behavior. User
   - **Absence contract** — absent when the flat string is the whole story (intrinsics, bare
     references, object/function roots). Relaxed at type-alias roots, where the flat string
     is just the alias name, and at recovered roots.
-  - **Shape** — union/intersection members keep alias names and the printed member order
-    (read off the union's internal `origin`, with a validated fallback); `true | false`
-    collapses to `boolean`; the optional-widening `undefined` is dropped. Named generic
-    instantiations (`Snippet<[a: string]>`) are `reference` nodes with `typeArgs`; every
-    other callable is `function`. Object literals and functions stay terminal `text`
-    (1000-char budget). Depth is capped at 5, degrading to `{kind: 'other'}`.
+  - **Shape** — union/intersection members keep alias names (read off the union's internal
+    `origin`, with a validated fallback). Union members take the written order: the alias
+    declaration's right-hand side for a non-generic aliased union, else the site annotation,
+    validated and falling back to the checker's order; nullish members sink last.
+    `true | false` collapses to `boolean`; the optional-widening `undefined` is dropped.
+    Named generic instantiations (`Snippet<[a: string]>`) are `reference` nodes with
+    `typeArgs`; every other callable is `function`. Object literals and functions stay
+    terminal `text` (1000-char budget). Depth is capped at 5, degrading to `{kind: 'other'}`.
   - **Name recovery** — TypeScript drops the alias of a type over an indexed access or
     conditional (`z.infer<typeof S>`), expanding it at every use. A svelte2tsx-generated
     alias (declared in a virtual or the shims) counts as none (`linkableAliasSymbol`), so
@@ -187,8 +189,9 @@ points to the TSDoc that owns its policy; read it before changing behavior. User
     prints an origin-less union (`z.enum` members, literal unions) in type-creation order,
     which follows the order the checker first visits files; root order sets the merge
     order of `declare global`, module augmentations, and interface merging. Two limits
-    remain: an edit to an unrelated file can still reorder such a union's members, since
-    it can change which file first creates a member type, and checker work through
+    remain, for flat strings and for trees at positions with no written union node: an
+    edit to an unrelated file can still reorder such a union's members, since it can
+    change which file first creates a member type, and checker work through
     `getProgram()` before the first `query()` on a fresh program can reorder them in that
     query's output.
 
@@ -407,10 +410,10 @@ threw).
 
 - **Flat strings are the checker's rendering, structured fields are normalized.**
   `typeSignature` keeps the checker's text, truncation included (for alias-lost types it
-  isn't what editor hover shows). One exception: the checker widens optional properties and
-  parameters with `undefined`, and every member-type position (a property member's
-  `typeSignature`, prop/parameter `type`, `typeInfo`) strips it so `optional: true` carries
-  it alone.
+  isn't what editor hover shows), and member order, which can differ from the tree's
+  written order. One exception: the checker widens optional properties and parameters with
+  `undefined`, and every member-type position (a property member's `typeSignature`,
+  prop/parameter `type`, `typeInfo`) strips it so `optional: true` carries it alone.
   - `null` is kept, and so is an `undefined`-only annotation.
   - Strips are top-level only in flat strings (`signatureToString` can't omit the
     widening), but happen at every optional position in trees.

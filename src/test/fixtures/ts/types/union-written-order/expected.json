@@ -1,0 +1,374 @@
+{
+	"modules": [
+		{
+			"path": "dep.ts",
+			"declarations": [
+				{
+					"name": "B",
+					"kind": "type",
+					"typeSignature": "B",
+					"sourceLine": 1,
+					"typeInfo": {
+						"kind": "union",
+						"alias": "B",
+						"members": [
+							{
+								"kind": "literal",
+								"value": "d",
+								"text": "\"d\""
+							},
+							{
+								"kind": "literal",
+								"value": "c",
+								"text": "\"c\""
+							},
+							{
+								"kind": "literal",
+								"value": "b",
+								"text": "\"b\""
+							},
+							{
+								"kind": "literal",
+								"value": "a",
+								"text": "\"a\""
+							}
+						]
+					}
+				}
+			],
+			"dependents": [
+				"input.ts"
+			]
+		},
+		{
+			"path": "input.ts",
+			"declarations": [
+				{
+					"name": "Z",
+					"kind": "type",
+					"typeSignature": "B",
+					"sourceLine": 7,
+					"typeInfo": {
+						"kind": "union",
+						"alias": "B",
+						"members": [
+							{
+								"kind": "literal",
+								"value": "d",
+								"text": "\"d\""
+							},
+							{
+								"kind": "literal",
+								"value": "c",
+								"text": "\"c\""
+							},
+							{
+								"kind": "literal",
+								"value": "b",
+								"text": "\"b\""
+							},
+							{
+								"kind": "literal",
+								"value": "a",
+								"text": "\"a\""
+							}
+						]
+					}
+				},
+				{
+					"name": "A",
+					"kind": "type",
+					"typeSignature": "A",
+					"sourceLine": 9,
+					"typeInfo": {
+						"kind": "union",
+						"alias": "A",
+						"members": [
+							{
+								"kind": "literal",
+								"value": "a",
+								"text": "\"a\""
+							},
+							{
+								"kind": "literal",
+								"value": "b",
+								"text": "\"b\""
+							},
+							{
+								"kind": "literal",
+								"value": "c",
+								"text": "\"c\""
+							},
+							{
+								"kind": "literal",
+								"value": "d",
+								"text": "\"d\""
+							}
+						]
+					}
+				},
+				{
+					"name": "a",
+					"kind": "variable",
+					"typeSignature": "\"d\" | \"c\" | \"b\" | \"a\"",
+					"sourceLine": 11,
+					"typeInfo": {
+						"kind": "union",
+						"members": [
+							{
+								"kind": "literal",
+								"value": "a",
+								"text": "\"a\""
+							},
+							{
+								"kind": "literal",
+								"value": "b",
+								"text": "\"b\""
+							},
+							{
+								"kind": "literal",
+								"value": "c",
+								"text": "\"c\""
+							},
+							{
+								"kind": "literal",
+								"value": "d",
+								"text": "\"d\""
+							}
+						]
+					}
+				},
+				{
+					"name": "b",
+					"kind": "function",
+					"typeSignature": "(a: A): A",
+					"sourceLine": 13,
+					"parameters": [
+						{
+							"name": "a",
+							"type": "A",
+							"typeInfo": {
+								"kind": "union",
+								"alias": "A",
+								"members": [
+									{
+										"kind": "literal",
+										"value": "a",
+										"text": "\"a\""
+									},
+									{
+										"kind": "literal",
+										"value": "b",
+										"text": "\"b\""
+									},
+									{
+										"kind": "literal",
+										"value": "c",
+										"text": "\"c\""
+									},
+									{
+										"kind": "literal",
+										"value": "d",
+										"text": "\"d\""
+									}
+								]
+							}
+						}
+					],
+					"returnType": "A",
+					"returnTypeInfo": {
+						"kind": "union",
+						"alias": "A",
+						"members": [
+							{
+								"kind": "literal",
+								"value": "a",
+								"text": "\"a\""
+							},
+							{
+								"kind": "literal",
+								"value": "b",
+								"text": "\"b\""
+							},
+							{
+								"kind": "literal",
+								"value": "c",
+								"text": "\"c\""
+							},
+							{
+								"kind": "literal",
+								"value": "d",
+								"text": "\"d\""
+							}
+						]
+					}
+				},
+				{
+					"name": "c",
+					"kind": "function",
+					"typeSignature": "(a: \"b\" | \"a\"): [\"c\" | \"b\" | \"a\"]",
+					"sourceLine": 15,
+					"parameters": [
+						{
+							"name": "a",
+							"type": "\"b\" | \"a\"",
+							"typeInfo": {
+								"kind": "union",
+								"members": [
+									{
+										"kind": "literal",
+										"value": "b",
+										"text": "\"b\""
+									},
+									{
+										"kind": "literal",
+										"value": "a",
+										"text": "\"a\""
+									}
+								]
+							}
+						}
+					],
+					"returnType": "[\"c\" | \"b\" | \"a\"]",
+					"returnTypeInfo": {
+						"kind": "tuple",
+						"elements": [
+							{
+								"type": {
+									"kind": "union",
+									"members": [
+										{
+											"kind": "literal",
+											"value": "a",
+											"text": "\"a\""
+										},
+										{
+											"kind": "literal",
+											"value": "c",
+											"text": "\"c\""
+										},
+										{
+											"kind": "literal",
+											"value": "b",
+											"text": "\"b\""
+										}
+									]
+								}
+							}
+						]
+					}
+				},
+				{
+					"name": "C",
+					"kind": "interface",
+					"typeSignature": "C",
+					"sourceLine": 21,
+					"members": [
+						{
+							"name": "a",
+							"kind": "variable",
+							"typeSignature": "\"c\" | \"b\" | \"a\" | null",
+							"optional": true,
+							"typeInfo": {
+								"kind": "union",
+								"members": [
+									{
+										"kind": "literal",
+										"value": "a",
+										"text": "\"a\""
+									},
+									{
+										"kind": "literal",
+										"value": "b",
+										"text": "\"b\""
+									},
+									{
+										"kind": "literal",
+										"value": "c",
+										"text": "\"c\""
+									},
+									{
+										"kind": "intrinsic",
+										"text": "null"
+									}
+								]
+							}
+						},
+						{
+							"name": "b",
+							"kind": "variable",
+							"typeSignature": "M<\"c\" | \"a\">",
+							"typeInfo": {
+								"kind": "reference",
+								"name": "M",
+								"typeArgs": [
+									{
+										"kind": "union",
+										"members": [
+											{
+												"kind": "literal",
+												"value": "c",
+												"text": "\"c\""
+											},
+											{
+												"kind": "literal",
+												"value": "a",
+												"text": "\"a\""
+											}
+										]
+									}
+								]
+							}
+						}
+					]
+				},
+				{
+					"name": "d",
+					"kind": "function",
+					"typeSignature": "(a: \"b\" | \"a\"): \"b\" | \"a\"",
+					"sourceLine": 28,
+					"parameters": [
+						{
+							"name": "a",
+							"type": "\"b\" | \"a\"",
+							"typeInfo": {
+								"kind": "union",
+								"members": [
+									{
+										"kind": "literal",
+										"value": "a",
+										"text": "\"a\""
+									},
+									{
+										"kind": "literal",
+										"value": "b",
+										"text": "\"b\""
+									}
+								]
+							}
+						}
+					],
+					"returnType": "\"b\" | \"a\"",
+					"returnTypeInfo": {
+						"kind": "union",
+						"members": [
+							{
+								"kind": "literal",
+								"value": "b",
+								"text": "\"b\""
+							},
+							{
+								"kind": "literal",
+								"value": "a",
+								"text": "\"a\""
+							}
+						]
+					}
+				}
+			],
+			"dependencies": [
+				"dep.ts"
+			]
+		}
+	]
+}

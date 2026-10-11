@@ -255,15 +255,24 @@ export type GenericParamJson = z.infer<typeof GenericParamJson>;
  * checker-named references and alias-carrying `union`/`intersection` nodes
  * carry no provenance. Consumers must handle absence.
  *
- * **Member order and nested aliases**: union members follow the flat string's
- * printed order — `null`/`undefined` sink last, and the checker's `origin`
- * (the same internal field the flat strings are printed from) lists plain
- * members before named sub-unions, so written `ColorScheme | number` reads
- * `number | ColorScheme` in both — and a member written as a named sub-union
- * survives as its own alias-carrying `union` node (`ColorScheme` stays nested,
- * not flattened literals). When no usable `origin` exists the walk degrades,
- * bounded, to the checker's normalized list: flattened members in
- * checker-internal order (nullish still sunk last), written sub-aliases lost.
+ * **Member order and nested aliases**: union members follow the **written**
+ * order wherever a written union node is recoverable: the alias declaration's
+ * right-hand side for a non-generic aliased union (covering every use,
+ * inferred ones included), else the annotation at the site. `null`/`undefined`
+ * still sink last, and a member written as a named sub-union survives as its
+ * own alias-carrying `union` node (`ColorScheme` stays nested, not flattened
+ * literals) when the checker kept it grouped. Elsewhere — inferred unions,
+ * `keyof`, mapped and conditional results, generic alias instantiations —
+ * members follow the checker's internal order, which depends on
+ * type-creation history and can shift with unrelated edits. Flat strings
+ * always print in the checker's order, so tree and flat string can list the
+ * same members in different orders (written `ColorScheme | number` prints
+ * `number | ColorScheme`); the tree is the one to read for author intent, such
+ * as control options. One edge: the site lookup matches by member set, so a
+ * union takes the order of the first union written over the same members
+ * anywhere in that annotation — two written unions in different orders
+ * (`['a' | 'b', 'b' | 'a']`) both read `"a" | "b"`, and an unwritten one there
+ * (`Exclude<…>`) borrows a written one's order.
  */
 export type TypeJson =
 	/** A built-in type: `string`, `number`, `boolean`, `null`, `undefined`, `void`, `any`, `unknown`, `never`, `symbol`, `bigint`, `object`. */

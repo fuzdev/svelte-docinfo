@@ -239,6 +239,15 @@
 					for object and function roots, which <code>members</code> already covers.
 				</p>
 				<p>
+					Union <code>members</code> follow the order the author wrote them: the alias declaration's
+					for an aliased union, else the annotation at that position, with <code>null</code> and
+					<code>undefined</code> last. The flat strings print in TypeScript's internal order, which
+					follows type-creation history, so the two can list the same members in different orders;
+					read the tree for author intent, such as control options. A union with no written form
+					(inferred, <code>keyof</code>, mapped or conditional results, generic alias
+					instantiations) takes the internal order in both.
+				</p>
+				<p>
 					<strong>Lost aliases.</strong> TypeScript drops the name of an alias whose right-hand side
 					is an indexed access or conditional (<code>z.infer&lt;typeof S&gt;</code>, valibot's
 					<code>InferOutput</code>) and expands its structure everywhere it's used. svelte-docinfo

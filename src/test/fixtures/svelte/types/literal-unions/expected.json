@@ -59,8 +59,8 @@
 						"members": [
 							{
 								"kind": "literal",
-								"value": true,
-								"text": "true"
+								"value": "value",
+								"text": "\"value\""
 							},
 							{
 								"kind": "literal",
@@ -69,8 +69,8 @@
 							},
 							{
 								"kind": "literal",
-								"value": "value",
-								"text": "\"value\""
+								"value": true,
+								"text": "true"
 							},
 							{
 								"kind": "intrinsic",

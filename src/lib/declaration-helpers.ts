@@ -331,6 +331,10 @@ const pushNode = (tokens: Array<TypeJsonToken>, node: TypeJson): void => {
  * API docs and syntax-highlights `code` tokens; a CLI might print them all
  * plainly. Adjacent punctuation merges into single `text` tokens.
  *
+ * Union members render in the tree's order — written order where the tree
+ * recovered it (see `TypeJson`) — so the result can list them in a different
+ * order from the flat string beside the tree, which prints in the checker's.
+ *
  * @param node - the `TypeJson` tree to flatten (a `typeInfo`/`returnTypeInfo` field)
  * @returns tokens in source order; concatenating their text yields the printed type
  *
@@ -354,7 +358,9 @@ export const typeJsonToTokens = (node: TypeJson): Array<TypeJsonToken> => {
 /**
  * The plain-text printed form of a `TypeJson` tree — `typeJsonToTokens`
  * concatenated. For consumers with no linkification or highlighting surface
- * (CLI output, markdown code spans, log lines) and for test assertions.
+ * (CLI output, markdown code spans, log lines) and for test assertions. Not a
+ * reprint of the flat string: union members keep the tree's order (see
+ * `typeJsonToTokens`).
  *
  * @example
  * ```ts

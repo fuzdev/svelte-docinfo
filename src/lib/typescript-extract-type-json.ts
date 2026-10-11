@@ -26,8 +26,10 @@
  * (the self-skip — a lost alias carries no `aliasSymbol`, so without it the
  * declaration's own `typeInfo` would collapse to a self-reference, or under
  * ambiguity a reference to its twin; nested self-hits stay live and terminate
- * recursive types with a name). Expansion, alias, and normalization policy
- * live on the `TypeJson` schema doc in `types.ts`.
+ * recursive types with a name). The same annotation node orders union
+ * members as written (`writtenUnionMemberTypes`), behind an aliased union's
+ * own declaration. Expansion, alias, ordering, and normalization policy live
+ * on the `TypeJson` schema doc in `types.ts`.
  *
  * svelte2tsx-generated aliases (`$$ComponentProps`,
  * `__sveltets_2_PropsWithChildren`) count as no alias at all, here and in the
@@ -490,13 +492,92 @@ const createWrittenNameLookup = (
 	return (type) => (map ??= buildWrittenNameMap(node, checker)).get(type);
 };
 
+/** Unwrap any parentheses around a written type node (`('a' | 'b')`). */
+const unwrapParenthesizedType = (node: ts.TypeNode): ts.TypeNode => {
+	let inner = node;
+	while (ts.isParenthesizedTypeNode(inner)) inner = inner.type;
+	return inner;
+};
+
 /**
- * The two recovery channels threaded through a tree build, plus the self-skip
- * flag. Constructed once per `resolveTypeInfo`/`restElementForms` call.
+ * Lookup from a checker union to the written union node it was built from at
+ * this site — the source of written member order (`writtenUnionMemberTypes`).
+ * Produced by `createWrittenUnionLookup`; `undefined` at call sites with no
+ * written annotation to read.
+ */
+type WrittenUnionLookup = (type: ts.UnionType) => ts.UnionTypeNode | undefined;
+
+/**
+ * Map each outermost union node in a written annotation to its member-set key
+ * (`unionMemberSetKey`). Outermost because a union nested directly in a union
+ * is flattened into it by the checker (parentheses don't count as nesting), so
+ * only the outer node has a checker union of its own; a union under another
+ * kind of node (`M<'a' | 'b'>`, `['a' | 'b']`) is outermost in its own right.
+ *
+ * Keyed by member set rather than identity so the lookup survives the
+ * rebuilds between the written node and the type the tree walks: the
+ * optional-widening `undefined` (filtered from the key) and
+ * `getNonNullableType`, which builds a new union over the same members. The
+ * cost is that two written unions over one member set share the first one
+ * written, so a later one in another order takes the first one's order.
+ */
+const buildWrittenUnionMap = (
+	node: ts.TypeNode,
+	checker: ts.TypeChecker
+): Map<string, ts.UnionTypeNode> => {
+	const map = new Map<string, ts.UnionTypeNode>();
+	const walk = (n: ts.Node): void => {
+		if (ts.isUnionTypeNode(n) && !isNestedInUnion(n)) {
+			try {
+				const type = checker.getTypeFromTypeNode(n);
+				const key = type.isUnion() ? unionMemberSetKey(type) : undefined;
+				if (key !== undefined && !map.has(key)) map.set(key, n);
+			} catch {
+				// a malformed or unresolved annotation contributes no entry
+			}
+		}
+		// the callback must return undefined — see `buildWrittenNameMap`
+		ts.forEachChild(n, walk);
+	};
+	walk(node);
+	return map;
+};
+
+/** Whether a union node sits directly in another union, parentheses aside. */
+const isNestedInUnion = (node: ts.UnionTypeNode): boolean => {
+	let parent = node.parent;
+	while (parent !== undefined && ts.isParenthesizedTypeNode(parent)) parent = parent.parent;
+	return parent !== undefined && ts.isUnionTypeNode(parent);
+};
+
+/**
+ * A `WrittenUnionLookup` over an annotation node, or `undefined` without one.
+ * Lazy like `createWrittenNameLookup`: the map builds on the first union the
+ * tree meets.
+ */
+const createWrittenUnionLookup = (
+	node: ts.TypeNode | undefined,
+	checker: ts.TypeChecker
+): WrittenUnionLookup | undefined => {
+	if (!node) return undefined;
+	let map: Map<string, ts.UnionTypeNode> | undefined;
+	return (type) => {
+		const key = unionMemberSetKey(type);
+		return key === undefined ? undefined : (map ??= buildWrittenUnionMap(node, checker)).get(key);
+	};
+};
+
+/**
+ * What a tree build reads off the written annotation at its site — the two
+ * name-recovery channels plus the self-skip flag, and the written unions that
+ * order union members. Constructed once per
+ * `resolveTypeInfo`/`restElementForms` call.
  */
 interface NameRecovery {
 	/** Names from the written annotation at this site, when one exists. */
 	written: WrittenNameLookup | undefined;
+	/** Written union nodes from the annotation at this site, when one exists. */
+	writtenUnions: WrittenUnionLookup | undefined;
 	/** Names from the analyzed set's exported lost aliases, when a pre-pass ran. */
 	registry: AliasRegistry | undefined;
 	/**
@@ -518,6 +599,7 @@ const createNameRecovery = (
 	suppressRegistryAtRoot = false
 ): NameRecovery => ({
 	written: createWrittenNameLookup(writtenNode, checker),
+	writtenUnions: createWrittenUnionLookup(writtenNode, checker),
 	registry,
 	suppressRegistryAtRoot
 });
@@ -649,17 +731,18 @@ const flattenUnionMembers = (types: ReadonlyArray<ts.Type>, out: Array<ts.Type>)
 };
 
 /**
- * Union members in written order where recoverable. `ts.UnionType.types` is
- * the checker's normalized list — flattened and sorted by internal type id, an
- * order that interleaves the authored one (`'a' | 'b' | null` normalizes to
- * `null, "a", "b"`) and can shift with what interned first elsewhere in the
- * program. The printer recovers the written form through the union's `origin`
- * — the denormalized union the flat strings are printed from — so the tree
- * walks the same field: members keep the origin's order (plain members before
- * named sub-unions, the checker's own convention), and a member written as a
- * named sub-union survives as its own alias-carrying node (`E | null` keeps
- * `E` instead of flattening to enum literals). `sinkNullishLast` completes
- * the match with the printed order.
+ * A union's members in the checker's order, with its grouping kept — the
+ * *slots* `writtenUnionMemberTypes` reorders, and the order the tree falls
+ * back to. `ts.UnionType.types` is the checker's normalized list: flattened
+ * and sorted by internal type id, which is type-creation order, so it follows
+ * no written order (`'a' | 'b' | null` normalizes to `null, "a", "b"`) and can
+ * shift with what was created first elsewhere in the program. The union's
+ * `origin` — the denormalized union the flat strings are printed from — keeps
+ * the grouping but not the written order: its entries are sorted by type id
+ * too, so a member written as a named sub-union survives as its own
+ * alias-carrying entry (`E | null` keeps `E` instead of flattening to enum
+ * literals), wherever its id lands it (`Size | 'x'` and `'x' | Size` both
+ * print in one order).
  *
  * `origin` is internal API, so the access is typed locally and validated
  * before use: flattening the origin's nested unions must reproduce the
@@ -681,12 +764,135 @@ const unionMemberTypes = (type: ts.UnionType): ReadonlyArray<ts.Type> => {
 };
 
 /**
- * Reorder members to the printer's convention: `null` then `undefined` sink to
- * the end, everything else keeps its list order. The printer applies this to
- * whatever list it prints from — a written `null | string` prints as
- * `"string | null"`, and `origin` stores nullish members *first* — so the tree
- * applies it too: the contract is matching the flat string, not any internal
- * list.
+ * The written union node an aliased union was declared with: the alias
+ * declaration's right-hand side, for a non-generic alias whose right-hand side
+ * is a union. A generic alias declines — its declaration's members are written
+ * over the type parameters, not the instantiation's arguments. An alias local
+ * to a generic scope passes this gate (no type arguments of its own) but
+ * writes the outer type parameters; `orderByWrittenUnion`'s validation
+ * rejects it.
+ */
+const aliasUnionNode = (type: ts.Type): ts.UnionTypeNode | undefined => {
+	const alias = type.aliasSymbol;
+	if (alias === undefined || type.aliasTypeArguments?.length) return undefined;
+	const declaration = alias.declarations?.find(ts.isTypeAliasDeclaration);
+	if (declaration === undefined || declaration.typeParameters?.length) return undefined;
+	const rhs = unwrapParenthesizedType(declaration.type);
+	return ts.isUnionTypeNode(rhs) ? rhs : undefined;
+};
+
+/**
+ * Reorder `slots` (`unionMemberTypes`) by a written union node, or
+ * `undefined` when the written node doesn't account for every slot.
+ *
+ * Each slot is a leaf member or a named sub-union the checker kept whole, and
+ * every leaf maps to the slot that holds it. The walk visits the written
+ * members in order and places a member's slot at its first appearance, so a
+ * duplicate written member places once. A written member that isn't its own
+ * slot — a sub-union the checker flattened, like `boolean` or an alias the
+ * slots lost — places its leaves in its own written order (its alias
+ * declaration's, recursively), then any leaves left in the checker's order. A
+ * written member matching no slot (one subtype reduction absorbed, like `'a'`
+ * beside `string`, or `never`) is skipped.
+ *
+ * Validation: every slot except `undefined` must be placed, else the caller
+ * falls back to the checker's order. An unplaced `undefined` is the optional
+ * widening, which no written node carries; it appends, and
+ * `sinkNullishLast` moves it to the end anyway.
+ */
+const orderByWrittenUnion = (
+	unionNode: ts.UnionTypeNode,
+	slots: ReadonlyArray<ts.Type>,
+	checker: ts.TypeChecker
+): ReadonlyArray<ts.Type> | undefined => {
+	const slotOf = new Map<ts.Type, ts.Type>();
+	for (const slot of slots) {
+		slotOf.set(slot, slot);
+		if (slot.isUnion()) {
+			const leaves: Array<ts.Type> = [];
+			flattenUnionMembers(slot.types, leaves);
+			for (const leaf of leaves) slotOf.set(leaf, slot);
+		}
+	}
+	const ordered: Array<ts.Type> = [];
+	const placed = new Set<ts.Type>();
+	const place = (type: ts.Type): boolean => {
+		const slot = slotOf.get(type);
+		if (slot === undefined) return false;
+		if (!placed.has(slot)) {
+			placed.add(slot);
+			ordered.push(slot);
+		}
+		return true;
+	};
+	// guards a recursive alias against revisiting its own declaration
+	const visitedAliasNodes = new Set<ts.UnionTypeNode>();
+	const visit = (written: ts.TypeNode): void => {
+		const node = unwrapParenthesizedType(written);
+		if (ts.isUnionTypeNode(node)) {
+			for (const member of node.types) visit(member);
+			return;
+		}
+		let type: ts.Type;
+		try {
+			type = checker.getTypeFromTypeNode(node);
+		} catch {
+			return;
+		}
+		if (place(type) || !type.isUnion()) return;
+		const aliasNode = aliasUnionNode(type);
+		if (aliasNode !== undefined && !visitedAliasNodes.has(aliasNode)) {
+			visitedAliasNodes.add(aliasNode);
+			visit(aliasNode);
+		}
+		const leaves: Array<ts.Type> = [];
+		flattenUnionMembers(sinkNullishLast(unionMemberTypes(type)), leaves);
+		for (const leaf of leaves) place(leaf);
+	};
+	visit(unionNode);
+	for (const slot of slots) {
+		if (placed.has(slot)) continue;
+		if (!(slot.flags & ts.TypeFlags.Undefined)) return undefined;
+		ordered.push(slot);
+	}
+	return ordered;
+};
+
+/**
+ * A union's members in written order, or `undefined` when no written union
+ * node is recoverable (or none accounts for every member), leaving the
+ * checker's order. Two sources, in precedence order:
+ *
+ * 1. the alias declaration's right-hand side, for a non-generic aliased union
+ *    (`aliasUnionNode`) — the author's order for that union at every use,
+ *    inferred positions included
+ * 2. the union written in the annotation at this site (`WrittenUnionLookup`),
+ *    matched by member set
+ *
+ * A source that fails validation (`orderByWrittenUnion`) falls through to the
+ * next.
+ */
+const writtenUnionMemberTypes = (
+	type: ts.UnionType,
+	checker: ts.TypeChecker,
+	recovery: NameRecovery
+): ReadonlyArray<ts.Type> | undefined => {
+	const aliasNode = aliasUnionNode(type);
+	if (aliasNode !== undefined) {
+		const ordered = orderByWrittenUnion(aliasNode, unionMemberTypes(type), checker);
+		if (ordered !== undefined) return ordered;
+	}
+	// consulted only past the alias source, so the site map stays unbuilt
+	// wherever aliases answer
+	const siteNode = recovery.writtenUnions?.(type);
+	return siteNode && orderByWrittenUnion(siteNode, unionMemberTypes(type), checker);
+};
+
+/**
+ * Sink `null` then `undefined` to the end, everything else keeping its list
+ * order — the printer's convention for whatever list it prints from (a written
+ * `null | string` prints as `"string | null"`, and `origin` stores nullish
+ * members *first*), applied to the tree's order too, written or not.
  */
 const sinkNullishLast = (types: ReadonlyArray<ts.Type>): ReadonlyArray<ts.Type> => {
 	const rest: Array<ts.Type> = [];
@@ -728,7 +934,9 @@ const buildUnion = (
 	dropUndefined: boolean,
 	recovery: NameRecovery
 ): TypeJson => {
-	let memberTypes: ReadonlyArray<ts.Type> = sinkNullishLast(unionMemberTypes(type));
+	let memberTypes: ReadonlyArray<ts.Type> = sinkNullishLast(
+		writtenUnionMemberTypes(type, checker, recovery) ?? unionMemberTypes(type)
+	);
 	if (dropUndefined) {
 		memberTypes = memberTypes.filter((t) => !(t.flags & ts.TypeFlags.Undefined));
 	}
@@ -736,8 +944,10 @@ const buildUnion = (
 	// Collapse the checker's boolean expansion (`true | false`) back to `boolean`,
 	// at the position of the first literal. Without this an optional `boolean`
 	// prop would surface as a `'true' | 'false'` literal union after the
-	// widening strip. A lone boolean literal stays a literal. Only reachable on
-	// the normalized-list fallback — the origin walk keeps `boolean` whole.
+	// widening strip. A lone boolean literal stays a literal. Neither slot list
+	// keeps `boolean` whole (it isn't a named union, so even an `origin` lists
+	// `false` and `true` as separate entries); a written `boolean` places both
+	// literals together, so the collapse lands at its written position.
 	const booleanLiterals = memberTypes.filter((t) => !!(t.flags & ts.TypeFlags.BooleanLiteral));
 	const collapseBoolean = booleanLiterals.length >= 2;
 
@@ -836,10 +1046,10 @@ const printRestElementType = (elementType: ts.Type, checker: ts.TypeChecker): st
  * parenthesizes everything but bare identifier paths — sometimes
  * over-parenthesized, never a different type. The tree is presence-gated like
  * any array node (present when the element is a reference or carries
- * structure). `writtenNode` and `aliasRegistry` feed name recovery like
- * `resolveTypeInfo`'s — the caller passes the same annotation and registry it
- * hands the sibling tree, so the two projections of one element can't disagree
- * on a recovered name.
+ * structure). `writtenNode` and `aliasRegistry` feed name recovery (and
+ * `writtenNode` union member order) like `resolveTypeInfo`'s — the caller
+ * passes the same annotation and registry it hands the sibling tree, so the
+ * two projections of one element can't disagree on a recovered name.
  */
 export const restElementForms = (
 	elementType: ts.Type,
@@ -1107,14 +1317,15 @@ export interface ResolveTypeInfoOptions {
  * Matches `getTypeSignature`'s optional handling by construction — both
  * select through `optionalWideningTarget` (see there for the case split);
  * `x?: undefined` stays terminal. What's specific to the tree: union members
- * walk the union's `origin` (see
- * `unionMemberTypes`), so member order matches the printed string and a
- * `null`-bearing optional alias survives: dropping the widening from the
- * origin list leaves the alias-carrying union as the sole member, which the
- * 1-member collapse promotes to the root (`a?: A` where `A` is nullable
- * yields the `A` union, matching the flat string's printed-string surgery).
- * When no usable `origin` exists both degrade together, bounded: checker-
- * internal member order, alias lost.
+ * walk the union's `origin` (see `unionMemberTypes`), so a `null`-bearing
+ * optional alias survives: dropping the widening from the origin list leaves
+ * the alias-carrying union as the sole member, which the 1-member collapse
+ * promotes to the root (`a?: A` where `A` is nullable yields the `A` union,
+ * matching the flat string's printed-string surgery). When no usable `origin`
+ * exists both degrade together, bounded: alias lost. Members then take the
+ * written order where a written union node is recoverable
+ * (`writtenUnionMemberTypes`), so they can list in a different order from the
+ * flat string, which always prints in the checker's.
  *
  * **Self-named alias roots relax the contract.** `checker.typeToString` prints
  * a type carrying an alias symbol as that alias's bare name, so a type alias's
@@ -1148,7 +1359,7 @@ export interface ResolveTypeInfoOptions {
  * @param checker - TypeScript type checker
  * @param aliasRegistry - the analyzed set's alias registry, or `undefined` when no pre-pass ran; required so a call site can't silently opt out of registry recovery
  * @param optional - whether the declaration site carries a `?` token (pairs the widening strip, like `getTypeSignature`)
- * @param options - the declaration-site context: `ownAliasName` at a type-alias declaration (see `BuildTypeJsonOptions.skipAliasName`; also suppresses registry hits at the root — the self-skip), `writtenNode` wherever a written annotation exists (the name-recovery source for aliases TypeScript dropped)
+ * @param options - the declaration-site context: `ownAliasName` at a type-alias declaration (see `BuildTypeJsonOptions.skipAliasName`; also suppresses registry hits at the root — the self-skip), `writtenNode` wherever a written annotation exists (the name-recovery source for aliases TypeScript dropped, and the written order for union members)
  */
 export const resolveTypeInfo = (
 	type: ts.Type,

@@ -210,7 +210,8 @@ export interface QueryOptions {
  * origin (`z.enum` members, literal unions) in type-creation order, which
  * follows the order the checker first visits files; root order matters
  * because it sets the merge order of `declare global`, module augmentations,
- * and interface merging. Two limits remain, both from type-creation order:
+ * and interface merging. Two limits remain, both from type-creation order, for
+ * flat strings and for `typeInfo` unions with no written form (see `TypeJson`):
  * an edit to an unrelated file can still reorder such a union's members,
  * since it can change which file first creates a member type, and checker
  * work done through `getProgram()` before the first `query()` on a fresh
