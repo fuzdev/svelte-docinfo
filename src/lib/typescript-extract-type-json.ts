@@ -240,7 +240,8 @@ export const optionalWideningTarget = (
  * anonymous shapes). The one anonymity rule shared by the recovery gate here,
  * the alias-lost predicate (`isAliasLostType`), and the registry's safety-gate
  * walk (`typescript-alias-registry.ts`) — never `ObjectFlags.Anonymous`, which
- * real inferred schema outputs (zod's are `Mapped | Instantiated`) don't carry.
+ * real inferred schema outputs (zod's and valibot's are `Mapped | Instantiated`)
+ * don't carry.
  */
 export const namedSymbolName = (type: ts.Type): string | undefined => {
 	const name = type.symbol?.name;

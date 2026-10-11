@@ -88,8 +88,7 @@
     "typescript-eslint": "^8.71.1",
     "vite": "^8.3.4",
     "vitest": "^5.0.0",
-    "zimmerframe": "^1.1.4",
-    "zod": "^4.3.6"
+    "zimmerframe": "^1.1.4"
   },
   "sideEffects": [],
   "files": [

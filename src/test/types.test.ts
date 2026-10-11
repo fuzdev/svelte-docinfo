@@ -275,13 +275,22 @@ test('numeric fields reject ±Infinity', () => {
 	}
 });
 
-test('src/lib never imports zod (analyzing zod projects needs no zod at runtime)', () => {
-	const libDir = new URL('../lib/', import.meta.url);
-	const files = globSync('**/*.{ts,js,svelte}', { cwd: fileURLToPath(libDir) });
-	assert.ok(files.length > 0, 'expected src/lib files (glob broke?)');
+// `zod` isn't a dependency of this package, but it still resolves here as a peer of a
+// dev dependency, so an import would work locally and break for consumers
+test('nothing under src imports zod', () => {
+	const srcDir = new URL('../', import.meta.url);
+	const files = globSync('**/*.{ts,js,svelte}', { cwd: fileURLToPath(srcDir) });
+	assert.ok(
+		files.some((file) => file.startsWith('lib/')),
+		'expected src/lib files (glob broke?)'
+	);
+	assert.ok(
+		files.some((file) => file.startsWith('test/fixtures/')),
+		'expected fixture files (glob broke?)'
+	);
 	const offenders = files.filter((file) =>
 		/\bfrom\s*['"]zod(?:\/[^'"]*)?['"]|\bimport\s*\(\s*['"]zod(?:\/[^'"]*)?['"]\s*\)|\bimport\s*['"]zod(?:\/[^'"]*)?['"]/.test(
-			readFileSync(new URL(file, libDir), 'utf-8')
+			readFileSync(new URL(file, srcDir), 'utf-8')
 		)
 	);
 	assert.deepStrictEqual(offenders, []);

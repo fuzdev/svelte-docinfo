@@ -60,10 +60,14 @@ export interface AliasRegistrySource {
 }
 
 /**
- * Depth bound for the safety-gate walk, alongside the seen-set — the set is
- * what terminates cycles (zod 4's documented recursive getter pattern produces
- * cyclic lost types that overflow an unguarded walk); the bound caps
- * pathological non-cyclic nesting.
+ * Depth bound for the safety-gate walk, alongside the seen-set. The walk
+ * follows only union/intersection members and array/tuple/reference type
+ * arguments, never properties, and stops at any aliased or anonymous
+ * component, so a cyclic lost object type (what a getter-based recursive
+ * schema infers) qualifies at its root without descending. The set is
+ * defensive against revisiting a shared component; the bound stops a
+ * deeply nested container from registering: past it the alias stays
+ * unregistered and `alias_lost` reports it.
  */
 const MAX_GATE_WALK_DEPTH = 10;
 
@@ -71,7 +75,8 @@ const MAX_GATE_WALK_DEPTH = 10;
  * The safety gate: whether a type recursively contains at least one component
  * the checker cannot name — an anonymous object/function/mapped shape, keyed
  * on `namedSymbolName`'s `__`-prefix rule (never `ObjectFlags.Anonymous`: real
- * zod outputs are `Mapped | Instantiated`, not `Anonymous`).
+ * inferred schema outputs, zod's and valibot's, are `Mapped | Instantiated`,
+ * not `Anonymous`).
  *
  * Two things ride on it:
  *

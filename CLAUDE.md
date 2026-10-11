@@ -601,9 +601,9 @@ fuz_ui and fuz_css consume `virtual:svelte-docinfo` directly: a hand-written
     for TS-only analysis.
   - `typescript` 5.9+ or 6, so consumers don't carry a second TS.
 - **Peers** (optional): `vite` 6+, for the Vite plugin only (it uses `server.environments`).
-- **Dev-only**: `zod`, as the analyzed library in tests and fixtures (the merged
-  schema/type pattern, alias-lost recovery). `src/lib` never imports it, and a test in
-  `types.test.ts` guards that.
+- **Not a dependency**: `zod`. Nothing under `src` imports it, and a test in
+  `types.test.ts` guards that, since it still resolves locally as a peer of dev dependencies such as `@fuzdev/gro`.
+  Tests and fixtures that need a real schema library to analyze use `valibot`.
 
 ## Testing
 

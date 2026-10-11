@@ -1,12 +1,12 @@
 <script module lang="ts">
-	import { z } from 'zod';
+	import * as v from 'valibot';
 
 	/** A schema whose inferred type shares its name (the merged value+type pattern). */
-	export const Point = z.strictObject({ x: z.number(), y: z.number() });
-	export type Point = z.infer<typeof Point>;
+	export const Point = v.strictObject({ x: v.number(), y: v.number() });
+	export type Point = v.InferOutput<typeof Point>;
 
 	/** An inferred (unannotated) return of the lost type — the registry recovers the name. */
-	export const parsePoint = (input: unknown) => Point.parse(input);
+	export const parsePoint = (input: unknown) => v.parse(Point, input);
 </script>
 
 <script lang="ts">
