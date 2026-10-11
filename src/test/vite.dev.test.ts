@@ -10,6 +10,8 @@
  * - A change still pending when the server closes is dropped, not spun on
  * - A middleware-mode restart that reuses the plugin keeps the new server's session
  * - A failed restart leaves the plugin on the old server, which Vite keeps running
+ * - Only the files discovery selects emit modules: an edit to a context file
+ *   refreshes it in place, and a new file is an input only if discovery says so
  */
 
 import { test, assert, describe } from 'vitest';
@@ -21,7 +23,7 @@ import {
 	type Plugin,
 	type ViteDevServer
 } from 'vite';
-import { writeFile } from 'node:fs/promises';
+import { rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
@@ -103,9 +105,10 @@ const isReload = (payload: HotPayload): boolean => payload.type === 'full-reload
 const withDevServer = async (
 	fn: (server: ViteDevServer, projectRoot: string) => Promise<void>,
 	config?: InlineConfig,
-	pluginOptions?: VitePluginSvelteDocinfoOptions
+	pluginOptions?: VitePluginSvelteDocinfoOptions,
+	files: Record<string, string> = PROJECT_FILES
 ): Promise<void> => {
-	await withTestProject(PROJECT_FILES, async (projectRoot) => {
+	await withTestProject(files, async (projectRoot) => {
 		let server: ViteDevServer | null = null;
 		try {
 			server = await createServer({
@@ -147,6 +150,195 @@ const loadVirtual = async (server: ViteDevServer, environment: string): Promise<
 	assert(result, `${environment} serves ${VIRTUAL_ID}`);
 	return result.code;
 };
+
+/** The module paths in the served virtual module. */
+const servedModulePaths = async (server: ViteDevServer): Promise<Array<string>> => {
+	const code = await loadVirtual(server, 'ssr');
+	return [...code.matchAll(/"path":\s*"([^"]+)"/g)].map((m) => m[1]!);
+};
+
+/** `a.ts` is the package's one export; it imports `b.ts`, which is not exported. */
+const EXPORTS_PROJECT_FILES = {
+	'package.json': JSON.stringify({
+		name: 'test-pkg',
+		exports: { './a.js': { default: './dist/a.js' } }
+	}),
+	'src/lib/a.ts': "import { b } from './b.ts';\nexport const a = b;\n",
+	'src/lib/b.ts': 'export const b = 1;\n'
+};
+
+describe('svelteDocinfo dev inputs', () => {
+	test(
+		'an edit to a context file reaches its importer without emitting a module',
+		async () => {
+			await withDevServer(
+				async (server, projectRoot) => {
+					assert.deepEqual(await servedModulePaths(server), ['a.ts']);
+					assert.notInclude(await loadVirtual(server, 'ssr'), 'changed');
+
+					const file = join(projectRoot, 'src/lib/b.ts');
+					await writeFile(file, "export const b = 'changed';\n");
+					server.watcher.emit('change', file);
+					await waitFor(
+						() =>
+							server.environments.ssr.moduleGraph.getModuleById(RESOLVED_VIRTUAL_ID)
+								?.transformResult === null,
+						'the ssr invalidation'
+					);
+
+					// `a`'s type follows the edit, and `b.ts` is still not a module:
+					// a cold build of this tree wouldn't discover it either
+					assert.include(await loadVirtual(server, 'ssr'), 'changed');
+					assert.deepEqual(await servedModulePaths(server), ['a.ts']);
+				},
+				undefined,
+				{ discovery: 'exports', include: undefined },
+				EXPORTS_PROJECT_FILES
+			);
+		},
+		TEST_TIMEOUT
+	);
+
+	test(
+		'a new file is an input only when discovery selects it',
+		async () => {
+			// glob discovery covers the new file (the harness's `src/**` include
+			// makes module paths relative to `src`)
+			await withDevServer(async (server, projectRoot) => {
+				assert.deepEqual(await servedModulePaths(server), ['lib/a.ts', 'lib/b.ts']);
+				const file = join(projectRoot, 'src/lib/c.ts');
+				await writeFile(file, 'export const c = 1;\n');
+				server.watcher.emit('add', file);
+				await waitFor(
+					() =>
+						server.environments.ssr.moduleGraph.getModuleById(RESOLVED_VIRTUAL_ID)
+							?.transformResult === null,
+					'the ssr invalidation'
+				);
+				assert.deepEqual(await servedModulePaths(server), ['lib/a.ts', 'lib/b.ts', 'lib/c.ts']);
+			});
+
+			// an explicit exports map doesn't; the next real change shows it stayed out
+			await withDevServer(
+				async (server, projectRoot) => {
+					assert.deepEqual(await servedModulePaths(server), ['a.ts']);
+					const added = join(projectRoot, 'src/lib/c.ts');
+					await writeFile(added, 'export const c = 1;\n');
+					server.watcher.emit('add', added);
+
+					const file = join(projectRoot, 'src/lib/a.ts');
+					await writeFile(
+						file,
+						"import { b } from './b.ts';\nexport const a = b;\nexport const a2 = 2;\n"
+					);
+					server.watcher.emit('change', file);
+					await waitFor(
+						() =>
+							server.environments.ssr.moduleGraph.getModuleById(RESOLVED_VIRTUAL_ID)
+								?.transformResult === null,
+						'the ssr invalidation'
+					);
+					assert.include(await loadVirtual(server, 'ssr'), 'a2');
+					assert.deepEqual(await servedModulePaths(server), ['a.ts']);
+				},
+				undefined,
+				{ discovery: 'exports', include: undefined },
+				EXPORTS_PROJECT_FILES
+			);
+		},
+		TEST_TIMEOUT * 2
+	);
+});
+
+const waitForInvalidation = (server: ViteDevServer): Promise<void> =>
+	waitFor(
+		() =>
+			server.environments.ssr.moduleGraph.getModuleById(RESOLVED_VIRTUAL_ID)?.transformResult ===
+			null,
+		'the ssr invalidation'
+	);
+
+describe('svelteDocinfo dev inputs across debounce windows', () => {
+	test(
+		'a new file its importer reached first still becomes an input on its add event',
+		async () => {
+			await withDevServer(async (server, projectRoot) => {
+				assert.deepEqual(await servedModulePaths(server), ['lib/a.ts', 'lib/b.ts']);
+
+				// the importer's edit lands first, so the closure ingests the new
+				// file as context before the watcher reports it
+				const added = join(projectRoot, 'src/lib/c.ts');
+				await writeFile(added, 'export const c = 1;\n');
+				const importer = join(projectRoot, 'src/lib/a.ts');
+				await writeFile(importer, "import { c } from './c.ts';\nexport const a = c;\n");
+				server.watcher.emit('change', importer);
+				await waitForInvalidation(server);
+				await loadVirtual(server, 'ssr');
+
+				server.watcher.emit('add', added);
+				await waitForInvalidation(server);
+				assert.deepEqual(await servedModulePaths(server), ['lib/a.ts', 'lib/b.ts', 'lib/c.ts']);
+			});
+		},
+		TEST_TIMEOUT
+	);
+
+	test(
+		'a new file whose add is overtaken by a change still becomes an input',
+		async () => {
+			await withDevServer(async (server, projectRoot) => {
+				assert.deepEqual(await servedModulePaths(server), ['lib/a.ts', 'lib/b.ts']);
+				// create-then-write: the change lands while the add's read is in
+				// flight and supersedes it, but the file is still new
+				const added = join(projectRoot, 'src/lib/c.ts');
+				await writeFile(added, 'export const c = 1;\n');
+				server.watcher.emit('add', added);
+				server.watcher.emit('change', added);
+				await waitForInvalidation(server);
+				assert.deepEqual(await servedModulePaths(server), ['lib/a.ts', 'lib/b.ts', 'lib/c.ts']);
+			});
+		},
+		TEST_TIMEOUT
+	);
+
+	test(
+		'a context dependency deleted and recreated types its importer again',
+		async () => {
+			const button = `<script lang="ts">\n\tlet { variant }: { variant: 'primary' | 'secondary' } = $props();\n</script>\n<button>{variant}</button>`;
+			await withDevServer(
+				async (server, projectRoot) => {
+					assert.deepEqual(await servedModulePaths(server), ['Modal.svelte']);
+					assert.include(await loadVirtual(server, 'ssr'), 'secondary');
+
+					const file = join(projectRoot, 'src/lib/Button.svelte');
+					await rm(file);
+					server.watcher.emit('unlink', file);
+					await waitForInvalidation(server);
+					assert.notInclude(await loadVirtual(server, 'ssr'), 'secondary');
+
+					// the importer is unchanged, so only the plugin handing the file
+					// back restores what the checker sees
+					await writeFile(file, button);
+					server.watcher.emit('add', file);
+					await waitForInvalidation(server);
+					assert.include(await loadVirtual(server, 'ssr'), 'secondary');
+					assert.deepEqual(await servedModulePaths(server), ['Modal.svelte']);
+				},
+				undefined,
+				{ discovery: 'exports', include: undefined },
+				{
+					'package.json': JSON.stringify({
+						name: 'test-pkg',
+						exports: { './Modal.svelte': { svelte: './dist/Modal.svelte' } }
+					}),
+					'src/lib/Button.svelte': button,
+					'src/lib/Modal.svelte': `<script lang="ts">\n\timport type { ComponentProps } from 'svelte';\n\timport Button from './Button.svelte';\n\tlet { confirm }: { confirm: ComponentProps<typeof Button>['variant'] } = $props();\n</script>\n<Button variant={confirm} />`
+				}
+			);
+		},
+		TEST_TIMEOUT
+	);
+});
 
 describe('svelteDocinfo dev environments', () => {
 	test(

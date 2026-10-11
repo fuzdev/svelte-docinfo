@@ -87,16 +87,31 @@ export interface LoadTsconfigOptions {
  * imports. Drop such a root and the types it declares resolve to `any`, with
  * no diagnostic.
  *
- * Keeping the declaration files covers the usual home of ambient types:
+ * `declarationFileRoots` keeps the declaration files, the usual home of
+ * ambient types, and is the narrowing to reach for first:
  *
  * ```ts
- * rootFileNames: (roots) => roots.filter((file) => file.endsWith('.d.ts'))
+ * rootFileNames: declarationFileRoots
  * ```
  *
  * `[]` roots nothing but the analyzed files — the fastest program, for
  * projects known to declare no ambient types.
  */
 export type RootFileNames = Array<string> | ((tsconfigRoots: Array<string>) => Array<string>);
+
+/**
+ * A `RootFileNames` function that keeps the tsconfig's declaration files
+ * (`.d.ts`, `.d.mts`, `.d.cts`) and drops its other roots.
+ *
+ * Declaration files are where ambient types usually live (`app.d.ts`, a
+ * `global.d.ts`), so this keeps them resolving while the program stops
+ * loading every test, route, and config file the tsconfig includes. It does
+ * not cover an ambient declaration written in an ordinary `.ts` file that
+ * nothing imports — a `declare global` block or a `declare module`
+ * augmentation there is dropped with its file.
+ */
+export const declarationFileRoots = (tsconfigRoots: Array<string>): Array<string> =>
+	tsconfigRoots.filter((file) => DECLARATION_FILE_SUFFIXES.some((suffix) => file.endsWith(suffix)));
 
 /**
  * The compiler options used under `tsconfig: false`, before the caller's

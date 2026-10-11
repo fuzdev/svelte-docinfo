@@ -81,17 +81,20 @@ export interface ExtractContext {
  * emitted canonical links to it, while one whose canonical emits nothing is
  * documented where it's re-exported.
  *
- * Not quite `isSource`. A Svelte component the session ingested only as
- * checker context (a sibling the caller didn't supply) passes `isSource` and
- * emits nothing, and since it was analyzed, a re-export of it can be
- * documented like one of a gated `internal/` component. `analyzeCore` excludes
- * those; a caller analyzing one module with no such set falls back to
- * `isSource`.
+ * Not the same as `isSource`. A file can pass `isSource` and still emit
+ * nothing because it isn't one of the analyzed inputs: under exports
+ * discovery, a source file outside `package.json` `exports`; in a session, a
+ * file ingested only as checker context, or one never handed over at all.
+ * Linking a re-export to such a file would point at a module the output
+ * doesn't contain and leave the name documented nowhere, so it is documented
+ * in the re-exporting module instead, exactly as for a gated `internal/`
+ * file. `analyzeCore` answers from the set it was handed; a caller analyzing
+ * one module with no set to consult falls back to `isSource`.
  *
- * A source file that was never ingested at all still counts as emitted here,
- * deliberately: its re-exports keep their forward edge to a module absent
- * from the output, the documented presence caveat `aliasOf.module` and
- * `starExports` share.
+ * Named and namespace re-exports only. `export * from` a file that emits
+ * nothing still records it in `starExports` and materializes none of its
+ * bindings, so those names are documented nowhere (`resolveExportSurface`
+ * reports the star as unresolved).
  */
 export type IsEmittedFile = (file: string) => boolean;
 

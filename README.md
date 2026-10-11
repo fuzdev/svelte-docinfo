@@ -247,7 +247,7 @@ Plugin options:
 | `onDuplicates`        | —                                                    | Opt-in check that names are unique across modules, for packages with a flat export namespace: `'diagnostic'` \| `'warn'` \| `'throw'`. Off by default.                                                                |
 | `tsconfig`            | `'tsconfig.json'`                                    | Path to the tsconfig, relative to `projectRoot`, or `false` to analyze without one (built-in strict options, with `compilerOptions` merged on top). |
 | `compilerOptions`     | —                                                    | Compiler options merged over the tsconfig's, per key. |
-| `rootFileNames`       | the tsconfig's roots                                 | The program's root files in place of the tsconfig's: a list, or a function over the tsconfig's roots (`(roots) => roots.filter((f) => f.endsWith('.d.ts'))`). Narrowing speeds up cold analysis; an ambient type declared in a dropped root resolves to `any`. |
+| `rootFileNames`       | the tsconfig's roots                                 | The program's root files in place of the tsconfig's: a list, or a function over the tsconfig's roots (`declarationFileRoots`, from `svelte-docinfo/typescript-program.js`, keeps the declaration files). Narrowing speeds up cold analysis; an ambient type declared in a dropped root resolves to `any`. |
 
 Source-scope notes (shared with the [CLI](#cli) and `analyzeFromFiles`):
 

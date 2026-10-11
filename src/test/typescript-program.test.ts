@@ -13,6 +13,7 @@ import {
 	DEFAULT_COMPILER_OPTIONS,
 	createAnalysisLanguageService,
 	createOwnedDirIndex,
+	declarationFileRoots,
 	loadTsconfig
 } from '#lib/typescript-program.ts';
 
@@ -333,6 +334,20 @@ describe('loadTsconfig', () => {
 			'src/lib/a.ts': 'export const a = 1;',
 			'src/lib/b.ts': 'export const b = 2;'
 		};
+
+		test('declarationFileRoots keeps every declaration-file suffix and nothing else', () => {
+			assert.deepStrictEqual(
+				declarationFileRoots([
+					'/p/a.d.ts',
+					'/p/b.ts',
+					'/p/c.d.mts',
+					'/p/d.d.cts',
+					'/p/e.svelte',
+					'/p/d.ts'
+				]),
+				['/p/a.d.ts', '/p/c.d.mts', '/p/d.d.cts']
+			);
+		});
 
 		test('a function filters the tsconfig roots', async () => {
 			await withTestProject(files, async (projectRoot) => {

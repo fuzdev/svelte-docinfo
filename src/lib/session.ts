@@ -88,6 +88,22 @@ export interface SetFileOptions {
 	 * cache across calls, pass an `ImportResolver` with a stable `identity`.
 	 */
 	resolveImport?: ResolveImport;
+	/**
+	 * The role the call's files take: `false` (the default) makes them
+	 * *inputs*, which emit a module when they pass `isSource`; `true` makes
+	 * them *context*, which feed the checker and never emit.
+	 *
+	 * The role is set by every call, not only the first, so a consumer
+	 * forwarding edits has to say which it means. Passing a file the context
+	 * closure ingested (see `AnalysisSessionOptions.contextClosure`) without
+	 * this makes it an input, and its module appears in the next `query()`;
+	 * a watcher refreshing such a file passes `true` to leave it context.
+	 * Passing `true` for a file that is an input removes its module. Either
+	 * change of role is reported as `changed`, content edit or not.
+	 *
+	 * @default false
+	 */
+	context?: boolean;
 }
 
 /**
@@ -356,9 +372,9 @@ export interface AnalysisSessionOptions extends Omit<
 	 *
 	 * Such a file still emits no module. Supplying it through `setFile` /
 	 * `setFiles` later makes it an emitted input, and that call reports it
-	 * changed. Any such call counts, a watcher handing over an edit included —
-	 * the session can't tell a refresh from an input — so a consumer that
-	 * wants an edited dependency to stay context must not pass it. A context
+	 * changed; a consumer forwarding an edit to a file it doesn't mean as an
+	 * input passes `context: true` to keep it context (see
+	 * `SetFileOptions.context`). A context
 	 * component's `<script module>` exports and the component itself, when
 	 * re-exported from an emitted module, document there as they do for a
 	 * gated `internal/` component, and its transform failure surfaces as
@@ -435,10 +451,10 @@ interface OwnedEntryBase {
 	/** svelte2tsx threw during ingest — query synthesizes placeholder ModuleJson. */
 	transformFailed?: boolean;
 	/**
-	 * Set when the context closure ingested this file although it passes
-	 * `isSource`, so `query()` can't gate it by path: the entry feeds the
-	 * checker and emits no module. Cleared when the caller supplies the file
-	 * itself.
+	 * Set when the file has the context role although it passes `isSource`,
+	 * so `query()` can't gate it by path: the entry feeds the checker and
+	 * emits no module. The closure ingests with it, and each caller ingest
+	 * sets or clears it (see `SetFileOptions.context`).
 	 */
 	context?: boolean;
 }
@@ -794,12 +810,13 @@ export const createAnalysisSession = (options: AnalysisSessionOptions): Analysis
 		asContext: boolean
 	): SetFileResult => {
 		if (pending.cacheHit) {
-			// The caller supplying a file the closure ingested as context makes it
-			// an input like any other. Nothing re-ingests, but the emitted set
-			// changes, so the call reports a change.
-			const existing = owned.get(pending.file.id);
-			if (!asContext && existing?.context) {
-				existing.context = undefined;
+			// A call sets the file's role as well as its content (see
+			// `SetFileOptions.context`). Nothing re-ingests on a role change, but
+			// the emitted set moves, so the call reports a change.
+			const existing = owned.get(pending.file.id)!;
+			const context = asContext && isSource(pending.file.id, sourceOptions);
+			if (context !== (existing.context === true)) {
+				existing.context = context || undefined;
 				return { changed: true, diagnostics: [...pending.ingestDiagnostics] };
 			}
 			// Cached SetFileResult: same diagnostics array reference, changed: false.
@@ -894,7 +911,8 @@ export const createAnalysisSession = (options: AnalysisSessionOptions): Analysis
 	// Batch ingest core: orchestrate three phases. `rawDeps` carries the
 	// batch's posixified resolved import targets before any `isSource`
 	// filtering — the context-closure seed; never stored on entries.
-	// `asContext` marks a closure batch (see `OwnedEntryBase.context`).
+	// `asContext` gives the batch's files the context role (see
+	// `SetFileOptions.context`); closure batches always have it.
 	const runBatch = async (
 		files: ReadonlyArray<SourceFileInfo>,
 		opts: SetFileOptions | undefined,
@@ -1250,7 +1268,7 @@ export const createAnalysisSession = (options: AnalysisSessionOptions): Analysis
 	): Promise<SetFilesResult> => {
 		ingestSeq++;
 		const generationBefore = ownedGeneration;
-		const { result, rawDeps } = await runBatch(files, opts, false);
+		const { result, rawDeps } = await runBatch(files, opts, opts?.context === true);
 		if (contextClosureEnabled) await ingestContextClosure(rawDeps, opts);
 		// Only additions can settle a deferred resolution, and `deleteFile`
 		// moves the generation too — but a batch never deletes, so a moved

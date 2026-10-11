@@ -55,12 +55,7 @@ import {
 	type SourceFileInfo,
 	getComponentName
 } from './source.ts';
-import {
-	type ModuleSourceOptions,
-	extractPath,
-	extractDependencies,
-	isSource
-} from './source-config.ts';
+import { type ModuleSourceOptions, extractPath, extractDependencies } from './source-config.ts';
 import { toPosixPath, isAbsolutePosixPath } from './paths.ts';
 import { buildAliasRegistry, type AliasRegistrySource } from './typescript-alias-registry.ts';
 import type { AliasRegistry } from './typescript-extract-type-json.ts';
@@ -540,12 +535,12 @@ export const analyzeCore = (inputs: AnalyzeCoreInputs): AnalyzeResultJson => {
 	const checker = program.getTypeChecker();
 	const diagnostics: Array<Diagnostic> = [];
 
-	// A context component can pass `isSource` and still emit nothing (see
-	// `IsEmittedFile`), so the re-export arms need more than `isSource` to
-	// tell a canonical they can link to from one they must document in place.
-	const contextIds = new Set(contextSvelteFiles?.map((f) => toPosixPath(f.id)));
-	const isEmittedFile: IsEmittedFile = (file) =>
-		!contextIds.has(file) && isSource(file, sourceOptions);
+	// The emitted set is exactly the files handed in. `isSource` can't stand
+	// in for it: a source file left out of the set emits nothing (see
+	// `IsEmittedFile`), and the re-export arms must tell a canonical they can
+	// link to from one they have to document in place.
+	const emittedIds = new Set(sourceFiles.map((f) => toPosixPath(f.id)));
+	const isEmittedFile: IsEmittedFile = (file) => emittedIds.has(file);
 
 	// Registry pre-pass: register the emitted set's exported lost aliases
 	// before any extraction, so every `resolveTypeInfo` call this cycle can

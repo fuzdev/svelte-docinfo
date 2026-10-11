@@ -273,9 +273,10 @@ const session = createAnalysisSession({
 			<code>exports</code>, or the rest of the project when you hand over one component. The type
 			checker can only read a component through its transformed form, so without the ingest every
 			type drawn from that component would be <code>any</code>. Such a file still emits no module
-			until you supply it yourself; passing it to <code>setFile</code> for any reason, an edit
-			included, counts as supplying it. With the closure off, as in <code>analyze()</code>, pass
-			every component the checker needs.
+			until you supply it yourself. Each <code>setFile</code>/<code>setFiles</code> call sets the
+			role of its files: they're inputs by default, so to forward an edit to a context file without
+			turning it into a module, pass <code>{'{context: true}'}</code>. With the closure off, as in
+			<code>analyze()</code>, pass every component the checker needs.
 		</p>
 	</TomeSection>
 

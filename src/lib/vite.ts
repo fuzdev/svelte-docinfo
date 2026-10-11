@@ -11,6 +11,12 @@
  * there's no in-place HMR update); `setFiles`'s `changedIds` skip re-analysis
  * when nothing changed. The watcher gates on `isSource(file) || session.has(file)`.
  *
+ * Only the files discovery selected are inputs that emit modules (`inputIds`).
+ * Any other file's edit is passed with the context role, so it refreshes the
+ * checker's view without becoming a module, and a file that appears becomes
+ * an input only if a fresh discovery pass selects it. The aim is dev output
+ * matching a cold build of the same tree.
+ *
  * Dev server lifecycle (details in the comments on `server`, `adoptedServers`,
  * `invalidateAndReload`, and `buildEnd`):
  *
@@ -210,8 +216,8 @@ const svelteDocinfo = (options: VitePluginSvelteDocinfoOptions = {}): Plugin => 
 	// the environment whose `buildStart` created `session`, so only its `buildEnd` disposes it
 	let sessionEnvironment: Environment | null = null;
 
-	// Discovery diagnostics survive across HMR cycles (the discovery pass only
-	// runs at cold start). Tracked here because the session has no concept of
+	// Discovery diagnostics survive across HMR cycles (the discovery pass runs
+	// at cold start, and again only when a file new to the session appears). Tracked here because the session has no concept of
 	// "discovery" — it ingests files the plugin hands to it.
 	let discoveryDiagnostics: Array<Diagnostic> = [];
 
@@ -251,6 +257,12 @@ const svelteDocinfo = (options: VitePluginSvelteDocinfoOptions = {}): Plugin => 
 	// Drained by `flushBatch`; survives across multiple flush cycles when new
 	// events arrive mid-flight.
 	const pendingChanges = new Map<string, string | null>();
+	// Paths with an `add` event not yet acted on — the event that can change
+	// what discovery selects (see `flushBatch`). Recorded when the event fires,
+	// not when its read lands: a `change` arriving mid-read supersedes the
+	// add's content, and the file is no less new for it. A path leaves when a
+	// flush carries its content, or on its `unlink`.
+	const pendingAdds = new Set<string>();
 
 	// Per-path event sequence. Watcher events (change/add/unlink) bump the
 	// counter and stamp the path with the new value; async handlers (the
@@ -346,16 +358,28 @@ const svelteDocinfo = (options: VitePluginSvelteDocinfoOptions = {}): Plugin => 
 	const isWatchedFile = (file: string): boolean =>
 		isSource(file, resolvedSourceOptions) || (session?.has(file) ?? false);
 
-	// Initial analysis (cold start in buildStart)
-	const runInitialAnalysis = async (): Promise<void> => {
-		if (!session) return;
-		const { files, diagnostics } = await discoverSourceFiles({
+	// The files discovery selected: the session's inputs, the only ones that
+	// emit a module. Everything else the session owns is context. Kept here
+	// because the session takes a file's role from each call
+	// (`SetFileOptions.context`), and dev output has to match what a cold
+	// build of the same tree would discover: an edit to a context file must
+	// not turn it into a module.
+	let inputIds: Set<string> = new Set();
+
+	const discover = (): ReturnType<typeof discoverSourceFiles> =>
+		discoverSourceFiles({
 			sourceOptions: resolvedSourceOptions,
 			include,
 			discovery,
 			distDir,
 			log: logger ?? undefined
 		});
+
+	// Initial analysis (cold start in buildStart)
+	const runInitialAnalysis = async (): Promise<void> => {
+		if (!session) return;
+		const { files, diagnostics } = await discover();
+		inputIds = new Set(files.map((f) => f.id));
 		// Discovery is the one source that doesn't normalize its own diagnostics
 		// (the session normalizes ingest at rest, `analyzeCore` normalizes query),
 		// and these get published verbatim on `virtual:svelte-docinfo` — so an
@@ -378,6 +402,7 @@ const svelteDocinfo = (options: VitePluginSvelteDocinfoOptions = {}): Plugin => 
 		// spins on microtasks
 		if (!session) {
 			pendingChanges.clear();
+			pendingAdds.clear();
 			return;
 		}
 		if (pendingChanges.size === 0) return;
@@ -390,11 +415,77 @@ const svelteDocinfo = (options: VitePluginSvelteDocinfoOptions = {}): Plugin => 
 		const drained = [...pendingChanges];
 		pendingChanges.clear();
 
-		const toAdd: Array<SourceFileInfo> = [];
+		// only the adds this flush carries content for; one whose read is still
+		// in flight waits for the flush that brings it
+		const addedIds = new Set<string>();
+		for (const [path, content] of drained) {
+			if (content !== null && pendingAdds.delete(path)) addedIds.add(path);
+		}
+
+		const changed: Array<SourceFileInfo> = [];
 		const toDelete: Array<string> = [];
 		for (const [path, content] of drained) {
 			if (content === null) toDelete.push(path);
-			else toAdd.push({ id: path, content });
+			else changed.push({ id: path, content });
+		}
+		for (const path of toDelete) inputIds.delete(path);
+
+		const toAdd: Array<SourceFileInfo> = [];
+		const toRefresh: Array<SourceFileInfo> = [];
+
+		// A file that appeared may be an input: that is discovery's call (a
+		// wildcard export or a glob may cover it, an explicit exports map may
+		// not), so ask again. "Appeared" is an `add` event — whether or not the
+		// session owns the file yet, since the closure can ingest a new file as
+		// context before its event arrives, when an importer's edit lands
+		// first — or, failing that, a file the session has never seen, which
+		// covers an add whose read failed. The pass re-reads the tree, but an
+		// edit to a file the session knows never triggers it.
+		const appeared = changed.filter(
+			(f) => !inputIds.has(f.id) && (addedIds.has(f.id) || !current.has(f.id))
+		);
+		if (appeared.length > 0) {
+			try {
+				const { files, diagnostics } = await discover();
+				if (session !== current) return;
+				const previous = inputIds;
+				inputIds = new Set(files.map((f) => f.id));
+				normalizeDiagnosticPaths(diagnostics, resolvedSourceOptions.projectRoot);
+				discoveryDiagnostics = diagnostics;
+
+				// The selection can move for files with no event of their own (an
+				// edited exports map), so bring every owned file's role in line
+				// with it: discovery hands over the newly selected ones, and the
+				// deselected ones are re-read to be passed back as context.
+				const inBatch = new Set(drained.map(([path]) => path));
+				for (const file of files) {
+					if (!previous.has(file.id) && !inBatch.has(file.id)) toAdd.push(file);
+				}
+				for (const id of previous) {
+					if (inputIds.has(id) || inBatch.has(id) || !current.has(id)) continue;
+					try {
+						toRefresh.push({ id, content: await readFile(id, 'utf-8') });
+					} catch {
+						// gone from disk: its unlink event removes it
+					}
+					if (session !== current) return;
+				}
+			} catch (err) {
+				// keep the known inputs: a discovery failure mid-session (an
+				// exports map edited into a broken state) shouldn't drop edits.
+				// The files stay marked new, so their next edit asks again.
+				for (const file of appeared) pendingAdds.add(file.id);
+				errorLog(err);
+			}
+		}
+
+		// Inputs keep emitting. Everything else goes in as context, owned
+		// already or not: a non-input that reappears (deleted and recreated,
+		// a branch switch) may be a dependency of an owned file whose own
+		// content didn't change, and nothing else would give the checker its
+		// content back.
+		for (const file of changed) {
+			(inputIds.has(file.id) ? toAdd : toRefresh).push(file);
 		}
 
 		// Apply deletions first so re-adds (rare but possible: unlink+add same
@@ -407,6 +498,11 @@ const svelteDocinfo = (options: VitePluginSvelteDocinfoOptions = {}): Plugin => 
 		let anyChanged = toDelete.length > 0;
 		if (toAdd.length > 0) {
 			const ingest = await current.setFiles(toAdd);
+			if (session !== current) return;
+			if (ingest.changedIds.size > 0) anyChanged = true;
+		}
+		if (toRefresh.length > 0) {
+			const ingest = await current.setFiles(toRefresh, { context: true });
 			if (session !== current) return;
 			if (ingest.changedIds.size > 0) anyChanged = true;
 		}
@@ -443,6 +539,7 @@ const svelteDocinfo = (options: VitePluginSvelteDocinfoOptions = {}): Plugin => 
 
 	const enqueueChange = (path: string, content: string | null): void => {
 		pendingChanges.set(path, content);
+		if (content === null) pendingAdds.delete(path);
 		// `eventSeqs[path]` is no longer needed once the latest event has been
 		// enqueued: any older in-flight handler will fail `isLatestEvent`
 		// against `undefined`, and any newer event will re-stamp on arrival.
@@ -612,6 +709,7 @@ const svelteDocinfo = (options: VitePluginSvelteDocinfoOptions = {}): Plugin => 
 				if (!adoptedServers.has(devServer)) return;
 				const file = toPosixPath(rawFile);
 				if (!isWatchedFile(file)) return;
+				pendingAdds.add(file);
 				const seq = stampEvent(file);
 				void (async () => {
 					try {
@@ -627,6 +725,7 @@ const svelteDocinfo = (options: VitePluginSvelteDocinfoOptions = {}): Plugin => 
 			devServer.watcher.on('unlink', (rawFile) => {
 				if (!adoptedServers.has(devServer)) return;
 				const file = toPosixPath(rawFile);
+				pendingAdds.delete(file);
 				// Use session.has() as the gate: paths outside source paths were
 				// never owned, so nothing to do.
 				if (!session?.has(file)) return;

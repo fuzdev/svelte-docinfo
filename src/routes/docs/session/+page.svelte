@@ -46,7 +46,7 @@ const session = createAnalysisSession({
   // analyze without one. Default: 'tsconfig.json'.
   // tsconfig: 'tsconfig.lib.json',
   // Optional: the program's root files, in place of the tsconfig's.
-  // rootFileNames: (roots) => roots.filter((file) => file.endsWith('.d.ts')),
+  // rootFileNames: declarationFileRoots, // from 'svelte-docinfo/typescript-program.js'
   // Optional: logger for session-level messages.
   // log: console,
 });`}

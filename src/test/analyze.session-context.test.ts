@@ -326,7 +326,7 @@ describe('session context closure', () => {
 			});
 		});
 
-		test('an edit to the context sibling reaches the importer and promotes it', async () => {
+		test('an edit passed as context reaches the importer and stays out of the output', async () => {
 			await withTestProject(files, async (projectRoot) => {
 				const session = createAnalysisSession({
 					sourceOptions: createSourceOptions(projectRoot)
@@ -337,18 +337,109 @@ describe('session context closure', () => {
 					await session.setFiles([{ id: modalId, content: files['src/lib/Modal.svelte']! }]);
 					assert.strictEqual(confirmType(session.query().modules), '"primary" | "secondary"');
 
+					const refreshed = await session.setFile(
+						{
+							id: buttonId,
+							content: files['src/lib/Button.svelte']!.replace("'secondary'", "'ghost'")
+						},
+						{ context: true }
+					);
+					assert.isTrue(refreshed.changed);
+					const after = session.query();
+					assert.strictEqual(confirmType(after.modules), '"primary" | "ghost"');
+					assert.deepStrictEqual(
+						after.modules.map((m) => m.path),
+						['Modal.svelte']
+					);
+				} finally {
+					session.dispose();
+				}
+			});
+		});
+
+		test('the same edit without the context role makes the sibling an input', async () => {
+			await withTestProject(files, async (projectRoot) => {
+				const session = createAnalysisSession({
+					sourceOptions: createSourceOptions(projectRoot)
+				});
+				try {
+					const modalId = join(projectRoot, 'src/lib/Modal.svelte');
+					const buttonId = join(projectRoot, 'src/lib/Button.svelte');
+					await session.setFiles([{ id: modalId, content: files['src/lib/Modal.svelte']! }]);
 					await session.setFile({
 						id: buttonId,
 						content: files['src/lib/Button.svelte']!.replace("'secondary'", "'ghost'")
 					});
-					const after = session.query();
-					assert.strictEqual(confirmType(after.modules), '"primary" | "ghost"');
-					// the edit arrives through `setFile`, which supplies the file:
-					// the session can't tell a refresh from an input, so it emits
 					assert.deepStrictEqual(
-						after.modules.map((m) => m.path),
+						session.query().modules.map((m) => m.path),
 						['Button.svelte', 'Modal.svelte']
 					);
+				} finally {
+					session.dispose();
+				}
+			});
+		});
+
+		test('the context role demotes an input, and the default role restores it', async () => {
+			await withTestProject(files, async (projectRoot) => {
+				const session = createAnalysisSession({
+					sourceOptions: createSourceOptions(projectRoot)
+				});
+				try {
+					const modal = {
+						id: join(projectRoot, 'src/lib/Modal.svelte'),
+						content: files['src/lib/Modal.svelte']!
+					};
+					const button = {
+						id: join(projectRoot, 'src/lib/Button.svelte'),
+						content: files['src/lib/Button.svelte']!
+					};
+					const paths = (): Array<string> => session.query().modules.map((m) => m.path);
+					await session.setFiles([modal, button]);
+					assert.deepStrictEqual(paths(), ['Button.svelte', 'Modal.svelte']);
+
+					// unchanged content: only the role moves, and it reports changed
+					const demoted = await session.setFile(button, { context: true });
+					assert.isTrue(demoted.changed);
+					assert.deepStrictEqual(paths(), ['Modal.svelte']);
+					assert.isTrue(session.has(button.id));
+					// still typing its importer, with no edge to a module that's gone
+					const query = session.query();
+					assert.strictEqual(confirmType(query.modules), '"primary" | "secondary"');
+					assert.deepStrictEqual(query.modules[0]?.dependencies, []);
+
+					assert.isFalse((await session.setFile(button, { context: true })).changed);
+
+					const restored = await session.setFile(button);
+					assert.isTrue(restored.changed);
+					assert.deepStrictEqual(paths(), ['Button.svelte', 'Modal.svelte']);
+				} finally {
+					session.dispose();
+				}
+			});
+		});
+
+		test('the context role means nothing for a file that fails isSource', async () => {
+			const gatedFiles: Record<string, string> = {
+				'src/lib/internal/base.ts': `export const base = 1;`,
+				'src/lib/api.ts': `import { base } from './internal/base.ts';\nexport const out = base;`
+			};
+			await withTestProject(gatedFiles, async (projectRoot) => {
+				const session = createAnalysisSession({
+					sourceOptions: createSourceOptions(projectRoot)
+				});
+				try {
+					const base = {
+						id: join(projectRoot, 'src/lib/internal/base.ts'),
+						content: gatedFiles['src/lib/internal/base.ts']!
+					};
+					await session.setFile({
+						id: join(projectRoot, 'src/lib/api.ts'),
+						content: gatedFiles['src/lib/api.ts']!
+					});
+					// already gated by path, so neither role changes anything
+					assert.isFalse((await session.setFile(base, { context: true })).changed);
+					assert.isFalse((await session.setFile(base)).changed);
 				} finally {
 					session.dispose();
 				}
@@ -401,7 +492,11 @@ describe('session context closure', () => {
 			const brokenFiles: Record<string, string> = {
 				// an `{#each}` with no expression is one of the few inputs svelte2tsx rejects
 				'src/lib/Broken.svelte': `{#each}`,
-				'src/lib/api.ts': `import type Broken from './Broken.svelte';\nexport const a: typeof Broken | null = null;`
+				// a healthy component beside it, as in any real project: once the
+				// program loads `svelte`'s types, its ambient `*.svelte` module
+				// catches the import the missing virtual can't resolve
+				'src/lib/Widget.svelte': `<script lang="ts">\n\tlet { a }: { a: string } = $props();\n</script>\n{a}`,
+				'src/lib/api.ts': `export { default as Widget } from './Widget.svelte';\nexport { default as Broken } from './Broken.svelte';\nexport * as ns from './Broken.svelte';`
 			};
 			await withTestProject(brokenFiles, async (projectRoot) => {
 				const session = createAnalysisSession({
@@ -419,10 +514,23 @@ describe('session context closure', () => {
 						session.allIngestDiagnostics().map((d) => [d.kind, d.file]),
 						[['transform_failed', 'src/lib/Broken.svelte']]
 					);
+					const { modules } = session.query();
 					assert.deepStrictEqual(
-						session.query().modules.map((m) => m.path),
+						modules.map((m) => m.path),
 						['api.ts']
 					);
+					// with no virtual there's nothing to describe, but the name the
+					// module publishes stays in its output, flagged incomplete
+					assert.deepStrictEqual(
+						modules[0]!.declarations.map((d) => [d.name, d.kind, d.partial, d.aliasOf?.module]),
+						[
+							['Widget', 'component', false, 'Widget.svelte'],
+							['Broken', 'component', true, 'Broken.svelte']
+						]
+					);
+					// only the component itself: a namespace over it is not one
+					assert.isFalse(modules[0]!.declarations.some((d) => d.name === 'ns'));
+					assert.deepStrictEqual(modules[0]!.reExports, []);
 				} finally {
 					session.dispose();
 				}

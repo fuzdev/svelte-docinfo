@@ -265,38 +265,43 @@ describe('createAnalysisSession', { timeout: 30_000 }, () => {
 		);
 	});
 
-	test('reExports edge survives when the canonical module is outside the owned set', async () => {
-		// The LS host falls back to disk reads for non-owned files, so a barrel
-		// re-exporting from an unowned source file still resolves the canonical
-		// and publishes the forward edge — but no module (and so no
-		// alsoExportedFrom back-link) exists for it in the result. This is the
-		// documented presence caveat shared with `aliasOf.module` and
-		// `starExports`.
+	test('a re-export whose canonical is not an input documents in the re-exporting module', async () => {
+		// The canonical resolves (context closure, or the LS disk fallback with
+		// the closure off), but it emits no module: a `reExports` edge would
+		// point at a module absent from the result and leave the name
+		// documented nowhere. So the barrel owns the declaration, as it does
+		// for a gated canonical, with `aliasOf` kept for provenance.
 		await withTestProject(
 			{
-				'src/lib/a.ts': `export const foo = 1;\n`,
+				'src/lib/a.ts': `/** Doc */\nexport const foo = 1;\n`,
 				'src/lib/barrel.ts': `export {foo} from './a.js';\n`
 			},
 			async (projectRoot) => {
-				const session = createAnalysisSession({
-					sourceOptions: createSourceOptions(projectRoot)
-				});
-				try {
-					// own only the barrel — a.ts exists on disk but is never set
-					await session.setFile({
-						id: join(projectRoot, 'src/lib/barrel.ts'),
-						content: `export {foo} from './a.js';\n`
+				for (const contextClosure of [true, false]) {
+					const session = createAnalysisSession({
+						sourceOptions: createSourceOptions(projectRoot),
+						contextClosure
 					});
-					const { modules } = session.query();
-					assert.deepStrictEqual(
-						modules.map((m) => m.path),
-						['barrel.ts']
-					);
-					assert.deepStrictEqual(modules[0]!.reExports, [
-						{ name: 'foo', module: 'a.ts', typeOnly: false, sourceLine: 1 }
-					]);
-				} finally {
-					session.dispose();
+					try {
+						// supply only the barrel — a.ts exists on disk but is never set
+						await session.setFile({
+							id: join(projectRoot, 'src/lib/barrel.ts'),
+							content: `export {foo} from './a.js';\n`
+						});
+						assert.strictEqual(session.has(join(projectRoot, 'src/lib/a.ts')), contextClosure);
+						const { modules } = session.query();
+						assert.deepStrictEqual(
+							modules.map((m) => m.path),
+							['barrel.ts']
+						);
+						assert.deepStrictEqual(modules[0]!.reExports, []);
+						assert.deepStrictEqual(
+							modules[0]!.declarations.map((d) => [d.name, d.kind, d.docComment, d.aliasOf]),
+							[['foo', 'variable', 'Doc', { module: 'a.ts', name: 'foo' }]]
+						);
+					} finally {
+						session.dispose();
+					}
 				}
 			}
 		);

@@ -104,7 +104,8 @@ points to the TSDoc that owns its policy; read it before changing behavior. User
   - `rootFileNames` (`RootFileNames`: a list, or a function over the tsconfig's roots)
     replaces the program's roots, which otherwise make cold cost scale with the project.
     Narrowing changes output only for ambient types declared in a file nothing imports,
-    which then resolve to `any` with no diagnostic. The `RootFileNames` TSDoc owns the
+    which then resolve to `any` with no diagnostic; `declarationFileRoots` is the preset
+    that keeps the `.d.ts` roots. The `RootFileNames` TSDoc owns the
     policy. Every entry point forwards `tsconfig`, `compilerOptions`, and `rootFileNames`
     (the CLI as `--tsconfig`/`--no-tsconfig` only).
   - `createIsExternalFile`/`createIsExternalPath` decide externality: outside the root,
@@ -231,6 +232,10 @@ points to the TSDoc that owns its policy; read it before changing behavior. User
   - Hooks: `configResolved`, `buildStart`, `buildEnd` (disposes the session),
     `resolveId`/`load`, and `configureServer` (watch plus debounced re-analysis, gated on
     `isSource(file) || session.has(file)`).
+  - Only the files discovery selected are inputs (`inputIds`). Any other file's edit is
+    passed with the context role, and an `add` event re-runs discovery to decide whether
+    the new file is an input (and re-roles owned files the selection moved), aiming at dev
+    output that matches a cold build of the same tree.
   - Vite 6+, per-environment dev APIs only. Changed output reloads the page (no HMR
     boundary: the module is data). The plugin serves one dev server at a time, adopted at
     its client `buildStart`. The `vite.ts` module TSDoc owns the lifecycle and restart
@@ -384,7 +389,9 @@ authoritative.
   or the rest of the project when one component is handed over), marked `context` on its
   entry so it still emits nothing. Without it, every type drawn from an unsupplied
   component is `any`; TS files are walked too because a component can sit behind a barrel.
-  Supplying the file later, a watcher's edit included, promotes it to an emitted input.
+  Each ingest call sets the role (`SetFileOptions.context`): by default the files are
+  inputs, so supplying a context file later promotes it, and a consumer forwarding an
+  edit it doesn't mean as an input passes `context: true`.
 - **Deferred resolutions** — a specifier that resolved to nothing isn't final.
   - When owned-set membership changes, the session calls the resolver's `invalidate()`.
   - A `setFiles` that adds paths retries the null slots of earlier lex+resolve entries
@@ -562,10 +569,15 @@ identity, after resolving `aliasOf` chains. `@nodocs` exempts a declaration. Enc
   chains leave no trace.
 - **Gated canonicals** (project-local but excluded, e.g. `internal/`) → a full alias
   synthesized even for a same-name re-export, since the canonical emits nothing to link.
-  `aliasOf.module` then dangles by design, and no `reExports` edge is emitted. A context
-  component (in source scope but ingested only by the closure) is treated the same;
-  `ExtractContext.isEmittedFile` is the predicate (`IsEmittedFile`), not bare `isSource`.
-  A source file never ingested at all keeps its `reExports` edge, dangling.
+  `aliasOf.module` then dangles by design, and no `reExports` edge is emitted. Any
+  canonical outside the analyzed inputs is treated the same, source-scope or not (a
+  context file, a module left out of `exports`): the predicate is
+  `ExtractContext.isEmittedFile` (`IsEmittedFile`, the emitted set), not `isSource`, so a
+  `reExports` edge never points at a module the output lacks. `export *` is not covered:
+  a star over a non-emitted file stays in `starExports` and its names go undocumented.
+  A component with no virtual (transform failed, or unsupplied with the closure off)
+  re-exports as a `partial` component (`virtuallessSvelteTarget`, which lists its
+  limits).
 - **Namespace** re-exports (`export * as ns from './x'`) → `NamespaceDeclarationJson` whose
   `module` points at the projected source. It's detected via `ValueModule` before
   `analyzeDeclaration`, which would otherwise leak `typeof import(...)`.

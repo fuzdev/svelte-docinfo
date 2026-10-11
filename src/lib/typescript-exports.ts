@@ -12,6 +12,7 @@
  * @module
  */
 
+import { dirname, resolve } from 'node:path';
 import ts from 'typescript';
 
 import type {
@@ -32,6 +33,7 @@ import {
 } from './source.ts';
 import { type ModuleSourceOptions, extractDependencies, extractPath } from './source-config.ts';
 import { createIsExternalPath } from './typescript-program.ts';
+import { toPosixPath } from './paths.ts';
 import {
 	getLocalExportStatement,
 	getNodeLocation,
@@ -308,6 +310,41 @@ const reExportPublicName = (
 	isSvelteVirtualPath(canonicalVirtualFileName)
 		? getComponentName(canonicalFile)
 		: exportName;
+
+/**
+ * The project file a re-export names when its component has no svelte2tsx
+ * virtual in the program — its transform failed, or it was never supplied
+ * (the context closure off) — or `undefined` for any other re-export.
+ *
+ * With no virtual to resolve to, a `.svelte` specifier falls through to the
+ * `svelte` package's ambient `declare module '*.svelte'`, loaded as soon as
+ * any file imports `svelte`. Its default export is a real symbol in an
+ * external file, so the re-export would read as one from a package. Detected
+ * by that landing spot plus a relative `.svelte` specifier on the statement;
+ * the path is the specifier resolved against the re-exporting file.
+ *
+ * Limits: it sees nothing until some file in the program imports `svelte`
+ * (no ambient module yet, so the name documents as a bare `variable`); an
+ * import-then-export has no specifier on the export statement and is not
+ * caught; and the file isn't checked for existence, so a mistyped path reads
+ * the same as a failed component.
+ */
+const virtuallessSvelteTarget = (
+	statement: ts.ExportDeclaration,
+	aliasedSymbol: ts.Symbol,
+	currentFileName: string
+): string | undefined => {
+	const specifier = statement.moduleSpecifier;
+	if (!specifier || !ts.isStringLiteral(specifier)) return undefined;
+	if (!specifier.text.startsWith('.') || !specifier.text.endsWith('.svelte')) return undefined;
+	// a declaration *inside* the ambient module: its default export, not the
+	// module itself (which is what `export * as ns` resolves to)
+	let node: ts.Node | undefined = aliasedSymbol.declarations?.[0];
+	if (!node || ts.isModuleDeclaration(node)) return undefined;
+	while (node && !ts.isModuleDeclaration(node)) node = node.parent;
+	if (!node || !ts.isStringLiteral(node.name) || node.name.text !== '*.svelte') return undefined;
+	return toPosixPath(resolve(dirname(currentFileName), specifier.text));
+};
 
 /** Whether `symbol` is what `sourceFile` exports as `default`, through any alias. */
 const isDefaultExportOf = (
@@ -594,9 +631,31 @@ export const analyzeExports = (
 							declarations.push({ declaration: decl, nodocs: !!localTsdoc?.nodocs });
 						};
 
-						// Only link when the original is a source module; one known to
-						// emit nothing (gated, or a context component) takes the
-						// synthesizing arm below
+						// A component the program has no virtual for (see
+						// `virtuallessSvelteTarget`): nothing can be read off it, but
+						// the statement still publishes a name, so it documents as a
+						// `partial` component rather than vanishing into the external
+						// arm below.
+						const virtualless =
+							local && virtuallessSvelteTarget(local.statement, aliasedSymbol, currentFileName);
+						if (virtualless !== undefined && !isExternalPath(virtualless)) {
+							const module = extractPath(virtualless, options);
+							const componentName = getComponentName(virtualless);
+							const decl: DeclarationJsonBuild = {
+								name: exportSymbol.name === 'default' ? componentName : exportSymbol.name,
+								kind: 'component',
+								partial: true,
+								aliasOf: { module, name: componentName },
+								sourceLine: specifierLine
+							};
+							if (localTsdoc) applyToDeclaration(decl, localTsdoc);
+							declarations.push({ declaration: decl, nodocs: !!localTsdoc?.nodocs });
+							continue;
+						}
+
+						// Only link when the original's module is in the output; one
+						// that emits nothing (gated, or a source file outside the
+						// analyzed inputs) takes the synthesizing arm below
 						if (ctx.isEmittedFile(originalFileName)) {
 							const originalModule = extractPath(originalFileName, options);
 							// Use the IMMEDIATE alias (one hop) for rename detection so a
@@ -673,8 +732,8 @@ export const analyzeExports = (
 						}
 
 						// Re-export whose canonical is project-local but emits no
-						// module (the `internal/` convention, user excludes, a context
-						// component): the statement publishes the
+						// module (the `internal/` convention, user excludes, a source
+						// file outside the analyzed inputs): the statement publishes the
 						// symbol *here*, and the canonical module emits nothing — so
 						// this module owns the docs. A full
 						// alias declaration is synthesized (same-name and renamed

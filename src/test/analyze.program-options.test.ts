@@ -15,6 +15,7 @@ import { join } from 'node:path';
 import { analyze, analyzeFromFiles } from '#lib/analyze.ts';
 import { createAnalysisSession } from '#lib/session.ts';
 import { createSourceOptions } from '#lib/source-config.ts';
+import { declarationFileRoots } from '#lib/typescript-program.ts';
 import type { AnalyzeResultJson } from '#lib/analyze-core.ts';
 
 import { withTestProject } from './test-helpers.ts';
@@ -132,7 +133,7 @@ describe('rootFileNames', { timeout: 15_000 }, () => {
 		await withTestProject(files, async (projectRoot) => {
 			const result = await analyzeFromFiles({
 				projectRoot,
-				rootFileNames: (roots) => roots.filter((file) => file.endsWith('.d.ts'))
+				rootFileNames: declarationFileRoots
 			});
 			const declaration = result.modules[0]?.declarations[0];
 			assert(declaration?.kind === 'variable');
