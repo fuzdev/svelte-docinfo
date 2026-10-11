@@ -92,7 +92,7 @@ export const add = (a: number, b: number): number => a + b;
 
 Three ways to integrate `svelte-docinfo`:
 
-1. [Vite plugin](#vite-plugin) - recommended for SvelteKit and Vite projects. Serves a virtual module with HMR in dev mode:
+1. [Vite plugin](#vite-plugin) - recommended for SvelteKit and Vite projects. Serves a virtual module that stays current in dev mode:
 
 ```ts
 // vite.config.ts
@@ -192,6 +192,8 @@ You may also want to browse the [test fixtures](https://github.com/fuzdev/svelte
 
 ## Vite plugin
 
+Requires Vite 6 or later.
+
 1. Add the plugin to `vite.config.ts`:
 
 ```ts
@@ -229,7 +231,7 @@ Plugin options:
 | `sourceOptions`       | `{sourcePaths: ['src/lib'], …}`                      | Partial overrides for default source options (SvelteKit `src/lib` layout).                                                                                                                                             |
 | `resolveDependencies` | `true`                                               | Resolve import dependencies. When `false`, `dependencies`/`dependents` stay empty.                                                                                                                                     |
 | `onDuplicates`        | —                                                    | Dispatch on duplicate declaration names: `'throw'` \| `'warn'` \| callback. Diagnostic emits regardless of dispatch.                                                                                                   |
-| `hmrDebounceMs`       | `100`                                                | HMR debounce delay in milliseconds.                                                                                                                                                                                    |
+| `hmrDebounceMs`       | `100`                                                | Dev re-analysis debounce delay in milliseconds.                                                                                                                                                                        |
 
 Source-scope notes (shared with the [CLI](#cli) and `analyzeFromFiles`):
 
@@ -362,7 +364,7 @@ Known gaps:
 ## Documentation
 
 - [svelte-docinfo.fuz.dev](https://svelte-docinfo.fuz.dev/) - docs site with guides, options reference, and API docs
-- [examples/vite/](examples/vite/README.md) - Vite plugin with HMR
+- [examples/vite/](examples/vite/README.md) - Vite plugin with live reload in dev
 - [examples/cli/](examples/cli/README.md) - CLI usage and piping
 - [examples/api/](examples/api/README.md) - API usage patterns
 

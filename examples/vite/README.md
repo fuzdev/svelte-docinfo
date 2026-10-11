@@ -4,13 +4,13 @@ A minimal Vite + Svelte app using the svelte-docinfo Vite plugin.
 
 The plugin analyzes the project's source files at build time and serves the result
 as the `virtual:svelte-docinfo` import. In dev mode it watches for file changes
-and sends HMR updates, so your docs stay in sync as you edit.
+and reloads the page when the result changes, so your docs stay in sync as you edit.
 
 ## Run
 
 ```bash
 npm i
-npm run dev      # dev server with HMR — edit source files and see updates
+npm run dev      # dev server — edit source files and the page reloads
 npm run build    # production build
 ```
 

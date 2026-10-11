@@ -6,8 +6,10 @@
  * `setFiles` + one `query` per debounce window — multi-file editor saves
  * collapse to a single re-analysis instead of N serialized round-trips.
  *
- * HMR invalidation keys on `setFiles`'s `changedIds`; the watcher gates on
- * `isSource(file) || session.has(file)`.
+ * A re-analysis that changes the output invalidates the virtual module and
+ * reloads the page (the module is data its importers derive state from, so
+ * there's no in-place HMR update); `setFiles`'s `changedIds` skip re-analysis
+ * when nothing changed. The watcher gates on `isSource(file) || session.has(file)`.
  *
  * Consumers import the analysis result:
  *
@@ -38,7 +40,7 @@
  */
 
 import { readFile } from 'node:fs/promises';
-import type { Logger as ViteLogger, Plugin, ViteDevServer } from 'vite';
+import type { Environment, Logger as ViteLogger, Plugin, ViteDevServer } from 'vite';
 
 import { createAnalysisSession, type AnalysisSession } from './session.ts';
 import { normalizeDiagnosticPaths, type OnDuplicates } from './analyze-core.ts';
@@ -113,7 +115,7 @@ export interface VitePluginSvelteDocinfoOptions {
 	/** Behavior when duplicate declaration names are found across modules. */
 	onDuplicates?: OnDuplicates;
 	/**
-	 * HMR debounce delay in milliseconds. Coalesces rapid file changes during dev.
+	 * Dev re-analysis debounce delay in milliseconds. Coalesces rapid file changes.
 	 * @default 100
 	 */
 	hmrDebounceMs?: number;
@@ -123,8 +125,9 @@ export interface VitePluginSvelteDocinfoOptions {
  * Vite plugin: analyzes TypeScript and Svelte source files via a persistent
  * `AnalysisSession` and serves the result as `virtual:svelte-docinfo`.
  *
- * In dev mode, watches source files and triggers debounced HMR updates on
- * changes via `setFiles` batches drained from a pending-changes Map.
+ * In dev mode, watches source files and re-analyzes on changes via `setFiles`
+ * batches drained from a pending-changes Map, reloading the page when the
+ * output changes.
  * In build mode, runs analysis once during `buildStart`.
  */
 const svelteDocinfo = (options: VitePluginSvelteDocinfoOptions = {}): Plugin => {
@@ -142,12 +145,13 @@ const svelteDocinfo = (options: VitePluginSvelteDocinfoOptions = {}): Plugin => 
 	let projectRoot: string;
 	let resolvedSourceOptions: ModuleSourceOptions;
 	let logger: ViteLogger | null = null;
-	let isDev = false;
 	let modulesJson = '[]';
 	let diagnosticsJson = '[]';
 	let cachedModuleCode: string | null = null;
 	let server: ViteDevServer | null = null;
 	let session: AnalysisSession | null = null;
+	// the environment whose `buildStart` created `session`, so only its `buildEnd` disposes it
+	let sessionEnvironment: Environment | null = null;
 
 	// Discovery diagnostics survive across HMR cycles (the discovery pass only
 	// runs at cold start). Tracked here because the session has no concept of
@@ -155,12 +159,18 @@ const svelteDocinfo = (options: VitePluginSvelteDocinfoOptions = {}): Plugin => 
 	let discoveryDiagnostics: Array<Diagnostic> = [];
 
 	// Resolver wiring
-	// Dev resolver: server.pluginContainer.resolveId. Stable identity across
-	// the dev session — cache hits work across HMR cycles.
+	// Dev resolver: the client environment's `pluginContainer.resolveId`, which
+	// is what the mixed `server.pluginContainer` delegates to without `ssr`.
+	// Stable identity across the dev session — cache hits work across HMR cycles.
 	const viteDevResolver: ImportResolver = {
 		resolve: async (specifier, fromFile) => {
+			// Outside the `try`: `configureServer` rejects servers without
+			// `environments`, and anything else unexpected here throws to the
+			// session, which records `resolver_failed` per specifier instead of
+			// reading it as "no dependency"
+			const { pluginContainer } = server!.environments.client;
 			try {
-				const r = await server!.pluginContainer.resolveId(specifier, fromFile);
+				const r = await pluginContainer.resolveId(specifier, fromFile);
 				return r?.id ?? null;
 			} catch {
 				return null;
@@ -201,17 +211,17 @@ const svelteDocinfo = (options: VitePluginSvelteDocinfoOptions = {}): Plugin => 
 	};
 	const isLatestEvent = (path: string, seq: number): boolean => eventSeqs.get(path) === seq;
 
+	// No `import.meta.hot.accept()`: a self-accepting data module re-runs on
+	// update while its importers (e.g. a layout that builds a `Library` from
+	// `modules`) keep the old values, so a change reloads the page instead —
+	// see `invalidateAndReload`.
 	const buildModuleCode = (): string => {
 		if (cachedModuleCode !== null) return cachedModuleCode;
-		const lines = [
+		cachedModuleCode = [
 			`export const modules = ${modulesJson};`,
 			`export const diagnostics = ${diagnosticsJson};`,
 			`export default {modules, diagnostics};`
-		];
-		if (isDev) {
-			lines.push(`if (import.meta.hot) { import.meta.hot.accept(); }`);
-		}
-		cachedModuleCode = lines.join('\n');
+		].join('\n');
 		return cachedModuleCode;
 	};
 
@@ -238,28 +248,28 @@ const svelteDocinfo = (options: VitePluginSvelteDocinfoOptions = {}): Plugin => 
 		return true;
 	};
 
-	const sendHmrInvalidation = (): void => {
+	/**
+	 * Invalidates the virtual module in every dev environment that loaded it,
+	 * then reloads the browser. Each environment has its own module graph: the
+	 * client one backs the browser, and a server one (SvelteKit's `ssr`, or one
+	 * a framework or adapter names itself) backs SSR, so every environment is
+	 * walked rather than a fixed pair. The module is plain data its importers
+	 * derive state from, so there's no HMR boundary to update in place: only a
+	 * full reload re-runs the importers. Only the client environment has
+	 * browsers to reload, and the reload is skipped when no browser has loaded
+	 * the module.
+	 */
+	const invalidateAndReload = (): void => {
 		if (!server) return;
-		const mod = server.moduleGraph.getModuleById(RESOLVED_VIRTUAL_ID);
-		if (!mod) return;
-		server.moduleGraph.invalidateModule(mod);
-		// Hardcoded Vite URL encoding for the `\0` prefix on virtual modules.
-		// Not a documented Vite public API — if Vite changes the encoding in a
-		// future release, HMR silently stops firing (initial load still works
-		// through the public resolveId/load hooks). Revisit if Vite exposes a
-		// proper API for invalidating a virtual module by id.
-		const hmrPath = '/@id/__x00__virtual:svelte-docinfo';
-		server.hot.send({
-			type: 'update',
-			updates: [
-				{
-					type: 'js-update',
-					path: hmrPath,
-					acceptedPath: hmrPath,
-					timestamp: Date.now()
-				}
-			]
-		});
+		for (const { moduleGraph } of Object.values(server.environments)) {
+			const mod = moduleGraph.getModuleById(RESOLVED_VIRTUAL_ID);
+			if (mod) moduleGraph.invalidateModule(mod);
+		}
+		const { client } = server.environments;
+		if (!client.moduleGraph.getModuleById(RESOLVED_VIRTUAL_ID)) return;
+		// `path: '*'` is Vite's own form for a reload not tied to an HTML file;
+		// the client reloads unconditionally for any path not ending in `.html`
+		client.hot.send({ type: 'full-reload', path: '*' });
 	};
 
 	const errorLog = (err: unknown): void => {
@@ -306,8 +316,18 @@ const svelteDocinfo = (options: VitePluginSvelteDocinfoOptions = {}): Plugin => 
 	// HMR flush: drain pendingChanges via setFiles + query
 	const flushBatch = async (): Promise<void> => {
 		if (initialPromise) await initialPromise;
-		if (!session) return;
+		// Before the first `buildStart` (a server that hasn't listened yet) or
+		// after `buildEnd` there's no session to flush into: drop what's pending
+		// (discovery reads disk), or `scheduleFlush`'s loop never drains and
+		// spins on microtasks
+		if (!session) {
+			pendingChanges.clear();
+			return;
+		}
 		if (pendingChanges.size === 0) return;
+		// A `buildEnd` (server close or restart) can land at any await below;
+		// bail when it does rather than touching a disposed session
+		const current = session;
 
 		// Drain. New events arriving during this flush land in pendingChanges
 		// and are picked up by the surrounding while-loop in `scheduleFlush`.
@@ -323,11 +343,15 @@ const svelteDocinfo = (options: VitePluginSvelteDocinfoOptions = {}): Plugin => 
 
 		// Apply deletions first so re-adds (rare but possible: unlink+add same
 		// path within one debounce window) work correctly.
-		for (const path of toDelete) await session.deleteFile(path);
+		for (const path of toDelete) {
+			await current.deleteFile(path);
+			if (session !== current) return;
+		}
 
 		let anyChanged = toDelete.length > 0;
 		if (toAdd.length > 0) {
-			const ingest = await session.setFiles(toAdd);
+			const ingest = await current.setFiles(toAdd);
+			if (session !== current) return;
 			if (ingest.changedIds.size > 0) anyChanged = true;
 		}
 
@@ -336,9 +360,9 @@ const svelteDocinfo = (options: VitePluginSvelteDocinfoOptions = {}): Plugin => 
 		// `updateOutputFromQuery` pulls the cumulative ingest diagnostics from
 		// `session.allIngestDiagnostics()` itself — no per-batch survival
 		// tracking needed at the plugin layer.
-		const result = session.query({ onDuplicates, log: logger ?? undefined });
+		const result = current.query({ onDuplicates, log: logger ?? undefined });
 		const updated = updateOutputFromQuery(result.modules, result.diagnostics);
-		if (updated) sendHmrInvalidation();
+		if (updated) invalidateAndReload();
 	};
 
 	const scheduleFlush = (): Promise<void> => {
@@ -346,6 +370,9 @@ const svelteDocinfo = (options: VitePluginSvelteDocinfoOptions = {}): Plugin => 
 		hmrFlushPromise = (async () => {
 			await new Promise<void>((r) => setTimeout(r, hmrDebounceMs));
 			try {
+				// Progress invariant: every `flushBatch` either empties
+				// `pendingChanges` before its first await on the session (drain or
+				// drop) or throws, which exits the loop.
 				while (pendingChanges.size > 0) {
 					await flushBatch();
 				}
@@ -376,7 +403,6 @@ const svelteDocinfo = (options: VitePluginSvelteDocinfoOptions = {}): Plugin => 
 			// Assign the logger before widening — `createSourceOptionsWithInclude`
 			// logs when an include pattern scopes the whole project root.
 			logger = config.logger;
-			isDev = config.command === 'serve';
 			// `exclude` shortcut overrides `sourceOptions.exclude` (same precedence
 			// as `analyzeFromFiles`).
 			const mergedSourceOptions =
@@ -435,11 +461,26 @@ const svelteDocinfo = (options: VitePluginSvelteDocinfoOptions = {}): Plugin => 
 				resolveImport: sessionResolver,
 				log: logger ?? undefined
 			});
+			sessionEnvironment = this.environment;
 
 			initialPromise = runInitialAnalysis().finally(() => {
 				initialPromise = null;
 			});
 			await initialPromise;
+		},
+
+		// Releases the session's language service. In dev, Vite runs this once
+		// (for the client environment) when the server closes, middleware mode
+		// included, where there's no `httpServer` to listen on. In build mode
+		// (no `server`) it runs after the bundle's `load` calls, and
+		// `buildStart` creates a fresh session for a `--watch` rebuild.
+		buildEnd() {
+			// Dispose only the session this environment's `buildStart` created: a
+			// middleware-mode restart that reuses this plugin runs the new server's
+			// `buildStart` before the old server's `buildEnd`
+			if (server && this.environment !== sessionEnvironment) return;
+			session?.dispose();
+			session = null;
 		},
 
 		resolveId(id) {
@@ -456,6 +497,10 @@ const svelteDocinfo = (options: VitePluginSvelteDocinfoOptions = {}): Plugin => 
 		},
 
 		configureServer(devServer) {
+			// `server.environments` arrived in Vite 6; dev touches nothing else
+			if (!devServer.environments) {
+				throw new Error('svelte-docinfo: the Vite plugin requires Vite 6 or later');
+			}
 			server = devServer;
 
 			devServer.watcher.on('change', (rawFile) => {
@@ -474,7 +519,7 @@ const svelteDocinfo = (options: VitePluginSvelteDocinfoOptions = {}): Plugin => 
 					// content (formatters saving idempotently) trigger spurious
 					// events; the session's content-equality check in setFile
 					// handles that case — `changed: false` short-circuits the
-					// HMR invalidation.
+					// reload.
 					let newContent: string;
 					try {
 						newContent = await readFile(file, 'utf-8');
@@ -513,11 +558,6 @@ const svelteDocinfo = (options: VitePluginSvelteDocinfoOptions = {}): Plugin => 
 				if (!session?.has(file)) return;
 				stampEvent(file);
 				enqueueChange(file, null);
-			});
-
-			devServer.httpServer?.on('close', () => {
-				session?.dispose();
-				session = null;
 			});
 		}
 	};

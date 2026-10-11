@@ -23,13 +23,14 @@
 			The <ModuleLink module_path="vite.ts">Vite plugin</ModuleLink> is the recommended path for
 			SvelteKit and Vite projects. It runs analysis at build time and serves the result as
 			<Code lang="ts" inline content="'virtual:svelte-docinfo'" />. In dev it watches your source
-			files, plus non-source files they import like <code>internal/</code> modules, and sends HMR
-			updates as you edit.
+			files, plus non-source files they import like <code>internal/</code> modules, and reloads the
+			page when an edit changes the result.
 		</p>
 	</section>
 
 	<TomeSection>
 		<TomeSectionHeader text="Setup" />
+		<p>Requires Vite 6 or later.</p>
 		<ol>
 			<li>
 				<p>Add the plugin to <code>vite.config.ts</code>:</p>
@@ -122,7 +123,7 @@ svelteDocinfo({
   // Merged into createSourceOptions(projectRoot, sourceOptions).
   sourceOptions: {sourcePaths: ['src/lib']},
 
-  // HMR debounce in ms. Default: 100.
+  // dev re-analysis debounce in ms. Default: 100.
   hmrDebounceMs: 100,
 })`}
 		/>
@@ -143,7 +144,7 @@ svelteDocinfo({
 		<p>
 			The CLI runs <DeclarationLink name="analyzeFromFiles" /> once; use it for CI and one-off
 			generation. The plugin keeps a persistent <DeclarationLink name="createAnalysisSession" />, so
-			HMR re-analysis reuses parsed ASTs and svelte2tsx output; use it when the analysis feeds your
+			dev re-analysis reuses parsed ASTs and svelte2tsx output; use it when the analysis feeds your
 			app bundle. To drive a session yourself (custom bundler, LSP), see the
 			<TomeLink slug="session" /> guide.
 		</p>
@@ -151,12 +152,17 @@ svelteDocinfo({
 
 	<TomeSection>
 		<TomeSectionHeader text="How it works" />
-		<p>The plugin hooks into four Vite lifecycle stages:</p>
+		<p>The plugin hooks into these Vite lifecycle stages:</p>
 		<ol>
 			<li>
 				<strong>configResolved</strong>: validates options, so bad configs (like
 				<code>discovery: 'exports'</code> with <code>include</code>, or a path outside the project
 				root) fail at startup
+			</li>
+			<li>
+				<strong>configureServer</strong>: in dev, watches source files and the non-source files they
+				import (e.g. <code>internal/</code> modules), debounces re-analysis, and reloads the page
+				only when the output changes. Unchanged files aren't re-parsed.
 			</li>
 			<li>
 				<strong>buildStart</strong>: creates a session, discovers and ingests the source files, runs
@@ -168,10 +174,15 @@ svelteDocinfo({
 				<code>diagnostics</code>, and a default <code>{`{modules, diagnostics}`}</code>
 			</li>
 			<li>
-				<strong>configureServer</strong>: watches source files and the non-source files they import
-				(e.g. <code>internal/</code> modules), debounces re-analysis, and sends an HMR update only
-				when the output changes. Unchanged files aren't re-parsed.
+				<strong>buildEnd</strong>: disposes the session, in dev when the server closes or restarts
+				and in a build once the bundle's modules have loaded
 			</li>
 		</ol>
+		<p>
+			Any change to the docs data reloads the page, even one that only shifts a declaration's source
+			line, instead of letting Svelte HMR update components in place. Importers build state from the
+			data (like a layout building a library from <code>modules</code>), so re-running the module
+			alone would leave them stale.
+		</p>
 	</TomeSection>
 </TomeContent>

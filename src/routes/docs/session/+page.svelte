@@ -245,7 +245,7 @@ const fullDiagnostics = [
 		/>
 		<p>
 			It's cheap, so long-lived consumers can republish the full picture every cycle without
-			tracking per-batch returns. The Vite plugin does this on every HMR update.
+			tracking per-batch returns. The Vite plugin does this on every dev re-analysis.
 		</p>
 		<p>
 			Discovery-time diagnostics (<code>module_unreadable</code>) are a third category. Sessions

@@ -70,7 +70,7 @@
 			<p>
 				For SvelteKit and Vite projects, the <TomeLink slug="vite-plugin">Vite plugin</TomeLink> is
 				the recommended path. It runs the analysis at build time and serves the result as a virtual
-				module with HMR:
+				module that stays current in dev:
 			</p>
 			<Code lang="ts" content={`import {modules} from 'virtual:svelte-docinfo';`} />
 			<p>

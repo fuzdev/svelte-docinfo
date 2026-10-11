@@ -97,6 +97,12 @@ export interface SubprocessResult {
 export interface RunSubprocessOptions {
 	/** Working directory for the spawned process. */
 	cwd?: string;
+	/**
+	 * Kill the process with `SIGKILL` after this many milliseconds, so a hung
+	 * or spinning child fails its test rather than wedging it. The result then
+	 * has a `null` code.
+	 */
+	timeoutMs?: number;
 }
 
 /**
@@ -104,7 +110,7 @@ export interface RunSubprocessOptions {
  *
  * @param command - executable name (resolved via PATH)
  * @param args - arguments to pass
- * @param options - optional cwd
+ * @param options - optional cwd and kill timeout
  */
 export const runSubprocess = (
 	command: string,
@@ -117,7 +123,14 @@ export const runSubprocess = (
 		let stderr = '';
 		proc.stdout.on('data', (d: Buffer) => (stdout += d.toString()));
 		proc.stderr.on('data', (d: Buffer) => (stderr += d.toString()));
-		proc.on('close', (code) => resolve({ code, stdout, stderr }));
+		const deadline =
+			options.timeoutMs === undefined
+				? undefined
+				: setTimeout(() => proc.kill('SIGKILL'), options.timeoutMs);
+		proc.on('close', (code) => {
+			clearTimeout(deadline);
+			resolve({ code, stdout, stderr });
+		});
 	});
 
 /**

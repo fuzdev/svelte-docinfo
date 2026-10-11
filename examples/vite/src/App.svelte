@@ -7,7 +7,7 @@
 <main>
 	<h1>svelte-docinfo + Vite</h1>
 	<p>
-		Vite plugin serves analysis as the <code>virtual:svelte-docinfo</code> import with HMR
+		Vite plugin serves analysis as the <code>virtual:svelte-docinfo</code> import, reloading in dev
 		(<a href="https://svelte-docinfo.fuz.dev/">docs</a>,
 		<a href="https://github.com/fuzdev/svelte-docinfo/tree/main/examples/vite">source</a>).
 	</p>

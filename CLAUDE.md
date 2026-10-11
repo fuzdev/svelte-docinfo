@@ -191,8 +191,18 @@ points to the TSDoc that owns its policy; read it before changing behavior. User
     `normalizeModulePathsInTypes`, `throwOnDuplicates`.
   - The envelope schemas `AnalyzeResultJson` and `AnalyzeResultJsonWire`.
 - `vite.ts` — default export `svelteDocinfo`, serving `virtual:svelte-docinfo`.
-  - Hooks: `configResolved`, `buildStart`, `resolveId`/`load`, and `configureServer`
-    (watch plus debounced HMR, gated on `isSource(file) || session.has(file)`).
+  - Hooks: `configResolved`, `buildStart`, `buildEnd` (disposes the session),
+    `resolveId`/`load`, and `configureServer` (watch plus debounced re-analysis, gated on
+    `isSource(file) || session.has(file)`).
+  - Requires Vite 6+, and `configureServer` throws without `server.environments`. Dev uses
+    only the per-environment server APIs. Changed output invalidates the virtual module in
+    every `server.environments` graph that loaded it and sends a `full-reload` on the client
+    environment's hot channel. The module is data its importers derive state from, so it
+    has no HMR boundary. The dev resolver is the client `pluginContainer`. `buildEnd`
+    disposes only the session its own environment's `buildStart` created, since a restart
+    without a config reload reuses the plugin and, in middleware mode, runs the new
+    `buildStart` before the old `buildEnd`. `vite.dev.test.ts` drives real middleware-mode
+    servers under Vite's `future` warnings.
   - Types live in the root `virtual-svelte-docinfo.d.ts`; its header explains why it
     can't move to `src/lib/`.
 
