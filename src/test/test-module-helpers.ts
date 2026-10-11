@@ -16,7 +16,12 @@ import {
 	type ModuleSourceOptions,
 	type SourceOptionsOverrides
 } from '#lib/source-config.ts';
-import { applyVirtualFiles, loadTsconfig, type VirtualFileEntry } from '#lib/typescript-program.ts';
+import {
+	applyVirtualFiles,
+	buildRootFileNames,
+	loadTsconfig,
+	type VirtualFileEntry
+} from '#lib/typescript-program.ts';
 import { analyze, type AnalyzeOptions } from '#lib/analyze.ts';
 import type { AnalyzeResultJson } from '#lib/analyze-core.ts';
 import { transformSvelteSource, type SvelteVirtualFile } from '#lib/svelte.ts';
@@ -150,7 +155,7 @@ export const createVirtualFileProgram = (
 	const host = ts.createCompilerHost(compilerOptions);
 	applyVirtualFiles(host, fileMap);
 
-	return ts.createProgram([...fileMap.keys()], compilerOptions, host);
+	return ts.createProgram(buildRootFileNames([], [...fileMap.keys()]), compilerOptions, host);
 };
 
 // Cached tsconfig parse + parsed ASTs for `createCachedAnalysisProgram`
@@ -186,7 +191,10 @@ export const createCachedAnalysisProgram = (
 	_cachedParsedConfig ??= loadTsconfig({ projectRoot: process.cwd() });
 
 	const { compilerOptions: options, rootFileNames: fileNames } = _cachedParsedConfig;
-	const rootNames = virtualFiles?.size ? [...fileNames, ...virtualFiles.keys()] : fileNames;
+	// the same roots `createAnalysisProgram` builds, Svelte shims included
+	const rootNames = virtualFiles?.size
+		? buildRootFileNames(fileNames, [...virtualFiles.keys()])
+		: fileNames;
 
 	const host = ts.createCompilerHost(options);
 	const uncachedGetSourceFile = host.getSourceFile.bind(host);

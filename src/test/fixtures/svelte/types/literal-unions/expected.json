@@ -53,7 +53,7 @@
 				},
 				{
 					"name": "prop3",
-					"type": "true | \"value\" | 1 | null",
+					"type": "true | 1 | \"value\" | null",
 					"typeInfo": {
 						"kind": "union",
 						"members": [
@@ -64,13 +64,13 @@
 							},
 							{
 								"kind": "literal",
-								"value": "value",
-								"text": "\"value\""
+								"value": 1,
+								"text": "1"
 							},
 							{
 								"kind": "literal",
-								"value": 1,
-								"text": "1"
+								"value": "value",
+								"text": "\"value\""
 							},
 							{
 								"kind": "intrinsic",

@@ -878,6 +878,17 @@ const buildTypeJson = (
 		// identity, and its own declaration carries the structure (`type Foo =
 		// {...}` nested surfaces as `{kind: 'reference', name: 'Foo'}`)
 		if (type.aliasSymbol && type.aliasSymbol.name !== options.skipAliasName) {
+			// TODO: svelte2tsx-generated aliases (`$$ComponentProps`, see
+			// `isSvelte2tsxInternal`) reach here through component types
+			// (`typeof Button`, `ComponentProps<typeof Button>`) and are dead lookup
+			// keys. They also mask a project alias over them: with object-typed
+			// props, `type P = ComponentProps<typeof Button>` documents as
+			// `$$ComponentProps` at every use, an annotated `p: P` included, and no
+			// `alias_lost` fires, while intersection-typed props recover (recovery
+			// runs before the intersection `alias` above). Treat a generated alias
+			// as nameless so both recovery channels and `alias_lost` see it, then
+			// expand what nothing recovers (needs an alias-expanding print, since
+			// `printType` prints the alias name back)
 			const aliasArgs = type.aliasTypeArguments;
 			if (aliasArgs?.length) {
 				return {

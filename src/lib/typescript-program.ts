@@ -2,7 +2,7 @@
  * TypeScript program and language-service creation.
  *
  * Two entry points sharing host configuration (tsconfig parsing, virtual file
- * plumbing, `.svelte` module resolution):
+ * plumbing, `.svelte` module resolution, svelte2tsx shim roots):
  *
  * - `createAnalysisProgram` — one-shot `ts.Program` from a `ts.CompilerHost`.
  *   Lower-level escape hatch for power users. Does not support incremental
@@ -19,11 +19,12 @@
  * @module
  */
 
+import { createRequire } from 'node:module';
 import { join, dirname } from 'node:path';
 import ts from 'typescript';
 
 import type { AnalysisLog } from './log.ts';
-import { SVELTE_VIRTUAL_SUFFIX } from './source.ts';
+import { SVELTE_VIRTUAL_SUFFIX, isSvelteVirtualPath } from './source.ts';
 import { type ModuleSourceOptions, getSourceRoot } from './source-config.ts';
 import { toPosixPath } from './paths.ts';
 import { compareStrings } from './postprocess.ts';
@@ -465,6 +466,110 @@ const createResolveModuleNameLiterals =
 		});
 
 /**
+ * svelte2tsx's ambient declarations for the code it generates, as file names
+ * in the package root. They're joined onto the directory of the package's main
+ * entry (the package root) rather than resolved as subpath specifiers, which an
+ * `exports` map that doesn't list them would block. A layout change shows up as
+ * the shim tests failing, with component types back to `any`.
+ *
+ * Every Svelte virtual calls helpers that only these declare — the component
+ * export is `__sveltets_2_fn_component($$render())`, beside
+ * `__sveltets_$$bindings`, `__sveltets_2_ensureSnippet`, and friends. Without
+ * them those names don't resolve, so each component's default export is `any`,
+ * and so is everything typed through one (`typeof Button`,
+ * `ComponentProps<typeof Button>['variant']`) in a `.svelte` or `.ts` module.
+ * Props extraction is unaffected either way: it reads the `$props()`
+ * annotation, not the component's type.
+ *
+ * Only the `-v4` shims, the set svelte2tsx emits against for Svelte 4 and up
+ * (`svelte.ts` enforces Svelte 5). The template-side `svelteHTML` namespace
+ * (`svelte-jsx-v4.d.ts`, or `svelte/svelte-html.d.ts`, which svelte-check
+ * roots in its place for Svelte 5) is deliberately left out: template
+ * expressions live as statements inside `$$render`'s body, so they never reach
+ * a documented type, and that file's `/// <reference lib="dom" />` would add
+ * the DOM lib to projects whose `lib` doesn't have it, changing what their
+ * own globals resolve to. The unresolved `svelteHTML` calls only produce
+ * checker errors in the virtuals, which analysis never reads.
+ */
+const SVELTE_SHIM_FILE_NAMES = ['svelte-shims-v4.d.ts'];
+
+let svelteShimPaths: ReadonlyArray<string> | undefined;
+
+/**
+ * The program roots svelte2tsx's shims add to a program over `paths`: the shim
+ * files when any path is a Svelte virtual, otherwise none, so TS-only programs
+ * keep exactly their tsconfig roots and globals.
+ *
+ * Callers put these first in the root list, ahead of the tsconfig roots.
+ *
+ * - **Resolution** — the `svelte2tsx` main entry, resolved from svelte-docinfo's
+ *   own location (the lookup `svelte.ts`'s `svelte2tsx` import makes), whose
+ *   directory is the package root holding the shims. So the shims always match
+ *   the copy that generated the virtuals; the helper signatures change in
+ *   lockstep with the emitted calls. Resolved once and cached, as POSIX paths.
+ * - **A project that also roots the shims** (a tsconfig `include`, or a
+ *   triple-slash reference) — the same file dedupes by path. A different copy
+ *   (another installed svelte2tsx) declares the same globals twice, and no
+ *   single copy wins: a duplicate type alias keeps its first declaration (ours,
+ *   rooted first), while duplicate functions merge into one overload set
+ *   whose resolution order doesn't follow root order. The duplicate-identifier
+ *   errors land in files analysis never reads, but where the two copies
+ *   disagree a component's type can mix them. svelte2tsx renames a helper (the
+ *   `__sveltets_2_` prefix) when its shape changes incompatibly, which keeps
+ *   that rare; it's not detected.
+ * - **Shim globals are project-visible** — beside the `__sveltets_` helpers,
+ *   the shims declare unprefixed global types (`Expand`, `KeysMatching`,
+ *   `SvelteStore`, and others). A project global of the same name collides,
+ *   and the shim's declaration wins, being rooted first, so a `.ts` module
+ *   typed through that global documents the shim's meaning.
+ * - **Never documented** — the files resolve under `node_modules`, so they're
+ *   external (`createIsExternalFile`), never `isSource`, and outside the alias
+ *   registry. As global scripts they never print as `typeof import("…")`, so
+ *   `normalizeModulePathsInTypes` never sees them.
+ * - **Order** — a fixed list, so the language service's root-list comparison
+ *   still reuses the program when nothing changed. Resolving the helpers can
+ *   move when the checker first creates a type, which reorders an origin-less
+ *   union printed elsewhere (see `compareStrings` on input order).
+ *
+ * @internal Shared by both program paths and the test-side program helpers;
+ *   not a stable API.
+ */
+export const getSvelteShimRoots = (paths: Iterable<string>): ReadonlyArray<string> => {
+	for (const path of paths) {
+		if (isSvelteVirtualPath(path)) {
+			if (!svelteShimPaths) {
+				const packageRoot = dirname(createRequire(import.meta.url).resolve('svelte2tsx'));
+				svelteShimPaths = SVELTE_SHIM_FILE_NAMES.map((n) => toPosixPath(join(packageRoot, n)));
+			}
+			return svelteShimPaths;
+		}
+	}
+	return [];
+};
+
+/**
+ * A program's root list: the Svelte shims for `extraRoots` (see
+ * `getSvelteShimRoots`), then `tsconfigRoots`, then `extraRoots`, deduped by
+ * path with first occurrence kept. Dedupe covers an extra root the tsconfig
+ * also roots, and a shim the tsconfig (or a caller) roots itself.
+ *
+ * Callers own the order of `extraRoots`; the language-service path passes its
+ * owned roots sorted, so the list is a function of the file set.
+ *
+ * @param tsconfigRoots - the tsconfig's root file names
+ * @param extraRoots - roots beyond the tsconfig's, virtual files included
+ * @returns a fresh array
+ * @internal Shared by both program paths and the test-side program helpers;
+ *   not a stable API.
+ */
+export const buildRootFileNames = (
+	tsconfigRoots: Iterable<string>,
+	extraRoots: ReadonlyArray<string>
+): Array<string> => [
+	...new Set([...getSvelteShimRoots(extraRoots), ...tsconfigRoots, ...extraRoots])
+];
+
+/**
  * Create TypeScript program for one-shot analysis.
  *
  * Use `createAnalysisLanguageService` instead when you need to analyze the
@@ -492,8 +597,8 @@ export const createAnalysisProgram = (
 		return ts.createProgram(rootFileNames, compilerOptions);
 	}
 
-	// Include virtual file paths alongside real files
-	const allRootFiles = [...rootFileNames, ...virtualFiles.keys()];
+	// virtual file paths alongside real files, Svelte shims first
+	const allRootFiles = buildRootFileNames(rootFileNames, [...virtualFiles.keys()]);
 
 	const host = ts.createCompilerHost(compilerOptions);
 	// Resolution keys off the copied snapshot, not the caller's map — same
@@ -612,10 +717,10 @@ export const createAnalysisLanguageService = (
 			// `declare global`, module augmentations, and interface merging.
 			// The LS compares root lists by content, so a stable sort keeps
 			// program reuse intact.
+			// Svelte shims lead (see `getSvelteShimRoots`), joining with the
+			// first owned virtual and leaving with the last.
 			if (ownedRoots.size === 0) return [...tsconfigRoots];
-			const combined = new Set(tsconfigRoots);
-			for (const path of [...ownedRoots].sort(compareStrings)) combined.add(path);
-			return [...combined];
+			return buildRootFileNames(tsconfigRoots, [...ownedRoots].sort(compareStrings));
 		},
 		getScriptVersion: (fileName) => {
 			const entry = owned.get(fileName);

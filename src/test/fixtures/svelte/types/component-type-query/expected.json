@@ -1,0 +1,156 @@
+{
+	"modules": [
+		{
+			"path": "TypesComponentTypeQuery/a.ts",
+			"declarations": [
+				{
+					"name": "a",
+					"kind": "variable",
+					"typeSignature": "Component<$$ComponentProps, {}, \"\">",
+					"sourceLine": 5,
+					"typeInfo": {
+						"kind": "reference",
+						"name": "Component",
+						"typeArgs": [
+							{
+								"kind": "reference",
+								"name": "$$ComponentProps"
+							},
+							{
+								"kind": "object",
+								"text": "{}"
+							},
+							{
+								"kind": "literal",
+								"value": "",
+								"text": "\"\""
+							}
+						]
+					}
+				},
+				{
+					"name": "A",
+					"kind": "type",
+					"typeSignature": "$$ComponentProps",
+					"sourceLine": 7,
+					"members": [
+						{
+							"name": "a",
+							"kind": "variable",
+							"typeSignature": "\"a\" | \"b\"",
+							"typeInfo": {
+								"kind": "union",
+								"members": [
+									{
+										"kind": "literal",
+										"value": "a",
+										"text": "\"a\""
+									},
+									{
+										"kind": "literal",
+										"value": "b",
+										"text": "\"b\""
+									}
+								]
+							}
+						}
+					]
+				},
+				{
+					"name": "B",
+					"kind": "type",
+					"typeSignature": "\"a\" | \"b\"",
+					"sourceLine": 9,
+					"typeInfo": {
+						"kind": "union",
+						"members": [
+							{
+								"kind": "literal",
+								"value": "a",
+								"text": "\"a\""
+							},
+							{
+								"kind": "literal",
+								"value": "b",
+								"text": "\"b\""
+							}
+						]
+					}
+				}
+			],
+			"dependencies": [
+				"TypesComponentTypeQuery/Other.svelte"
+			]
+		},
+		{
+			"path": "TypesComponentTypeQuery/Other.svelte",
+			"declarations": [
+				{
+					"name": "Other",
+					"kind": "component",
+					"sourceLine": 1,
+					"props": [
+						{
+							"name": "a",
+							"type": "\"a\" | \"b\"",
+							"typeInfo": {
+								"kind": "union",
+								"members": [
+									{
+										"kind": "literal",
+										"value": "a",
+										"text": "\"a\""
+									},
+									{
+										"kind": "literal",
+										"value": "b",
+										"text": "\"b\""
+									}
+								]
+							}
+						}
+					]
+				}
+			],
+			"dependents": [
+				"TypesComponentTypeQuery/a.ts",
+				"TypesComponentTypeQuery/TypesComponentTypeQuery.svelte"
+			]
+		},
+		{
+			"path": "TypesComponentTypeQuery/TypesComponentTypeQuery.svelte",
+			"declarations": [
+				{
+					"name": "TypesComponentTypeQuery",
+					"kind": "component",
+					"sourceLine": 1,
+					"props": [
+						{
+							"name": "prop",
+							"type": "\"a\" | \"b\"",
+							"typeInfo": {
+								"kind": "union",
+								"members": [
+									{
+										"kind": "literal",
+										"value": "a",
+										"text": "\"a\""
+									},
+									{
+										"kind": "literal",
+										"value": "b",
+										"text": "\"b\""
+									}
+								]
+							},
+							"optional": true
+						}
+					]
+				}
+			],
+			"dependencies": [
+				"TypesComponentTypeQuery/Other.svelte"
+			]
+		}
+	]
+}

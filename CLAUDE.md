@@ -98,6 +98,11 @@ points to the TSDoc that owns its policy; read it before changing behavior. User
     override makes JS-lang Svelte virtuals parse as JS.
   - Both hosts answer `directoryExists` from served files (`createOwnedDirIndex`), so an
     in-memory file in a directory absent from disk still resolves.
+  - A program with Svelte virtuals also roots svelte2tsx's `svelte-shims-v4.d.ts`
+    (`getSvelteShimRoots`), resolved from svelte-docinfo's own svelte2tsx. Without it every
+    component's type is `any`; TS-only programs root nothing extra. Component types print as
+    the checker sees them, svelte2tsx's generated names included
+    (`Component<$$ComponentProps, {}, "">`).
 - `typescript-extract-*.ts` — per-kind extractors, `@internal`, imported directly (no barrel):
   - `-shared.ts`
     - `ExtractContext`, built by `createExtractContext`: pass-constant state only —

@@ -168,10 +168,16 @@ export const SVELTE_COMPONENT_ALIAS_SUFFIX = '__SvelteComponent_';
 
 /**
  * Whether a symbol name is an internal svelte2tsx identifier — a generated
- * name that must not appear in documentation output: `$$ComponentProps`,
- * `$$render`, `__sveltets_Render`, and the synthesized component class/type
- * alias `<ComponentName>__SvelteComponent_`. Building block for
+ * name that never documents as a declaration: `$$ComponentProps`, `$$render`,
+ * `__sveltets_Render`, and the synthesized component class/type alias
+ * `<ComponentName>__SvelteComponent_`. Building block for
  * `isSvelte2tsxGeneratedExport`, which adds the `default` slot.
+ *
+ * Export filtering is the whole guarantee: type text can still carry these
+ * names, since component types print as the checker sees them
+ * (`Component<$$ComponentProps, {}, "">`, `__sveltets_2_IsomorphicComponent<…>`).
+ * See the TODO on the alias-reference branch in `typescript-extract-type-json.ts`
+ * for the `$$`-prefixed aliases.
  */
 export const isSvelte2tsxInternal = (name: string): boolean =>
 	name.startsWith('$$') ||

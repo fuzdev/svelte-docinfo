@@ -183,7 +183,9 @@ Where each behavior is locked. Unit and behavior-level mechanics live in
   `props/jsdoc-type`), legacy `export let` (`legacy-export-let` — zero props,
   HTML fallback doc, `legacy_props` warning)
 - Types: snippets, unions, tuples, literal unions, intersections with
-  `HTMLAttributes`, `SvelteHTMLElements` extension
+  `HTMLAttributes`, `SvelteHTMLElements` extension, types derived from a
+  component's own type (`typeof Other`, `ComponentProps<typeof Other>` from a
+  `.svelte` and a `.ts` module: `types/component-type-query`)
 - `externalTypes`:
   - `interface Props extends` a bag (`types/interface-extends-*`): single,
     generic, multiple, attribute-forwarding, through a local base, diamond,
