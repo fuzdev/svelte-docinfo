@@ -51,7 +51,13 @@
     "svelte": "^5.0.0",
     "svelte2tsx": "^0.7.30",
     "typescript": "^5.9.3 || ^6",
+    "vite": "^6 || ^7 || ^8",
     "zod": "^4"
+  },
+  "peerDependenciesMeta": {
+    "vite": {
+      "optional": true
+    }
   },
   "devDependencies": {
     "@fuzdev/blake3-wasm": "^0.2.0",

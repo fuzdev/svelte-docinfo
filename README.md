@@ -19,7 +19,7 @@ npm i -D svelte-docinfo
 ```
 
 Peer dependencies: `svelte` 5+, `svelte2tsx`, `typescript` 5.9+ or 6, and `zod` 4+
-(npm 7+ installs them automatically).
+(npm 7+ installs them automatically), plus an optional `vite` 6+ for the Vite plugin.
 
 - [Quick start](#quick-start)
 - [Vite plugin](#vite-plugin)

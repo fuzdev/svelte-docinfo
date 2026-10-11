@@ -564,6 +564,7 @@ fuz_ui and fuz_css consume `virtual:svelte-docinfo` directly: a hand-written
     for TS-only analysis.
   - `typescript` 5.9+ or 6, so consumers don't carry a second TS.
   - `zod` 4+, so schema types resolve to one instance.
+- **Peers** (optional): `vite` 6+, for the Vite plugin only (it uses `server.environments`).
 
 ## Testing
 
