@@ -1,4 +1,4 @@
-import{$ as e,A as t,G as n,J as r,M as i,P as a,X as o,Z as s,dt as c,ft as l,h as u,ot as d,st as f}from"./Dv5cY9UL.js";import{n as p}from"./xdGjbzzi.js";import{t as m}from"./DDITWWx4.js";import{t as h}from"./CfV_IJW7.js";import{t as g}from"./DQqnZpZk.js";import{t as _}from"./D2kiFNNN.js";import{n as v,r as y,t as b}from"./DBJcJiSF.js";var x=i(`<!> <p>Requires Vite 6 or later.</p> <ol><li><p>Add the plugin to <code>vite.config.ts</code>:</p> <!></li> <li><p>Add TypeScript support in your <code>app.d.ts</code>:</p> <!></li> <li><p>Import the virtual module anywhere in your app:</p> <!> <p>The shape is <!>, the same as the programmatic
+import{$ as e,A as t,G as n,J as r,M as i,P as a,X as o,Z as s,dt as c,ft as l,h as u,ot as d,st as f}from"./Dv5cY9UL.js";import{n as p}from"./xdGjbzzi.js";import{t as m}from"./DDITWWx4.js";import{t as h}from"./CfV_IJW7.js";import{t as g}from"./DQqnZpZk.js";import{t as _}from"./RCyso_65.js";import{n as v,r as y,t as b}from"./DBJcJiSF.js";var x=i(`<!> <p>Requires Vite 6 or later.</p> <ol><li><p>Add the plugin to <code>vite.config.ts</code>:</p> <!></li> <li><p>Add TypeScript support in your <code>app.d.ts</code>:</p> <!></li> <li><p>Import the virtual module anywhere in your app:</p> <!> <p>The shape is <!>, the same as the programmatic
 					API. See <!> for <code>diagnostics</code>.</p></li></ol> <p>If TypeScript reports <code>Cannot find module 'virtual:svelte-docinfo'</code>, check the <code>/// &lt;reference&gt;</code> line in <code>app.d.ts</code>.</p>`,1),S=i(`<!> <p>All options are optional; the minimal call discovers files from <code>package.json</code> exports, falling back to glob:</p> <!> <p>Every option, with its default:</p> <!> <p>The plugin runs the same pipeline as <!>: discover,
 			resolve dependencies, analyze. In dev, imports resolve through Vite's <code>resolveId</code>,
 			so Vite aliases apply; in builds, the TypeScript default resolver is used (it honors tsconfig <code>paths</code>). <code>hmrDebounceMs</code> only affects the dev watcher.</p> <p>Paths and patterns resolve against <code>projectRoot</code>. Absolute paths and patterns
@@ -54,16 +54,17 @@ import{$ as e,A as t,G as n,J as r,M as i,P as a,X as o,Z as s,dt as c,ft as l,h
   <span class="token_comment">// Resolve module dependency graph. Default: true.</span>
   resolveDependencies<span class="token_operator">:</span> <span class="token_boolean">true</span><span class="token_punctuation">,</span>
 
-  <span class="token_comment">// Dispatch on duplicate declaration names across modules.</span>
-  <span class="token_comment">// 'throw' | 'warn' | (duplicates, log) => void.</span>
-  <span class="token_comment">// Default: undefined (only the duplicate_declaration diagnostic).</span>
-  <span class="token_comment">// Set to 'throw' to fail fast on duplicates.</span>
-  onDuplicates<span class="token_operator">:</span> <span class="token_keyword">undefined</span><span class="token_punctuation">,</span>
-
   <span class="token_comment">// Partial overrides for default source options (SvelteKit src/lib layout).</span>
   <span class="token_comment">// Merged into createSourceOptions(projectRoot, sourceOptions).</span>
   sourceOptions<span class="token_operator">:</span> <span class="token_punctuation">{</span>sourcePaths<span class="token_operator">:</span> <span class="token_punctuation">[</span><span class="token_string">'src/lib'</span><span class="token_punctuation">]},</span>
 
   <span class="token_comment">// dev re-analysis debounce in ms. Default: 100.</span>
   hmrDebounceMs<span class="token_operator">:</span> <span class="token_number">100</span><span class="token_punctuation">,</span>
+
+  <span class="token_comment">// Opt-in check that names are unique across modules, for packages with a</span>
+  <span class="token_comment">// flat export namespace. Default: undefined (off).</span>
+  <span class="token_comment">// 'diagnostic' → emit duplicate_declaration diagnostics</span>
+  <span class="token_comment">// 'warn'       → also log them</span>
+  <span class="token_comment">// 'throw'      → also fail the build</span>
+  onDuplicates<span class="token_operator">:</span> <span class="token_keyword">undefined</span><span class="token_punctuation">,</span>
 <span class="token_punctuation">})</span>`});var f=e(d,2),p=e(o(f));h(p,{name:`analyzeFromFiles`}),c(7),l(f),c(2),t(n,i)},$$slots:{default:!0}});var D=e(E,2);v(D,{children:(n,r)=>{var i=C(),a=s(i);b(a,{text:`CLI vs Vite plugin`});var u=e(a,2),d=e(o(u));h(d,{name:`analyzeFromFiles`});var f=e(d,2);h(f,{name:`createAnalysisSession`});var p=e(f,2);m(p,{slug:`session`}),c(),l(u),t(n,i)},$$slots:{default:!0}});var O=e(D,2);v(O,{children:(n,r)=>{var i=w(),a=s(i);b(a,{text:`How it works`});var u=e(a,4),d=e(o(u),6),f=e(o(d),8);f.textContent=`{modules, diagnostics}`,l(d),c(2),l(u),c(2),t(n,i)},$$slots:{default:!0}}),t(n,i)},$$slots:{default:!0}}),d()}export{E as t};
