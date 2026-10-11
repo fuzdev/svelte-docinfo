@@ -175,7 +175,8 @@ Where each behavior is locked. Unit and behavior-level mechanics live in
 - Props: basic, optional, defaults (incl. `null`/`undefined`/complex),
   descriptions, `$bindable` variants, JSDoc tags, nullable, `typeInfo` and
   name recovery (`props/type-info*`), source order with redeclared bag props
-  (`props/source-order-redeclared`)
+  (`props/source-order-redeclared`), destructured external props admitted past
+  the filter, TS and JS (`props/destructured-external*`)
 - Component: JSDoc/`@component`, docComment precedence (`doccomment-*`), module
   comments (`module-comment*`), no props, template-only, generics,
   `acceptsChildren` (`children-*`, `no-children`), exported snippets

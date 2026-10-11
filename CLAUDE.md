@@ -298,9 +298,13 @@ support older ones. The workflow, from the svelte2tsx virtual through props, is 
   source.
 - **Props** come from `extractPropsViaChecker`, anchored on the `$props()` declaration's
   type:
-  - Emitted in source order. `representativeDeclaration` picks the component-file
+  - Local props are emitted in source order. `representativeDeclaration` picks the component-file
     declaration when a prop is redeclared over an external bag.
-  - `defaultValue` is verbatim source text.
+  - External-origin props are filtered (see `externalTypes`), except the names the
+    `$props()` destructuring binds: those are admitted with the external type and JSDoc
+    and follow the other props in destructuring order. The rest element, a name the type
+    lacks, and an index-signature-only name admit nothing.
+  - `defaultValue` is verbatim source text, keyed by prop name (`class: c = 'a'` → `class`).
 - **`acceptsChildren`** — true when a `Snippet`-typed `children` prop resolves, or when the
   template uses children.
 - **`docComment` precedence** — in-script JSDoc at or above `$props()` wins over the HTML
@@ -423,6 +427,8 @@ threw).
     written arguments, and import renames resolve to exported names.
   - So `interface Props extends HTMLButtonAttributes` and
     `type Props = HTMLButtonAttributes & {…}` record the same bag.
+  - Component props the `$props()` destructuring names are the one exception: they're
+    documented (`admitNames` on `filterDocumentedProperties`), and their bag stays listed.
   - Home: `typescript-extract-shared.ts`. Unit tests: `external-properties.test.ts`,
     `external-composition.test.ts`.
 - **Type-alias `members`** are enumerated only for object-like shapes

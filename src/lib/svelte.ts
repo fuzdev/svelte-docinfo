@@ -841,17 +841,39 @@ const assemblePropInfo = (
 interface PropsMetadata {
 	/** Props marked with `$bindable()`. */
 	bindableProps: Set<string>;
-	/** Default values from destructuring pattern. */
+	/** Default values from the destructuring pattern, keyed by prop name. */
 	propsDefaults: Map<string, string>;
+	/**
+	 * Prop names the `$props()` destructuring pattern binds, in pattern order:
+	 * every element but the `...rest` one, keyed by the prop name (`class` for
+	 * `class: className`), a nested pattern by its top-level name. Empty when
+	 * `$props()` isn't destructured.
+	 */
+	destructuredProps: Array<string>;
 	/** The `let {...} = $props()` declaration (first match), when present. */
 	propsDeclaration: ts.VariableDeclaration | undefined;
 }
 
 /**
+ * The prop name an object binding element reads — the property name when the
+ * element renames (`class: className`, `'aria-label': label`) or nests
+ * (`a: {b}`), else the bound identifier. `undefined` for the rest element and
+ * for computed names, which name no statically known prop.
+ */
+const bindingElementPropName = (element: ts.BindingElement): string | undefined => {
+	if (element.dotDotDotToken) return undefined;
+	const nameNode = element.propertyName ?? element.name;
+	if (ts.isIdentifier(nameNode) || ts.isStringLiteral(nameNode) || ts.isNumericLiteral(nameNode)) {
+		return nameNode.text;
+	}
+	return undefined;
+};
+
+/**
  * Extract all props-related metadata in a single AST traversal: bindables from
- * the `__sveltets_$$bindings(...)` call, defaults from the `$props()` binding
- * pattern, and the `$props()` declaration itself (the anchor
- * `extractPropsViaChecker` resolves the props type from).
+ * the `__sveltets_$$bindings(...)` call, the destructured names and defaults
+ * from the `$props()` binding pattern, and the `$props()` declaration itself
+ * (the anchor `extractPropsViaChecker` resolves the props type from).
  *
  * @param virtualSource - the svelte2tsx transformed TypeScript source
  * @returns combined metadata from single traversal
@@ -859,6 +881,7 @@ interface PropsMetadata {
 const extractPropsMetadata = (virtualSource: ts.SourceFile): PropsMetadata => {
 	const bindableProps: Set<string> = new Set();
 	const propsDefaults: Map<string, string> = new Map();
+	const destructuredProps: Array<string> = [];
 	let propsDeclaration: ts.VariableDeclaration | undefined;
 
 	function visit(node: ts.Node) {
@@ -875,47 +898,44 @@ const extractPropsMetadata = (virtualSource: ts.SourceFile): PropsMetadata => {
 			}
 		}
 
-		// Extract the declaration + defaults from $props() call
-		if (ts.isVariableDeclaration(node)) {
-			if (isPropsCall(node.initializer)) {
-				propsDeclaration ??= node;
+		// Extract the declaration, its destructured names, and defaults from the
+		// first $props() call (Svelte allows only one)
+		if (ts.isVariableDeclaration(node) && !propsDeclaration && isPropsCall(node.initializer)) {
+			propsDeclaration = node;
 
-				// Extract defaults from binding pattern
-				if (ts.isObjectBindingPattern(node.name)) {
-					for (const element of node.name.elements) {
-						if (ts.isBindingElement(element) && element.initializer) {
-							const propName = ts.isIdentifier(element.name) ? element.name.text : undefined;
-							if (!propName) continue;
+			if (ts.isObjectBindingPattern(node.name)) {
+				for (const element of node.name.elements) {
+					// keyed by the prop name, not the local binding, so a renamed
+					// prop's default lands on the prop (`class: c = 'a'` → `class`)
+					const propName = bindingElementPropName(element);
+					if (!propName) continue;
+					destructuredProps.push(propName);
+					if (!element.initializer) continue;
 
-							// Skip $bindable() with no args (no default), but extract argument if present
-							if (ts.isCallExpression(element.initializer)) {
-								const expr = element.initializer.expression;
-								if (ts.isIdentifier(expr) && expr.text === SVELTE2TSX_IDENTIFIERS.BINDABLE_RUNE) {
-									// Only extract if has argument: $bindable('value') → 'value'
-									if (element.initializer.arguments.length > 0) {
-										const arg = element.initializer.arguments[0]!;
-										// Skip $bindable(undefined) - same semantic as $bindable()
-										if (!(ts.isIdentifier(arg) && arg.text === 'undefined')) {
-											propsDefaults.set(propName, arg.getText());
-										}
-									}
-									// Skip $bindable() with no args
-									continue;
+					// Skip $bindable() with no args (no default), but extract argument if present
+					if (ts.isCallExpression(element.initializer)) {
+						const expr = element.initializer.expression;
+						if (ts.isIdentifier(expr) && expr.text === SVELTE2TSX_IDENTIFIERS.BINDABLE_RUNE) {
+							// Only extract if has argument: $bindable('value') → 'value'
+							if (element.initializer.arguments.length > 0) {
+								const arg = element.initializer.arguments[0]!;
+								// Skip $bindable(undefined) - same semantic as $bindable()
+								if (!(ts.isIdentifier(arg) && arg.text === 'undefined')) {
+									propsDefaults.set(propName, arg.getText());
 								}
 							}
-
-							// Skip explicit undefined (same semantic as no default)
-							if (
-								ts.isIdentifier(element.initializer) &&
-								element.initializer.text === 'undefined'
-							) {
-								continue;
-							}
-
-							// Regular default value
-							propsDefaults.set(propName, element.initializer.getText());
+							// Skip $bindable() with no args
+							continue;
 						}
 					}
+
+					// Skip explicit undefined (same semantic as no default)
+					if (ts.isIdentifier(element.initializer) && element.initializer.text === 'undefined') {
+						continue;
+					}
+
+					// Regular default value
+					propsDefaults.set(propName, element.initializer.getText());
 				}
 			}
 		}
@@ -924,7 +944,7 @@ const extractPropsMetadata = (virtualSource: ts.SourceFile): PropsMetadata => {
 	}
 
 	visit(virtualSource);
-	return { bindableProps, propsDefaults, propsDeclaration };
+	return { bindableProps, propsDefaults, destructuredProps, propsDeclaration };
 };
 
 // Snippet Detection
@@ -1179,11 +1199,20 @@ const extractPropsViaChecker = (
 	// No `hasExtractableProperties` gate here, unlike the type-alias path, so
 	// union prop types (`HTMLButtonAttributes | HTMLAnchorAttributes`) still get
 	// `externalTypes`.
-	const { properties, externalTypes } = filterDocumentedProperties(
+	//
+	// The exception is a prop the `$props()` destructuring names: binding it
+	// shows the component handles it (`type = 'text'` over
+	// `HTMLInputAttributes`), so it's documented like a local prop, with the
+	// external declaration's type and JSDoc and the destructuring's default.
+	// The rest element names nothing, and a name the props type lacks (a type
+	// error in the component) or matches only through an index signature has
+	// no property to admit, so neither invents a prop.
+	const { properties, admitted, externalTypes } = filterDocumentedProperties(
 		propsType,
 		propsTypeNode,
 		checker,
-		ctx.isExternalFile
+		ctx.isExternalFile,
+		new Set(metadata.destructuredProps)
 	);
 
 	// One pick rule for "which declaration represents this prop": the symbol's
@@ -1225,10 +1254,19 @@ const extractPropsViaChecker = (
 		if (declB) return 1;
 		return compareStrings(a.name, b.name);
 	});
+	// Admitted external props follow, in destructuring order. Their declaration
+	// position is in a package's `.d.ts`, which says nothing about the
+	// component, and sorting by it would group them by how the package path
+	// compares to the component's; the pattern is the only position the
+	// component itself gives them.
+	const destructuredOrder = new Map(metadata.destructuredProps.map((name, i) => [name, i]));
+	const admittedInOrder = admitted.sort(
+		(a, b) => destructuredOrder.get(a.name)! - destructuredOrder.get(b.name)!
+	);
 
 	const props: Array<ComponentPropJsonInput> = [];
 
-	for (const prop of sortedProperties) {
+	for (const prop of [...sortedProperties, ...admittedInOrder]) {
 		const propDecl = representativeDeclaration(prop);
 
 		// Check optionality via symbol flags (computed before type resolution

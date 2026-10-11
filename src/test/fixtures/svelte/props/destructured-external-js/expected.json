@@ -1,0 +1,71 @@
+{
+	"path": "PropsDestructuredExternalJs.svelte",
+	"declarations": [
+		{
+			"name": "PropsDestructuredExternalJs",
+			"kind": "component",
+			"sourceLine": 1,
+			"externalTypes": [
+				"HTMLButtonAttributes"
+			],
+			"props": [
+				{
+					"name": "prop1",
+					"type": "string",
+					"optional": true,
+					"defaultValue": "'a'"
+				},
+				{
+					"name": "type",
+					"type": "\"button\" | \"reset\" | \"submit\" | null",
+					"typeInfo": {
+						"kind": "union",
+						"members": [
+							{
+								"kind": "literal",
+								"value": "button",
+								"text": "\"button\""
+							},
+							{
+								"kind": "literal",
+								"value": "reset",
+								"text": "\"reset\""
+							},
+							{
+								"kind": "literal",
+								"value": "submit",
+								"text": "\"submit\""
+							},
+							{
+								"kind": "intrinsic",
+								"text": "null"
+							}
+						]
+					},
+					"optional": true,
+					"defaultValue": "'button'"
+				},
+				{
+					"name": "disabled",
+					"type": "boolean | null",
+					"typeInfo": {
+						"kind": "union",
+						"members": [
+							{
+								"kind": "intrinsic",
+								"text": "boolean"
+							},
+							{
+								"kind": "intrinsic",
+								"text": "null"
+							}
+						]
+					},
+					"optional": true
+				}
+			],
+			"acceptsChildren": true,
+			"lang": "js"
+		}
+	]
+}

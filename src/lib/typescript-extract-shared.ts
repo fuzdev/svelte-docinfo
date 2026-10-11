@@ -1452,16 +1452,36 @@ const resolveAnnotationTypeNode = (typeNode: ts.Node): ts.TypeNode | undefined =
  * inherited via `interface Props extends Bag` is labeled like an inline
  * `Bag & {…}` branch. Private properties are dropped silently: they are the
  * project's own code, with nothing to attribute.
+ *
+ * `admitNames` exempts named properties from the origin axis only: an
+ * external-origin property whose name is in the set lands in `admitted`
+ * instead of being dropped. Components pass the names their `$props()`
+ * destructuring binds, since naming a prop there shows the component handles
+ * it. Only named properties qualify: a name matching nothing but an index
+ * signature (`data-${string}`) has no property symbol to admit. Admission
+ * leaves `externalTypes` alone: the walk labels contributors by the written
+ * type, not by which of their properties survive, so a bag stays listed
+ * after some of its properties are admitted. It still contributes the rest,
+ * and it is where the admitted ones are declared.
  */
 export const filterDocumentedProperties = (
 	type: ts.Type,
 	typeNode: ts.Node,
 	checker: ts.TypeChecker,
-	isExternalFile: IsExternalFile
-): { properties: Array<ts.Symbol>; externalTypes: Array<string> } => {
-	const properties = type
-		.getProperties()
-		.filter((prop) => !isPrivateProperty(prop) && !isExternalProperty(prop, isExternalFile));
+	isExternalFile: IsExternalFile,
+	admitNames?: ReadonlySet<string>
+): {
+	properties: Array<ts.Symbol>;
+	admitted: Array<ts.Symbol>;
+	externalTypes: Array<string>;
+} => {
+	const properties: Array<ts.Symbol> = [];
+	const admitted: Array<ts.Symbol> = [];
+	for (const prop of type.getProperties()) {
+		if (isPrivateProperty(prop)) continue;
+		if (!isExternalProperty(prop, isExternalFile)) properties.push(prop);
+		else if (admitNames?.has(prop.name)) admitted.push(prop);
+	}
 
 	const externalTypes: Array<string> = [];
 	const annotation = resolveAnnotationTypeNode(typeNode);
@@ -1475,7 +1495,7 @@ export const filterDocumentedProperties = (
 		);
 	}
 
-	return { properties, externalTypes };
+	return { properties, admitted, externalTypes };
 };
 
 /**

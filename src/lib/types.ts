@@ -505,7 +505,10 @@ const docFields = {
  * and support for two-way binding via `$bindable` rune.
  */
 export const ComponentPropJson = z.strictObject({
-	/** Prop name as declared in the component's `$props()` type. */
+	/**
+	 * Prop name as declared in the component's `$props()` type — the prop's own
+	 * name, not the local binding a renamed destructuring element introduces.
+	 */
 	name: z.string(),
 	/** Resolved TypeScript type string. */
 	type: z.string(),
@@ -1032,7 +1035,9 @@ export const ComponentDeclarationJson = z.strictObject({
 	/**
 	 * External types whose properties are filtered out of `props` — the
 	 * attribute bags a component forwards, such as `HTMLButtonAttributes` or
-	 * `SvelteHTMLElements['button']`.
+	 * `SvelteHTMLElements['button']`. A bag stays listed when some of its
+	 * properties are documented anyway because the `$props()` destructuring
+	 * names them (see `props`).
 	 *
 	 * Covers every way props compose them: an intersection or union branch, a
 	 * bare or indexed-access annotation, and `interface Props extends Bag`
@@ -1056,6 +1061,16 @@ export const ComponentDeclarationJson = z.strictObject({
 	externalTypes: z.array(z.string()).default([]),
 	/**
 	 * Svelte component props, in source order.
+	 *
+	 * Properties an external type contributes are left out (`externalTypes`
+	 * names their bags), except the ones the `$props()` destructuring names:
+	 * `type` in `let {type = 'button', ...rest}: HTMLButtonAttributes = $props()`
+	 * is documented with the external declaration's type and JSDoc. Renamed
+	 * (`class: className`) and nested (`a: {b}`) elements name their prop;
+	 * the rest element names nothing, and a name the props type has only
+	 * through an index signature isn't admitted. Admitted props follow the
+	 * others, in destructuring order, since their declaration position is in
+	 * a package.
 	 */
 	props: z.array(ComponentPropJson).default([]),
 	/** Whether the component accepts children (explicit `children` prop, inherited, or implicit template usage). */

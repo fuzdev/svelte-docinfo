@@ -364,7 +364,9 @@
 			<TomeSectionHeader text="ComponentPropJson" />
 			<p>
 				Component declarations have a <code>props</code> array of
-				<DeclarationLink name="ComponentPropJson" /> entries, in source order:
+				<DeclarationLink name="ComponentPropJson" /> entries, in source order, followed by any props
+				an external type declares that the <code>$props()</code> destructuring names, in
+				destructuring order:
 			</p>
 			<ul>
 				<li><code>name</code>, <code>type</code>: prop name and TypeScript type</li>

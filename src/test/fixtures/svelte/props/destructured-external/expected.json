@@ -1,0 +1,266 @@
+{
+	"path": "PropsDestructuredExternal.svelte",
+	"declarations": [
+		{
+			"name": "PropsDestructuredExternal",
+			"kind": "component",
+			"sourceLine": 1,
+			"externalTypes": [
+				"Omit<HTMLInputAttributes, 'onchange'>"
+			],
+			"props": [
+				{
+					"name": "prop1",
+					"type": "string",
+					"optional": true,
+					"description": "Description 1",
+					"defaultValue": "''",
+					"bindable": true
+				},
+				{
+					"name": "disabled",
+					"type": "boolean",
+					"optional": true,
+					"description": "Description 2"
+				},
+				{
+					"name": "type",
+					"type": "HTMLInputTypeAttribute | null",
+					"typeInfo": {
+						"kind": "union",
+						"members": [
+							{
+								"kind": "union",
+								"alias": "HTMLInputTypeAttribute",
+								"members": [
+									{
+										"kind": "literal",
+										"value": "number",
+										"text": "\"number\""
+									},
+									{
+										"kind": "literal",
+										"value": "hidden",
+										"text": "\"hidden\""
+									},
+									{
+										"kind": "literal",
+										"value": "color",
+										"text": "\"color\""
+									},
+									{
+										"kind": "literal",
+										"value": "button",
+										"text": "\"button\""
+									},
+									{
+										"kind": "literal",
+										"value": "checkbox",
+										"text": "\"checkbox\""
+									},
+									{
+										"kind": "literal",
+										"value": "date",
+										"text": "\"date\""
+									},
+									{
+										"kind": "literal",
+										"value": "datetime-local",
+										"text": "\"datetime-local\""
+									},
+									{
+										"kind": "literal",
+										"value": "email",
+										"text": "\"email\""
+									},
+									{
+										"kind": "literal",
+										"value": "file",
+										"text": "\"file\""
+									},
+									{
+										"kind": "literal",
+										"value": "image",
+										"text": "\"image\""
+									},
+									{
+										"kind": "literal",
+										"value": "month",
+										"text": "\"month\""
+									},
+									{
+										"kind": "literal",
+										"value": "password",
+										"text": "\"password\""
+									},
+									{
+										"kind": "literal",
+										"value": "radio",
+										"text": "\"radio\""
+									},
+									{
+										"kind": "literal",
+										"value": "range",
+										"text": "\"range\""
+									},
+									{
+										"kind": "literal",
+										"value": "reset",
+										"text": "\"reset\""
+									},
+									{
+										"kind": "literal",
+										"value": "search",
+										"text": "\"search\""
+									},
+									{
+										"kind": "literal",
+										"value": "submit",
+										"text": "\"submit\""
+									},
+									{
+										"kind": "literal",
+										"value": "tel",
+										"text": "\"tel\""
+									},
+									{
+										"kind": "literal",
+										"value": "text",
+										"text": "\"text\""
+									},
+									{
+										"kind": "literal",
+										"value": "time",
+										"text": "\"time\""
+									},
+									{
+										"kind": "literal",
+										"value": "url",
+										"text": "\"url\""
+									},
+									{
+										"kind": "literal",
+										"value": "week",
+										"text": "\"week\""
+									},
+									{
+										"kind": "intersection",
+										"members": [
+											{
+												"kind": "intrinsic",
+												"text": "string"
+											},
+											{
+												"kind": "object",
+												"text": "{}"
+											}
+										]
+									}
+								]
+							},
+							{
+								"kind": "intrinsic",
+								"text": "null"
+							}
+						]
+					},
+					"optional": true,
+					"defaultValue": "'text'"
+				},
+				{
+					"name": "required",
+					"type": "boolean | null",
+					"typeInfo": {
+						"kind": "union",
+						"members": [
+							{
+								"kind": "intrinsic",
+								"text": "boolean"
+							},
+							{
+								"kind": "intrinsic",
+								"text": "null"
+							}
+						]
+					},
+					"optional": true
+				},
+				{
+					"name": "class",
+					"type": "ClassValue | null",
+					"typeInfo": {
+						"kind": "union",
+						"members": [
+							{
+								"kind": "union",
+								"alias": "ClassValue",
+								"members": [
+									{
+										"kind": "intrinsic",
+										"text": "string"
+									},
+									{
+										"kind": "reference",
+										"name": "ClassArray"
+									},
+									{
+										"kind": "reference",
+										"name": "ClassDictionary"
+									}
+								]
+							},
+							{
+								"kind": "intrinsic",
+								"text": "null"
+							}
+						]
+					},
+					"optional": true,
+					"defaultValue": "'a'"
+				},
+				{
+					"name": "title",
+					"type": "string | null",
+					"typeInfo": {
+						"kind": "union",
+						"members": [
+							{
+								"kind": "intrinsic",
+								"text": "string"
+							},
+							{
+								"kind": "intrinsic",
+								"text": "null"
+							}
+						]
+					},
+					"optional": true
+				},
+				{
+					"name": "oninput",
+					"type": "FormEventHandler<HTMLInputElement> | null",
+					"typeInfo": {
+						"kind": "union",
+						"members": [
+							{
+								"kind": "function",
+								"text": "FormEventHandler<HTMLInputElement>"
+							},
+							{
+								"kind": "intrinsic",
+								"text": "null"
+							}
+						]
+					},
+					"optional": true
+				},
+				{
+					"name": "children",
+					"type": "Snippet<[]>",
+					"optional": true
+				}
+			],
+			"acceptsChildren": true
+		}
+	]
+}
