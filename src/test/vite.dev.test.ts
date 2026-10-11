@@ -9,6 +9,7 @@
  * - Closing a middleware-mode server runs `buildEnd`, which disposes the session
  * - A change still pending when the server closes is dropped, not spun on
  * - A middleware-mode restart that reuses the plugin keeps the new server's session
+ * - A failed restart leaves the plugin on the old server, which Vite keeps running
  */
 
 import { test, assert, describe } from 'vitest';
@@ -17,6 +18,7 @@ import {
 	type HotPayload,
 	type InlineConfig,
 	type Logger,
+	type Plugin,
 	type ViteDevServer
 } from 'vite';
 import { writeFile } from 'node:fs/promises';
@@ -122,7 +124,8 @@ const withDevServer = async (
 						include: ['src/**/*.ts'],
 						hmrDebounceMs: 10,
 						...pluginOptions
-					})
+					}),
+					...(config?.plugins ?? [])
 				]
 			});
 			await fn(server, projectRoot);
@@ -297,6 +300,65 @@ describe('svelteDocinfo dev environments', () => {
 				await waitFor(() => sent.some((s) => isReload(s.payload)), 'the reload after restart');
 				assert.include(await loadVirtual(server, 'client'), 'changedExport');
 			});
+		},
+		TEST_TIMEOUT
+	);
+
+	test(
+		'a failed restart leaves the plugin on the old server',
+		async () => {
+			// Vite builds the new server before closing the old one; when building
+			// it fails, Vite logs the failure and keeps the old server running, so
+			// the plugin must keep resolving and reloading through the old one
+			const logs: CapturedLogs = { warnings: [], errors: [] };
+			let failConfigureServer = false;
+			// the server whose creation fails, held in an object so its type doesn't narrow to `null`
+			const failed: { server: ViteDevServer | null } = { server: null };
+			const failOnRestart: Plugin = {
+				name: 'fail-on-restart',
+				configureServer(s) {
+					if (!failConfigureServer) return;
+					failed.server = s;
+					throw new Error('configureServer failed on restart');
+				}
+			};
+			await withDevServer(
+				async (server, projectRoot) => {
+					assert.notInclude(await loadVirtual(server, 'client'), 'changedExport');
+					failConfigureServer = true;
+					await server.restart();
+					failConfigureServer = false;
+					assert.include(logs.errors, 'server restart failed', 'Vite logs the failure');
+
+					const sent = recordHotSends(server);
+					// edits the importer, so its dependency resolves again after the restart
+					const file = join(projectRoot, 'src/lib/a.ts');
+					await writeFile(
+						file,
+						"import { b } from './b.ts';\nexport const a = b + 1;\nexport const changedExport = 2;\n"
+					);
+
+					// the server that failed to be created still has the plugin's
+					// watcher listeners, and Vite never closes its watcher, but it was
+					// never adopted, so its events are dropped
+					assert(failed.server, 'the failing plugin saw the new server');
+					failed.server.watcher.emit('change', file);
+					await new Promise((r) => setTimeout(r, 500));
+					assert.deepEqual(sent, [], 'the failed server feeds nothing');
+
+					server.watcher.emit('change', file);
+					await waitFor(
+						() => sent.some((s) => isReload(s.payload)),
+						'the reload on the old server'
+					);
+
+					const code = await loadVirtual(server, 'client');
+					assert.include(code, 'changedExport', 'the old server serves the new output');
+					assert.include(code, '"dependencies":["lib/b.ts"]', 'the dependency still resolves');
+					assert.notInclude(code, 'resolver_failed');
+				},
+				{ customLogger: createCapturingLogger(logs), plugins: [failOnRestart] }
+			);
 		},
 		TEST_TIMEOUT
 	);

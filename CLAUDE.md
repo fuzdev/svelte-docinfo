@@ -198,8 +198,14 @@ points to the TSDoc that owns its policy; read it before changing behavior. User
     only the per-environment server APIs. Changed output invalidates the virtual module in
     every `server.environments` graph that loaded it and sends a `full-reload` on the client
     environment's hot channel. The module is data its importers derive state from, so it
-    has no HMR boundary. The dev resolver is the client `pluginContainer`. `buildEnd`
-    disposes only the session its own environment's `buildStart` created, since a restart
+    has no HMR boundary. The dev resolver is the client `pluginContainer`. The plugin
+    serves one server at a time: `configureServer` only records a server, and its client
+    environment's `buildStart` adopts it once it starts, so a restart that reuses the plugin
+    (inline plugins) and whose new server fails before it starts (in middleware mode it
+    starts during creation, so a failing client `buildStart` isn't covered) leaves the
+    plugin on the old one, which Vite keeps running. Watcher events from a server never
+    adopted are dropped. `buildEnd` disposes only the session its own environment's
+    `buildStart` created, since a restart
     without a config reload reuses the plugin and, in middleware mode, runs the new
     `buildStart` before the old `buildEnd`. `vite.dev.test.ts` drives real middleware-mode
     servers under Vite's `future` warnings.

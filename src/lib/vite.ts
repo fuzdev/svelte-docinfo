@@ -148,7 +148,30 @@ const svelteDocinfo = (options: VitePluginSvelteDocinfoOptions = {}): Plugin => 
 	let modulesJson = '[]';
 	let diagnosticsJson = '[]';
 	let cachedModuleCode: string | null = null;
+	// The dev server the session serves: the resolver, invalidation, and reloads
+	// go through it. `configureServer` only records a server as `pendingServer`,
+	// and its client environment's `buildStart` adopts it, which runs only once
+	// that server starts (in middleware mode during creation, otherwise at
+	// `listen`) or on the first resolve through its client environment, whichever
+	// comes first. A restart that reuses this plugin builds the new server before
+	// closing the old one, and when creating it fails (a later plugin's
+	// `configureServer` throws), Vite logs the failure and keeps the old server
+	// running. Adopting at `configureServer` would invalidate the dead server's
+	// graphs and reload its clients while the live server served stale output,
+	// and resolving through the dead server's plugin container would start it,
+	// re-running this `buildStart` against it. In middleware mode the new server
+	// starts during its creation, so a failure after that (another plugin's client
+	// `buildStart` throws) still leaves the plugin on the failed server: nothing
+	// signals it.
 	let server: ViteDevServer | null = null;
+	let pendingServer: ViteDevServer | null = null;
+	// Every server ever adopted. Watcher events from a server never adopted (one
+	// whose creation failed, or one not yet started) are dropped; an adopted
+	// server's watcher keeps feeding the session until Vite closes it, so a
+	// middleware-mode restart, which adopts the new server before closing the
+	// old one, loses no event in between (the event sequence check and the
+	// session's content check make an event both watchers report harmless).
+	const adoptedServers = new WeakSet<ViteDevServer>();
 	let session: AnalysisSession | null = null;
 	// the environment whose `buildStart` created `session`, so only its `buildEnd` disposes it
 	let sessionEnvironment: Environment | null = null;
@@ -316,8 +339,7 @@ const svelteDocinfo = (options: VitePluginSvelteDocinfoOptions = {}): Plugin => 
 	// HMR flush: drain pendingChanges via setFiles + query
 	const flushBatch = async (): Promise<void> => {
 		if (initialPromise) await initialPromise;
-		// Before the first `buildStart` (a server that hasn't listened yet) or
-		// after `buildEnd` there's no session to flush into: drop what's pending
+		// After `buildEnd` there's no session to flush into: drop what's pending
 		// (discovery reads disk), or `scheduleFlush`'s loop never drains and
 		// spins on microtasks
 		if (!session) {
@@ -428,8 +450,17 @@ const svelteDocinfo = (options: VitePluginSvelteDocinfoOptions = {}): Plugin => 
 		},
 
 		async buildStart() {
+			// In dev, the server whose client environment this is has started:
+			// adopt it (see `server`). Other environments' `buildStart` (under
+			// `perEnvironmentStartEndDuringDev`) adopt nothing.
+			if (pendingServer && this.environment === pendingServer.environments.client) {
+				server = pendingServer;
+				adoptedServers.add(pendingServer);
+				pendingServer = null;
+			}
+
 			// Choose resolver based on mode; create the session here (after
-			// configResolved set sourceOptions; for dev, after configureServer
+			// configResolved set sourceOptions; for dev, after the adoption above
 			// set `server`).
 			let sessionResolver: ImportResolver | undefined;
 			if (!resolveDependencies) {
@@ -501,9 +532,13 @@ const svelteDocinfo = (options: VitePluginSvelteDocinfoOptions = {}): Plugin => 
 			if (!devServer.environments) {
 				throw new Error('svelte-docinfo: the Vite plugin requires Vite 6 or later');
 			}
-			server = devServer;
+			// Adopted by this server's `buildStart` (see `server`); until then, and
+			// for good if its creation fails, its watcher's events are dropped
+			// (see `adoptedServers`)
+			pendingServer = devServer;
 
 			devServer.watcher.on('change', (rawFile) => {
+				if (!adoptedServers.has(devServer)) return;
 				// Watcher emits native-separator paths on Windows. Posixify at
 				// the boundary so eventSeqs/pendingChanges keys, isWatchedFile
 				// checks, and downstream session calls all share one canonical id.
@@ -537,6 +572,7 @@ const svelteDocinfo = (options: VitePluginSvelteDocinfoOptions = {}): Plugin => 
 			});
 
 			devServer.watcher.on('add', (rawFile) => {
+				if (!adoptedServers.has(devServer)) return;
 				const file = toPosixPath(rawFile);
 				if (!isWatchedFile(file)) return;
 				const seq = stampEvent(file);
@@ -552,6 +588,7 @@ const svelteDocinfo = (options: VitePluginSvelteDocinfoOptions = {}): Plugin => 
 			});
 
 			devServer.watcher.on('unlink', (rawFile) => {
+				if (!adoptedServers.has(devServer)) return;
 				const file = toPosixPath(rawFile);
 				// Use session.has() as the gate: paths outside source paths were
 				// never owned, so nothing to do.
