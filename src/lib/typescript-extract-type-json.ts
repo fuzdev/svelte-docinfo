@@ -697,8 +697,19 @@ const literalNode = (type: ts.Type, checker: ts.TypeChecker): TypeJson | undefin
 	// string/number literals cover enum members too — an enum member is a literal
 	// with the EnumLiteral flag, and `typeToString` prints its qualified name
 	// (`MyEnum.FOO`) while `value` stays the runtime value
-	if (type.isStringLiteral() || type.isNumberLiteral()) {
+	if (type.isStringLiteral()) {
 		return { kind: 'literal', value: type.value, text: printType(type, checker) };
+	}
+	if (type.isNumberLiteral()) {
+		// a non-finite number (`1e999`, or an enum member initialized to `1 / 0` or
+		// `0 / 0`) has no JSON form, so `value` carries its `String()` rendering,
+		// like a bigint; `text` can't stand in, since an enum member prints its name
+		const { value } = type;
+		return {
+			kind: 'literal',
+			value: Number.isFinite(value) ? value : String(value),
+			text: printType(type, checker)
+		};
 	}
 	if (type.flags & ts.TypeFlags.BooleanLiteral) {
 		const text = printType(type, checker);

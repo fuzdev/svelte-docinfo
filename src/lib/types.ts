@@ -306,6 +306,16 @@ export type TypeJson =
 	 * quoted for plain literals (`"'a'"` prints as `"a"`), the qualified member
 	 * name for enum literals (`MyEnum.FOO`), so `{value, text}` doubles as a
 	 * `{value, label}` pair for enum-aware consumers.
+	 *
+	 * A value JSON can't carry is a string instead, so every node serializes
+	 * and round-trips: a bigint literal is its printed text (`1n` has `value`
+	 * `"1n"`), and a non-finite number is its `String()` form — `"Infinity"`,
+	 * `"-Infinity"`, or `"NaN"`. Those arise from a literal that overflows
+	 * (`1e999`) and from enum members initialized to one (`A = 1 / 0`,
+	 * `B = 0 / 0`). A number `value` is therefore always finite. A string
+	 * `value` doesn't say on its own whether the literal is a string: for a
+	 * plain literal `text` does, quoted only for a string (`"Infinity"` against
+	 * `Infinity`), while an enum member's `text` is its name either way.
 	 */
 	| { kind: 'literal'; value: string | number | boolean; text: string }
 	/**

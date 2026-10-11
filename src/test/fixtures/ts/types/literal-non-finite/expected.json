@@ -1,0 +1,111 @@
+{
+	"path": "input.ts",
+	"declarations": [
+		{
+			"name": "A",
+			"kind": "type",
+			"docComment": "Number literal types with no finite value, beside a bigint and a finite one.",
+			"typeSignature": "A",
+			"sourceLine": 4,
+			"typeInfo": {
+				"kind": "union",
+				"alias": "A",
+				"members": [
+					{
+						"kind": "literal",
+						"value": "Infinity",
+						"text": "Infinity"
+					},
+					{
+						"kind": "literal",
+						"value": "-Infinity",
+						"text": "-Infinity"
+					},
+					{
+						"kind": "literal",
+						"value": "1n",
+						"text": "1n"
+					},
+					{
+						"kind": "literal",
+						"value": 1,
+						"text": "1"
+					}
+				]
+			}
+		},
+		{
+			"name": "B",
+			"kind": "enum",
+			"typeSignature": "B",
+			"sourceLine": 7,
+			"members": [
+				{
+					"name": "a",
+					"kind": "variable",
+					"typeSignature": "B.a"
+				},
+				{
+					"name": "b",
+					"kind": "variable",
+					"typeSignature": "B.b"
+				},
+				{
+					"name": "c",
+					"kind": "variable",
+					"typeSignature": "B.c"
+				},
+				{
+					"name": "d",
+					"kind": "variable",
+					"typeSignature": "B.d"
+				}
+			]
+		},
+		{
+			"name": "C",
+			"kind": "type",
+			"typeSignature": "C",
+			"sourceLine": 14,
+			"members": [
+				{
+					"name": "a",
+					"kind": "variable",
+					"typeSignature": "B",
+					"optional": true,
+					"typeInfo": {
+						"kind": "union",
+						"alias": "B",
+						"members": [
+							{
+								"kind": "literal",
+								"value": "Infinity",
+								"text": "B.a"
+							},
+							{
+								"kind": "literal",
+								"value": "-Infinity",
+								"text": "B.b"
+							},
+							{
+								"kind": "literal",
+								"value": "NaN",
+								"text": "B.c"
+							},
+							{
+								"kind": "literal",
+								"value": 1,
+								"text": "B.d"
+							}
+						]
+					}
+				},
+				{
+					"name": "b",
+					"kind": "variable",
+					"typeSignature": "Infinity"
+				}
+			]
+		}
+	]
+}

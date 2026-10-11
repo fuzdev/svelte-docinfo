@@ -13,7 +13,8 @@
  * members, the depth cap on recursive aliases, the terminal-text size budget,
  * and the `compactReplacer`
  * round-trip for a literal `false` value (the one data-bearing `false` on the
- * wire). Round-2 shape: callable classification (named generic instantiations
+ * wire) and for literal values JSON can't carry (bigints, non-finite numbers).
+ * Round-2 shape: callable classification (named generic instantiations
  * as references, bare/aliased signatures and hybrids staying `function`),
  * structured tuple elements (the empty-tuple carve-out included), and
  * `returnTypeInfo` on functions, members, and overloads. Round-3 shape:
@@ -659,6 +660,75 @@ export const fn4 = (d: D[]) => d;`
 		// data-bearing literal `value` — the keyed exemption under test
 		const restored = parseAnalyzeResult(JSON.parse(JSON.stringify(result, compactReplacer)));
 		assert.deepStrictEqual(findMember(restored.modules).typeInfo, expected);
+	});
+
+	test('literal values JSON cannot carry are strings and survive the wire round-trip', async () => {
+		// a non-finite number literal used to reach the boundary parse as a number
+		// and abort the whole analysis
+		const result = await analyzeTestProject({
+			'src/lib/a.ts': `export enum E {
+	A = 1 / 0,
+	B = -1 / 0,
+	C = 0 / 0,
+	D = 1
+}
+export type T = 1e999 | -1e999 | 1n | 2 | 'Infinity';
+export const a = 1e999;`
+		});
+		const findTypeInfo = (modules: Array<ModuleJson>, name: string) => {
+			const declaration = modules[0]?.declarations.find((d) => d.name === name);
+			assert(declaration?.kind === 'type', `expected a type declaration ${name}`);
+			return declaration.typeInfo;
+		};
+
+		const expected: TypeJson = {
+			kind: 'union',
+			alias: 'T',
+			members: [
+				{ kind: 'literal', value: 'Infinity', text: 'Infinity' },
+				{ kind: 'literal', value: '-Infinity', text: '-Infinity' },
+				{ kind: 'literal', value: '1n', text: '1n' },
+				{ kind: 'literal', value: 2, text: '2' },
+				{ kind: 'literal', value: 'Infinity', text: '"Infinity"' }
+			]
+		};
+		assert.deepStrictEqual(findTypeInfo(result.modules, 'T'), expected);
+
+		const variable = result.modules[0]?.declarations.find((d) => d.name === 'a');
+		assert(variable?.kind === 'variable', 'expected a variable declaration');
+		assert.strictEqual(variable.typeSignature, 'Infinity');
+
+		const json = JSON.stringify(result, compactReplacer);
+		assert.notInclude(json, 'null', 'a non-finite number would serialize as null');
+		const restored = parseAnalyzeResult(JSON.parse(json));
+		assert.deepStrictEqual(restored, result);
+	});
+
+	test('non-finite enum members carry the stringified value and the qualified name', async () => {
+		const module = await analyzeFile(
+			'src/lib/a.ts',
+			`enum E {
+	A = 1 / 0,
+	B = -1 / 0,
+	C = 0 / 0,
+	D = 1
+}
+export type O = { e?: E };`
+		);
+		const declaration = module.declarations[0];
+		assert(declaration?.kind === 'type', 'expected a type declaration');
+		const member = declaration.members[0];
+		assert(member?.kind === 'variable', 'expected a variable member');
+		assert.deepStrictEqual(member.typeInfo, {
+			kind: 'union',
+			alias: 'E',
+			members: [
+				{ kind: 'literal', value: 'Infinity', text: 'E.A' },
+				{ kind: 'literal', value: '-Infinity', text: 'E.B' },
+				{ kind: 'literal', value: 'NaN', text: 'E.C' },
+				{ kind: 'literal', value: 1, text: 'E.D' }
+			]
+		});
 	});
 
 	test('snippet parameter tuple elements carry typeInfo', async () => {
