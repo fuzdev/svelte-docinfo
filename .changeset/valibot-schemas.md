@@ -4,24 +4,22 @@
 
 feat: replace zod with valibot for the output schemas, and add parse helpers
 
-**Breaking.** The exported schemas (`AnalyzeResultJson`, `ModuleJson`, `DeclarationJson`, `MemberJson`, `TypeJson`, `Diagnostic`, and the rest of `types.ts` and `diagnostics.ts`) are now [valibot](https://valibot.dev/) schemas instead of zod ones. The `zod` peer dependency is gone, and `valibot` is a regular dependency, so there's nothing extra to install. The analysis output is unchanged: the same JSON, the same TypeScript types, the same defaults.
+**Breaking.** The exported schemas are now [valibot](https://valibot.dev/) schemas. `zod` is no longer a peer, and `valibot` is a regular dependency, so there's nothing to install. Analysis output is unchanged: the same JSON, TypeScript types, and defaults.
 
-Three helpers are the stable way to validate output and restore the defaults the compact wire form omits, whatever schema library sits behind them: `parseAnalyzeResult` for a whole result, `parseModuleJson` for one module, and `parseDiagnostics` for an array of diagnostics.
+Three new helpers validate output and restore the defaults the compact wire form omits, without your code touching the schema library: `parseAnalyzeResult` for a whole result, `parseModuleJson` for one module, and `parseDiagnostics` for an array of diagnostics.
 
 To migrate:
 
 - `AnalyzeResultJson.parse(x)` → `parseAnalyzeResult(x)`, `ModuleJson.parse(x)` → `parseModuleJson(x)`, and `z.array(Diagnostic).parse(x)` → `parseDiagnostics(x)`.
-- Any other schema has no methods now, so call valibot's functions on it: `DeclarationJson.parse(x)` → `v.parse(DeclarationJson, x)`, `.safeParse(x)` → `v.safeParse(Schema, x)`, with `import * as v from 'valibot'` and `valibot` in your own dependencies.
-- `AnalyzeResultJson` is a piped schema (an array guard, then the object), so it has no `.entries`; compose from `ModuleJson` and `Diagnostic` instead of picking from the envelope.
-- `z.infer<typeof ModuleJson>` → the exported `ModuleJson` type (or `v.InferOutput<typeof ModuleJson>`), and `z.input<…>` → `v.InferInput<…>`. `ModuleJsonInput` and `AnalyzeResultJsonWire` are still exported.
-- Composing a schema into your own (`z.array(ModuleJson)`, a field of a `z.object`) needs valibot on your side too, since the two libraries' schemas don't mix.
-- If nothing else in your project uses zod, you can drop it.
+- For any other schema, `Schema.parse(x)` → `v.parse(Schema, x)` and `.safeParse(x)` → `v.safeParse(Schema, x)`, with `valibot` in your own dependencies. Composing one into a schema of yours (`z.array(ModuleJson)`) needs valibot too, since zod and valibot schemas don't mix.
+- `z.infer<typeof ModuleJson>` → the exported `ModuleJson` type, and `z.input<…>` → `ModuleJsonInput` (or `v.InferOutput` and `v.InferInput`). The exported type names are unchanged.
+- `AnalyzeResultJson` has no `.entries`, because an array guard is piped ahead of the object. Build on `ModuleJson` and `Diagnostic` instead.
 
-Validation failures change shape. A parse helper throws valibot's `ValiError`, not a `ZodError`, so catch it as a plain `Error`, or check `instanceof v.ValiError` to read the structured `issues`. Its `message` lists every issue valibot reports, one per line, as `path: message`, with the dot path left out for an issue at the root value:
+A parse helper that fails throws valibot's `ValiError` in place of a `ZodError`, with the structured list on `.issues`. Its `message` has one line per issue, as `path: message`:
 
 ```
 modules.0.declarations.0.typeInfo: Invalid key: Expected never but received "typeInfo"
 modules.1.path: Invalid type: Expected string but received 1
 ```
 
-An object with several unknown keys reports only the first of them, where zod named them all, so fixing one can surface the next. Calling `v.parse` yourself throws valibot's own message instead, which carries only the first issue's text. The per-issue wording is valibot's and differs from zod's, so don't match on it.
+An object with several unknown keys reports only the first, where zod named them all. The wording is valibot's, so don't match on it.
