@@ -38,7 +38,11 @@
 				<strong>Thrown (fatal)</strong>: setup-level problems throw from the public entry points:
 			</p>
 			<ul>
-				<li>missing <code>tsconfig.json</code></li>
+				<li>
+					a missing or unloadable <code>tsconfig.json</code>: one that fails to parse, or an
+					<code>extends</code> target that doesn't exist, like SvelteKit's generated tsconfig before
+					<code>svelte-kit sync</code> has run
+				</li>
 				<li>Svelte older than 5</li>
 				<li>
 					invalid source options: empty <code>sourcePaths</code>, a path or absolute pattern outside

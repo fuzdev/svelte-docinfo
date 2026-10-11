@@ -132,4 +132,4 @@ npx svelte-docinfo | jq '.modules[].declarations[]
 | ---- | --------------- |
 | 0    | Success         |
 | 1    | Analysis errors |
-| 2    | CLI errors or a thrown analysis error (missing `tsconfig.json`, `--on-duplicates throw` collision) |
+| 2    | CLI errors or a thrown analysis error (missing or unloadable `tsconfig.json`, `--on-duplicates throw` collision) |

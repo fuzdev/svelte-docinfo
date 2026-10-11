@@ -79,7 +79,8 @@ export interface AnalyzeOptions {
  * @returns analyzed modules (sorted alphabetically) + concatenated ingest +
  *   query diagnostics
  * @throws Error if `sourceOptions` validation fails or `tsconfig.json` is
- *   missing at `projectRoot`. Also propagates `onDuplicates: 'throw'` errors.
+ *   missing at `projectRoot` or can't be loaded (see `loadTsconfig`). Also
+ *   propagates `onDuplicates: 'throw'` errors.
  */
 export const analyze = async (options: AnalyzeOptions): Promise<AnalyzeResultJson> => {
 	const session = createAnalysisSession({
@@ -179,9 +180,9 @@ export interface AnalyzeFromFilesOptions {
  * 3. **Analysis** — `session.query()`
  *
  * @returns analyzed modules + concatenated ingest, discovery, and query diagnostics
- * @throws Error on invalid or contradictory options, a missing `tsconfig.json`,
- *   failed strict `'exports'` discovery, or a collision under
- *   `onDuplicates: 'throw'`
+ * @throws Error on invalid or contradictory options, a missing or unloadable
+ *   `tsconfig.json` (see `loadTsconfig`), failed strict `'exports'` discovery,
+ *   or a collision under `onDuplicates: 'throw'`
  */
 export const analyzeFromFiles = async (
 	options: AnalyzeFromFilesOptions

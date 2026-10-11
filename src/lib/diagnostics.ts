@@ -16,7 +16,8 @@
  * A few conditions still throw from the public entry points. These are
  * configuration and environment errors, not per-file failures: invalid or
  * contradictory options (see the `@throws` on `createSourceOptions` and
- * `discoverSourceFiles`), a missing `tsconfig.json`, Svelte <5, and failed
+ * `discoverSourceFiles`), a missing or unloadable `tsconfig.json` (including
+ * an unresolved `extends`, see `loadTsconfig`), Svelte <5, and failed
  * strict `'exports'` discovery. `onDuplicates: 'throw'` also throws, by
  * request. Wrap the top-level call to handle these.
  *

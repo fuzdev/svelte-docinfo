@@ -105,7 +105,210 @@ describe('loadTsconfig', () => {
 			assert.ok(rootFileNames.some((f) => f.endsWith('src/lib/a.ts')));
 		});
 	});
+
+	describe('extends chain', () => {
+		test('inherits options from a resolved extends target', async () => {
+			await withTestProject(
+				{
+					'tsconfig.json': '{"extends": "./base.json"}',
+					'base.json': '{"compilerOptions": {"lib": ["ESNext", "DOM"]}}',
+					'src/lib/a.ts': 'export const a = 1;'
+				},
+				async (projectRoot) => {
+					const { compilerOptions } = loadTsconfig({ projectRoot });
+					assert.deepStrictEqual(compilerOptions.lib, ['lib.esnext.d.ts', 'lib.dom.d.ts']);
+				}
+			);
+		});
+
+		// SvelteKit writes `node_modules/$app/tsconfig.json` during `svelte-kit
+		// sync`; a clone that was installed but never synced lacks it, and
+		// TypeScript would drop the inherited `lib`/`types`/`rootDirs` silently.
+		test('missing `$app/tsconfig` throws with a `svelte-kit sync` hint', async () => {
+			await withTestProject(
+				{
+					'tsconfig.json': '{"extends": "$app/tsconfig"}',
+					'src/lib/a.ts': 'export const a = 1;'
+				},
+				async (projectRoot) => {
+					assert.throws(
+						() => loadTsconfig({ projectRoot }),
+						/tsconfig\.json: TS6053: File '\$app\/tsconfig' not found\..*svelte-kit sync/
+					);
+				}
+			);
+		});
+
+		test('missing `$app/tsconfig` deeper in the chain still throws with the hint', async () => {
+			await withTestProject(
+				{
+					'tsconfig.json': '{"extends": "./base.json"}',
+					'base.json': '{"extends": "$app/tsconfig"}',
+					'src/lib/a.ts': 'export const a = 1;'
+				},
+				async (projectRoot) => {
+					assert.throws(
+						() => loadTsconfig({ projectRoot }),
+						/TS6053 in .*base\.json: File '\$app\/tsconfig' not found\..*svelte-kit sync/
+					);
+				}
+			);
+		});
+
+		test('missing package extends throws without the SvelteKit hint', async () => {
+			await withTestProject(
+				{
+					'tsconfig.json': '{"extends": "@svelte-docinfo-test/missing/tsconfig.json"}',
+					'src/lib/a.ts': 'export const a = 1;'
+				},
+				async (projectRoot) => {
+					const error = assertThrows(() => loadTsconfig({ projectRoot }));
+					assert.include(error.message, join(projectRoot, 'tsconfig.json'));
+					assert.include(error.message, "'@svelte-docinfo-test/missing/tsconfig.json'");
+					assert.include(error.message, 'TS6053');
+					assert.notInclude(error.message, 'svelte-kit sync');
+				}
+			);
+		});
+
+		test('missing relative extends throws', async () => {
+			await withTestProject(
+				{
+					'tsconfig.json': '{"extends": "./missing-base.json"}',
+					'src/lib/a.ts': 'export const a = 1;'
+				},
+				async (projectRoot) => {
+					const error = assertThrows(() => loadTsconfig({ projectRoot }));
+					assert.include(error.message, 'TS5083');
+					assert.include(error.message, 'missing-base.json');
+					assert.notInclude(error.message, 'svelte-kit sync');
+				}
+			);
+		});
+
+		test('an extended config that is not valid JSON throws', async () => {
+			await withTestProject(
+				{
+					'tsconfig.json': '{"extends": "./base.json"}',
+					'base.json': '{"compilerOptions": {,}',
+					'src/lib/a.ts': 'export const a = 1;'
+				},
+				async (projectRoot) => {
+					assert.throws(() => loadTsconfig({ projectRoot }), /TS1\d{3} in .*base\.json/);
+				}
+			);
+		});
+
+		test('an extended config whose root is not an object throws (TS5092)', async () => {
+			await withTestProject(
+				{
+					'tsconfig.json': '{"extends": "./base.json"}',
+					'base.json': '[]',
+					'src/lib/a.ts': 'export const a = 1;'
+				},
+				async (projectRoot) => {
+					assert.throws(() => loadTsconfig({ projectRoot }), /TS5092/);
+				}
+			);
+		});
+
+		// SvelteKit 2 writes `.svelte-kit/tsconfig.json` during `svelte-kit sync`
+		test('missing `.svelte-kit/tsconfig.json` throws with a `svelte-kit sync` hint', async () => {
+			await withTestProject(
+				{
+					'tsconfig.json': '{"extends": "./.svelte-kit/tsconfig.json"}',
+					'src/lib/a.ts': 'export const a = 1;'
+				},
+				async (projectRoot) => {
+					assert.throws(
+						() => loadTsconfig({ projectRoot }),
+						/TS5083: .*\.svelte-kit\/tsconfig\.json.*svelte-kit sync/
+					);
+				}
+			);
+		});
+
+		// `ts.findConfigFile` walks up from `projectRoot`, so the config's
+		// relative paths must resolve from its own directory, not `projectRoot`
+		test('relative extends and include resolve from a config found by walking up', async () => {
+			await withTestProject(
+				{
+					'tsconfig.json': '{"extends": "./base.json", "include": ["src/**/*.ts"]}',
+					'base.json': '{"compilerOptions": {"lib": ["ESNext", "DOM"]}}',
+					'src/lib/a.ts': 'export const a = 1;'
+				},
+				async (root) => {
+					const { compilerOptions, rootFileNames } = loadTsconfig({
+						projectRoot: join(root, 'src')
+					});
+					assert.deepStrictEqual(compilerOptions.lib, ['lib.esnext.d.ts', 'lib.dom.d.ts']);
+					assert.ok(rootFileNames.some((f) => f.endsWith('src/lib/a.ts')));
+				}
+			);
+		});
+
+		test('relative extends resolves from a `tsconfig` option in a subdirectory', async () => {
+			await withTestProject(
+				{
+					'config/tsconfig.json': '{"extends": "./base.json"}',
+					'config/base.json': '{"compilerOptions": {"strict": true}}'
+				},
+				async (projectRoot) => {
+					const { compilerOptions } = loadTsconfig({
+						projectRoot,
+						tsconfig: 'config/tsconfig.json'
+					});
+					assert.strictEqual(compilerOptions.strict, true);
+				},
+				{ tsconfig: false }
+			);
+		});
+	});
+
+	test('a tsconfig that is not valid JSON throws', async () => {
+		await withTestProject(
+			{ 'tsconfig.json': '{"compilerOptions": {,}', 'src/lib/a.ts': 'export const a = 1;' },
+			async (projectRoot) => {
+				assert.throws(() => loadTsconfig({ projectRoot }), /Failed to read .*tsconfig\.json: TS1/);
+			}
+		);
+	});
+
+	test('an include that matches no files does not throw (TS18003)', async () => {
+		await withTestProject(
+			{ 'tsconfig.json': '{"include": ["nothing/**/*.ts"]}' },
+			async (projectRoot) => {
+				const { rootFileNames } = loadTsconfig({ projectRoot });
+				assert.deepStrictEqual(rootFileNames, []);
+			}
+		);
+	});
+
+	test('option-level diagnostics do not throw', async () => {
+		// TS5023 (unknown option) leaves the rest of the config applied; the
+		// project's own typecheck owns reporting it
+		await withTestProject(
+			{
+				'tsconfig.json': '{"compilerOptions": {"notARealOption": true, "strict": true}}',
+				'src/lib/a.ts': 'export const a = 1;'
+			},
+			async (projectRoot) => {
+				const { compilerOptions } = loadTsconfig({ projectRoot });
+				assert.strictEqual(compilerOptions.strict, true);
+			}
+		);
+	});
 });
+
+const assertThrows = (fn: () => unknown): Error => {
+	try {
+		fn();
+	} catch (error) {
+		assert(error instanceof Error);
+		return error;
+	}
+	assert.fail('expected a throw');
+};
 
 describe('createAnalysisLanguageService', () => {
 	describe('getCompilerOptions', () => {

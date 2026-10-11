@@ -87,6 +87,10 @@ points to the TSDoc that owns its policy; read it before changing behavior. User
   - Entry points: `createAnalysisProgram` (one-shot `ts.Program`),
     `createAnalysisLanguageService` (persistent LS: `setFile`/`deleteFile`/`getProgram`/…),
     and `loadTsconfig`.
+  - `loadTsconfig` parses relative to the config file's own directory (as `tsc -p` does),
+    and throws when the config or anything in its `extends` chain fails to load (SvelteKit's
+    generated tsconfig before `svelte-kit sync`), rather than analyzing with inherited
+    options silently dropped; option-level diagnostics and TS18003 don't throw.
   - `createIsExternalFile`/`createIsExternalPath` decide externality: outside the root,
     under `node_modules`, or a `.d.ts` outside the source root. That's a different axis from `isSource`
     — a gated local file isn't external.

@@ -42,7 +42,8 @@ export interface LoadTsconfigOptions {
 	 */
 	projectRoot?: string;
 	/**
-	 * Path to tsconfig.json (relative to `projectRoot`).
+	 * Path to tsconfig.json, relative to `projectRoot`; parent directories are
+	 * searched when it isn't there.
 	 * @default 'tsconfig.json'
 	 */
 	tsconfig?: string;
@@ -303,6 +304,40 @@ export interface AnalysisLanguageService {
 	dispose(): void;
 }
 
+// `ts.Diagnostics` isn't in the public typings, so the codes are literals
+const TS_FILE_NOT_FOUND = 6053; // `extends` bare specifier that doesn't resolve
+const TS_CANNOT_READ_FILE = 5083; // `extends` path that doesn't exist or can't be read
+const TS_ROOT_NOT_OBJECT = 5092; // `extends` target whose root value isn't an object
+
+/**
+ * Whether a `parseJsonConfigFileContent` diagnostic means a config in the
+ * `extends` chain didn't load: a target that's missing or unreadable, one that
+ * fails to parse (a syntax diagnostic, TypeScript's 1xxx range), or one whose
+ * root isn't an object.
+ */
+const isConfigChainDiagnostic = (diagnostic: ts.Diagnostic): boolean =>
+	diagnostic.category === ts.DiagnosticCategory.Error &&
+	(diagnostic.code === TS_FILE_NOT_FOUND ||
+		diagnostic.code === TS_CANNOT_READ_FILE ||
+		diagnostic.code === TS_ROOT_NOT_OBJECT ||
+		(diagnostic.code >= 1000 && diagnostic.code < 2000));
+
+/**
+ * Whether a chain diagnostic names a config SvelteKit generates during
+ * `svelte-kit sync`: `$app/tsconfig` (SvelteKit 3) or
+ * `.svelte-kit/tsconfig.json` (SvelteKit 2). Matched on the specifier alone,
+ * not the quotes around it, since localized messages may quote differently.
+ */
+const isSvelteKitGeneratedConfigMessage = (message: string): boolean =>
+	message.includes('$app/') || message.includes('.svelte-kit/tsconfig.json');
+
+const formatConfigDiagnostic = (diagnostic: ts.Diagnostic, configPath: string): string => {
+	const message = ts.flattenDiagnosticMessageText(diagnostic.messageText, ' ');
+	const file = diagnostic.file?.fileName;
+	const location = file && file !== configPath ? ` in ${file}` : '';
+	return `TS${diagnostic.code}${location}: ${message}`;
+};
+
 /**
  * Load and parse tsconfig.json into compiler options + initial file list.
  *
@@ -315,7 +350,26 @@ export interface AnalysisLanguageService {
  * Each call globs the tsconfig `include` to build `rootFileNames`; reuse the
  * result rather than calling per resolve.
  *
- * @throws Error if tsconfig.json (or the file named by `options.tsconfig`) is not found.
+ * The config is located like `tsc -p`: `options.tsconfig` relative to
+ * `projectRoot`, walking up through parent directories when it isn't there.
+ * Relative paths inside it (`extends`, `include`, path-valued options) resolve
+ * against the config file's own directory, not `projectRoot`.
+ *
+ * A config that can't be fully loaded throws rather than analyzing with a
+ * partial config: TypeScript reports a missing `extends` target as a
+ * diagnostic and carries on without the inherited options (`lib`, `types`,
+ * `paths`, `rootDirs`), so external types would silently degrade to `any`.
+ * SvelteKit's generated config is the common case (`$app/tsconfig`, or
+ * `.svelte-kit/tsconfig.json` before SvelteKit 3) — it exists only after
+ * `svelte-kit sync`. Option-level diagnostics (an unknown option, a bad
+ * value) and an `include` matching no files don't throw: TypeScript still
+ * applies the rest of the config, and the project's own typecheck reports
+ * them.
+ *
+ * @throws Error if tsconfig.json (or the file named by `options.tsconfig`) is
+ *   not found or fails to parse, or a config in its `extends` chain is missing
+ *   or fails to parse. A missing SvelteKit-generated target adds a hint to run
+ *   `svelte-kit sync`.
  */
 export const loadTsconfig = (
 	options?: LoadTsconfigOptions,
@@ -326,13 +380,39 @@ export const loadTsconfig = (
 
 	const configPath = ts.findConfigFile(projectRoot, ts.sys.fileExists, tsconfigName);
 	if (!configPath) {
-		throw new Error(`No ${tsconfigName} found in ${projectRoot}`);
+		throw new Error(`No ${tsconfigName} found in ${projectRoot} or its parent directories`);
 	}
 
 	log?.info(`using ${configPath}`);
 
 	const configFile = ts.readConfigFile(configPath, ts.sys.readFile);
-	const parsedConfig = ts.parseJsonConfigFileContent(configFile.config, ts.sys, projectRoot);
+	if (configFile.error) {
+		throw new Error(
+			`Failed to read ${configPath}: ${formatConfigDiagnostic(configFile.error, configPath)}`
+		);
+	}
+	// base path = the config's own dir (as `tsc -p` does), so relative
+	// `extends`/`include` still resolve when the config was found by walking up
+	// or `options.tsconfig` names a file in a subdirectory
+	const parsedConfig = ts.parseJsonConfigFileContent(
+		configFile.config,
+		ts.sys,
+		dirname(configPath),
+		undefined,
+		configPath
+	);
+
+	const chainErrors = parsedConfig.errors.filter(isConfigChainDiagnostic);
+	if (chainErrors.length > 0) {
+		const messages = chainErrors.map((d) => formatConfigDiagnostic(d, configPath));
+		// the diagnostic text names the unresolved target, e.g. `File '$app/tsconfig' not found.`
+		const hint = messages.some(isSvelteKitGeneratedConfigMessage)
+			? ' SvelteKit generates its tsconfig: run `svelte-kit sync` (or `gro sync`) first.'
+			: '';
+		throw new Error(
+			`Failed to load the extends chain of ${configPath}: ${messages.join(' ')}${hint}`
+		);
+	}
 
 	const compilerOptions = options?.compilerOptions
 		? { ...parsedConfig.options, ...options.compilerOptions }
@@ -394,7 +474,7 @@ const createResolveModuleNameLiterals =
  * @param options - configuration options for program creation
  * @param log - optional logger for info messages
  * @returns the TypeScript program
- * @throws Error if tsconfig.json is not found
+ * @throws Error if the tsconfig can't be loaded (see `loadTsconfig`)
  *
  * @example
  * ```ts
@@ -436,7 +516,7 @@ export const createAnalysisProgram = (
  * @param options - configuration options
  * @param log - optional logger for info messages
  * @returns the language service handle
- * @throws Error if tsconfig.json is not found
+ * @throws Error if the tsconfig can't be loaded (see `loadTsconfig`)
  *
  * @example
  * ```ts

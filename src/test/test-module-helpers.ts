@@ -16,7 +16,7 @@ import {
 	type ModuleSourceOptions,
 	type SourceOptionsOverrides
 } from '#lib/source-config.ts';
-import { applyVirtualFiles, type VirtualFileEntry } from '#lib/typescript-program.ts';
+import { applyVirtualFiles, loadTsconfig, type VirtualFileEntry } from '#lib/typescript-program.ts';
 import { analyze } from '#lib/analyze.ts';
 import type { AnalyzeResultJson } from '#lib/analyze-core.ts';
 import { transformSvelteSource, type SvelteVirtualFile } from '#lib/svelte.ts';
@@ -151,10 +151,10 @@ export const createVirtualFileProgram = (
 
 // Cached tsconfig parse + parsed ASTs for `createCachedAnalysisProgram`
 
-let _cachedParsedConfig: { options: ts.CompilerOptions; fileNames: Array<string> } | undefined;
+let _cachedParsedConfig: ReturnType<typeof loadTsconfig> | undefined;
 /**
  * Parsed-AST cache keyed by file name. Safe because every program shares the
- * single `_cachedParsedConfig.options` object and repo files don't change
+ * single `_cachedParsedConfig.compilerOptions` object and repo files don't change
  * mid-run — the same reuse a language service gets from its document
  * registry. Virtuals are served by `applyVirtualFiles` layered above the
  * caching wrapper, so they never enter the cache.
@@ -177,15 +177,11 @@ const _sourceFileCache = new Map<string, ts.SourceFile>();
 export const createCachedAnalysisProgram = (
 	virtualFiles?: Map<string, VirtualFileEntry>
 ): ts.Program => {
-	if (!_cachedParsedConfig) {
-		const projectRoot = process.cwd();
-		const configPath = ts.findConfigFile(projectRoot, ts.sys.fileExists, 'tsconfig.json');
-		if (!configPath) throw new Error('No tsconfig.json found');
-		const configFile = ts.readConfigFile(configPath, ts.sys.readFile);
-		_cachedParsedConfig = ts.parseJsonConfigFileContent(configFile.config, ts.sys, projectRoot);
-	}
+	// the same parse the analysis paths use, so an unloadable `extends` chain
+	// throws here too instead of silently checking without the inherited options
+	_cachedParsedConfig ??= loadTsconfig({ projectRoot: process.cwd() });
 
-	const { options, fileNames } = _cachedParsedConfig;
+	const { compilerOptions: options, rootFileNames: fileNames } = _cachedParsedConfig;
 	const rootNames = virtualFiles?.size ? [...fileNames, ...virtualFiles.keys()] : fileNames;
 
 	const host = ts.createCompilerHost(options);

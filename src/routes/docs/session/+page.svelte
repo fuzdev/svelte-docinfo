@@ -55,8 +55,9 @@ const session = createAnalysisSession({
 		<p>
 			The tsconfig (the <code>tsconfig</code> option, or the project's) is parsed once, at
 			construction. <code>compilerOptions</code> merge over it per key, and the type checker and
-			default resolver both see the merged result. The tsconfig file is still required, and later
-			edits to it aren't picked up; create a new session.
+			default resolver both see the merged result. The tsconfig file is still required, its whole
+			<code>extends</code> chain must load, and later edits to it aren't picked up; create a new
+			session.
 		</p>
 	</TomeSection>
 

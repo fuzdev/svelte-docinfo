@@ -286,7 +286,7 @@ All CLI options:
 The [Vite plugin](#vite-plugin)'s source-scope notes apply here too: explicit `--include` patterns widen the source scope (module paths become relative to the widened root, and a pattern with no base scopes the whole project root and logs an info line); `node_modules` and dot-directories below a source dir are always excluded regardless of `--exclude`; absolute paths and patterns inside the project root are accepted, and out-of-root ones fail loudly.
 
 Exit codes: 0 (success), 1 (analysis errors), 2 (CLI errors or a thrown analysis error, like a
-missing `tsconfig.json` or an `--on-duplicates throw` collision).
+missing or unloadable `tsconfig.json` or an `--on-duplicates throw` collision).
 
 See [examples/cli/](examples/cli/README.md) for more usage patterns.
 

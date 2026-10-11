@@ -169,7 +169,7 @@ npx svelte-docinfo | jq -r '.modules[].declarations[].name'  # list all exported
 			</p>
 			<p>
 				Exit codes: <strong>0</strong> success, <strong>1</strong> analysis errors,
-				<strong>2</strong> CLI errors or a thrown analysis error (missing
+				<strong>2</strong> CLI errors or a thrown analysis error (a missing or unloadable
 				<code>tsconfig.json</code>, an <code>--on-duplicates throw</code> collision, strict exports
 				discovery failing).
 			</p>
