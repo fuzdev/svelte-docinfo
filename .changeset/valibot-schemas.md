@@ -11,15 +11,15 @@ Three new helpers validate output and restore the defaults the compact wire form
 To migrate:
 
 - `AnalyzeResultJson.parse(x)` → `parseAnalyzeResult(x)`, `ModuleJson.parse(x)` → `parseModuleJson(x)`, and `z.array(Diagnostic).parse(x)` → `parseDiagnostics(x)`.
-- For any other schema, `Schema.parse(x)` → `v.parse(Schema, x)` and `.safeParse(x)` → `v.safeParse(Schema, x)`, with `valibot` in your own dependencies. `v.parse` throws valibot's own message (the first issue, no path); only the three helpers produce the summary below. Composing one into a schema of yours (`z.array(ModuleJson)`) needs valibot too, since zod and valibot schemas don't mix.
-- `z.infer<typeof ModuleJson>` → the exported `ModuleJson` type, and `z.input<…>` → `ModuleJsonInput` from `svelte-docinfo/types.js`, where the `*Input` types live (or `v.InferOutput` and `v.InferInput`). The exported type names are unchanged.
+- Any other schema: `Schema.parse(x)` → `v.parse(Schema, x)` and `.safeParse(x)` → `v.safeParse(Schema, x)`. That needs `valibot` in your own dependencies, as does composing a schema into one of yours, since zod and valibot schemas don't mix.
+- Types: `z.infer<typeof ModuleJson>` → the `ModuleJson` type, and `z.input<…>` → `ModuleJsonInput` from `svelte-docinfo/types.js`. The type names are unchanged.
 - `AnalyzeResultJson` has no `.entries`, because an array guard is piped ahead of the object. Build on `ModuleJson` and `Diagnostic` instead.
 
-A parse helper that fails throws valibot's `ValiError` in place of a `ZodError`, with the structured list on `.issues`. Catch it with `error instanceof Error`, or `v.isValiError(error)` if valibot is among your dependencies. Its `message` has one line per issue, as `path: message`:
+A parse helper that fails throws valibot's `ValiError` in place of a `ZodError`, with the structured list on `.issues`. Catch it with `error instanceof Error`, or `v.isValiError(error)` if you depend on valibot. Its `message` has one line per issue, as `path: message`:
 
 ```
 modules.0.declarations.0.typeInfo: Invalid key: Expected never but received "typeInfo"
 modules.1.path: Invalid type: Expected string but received 1
 ```
 
-An object with several unknown keys reports only the first, where zod named them all. The wording is valibot's, so don't match on it.
+An object with several unknown keys reports only the first, where zod named them all. `v.parse` called directly throws valibot's own message instead: the first issue, with no path. The wording is valibot's, so don't match on it.
