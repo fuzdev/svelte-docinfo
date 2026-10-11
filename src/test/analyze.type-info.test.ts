@@ -663,8 +663,8 @@ export const fn4 = (d: D[]) => d;`
 	});
 
 	test('literal values JSON cannot carry are strings and survive the wire round-trip', async () => {
-		// a non-finite number literal used to reach the boundary parse as a number
-		// and abort the whole analysis
+		// a non-finite number has no JSON form, so as a number it would fail the
+		// boundary parse
 		const result = await analyzeTestProject({
 			'src/lib/a.ts': `export enum E {
 	A = 1 / 0,

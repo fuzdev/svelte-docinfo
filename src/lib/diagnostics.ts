@@ -592,8 +592,9 @@ const DiagnosticArray = v.array(Diagnostic);
  * @returns the validated diagnostics
  * @throws Error when `value` doesn't match the schema; the message lists the
  *   reported issues, one per line, as `path: message` (`0.kind: Invalid type: …`), the dot
- *   path omitted for an issue at the root. The class is the schema library's, so
- *   catch it as a plain `Error`
+ *   path omitted for an issue at the root. The class is the schema library's
+ *   (valibot's `ValiError`, the structured list on `issues`), so catch it as a
+ *   plain `Error` unless you depend on valibot
  */
 export const parseDiagnostics = (value: unknown): Array<Diagnostic> =>
 	parseWithSummary(DiagnosticArray, value);

@@ -43,8 +43,8 @@
 			<p>
 				<code>diagnostics</code> is covered in <TomeLink slug="diagnostics" />. The CLI emits
 				<a href="#Compact-JSON-and-absent-as-false">compact JSON</a>, so an empty project prints
-				<code>{`{}`}</code>; parse it through <DeclarationLink name="AnalyzeResultJson" /> to
-				restore the defaults.
+				<code>{`{}`}</code>; parse it with <DeclarationLink name="parseAnalyzeResult" /> to restore
+				the defaults.
 			</p>
 		</TomeSection>
 
@@ -225,6 +225,13 @@
 					<code>intrinsic</code>, <code>literal</code>, <code>reference</code>, <code>array</code>,
 					<code>tuple</code>, <code>union</code>, <code>intersection</code>, <code>function</code>,
 					<code>object</code>, and <code>other</code>.
+				</p>
+				<p>
+					A literal's <code>value</code> is the runtime value, except where JSON can't carry it: a
+					bigint literal is its printed text (<code>"1n"</code>), and a non-finite number is
+					<code>"Infinity"</code>, <code>"-Infinity"</code>, or <code>"NaN"</code>. A number
+					<code>value</code> is always finite, and a string <code>value</code> doesn't on its own
+					mean a string literal: a plain literal's <code>text</code> is quoted only for a string.
 				</p>
 				<p>
 					Object literal and function types stay terminal <code>text</code>. Anything callable is a

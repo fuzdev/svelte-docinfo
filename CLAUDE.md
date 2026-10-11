@@ -32,6 +32,7 @@ points to the TSDoc that owns its policy; read it before changing behavior. User
     declaration's right-hand side for a non-generic aliased union, else the site annotation,
     validated and falling back to the checker's order; nullish members sink last.
     `true | false` collapses to `boolean`; the optional-widening `undefined` is dropped.
+    A literal `value` JSON can't carry (a bigint, a non-finite number) is a string.
     Named generic instantiations (`Snippet<[a: string]>`) are `reference` nodes with
     `typeArgs`; every other callable is `function`. Object literals and functions stay
     terminal `text` (1000-char budget). Depth is capped at 5, degrading to `{kind: 'other'}`.
@@ -602,7 +603,8 @@ fuz_ui and fuz_css consume `virtual:svelte-docinfo` directly: a hand-written
   - `typescript` 5.9+ or 6, so consumers don't carry a second TS.
 - **Peers** (optional): `vite` 6+, for the Vite plugin only (it uses `server.environments`).
 - **Not a dependency**: `zod`. Nothing under `src` imports it, and a test in
-  `types.test.ts` guards that, since it still resolves locally as a peer of dev dependencies such as `@fuzdev/gro`.
+  `types.test.ts` guards that, since it still resolves locally as a peer of dev
+  dependencies such as `@fuzdev/gro`.
   Tests and fixtures that need a real schema library to analyze use `valibot`.
 
 ## Testing

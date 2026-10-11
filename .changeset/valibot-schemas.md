@@ -11,11 +11,11 @@ Three new helpers validate output and restore the defaults the compact wire form
 To migrate:
 
 - `AnalyzeResultJson.parse(x)` → `parseAnalyzeResult(x)`, `ModuleJson.parse(x)` → `parseModuleJson(x)`, and `z.array(Diagnostic).parse(x)` → `parseDiagnostics(x)`.
-- For any other schema, `Schema.parse(x)` → `v.parse(Schema, x)` and `.safeParse(x)` → `v.safeParse(Schema, x)`, with `valibot` in your own dependencies. Composing one into a schema of yours (`z.array(ModuleJson)`) needs valibot too, since zod and valibot schemas don't mix.
-- `z.infer<typeof ModuleJson>` → the exported `ModuleJson` type, and `z.input<…>` → `ModuleJsonInput` (or `v.InferOutput` and `v.InferInput`). The exported type names are unchanged.
+- For any other schema, `Schema.parse(x)` → `v.parse(Schema, x)` and `.safeParse(x)` → `v.safeParse(Schema, x)`, with `valibot` in your own dependencies. `v.parse` throws valibot's own message (the first issue, no path); only the three helpers produce the summary below. Composing one into a schema of yours (`z.array(ModuleJson)`) needs valibot too, since zod and valibot schemas don't mix.
+- `z.infer<typeof ModuleJson>` → the exported `ModuleJson` type, and `z.input<…>` → `ModuleJsonInput` from `svelte-docinfo/types.js`, where the `*Input` types live (or `v.InferOutput` and `v.InferInput`). The exported type names are unchanged.
 - `AnalyzeResultJson` has no `.entries`, because an array guard is piped ahead of the object. Build on `ModuleJson` and `Diagnostic` instead.
 
-A parse helper that fails throws valibot's `ValiError` in place of a `ZodError`, with the structured list on `.issues`. Its `message` has one line per issue, as `path: message`:
+A parse helper that fails throws valibot's `ValiError` in place of a `ZodError`, with the structured list on `.issues`. Catch it with `error instanceof Error`, or `v.isValiError(error)` if valibot is among your dependencies. Its `message` has one line per issue, as `path: message`:
 
 ```
 modules.0.declarations.0.typeInfo: Invalid key: Expected never but received "typeInfo"

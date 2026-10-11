@@ -166,7 +166,10 @@ const AnalyzeResultJsonEntries = v.strictObject({
 // without the guard an empty array would parse as an empty result (a
 // plausible slip: passing a `modules` array where the envelope belongs).
 // Every other object schema has a required key an array can't carry.
-interface AnalyzeResultJsonEntriesInput extends Named<
+// The input interface is exported so a consumer's emitted declarations can
+// name the envelope's input type.
+/** @nodocs */
+export interface AnalyzeResultJsonEntriesInput extends Named<
 	v.InferInput<typeof AnalyzeResultJsonEntries>
 > {}
 const AnalyzeResultJsonImpl = v.pipe(
@@ -220,8 +223,9 @@ export type AnalyzeResultJson = v.InferOutput<typeof AnalyzeResultJson>;
  * @throws Error when `value` doesn't match the schema; the message lists the
  *   reported issues, one per line, as `path: message`
  *   (`modules.0.declarations.1.kind: Invalid type: …`), the dot path omitted for an
- *   issue at the root. The class is the schema library's, so catch it as a plain
- *   `Error`
+ *   issue at the root. The class is the schema library's (valibot's `ValiError`, the
+ *   structured list on `issues`), so catch it as a plain `Error` unless you
+ *   depend on valibot
  *
  * @example
  * ```ts

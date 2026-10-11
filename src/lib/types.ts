@@ -1473,6 +1473,7 @@ export type ModuleJsonInput = v.InferInput<typeof ModuleJson>;
  * @throws Error when `value` doesn't match the schema; the message lists the
  *   reported issues, one per line, as `path: message` (`declarations.1.kind: Invalid type: …`),
  *   the dot path omitted for an issue at the root. The class is the schema
- *   library's, so catch it as a plain `Error`
+ *   library's (valibot's `ValiError`, the structured list on `issues`), so catch it
+ *   as a plain `Error` unless you depend on valibot
  */
 export const parseModuleJson = (value: unknown): ModuleJson => parseWithSummary(ModuleJson, value);

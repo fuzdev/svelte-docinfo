@@ -334,9 +334,9 @@ for (const d of byKind(diagnostics, 'misplaced_tag')) {
 			<TomeSectionHeader text="Consuming diagnostics" />
 			<p>
 				The <TomeLink slug="cli">CLI</TomeLink> includes <code>diagnostics</code> in its JSON
-				output, omitted when empty (parse through <DeclarationLink name="AnalyzeResultJson" /> to
-				restore <code>[]</code>). Progress messages go to stderr; structured diagnostics appear only
-				in the JSON:
+				output, omitted when empty (<DeclarationLink name="parseAnalyzeResult" /> restores
+				<code>[]</code>). Progress messages go to stderr; structured diagnostics appear only in the
+				JSON:
 			</p>
 			<Code
 				lang="bash"

@@ -1,7 +1,7 @@
 import { test, assert } from 'vitest';
 import ts from 'typescript';
 import { fileURLToPath } from 'node:url';
-import { join } from 'node:path';
+import { basename, join } from 'node:path';
 
 import * as types from '#lib/types.ts';
 import * as diagnostics from '#lib/diagnostics.ts';
@@ -45,6 +45,13 @@ import { isKind } from './__dist_types__/declaration-helpers.js';
 export const ComposedModules = v.array(ModuleJson);
 export const ComposedResult = v.strictObject({ result: AnalyzeResultJson, at: v.string() });
 
+// inferred positions over a schema's input type and a pipe item: the emitted
+// declarations must be able to name them
+export const inputOf = <T extends v.GenericSchema>(_schema: T) => (x: unknown) => x as v.InferInput<T>;
+export const resultInput = inputOf(AnalyzeResultJson);
+export const moduleInput = inputOf(ModuleJson);
+export const resultGuard = AnalyzeResultJson.pipe[0];
+
 export const consume = async (): Promise<number> => {
 	let r1: AnalyzeResultJson = await analyze({ sourceFiles: [], sourceOptions: createSourceOptions('/') });
 	r1 = parseAnalyzeResult({});
@@ -75,6 +82,9 @@ const SCHEMA_MODULES: Record<string, Record<string, unknown>> = {
 	diagnostics,
 	'analyze-core': analyzeCore
 };
+
+// `schema.ts` references valibot for the shared helpers and exports no schema
+const SCHEMA_HELPERS_MODULE = 'schema';
 
 // Ceiling on the schema modules' combined declaration text, in characters.
 // The TS2589 check only bites once most schemas have lost their names, and
@@ -147,6 +157,16 @@ test('emitted declarations typecheck for a consumer', { timeout: 120_000 }, () =
 		assert.ok(text, `expected ${module}.d.ts`);
 		schemaDeclarationsSize += text.length;
 	}
+
+	// a schema exported from any other module would escape every check here
+	const valibotModules = [...emitted]
+		.filter(([fileName, text]) => fileName.endsWith('.d.ts') && /['"]valibot['"]/.test(text))
+		.map(([fileName]) => basename(fileName, '.d.ts'))
+		.sort();
+	assert.deepStrictEqual(
+		valibotModules,
+		[...Object.keys(SCHEMA_MODULES), SCHEMA_HELPERS_MODULE].sort()
+	);
 	assert.isBelow(schemaDeclarationsSize, SCHEMA_DECLARATIONS_BUDGET);
 
 	// no exported schema's declared type writes out an object structure:

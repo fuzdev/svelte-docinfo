@@ -63,9 +63,9 @@ const MAX_TYPE_JSON_DEPTH = 5;
  * The budget exists because a type whose alias TypeScript dropped prints its
  * full structure: an alias whose right-hand side is an indexed access or
  * conditional (`z.infer<typeof S>`, valibot's `InferOutput`) carries no
- * `aliasSymbol`, so the checker expands it everywhere. Measured on Zod-typed
- * source, 23 such nodes held 60% of all terminal text, one of
- * them 25,699 chars — against a 320-char flat sibling. Nodes under the budget
+ * `aliasSymbol`, so the checker expands it everywhere. A few such nodes can hold
+ * most of a project's terminal text, each far longer than its flat sibling. Nodes
+ * under the budget
  * are unaffected, which is the great majority: the band this preserves
  * (160–1000 chars) is what opting out of the checker's ~160-char default was
  * for in the first place.
