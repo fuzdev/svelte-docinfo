@@ -112,10 +112,7 @@ const withLinkedProject = async (
 	});
 };
 
-const toSourceFiles = (
-	projectRoot: string,
-	files: Record<string, string>
-): Array<SourceFileInfo> =>
+const toSourceFiles = (projectRoot: string, files: Record<string, string>): Array<SourceFileInfo> =>
 	Object.entries(files).map(([path, content]) => ({ id: join(projectRoot, path), content }));
 
 /** Whether a root is one of the shim files, by name (the path is the realpath). */
