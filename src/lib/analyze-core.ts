@@ -13,8 +13,9 @@
  * - `analyzeModule` — the per-module dispatcher for non-Svelte files (TS / CSS /
  *   JSON; Svelte needs `analyzeSvelteModule`). `@internal`; exposed for tests
  *   and power users via the subpath.
- * - `AnalyzeResultJson` / `AnalyzeResultJsonWire` / `OnDuplicates` — shared
- *   types surfaced through the main barrel directly from this module.
+ * - `AnalyzeResultJson` / `parseAnalyzeResult` / `AnalyzeResultJsonWire` /
+ *   `OnDuplicates` — the envelope schema, its parse helper, and shared types,
+ *   surfaced through the main barrel directly from this module.
  * - `finalizeDiagnostics` — the diagnostic boundary passes (virtual position
  *   remap, then path normalization) in their required order; the one call for
  *   callers assembling modules themselves.
@@ -35,9 +36,10 @@
 
 import { relative } from 'node:path';
 import ts from 'typescript';
-import { z } from 'zod';
+import * as v from 'valibot';
 
-import { ModuleJson, type ModuleJsonInput } from './types.ts';
+import { ModuleJson, parseModuleJson, type ModuleJsonInput } from './types.ts';
+import { parseWithSummary, type Named } from './schema.ts';
 import type { ModuleAnalysis } from './declaration-build.ts';
 import { Diagnostic } from './diagnostics.ts';
 import type { AnalysisLog } from './log.ts';
@@ -155,6 +157,30 @@ const dispatchOnDuplicates = (
 
 // Result types
 
+// named through an interface for declaration emit, as in `types.ts`
+const AnalyzeResultJsonEntries = v.strictObject({
+	modules: v.optional(v.array(ModuleJson), () => []),
+	diagnostics: v.optional(v.array(Diagnostic), () => [])
+});
+// Both keys are optional, and `v.strictObject` takes any non-null object, so
+// without the guard an empty array would parse as an empty result (a
+// plausible slip: passing a `modules` array where the envelope belongs).
+// Every other object schema has a required key an array can't carry.
+// The input interface is exported so a consumer's emitted declarations can
+// name the envelope's input type.
+/** @nodocs */
+export interface AnalyzeResultJsonEntriesInput extends Named<
+	v.InferInput<typeof AnalyzeResultJsonEntries>
+> {}
+const AnalyzeResultJsonImpl = v.pipe(
+	v.custom<AnalyzeResultJsonEntriesInput>(
+		(input) => !Array.isArray(input),
+		'Invalid type: Expected Object but received Array'
+	),
+	AnalyzeResultJsonEntries
+);
+/** @nodocs */
+export interface AnalyzeResultJsonSchema extends Named<typeof AnalyzeResultJsonImpl> {}
 /**
  * Result of `analyze`, `analyzeFromFiles`, and `AnalysisSession.query`.
  *
@@ -164,49 +190,72 @@ const dispatchOnDuplicates = (
  *
  * ## Schema-validated round-trip
  *
- * The envelope is a Zod schema (`AnalyzeResultJson`) — both fields default to
- * `[]`, so `JSON.stringify(result, compactReplacer)` strips empty arrays on
- * the wire and `AnalyzeResultJson.parse(JSON.parse(json))` restores them.
- * Consumers programmatically ingesting analysis JSON should parse through the
- * schema to get defaults restored; raw-JSON consumers (e.g., `jq`) treat
+ * The envelope is a valibot schema (`AnalyzeResultJson`) — both fields default
+ * to `[]`, so `JSON.stringify(result, compactReplacer)` strips empty arrays on
+ * the wire and `parseAnalyzeResult(JSON.parse(json))` restores them.
+ * Consumers programmatically ingesting analysis JSON should parse through
+ * `parseAnalyzeResult` to get defaults restored; raw-JSON consumers (e.g., `jq`) treat
  * missing keys as null-equivalent (`jq '.diagnostics | length'` returns `0`
  * on `{}`) and don't need the parse step.
  *
  * Construction sites (one-shot wrappers, `session.query`) hand back hand-built
- * objects without re-running `.parse()` — the inner `modules` and
- * `diagnostics` arrays are already Zod-validated upstream, and the envelope
+ * objects without re-parsing — the inner `modules` and `diagnostics` arrays
+ * are already schema-validated upstream, and the envelope
  * schema is the type contract, not a validation gate.
  *
  * See `AnalyzeResultJsonWire` for the serialized input-side shape published on
  * `virtual:svelte-docinfo`.
  */
-export const AnalyzeResultJson = z.strictObject({
-	modules: z.array(ModuleJson).default([]),
-	diagnostics: z.array(Diagnostic).default([])
-});
-export type AnalyzeResultJson = z.infer<typeof AnalyzeResultJson>;
+export const AnalyzeResultJson: AnalyzeResultJsonSchema = AnalyzeResultJsonImpl;
+export type AnalyzeResultJson = v.InferOutput<typeof AnalyzeResultJson>;
+
+/**
+ * Validate an analysis result, restoring the defaults the wire form omits.
+ *
+ * The stable way to consume serialized output (the CLI's JSON, a file written
+ * with `compactReplacer`, `virtual:svelte-docinfo`'s data), independent of the
+ * schema library behind `AnalyzeResultJson`: empty arrays and `false`
+ * booleans that `compactReplacer` stripped come back, and anything that
+ * doesn't match the schema throws.
+ *
+ * @param value - an analysis result, typically from `JSON.parse`
+ * @returns the validated result with every default present
+ * @throws Error when `value` doesn't match the schema; the message lists the
+ *   reported issues, one per line, as `path: message`
+ *   (`modules.0.declarations.1.kind: Invalid type: …`), the dot path omitted for an
+ *   issue at the root. The class is the schema library's (valibot's `ValiError`, the
+ *   structured list on `issues`), so catch it as a plain `Error` unless you
+ *   depend on valibot
+ *
+ * @example
+ * ```ts
+ * const result = parseAnalyzeResult(JSON.parse(await readFile('docinfo.json', 'utf8')));
+ * ```
+ */
+export const parseAnalyzeResult = (value: unknown): AnalyzeResultJson =>
+	parseWithSummary(AnalyzeResultJson, value);
 
 /**
  * Serialized wire shape of an analysis result, as published by the Vite plugin
  * on `virtual:svelte-docinfo` — the input-side counterpart to
- * `AnalyzeResultJson` (the validated output of `.parse()`).
+ * `AnalyzeResultJson` (the validated output of `parseAnalyzeResult`).
  *
  * The two fields are deliberately asymmetric:
  *
- * - `modules` is `ModuleJsonInput` (the `z.input` of `ModuleJson`) because the
- *   plugin runs it through `compactReplacer`, which strips `.default([])`
- *   arrays and `.default(false)` booleans. Default-bearing fields therefore
- *   arrive `undefined`.
+ * - `modules` is `ModuleJsonInput` (the `v.InferInput` of `ModuleJson`)
+ *   because the plugin runs it through `compactReplacer`, which strips
+ *   defaulted empty arrays and `false` booleans. Default-bearing fields
+ *   therefore arrive `undefined`.
  * - `diagnostics` is the output `Diagnostic` — the plugin serializes it
  *   without the replacer, and `Diagnostic` has no defaults to strip, so the
  *   array is always present and the shape matches runtime exactly.
  *
- * Consumers restore defaults by parsing through `AnalyzeResultJson`.
+ * Consumers restore defaults with `parseAnalyzeResult`.
  *
  * Note this describes the Vite virtual module specifically. The CLI runs the
  * whole envelope through `compactReplacer`, so its JSON may additionally omit
  * an empty `diagnostics` array — CLI consumers should parse through
- * `AnalyzeResultJson` rather than assume this shape.
+ * `parseAnalyzeResult` rather than assume this shape.
  */
 export interface AnalyzeResultJsonWire {
 	modules: Array<ModuleJsonInput>;
@@ -242,7 +291,7 @@ const toModuleJson = (raw: ModuleAnalysis): ModuleJson => {
 				compareStrings(a.specifier, b.specifier) ||
 				(a.sourceLine ?? 0) - (b.sourceLine ?? 0)
 		);
-	return ModuleJson.parse({
+	return parseModuleJson({
 		path: raw.path,
 		declarations: filtered,
 		dependencies: raw.dependencies,
@@ -523,7 +572,7 @@ export const analyzeCore = (inputs: AnalyzeCoreInputs): AnalyzeResultJson => {
 			const componentName = getComponentName(modulePath);
 			const { dependencies, dependents } = extractDependencies(sourceFile, sourceOptions);
 			pushModule(
-				ModuleJson.parse({
+				parseModuleJson({
 					path: modulePath,
 					declarations: [],
 					dependencies,

@@ -12,7 +12,7 @@ const { modules } = await analyzeFromFiles({
 	projectRoot: dir
 });
 
-// compactReplacer strips Zod defaults (empty arrays, false) for compact output.
+// compactReplacer strips schema defaults (empty arrays, false) for compact output.
 await writeFile(
 	join(dir, 'output-simple.json'),
 	JSON.stringify({ modules }, compactReplacer, '\t')

@@ -241,7 +241,7 @@ export const normalizeJson = (obj: any): any => {
 		const normalized: any = {};
 		for (const [key, value] of Object.entries(obj)) {
 			if (value === undefined) continue;
-			if (value === false) continue; // Strip boolean defaults (restored by Zod .default(false))
+			if (value === false) continue; // Strip boolean defaults (restored by the schema)
 			if (Array.isArray(value) && value.length === 0) continue;
 			normalized[key] = normalizeJson(value);
 		}

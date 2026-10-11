@@ -18,8 +18,8 @@ in the [npm package](https://www.npmjs.com/package/svelte-docinfo).
 npm i -D svelte-docinfo
 ```
 
-Peer dependencies: `svelte` 5+, `svelte2tsx`, `typescript` 5.9+ or 6, and `zod` 4+
-(npm 7+ installs them automatically), plus an optional `vite` 6+ for the Vite plugin.
+Peer dependencies: `svelte` 5+, `svelte2tsx`, and `typescript` 5.9+ or 6 (npm 7+
+installs them automatically), plus an optional `vite` 6+ for the Vite plugin.
 
 - [Quick start](#quick-start)
 - [Vite plugin](#vite-plugin)
@@ -186,6 +186,19 @@ All three produce the same JSON shape:
 }
 ```
 
+Defaulted fields are left out of the JSON: empty arrays and `false` flags. To restore them
+and validate the shape, parse it with `parseAnalyzeResult` (`parseModuleJson` for one module,
+`parseDiagnostics` for diagnostics alone):
+
+```ts
+import { parseAnalyzeResult } from 'svelte-docinfo';
+
+const { modules, diagnostics } = parseAnalyzeResult(JSON.parse(json));
+```
+
+The parse helpers are the stable entry point. The schemas behind them (`AnalyzeResultJson`,
+`ModuleJson`, `DeclarationJson`, …) are exported too, as [valibot](https://valibot.dev/) schemas.
+
 The [extraction demo](https://svelte-docinfo.fuz.dev/demo/extraction) has more examples,
 and see the docs for the complete [output format](https://svelte-docinfo.fuz.dev/docs/output-format).
 You may also want to browse the [test fixtures](https://github.com/fuzdev/svelte-docinfo/tree/main/src/test/fixtures).
@@ -334,7 +347,7 @@ See the [API docs](https://svelte-docinfo.fuz.dev/docs/api) for the full referen
 - **Full type resolution**: infers complex types without manual annotations, including generics, imported types, and inferred return types
 - **Structured types**: an optional `typeInfo` tree (`TypeJson`) beside the flat type strings on props, parameters, return types (`returnTypeInfo`, overloads included), members, and variable/type declarations — union and intersection members (alias names kept), reference type arguments, and array/tuple elements, so a union alias documents more than its own name. Absent wherever the flat string already says everything; `typeJsonToTokens`/`typeJsonToText` render it
 - **TSDoc/JSDoc parsing**: the common doc tags (`@param`, `@returns`, `@throws`, `@example`, `@deprecated`, `@internal`, `@see`, `@since`, `@default`) plus `@nodocs`, `@mutates`, and `@module` for file-level comments; divergent spellings parse as synonyms (`@return`, `@defaultValue`). `@internal` marks unstable API (`internalMessage`) but stays documented — `@nodocs` is the exclusion. Dotted `@param obj.prop` tags fill `propertyDescriptions`, and inline `{@link}` survives in extracted text
-- **Alias-lost name recovery**: TypeScript drops the name of an alias over an indexed access or conditional (`type Foo = z.infer<typeof S>`) and expands its structure at every use. `typeInfo` recovers it as `{kind: 'reference', name}`, from the written annotation where there is one and otherwise from a registry of the project's exported aliases (those references also carry `module` for exact linking). Losses nothing recovers surface as `alias_lost` warnings
+- **Alias-lost name recovery**: TypeScript drops the name of an alias over an indexed access or conditional (`type Foo = z.infer<typeof S>`, or valibot's `v.InferOutput<typeof S>`) and expands its structure at every use. `typeInfo` recovers it as `{kind: 'reference', name}`, from the written annotation where there is one and otherwise from a registry of the project's exported aliases (those references also carry `module` for exact linking). Losses nothing recovers surface as `alias_lost` warnings
 - **Merged value+type symbols**: `export const Foo = z.strictObject({...})` + `export type Foo = z.infer<typeof Foo>` documents the type meaning (structure and members), with `mergedValue: true` marking the name as also a runtime value; JSDoc falls back to the const's docs, and `generateImport` emits a value import
 - **Svelte 5 component props**: extracts prop types, descriptions, defaults, and bindability via svelte2tsx, in source order (destructured external props follow, in destructuring order); generic components carry `genericParams`, and JS components (no `lang="ts"`) are supported — props come from the JSDoc `@type` on `$props()` or are inferred from untyped destructuring
 - **External types**: props and members contributed by external packages (e.g. `HTMLButtonAttributes`) are filtered out and named in `externalTypes` — on components, type aliases, interfaces, and classes, including bags reached through local base types. A component prop named in the `$props()` destructuring (`let {type = 'button', ...rest} = $props()`) is documented anyway, since the component handles it

@@ -63,9 +63,9 @@ const MAX_TYPE_JSON_DEPTH = 5;
  * The budget exists because a type whose alias TypeScript dropped prints its
  * full structure: an alias whose right-hand side is an indexed access or
  * conditional (`z.infer<typeof S>`, valibot's `InferOutput`) carries no
- * `aliasSymbol`, so the checker expands it everywhere. Measured on this repo's
- * own Zod-typed source, 23 such nodes held 60% of all terminal text, one of
- * them 25,699 chars — against a 320-char flat sibling. Nodes under the budget
+ * `aliasSymbol`, so the checker expands it everywhere. A few such nodes can hold
+ * most of a project's terminal text, each far longer than its flat sibling. Nodes
+ * under the budget
  * are unaffected, which is the great majority: the band this preserves
  * (160–1000 chars) is what opting out of the checker's ~160-char default was
  * for in the first place.
@@ -240,7 +240,8 @@ export const optionalWideningTarget = (
  * anonymous shapes). The one anonymity rule shared by the recovery gate here,
  * the alias-lost predicate (`isAliasLostType`), and the registry's safety-gate
  * walk (`typescript-alias-registry.ts`) — never `ObjectFlags.Anonymous`, which
- * real inferred schema outputs (zod's are `Mapped | Instantiated`) don't carry.
+ * real inferred schema outputs (zod's and valibot's are `Mapped | Instantiated`)
+ * don't carry.
  */
 export const namedSymbolName = (type: ts.Type): string | undefined => {
 	const name = type.symbol?.name;
@@ -697,8 +698,19 @@ const literalNode = (type: ts.Type, checker: ts.TypeChecker): TypeJson | undefin
 	// string/number literals cover enum members too — an enum member is a literal
 	// with the EnumLiteral flag, and `typeToString` prints its qualified name
 	// (`MyEnum.FOO`) while `value` stays the runtime value
-	if (type.isStringLiteral() || type.isNumberLiteral()) {
+	if (type.isStringLiteral()) {
 		return { kind: 'literal', value: type.value, text: printType(type, checker) };
+	}
+	if (type.isNumberLiteral()) {
+		// a non-finite number (`1e999`, or an enum member initialized to `1 / 0` or
+		// `0 / 0`) has no JSON form, so `value` carries its `String()` rendering,
+		// like a bigint; `text` can't stand in, since an enum member prints its name
+		const { value } = type;
+		return {
+			kind: 'literal',
+			value: Number.isFinite(value) ? value : String(value),
+			text: printType(type, checker)
+		};
 	}
 	if (type.flags & ts.TypeFlags.BooleanLiteral) {
 		const text = printType(type, checker);

@@ -18,7 +18,7 @@ import { analyze, type AnalyzeOptions } from '#lib/analyze.ts';
 import { byKind, errorsOf, hasErrors, hasWarnings, warningsOf } from '#lib/diagnostics.ts';
 import type { SourceFileInfo } from '#lib/source.ts';
 import { createSourceOptions } from '#lib/source-config.ts';
-import { ModuleJson } from '#lib/types.ts';
+import { parseModuleJson } from '#lib/types.ts';
 
 import { withTestProject } from './test-helpers.ts';
 
@@ -951,11 +951,11 @@ export interface Point { x: number; y: number; }`
 				assert.deepStrictEqual(errorsOf(parsed.diagnostics), errorsOf(result.diagnostics));
 				assert.deepStrictEqual(warningsOf(parsed.diagnostics), warningsOf(result.diagnostics));
 
-				// Every parsed module passes Zod validation — locks in that the
+				// Every parsed module passes schema validation — locks in that the
 				// modules half of the wire format round-trips faithfully alongside diagnostics.
 				assert.strictEqual(parsed.modules.length, 1);
 				for (const m of parsed.modules) {
-					assert.doesNotThrow(() => ModuleJson.parse(m));
+					assert.doesNotThrow(() => parseModuleJson(m));
 				}
 
 				// And the canonical declaration is recoverable from the parsed module.

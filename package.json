@@ -44,14 +44,14 @@
     "@jridgewell/trace-mapping": "^0.3.25",
     "commander": "^14.0.3",
     "picomatch": "^4.0.4",
-    "tinyglobby": "^0.2.15"
+    "tinyglobby": "^0.2.15",
+    "valibot": "^1.4.0"
   },
   "peerDependencies": {
     "svelte": "^5.0.0",
     "svelte2tsx": "^0.7.30",
     "typescript": "^5.9.3 || ^6",
-    "vite": "^6 || ^7 || ^8",
-    "zod": "^4"
+    "vite": "^6 || ^7 || ^8"
   },
   "peerDependenciesMeta": {
     "vite": {
@@ -88,8 +88,7 @@
     "typescript-eslint": "^8.71.1",
     "vite": "^8.3.4",
     "vitest": "^5.0.0",
-    "zimmerframe": "^1.1.4",
-    "zod": "^4.3.6"
+    "zimmerframe": "^1.1.4"
   },
   "sideEffects": [],
   "files": [

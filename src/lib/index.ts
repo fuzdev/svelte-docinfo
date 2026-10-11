@@ -13,7 +13,7 @@
 
 export { analyze, analyzeFromFiles } from './analyze.ts';
 export type { AnalyzeOptions, AnalyzeFromFilesOptions } from './analyze.ts';
-export { AnalyzeResultJson } from './analyze-core.ts';
+export { AnalyzeResultJson, parseAnalyzeResult } from './analyze-core.ts';
 export type { AnalyzeResultJsonWire, OnDuplicates } from './analyze-core.ts';
 export { createAnalysisSession } from './session.ts';
 export type {
@@ -27,7 +27,7 @@ export type {
 export { normalizeResolveImport } from './dep-resolver.ts';
 export type { ImportResolver, ResolveImport, ResolveImportFn } from './dep-resolver.ts';
 
-// Types (Zod schemas + TypeScript interfaces)
+// Types (valibot schemas, parse helpers, and TypeScript interfaces)
 
 export {
 	DeclarationKind,
@@ -56,7 +56,8 @@ export {
 	DeclarationJson,
 	ReExportJson,
 	ExternalReExportJson,
-	ModuleJson
+	ModuleJson,
+	parseModuleJson
 } from './types.ts';
 
 // Declaration helpers
@@ -115,6 +116,7 @@ export {
 	formatDiagnostic,
 	DiagnosticSeverity,
 	DiagnosticKind,
-	Diagnostic
+	Diagnostic,
+	parseDiagnostics
 } from './diagnostics.ts';
 export type { AnalysisLog } from './log.ts';

@@ -314,10 +314,10 @@ Examples:
 				const emittedModules = matchOnly ? modules.filter((m) => matchOnly(m.path)) : modules;
 
 				// `AnalyzeResultJson` is the wire-format contract — both `modules`
-				// and `diagnostics` default to `[]` on `.parse()`, so empty arrays
+				// and `diagnostics` default to `[]` when parsed, so empty arrays
 				// stripped here round-trip losslessly through the schema. Consumers
 				// programmatically ingesting analysis JSON should parse through
-				// `AnalyzeResultJson` to restore defaults; raw-JSON consumers
+				// `parseAnalyzeResult` to restore defaults; raw-JSON consumers
 				// (`jq '.diagnostics | length'` returns `0` on `{}` since jq treats
 				// null length as 0) don't need the parse step.
 				const jsonOutput = JSON.stringify(

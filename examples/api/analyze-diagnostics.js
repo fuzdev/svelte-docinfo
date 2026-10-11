@@ -37,7 +37,7 @@ if (hasWarnings(diagnostics)) {
 }
 
 // Persist the full AnalyzeResultJson envelope so the diagnostics field round-trips.
-// `compactReplacer` strips empty arrays — load via `AnalyzeResultJson.parse` to restore defaults.
+// `compactReplacer` strips empty arrays — load via `parseAnalyzeResult` to restore defaults.
 await writeFile(
 	join(dir, 'output-diagnostics.json'),
 	JSON.stringify({ modules, diagnostics }, compactReplacer, '\t')

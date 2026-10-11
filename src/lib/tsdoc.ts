@@ -401,7 +401,7 @@ export const applyToDeclaration = (
 	}
 	// `defaultValue` is schema-allowed on variable declarations/members and
 	// function *members* — never top-level function declarations, overloads, or
-	// constructors; `z.strictObject` would reject it there. Component props
+	// constructors; `v.strictObject` would reject it there. Component props
 	// consume the parsed `defaultValue` directly in `svelte.ts` (not via this
 	// helper).
 	if (

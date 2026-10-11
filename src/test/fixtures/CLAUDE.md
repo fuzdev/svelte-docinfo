@@ -180,7 +180,7 @@ Where each behavior is locked. Unit and behavior-level mechanics live in
 - Component: JSDoc/`@component`, docComment precedence (`doccomment-*`), module
   comments (`module-comment*`), no props, template-only, generics,
   `acceptsChildren` (`children-*`, `no-children`), exported snippets
-  (`exported-snippet*`), merged zod schema, JS components (`javascript`,
+  (`exported-snippet*`), merged valibot schema, JS components (`javascript`,
   `props/jsdoc-type`), legacy `export let` (`legacy-export-let` — zero props,
   HTML fallback doc, `legacy_props` warning)
 - Types: snippets, unions, tuples, literal unions, intersections with

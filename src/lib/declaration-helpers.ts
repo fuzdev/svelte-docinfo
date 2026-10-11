@@ -4,7 +4,7 @@
  * Display formatting, code generation, serialization, type narrowing,
  * and `TypeJson` tokenization for `DeclarationJson` and `MemberJson`.
  *
- * @see `types.ts` for `DeclarationJson`, `MemberJson`, `TypeJson` Zod schemas
+ * @see `types.ts` for the `DeclarationJson`, `MemberJson`, `TypeJson` schemas
  *
  * @module
  */
@@ -21,10 +21,11 @@ import type {
 // Serialization
 
 /**
- * JSON replacer that strips Zod default values for compact serialization.
+ * JSON replacer that strips schema default values for compact serialization.
  *
- * Strips empty arrays and `false` booleans — both are Zod `.default()` values
- * restored on `.parse()`, so the round-trip is lossless for svelte-docinfo types.
+ * Strips empty arrays and `false` booleans — both are schema defaults restored
+ * by `parseAnalyzeResult` / `parseModuleJson`, so the round-trip is lossless
+ * for svelte-docinfo types.
  * Assumes all boolean fields in the schema default to `false` — a `true`-defaulted
  * boolean would need its `false` values preserved, breaking the round-trip.
  *
@@ -38,26 +39,29 @@ import type {
  * `undefined` (not the string `'[]'`), and `JSON.stringify(false, compactReplacer)`
  * returns the JS `undefined` too. Object-rooted callers (`AnalyzeResultJson`
  * envelope, CLI output) don't hit this — empty inner arrays strip and
- * `AnalyzeResultJson.parse` restores them on the consumer side. Array-rooted
+ * `parseAnalyzeResult` restores them on the consumer side. Array-rooted
  * callers (Vite plugin, anyone splicing the JSON into a source template)
  * must handle the empty case themselves before calling this; see
  * `vite.ts:updateOutputFromQuery` for the pattern.
  *
- * Two guard tests in `declaration-helpers.test.ts` lock this in:
- * - `every z.boolean().default in types.ts uses false` — source-regex check
- *   that fails on a new `z.boolean().default(true)`.
+ * Guard tests in `declaration-helpers.test.ts` lock this in:
+ * - `every defaulted v.boolean() in types.ts defaults to false` — source-regex
+ *   check that fails on a new `v.optional(v.boolean(), true)`.
+ * - `every schema default is false or a fresh-array factory` — walks the
+ *   schema tree from `AnalyzeResultJson`, so a default the replacer can't
+ *   restore (or a shared literal `[]`) fails wherever it's declared.
  * - `parse → stringify(compactReplacer) → parse is a faithful round-trip
  *   across every variant` — exercises every variant and member through a
- *   full round-trip, catching regressions where a `.default(false)` or
- *   `.default([])` is removed (or a new field is added that the replacer
- *   drops but Zod doesn't restore).
+ *   full round-trip, catching regressions where a `false` or `[]` default is
+ *   removed (or a new field is added that the replacer drops but the schema
+ *   doesn't restore).
  *
  * @example
  * ```ts
  * const result = await analyze({sourceFiles, sourceOptions});
  * const json = JSON.stringify(result, compactReplacer);
- * // On the consumer side, restore Zod defaults:
- * const restored = AnalyzeResultJson.parse(JSON.parse(json));
+ * // on the consumer side, restore the defaults:
+ * const restored = parseAnalyzeResult(JSON.parse(json));
  * ```
  */
 export const compactReplacer = (key: string, value: unknown): unknown =>

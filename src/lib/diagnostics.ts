@@ -40,12 +40,12 @@
  *
  * `AnalyzeResultJson.diagnostics` is `Array<Diagnostic>` — no wrapper object,
  * no methods, no private fields. Round-trip-safe through `JSON.stringify` /
- * `z.array(Diagnostic).parse` and symmetric with `AnalyzeResultJson.modules`
- * (also Zod-validated). The full envelope is itself a Zod schema
+ * `parseDiagnostics` and symmetric with `AnalyzeResultJson.modules` (also
+ * schema-validated). The full envelope is itself a valibot schema
  * (`AnalyzeResultJson` in `analyze-core.ts`) with both fields defaulting to
  * `[]`, so the whole `{modules, diagnostics}` shape round-trips through
- * `JSON.stringify(result, compactReplacer)` / `AnalyzeResultJson.parse` even
- * when one or both arrays are empty (the wire form becomes `{}` and `.parse()`
+ * `JSON.stringify(result, compactReplacer)` / `parseAnalyzeResult` even when
+ * one or both arrays are empty (the wire form becomes `{}` and parsing
  * restores the defaults). Use the free helpers `hasErrors`, `errorsOf`,
  * `byKind` for queries; mutate the array with native `Array.push`.
  *
@@ -65,7 +65,9 @@
  * @module
  */
 
-import { z } from 'zod';
+import * as v from 'valibot';
+
+import { parseWithSummary, type Named } from './schema.ts';
 
 // Severity
 
@@ -75,8 +77,8 @@ import { z } from 'zod';
  * - `'error'` — analysis failed, declaration may be incomplete or missing data
  * - `'warning'` — partial success, something seems off but analysis continued
  */
-export const DiagnosticSeverity = z.enum(['error', 'warning']);
-export type DiagnosticSeverity = z.infer<typeof DiagnosticSeverity>;
+export const DiagnosticSeverity = v.picklist(['error', 'warning']);
+export type DiagnosticSeverity = v.InferOutput<typeof DiagnosticSeverity>;
 
 // Kind
 
@@ -86,7 +88,7 @@ export type DiagnosticSeverity = z.infer<typeof DiagnosticSeverity>;
  * Severity is a stable per-kind property: `transform_failed` and
  * `module_unreadable` are always `error`, every other kind always `warning`.
  */
-export const DiagnosticKind = z.enum([
+export const DiagnosticKind = v.picklist([
 	'type_extraction_failed',
 	'signature_analysis_failed',
 	'class_member_failed',
@@ -104,7 +106,7 @@ export const DiagnosticKind = z.enum([
 	'resolver_failed',
 	'alias_lost'
 ]);
-export type DiagnosticKind = z.infer<typeof DiagnosticKind>;
+export type DiagnosticKind = v.InferOutput<typeof DiagnosticKind>;
 
 // Variants
 
@@ -142,51 +144,77 @@ const baseDiagnosticFields = {
 	 * the same file under a second name. Absolute is what the pass can
 	 * actually correct.
 	 */
-	file: z.string(),
+	file: v.string(),
 	/** Line number (1-based), absent if location unavailable. */
-	line: z.number().int().positive().optional(),
+	line: v.optional(v.pipe(v.number(), v.safeInteger(), v.minValue(1))),
 	/** Column number (1-based), absent if location unavailable. */
-	column: z.number().int().positive().optional(),
+	column: v.optional(v.pipe(v.number(), v.safeInteger(), v.minValue(1))),
 	/** Human-readable description of the issue. */
-	message: z.string(),
+	message: v.string(),
 	severity: DiagnosticSeverity
 };
 
+// named through an interface for declaration emit, as in `types.ts`
+const TypeExtractionDiagnosticImpl = v.strictObject({
+	kind: v.literal('type_extraction_failed'),
+	...baseDiagnosticFields,
+	/** Name of the symbol whose type couldn't be extracted. */
+	symbolName: v.string()
+});
+/** @nodocs */
+export interface TypeExtractionDiagnosticSchema extends Named<
+	typeof TypeExtractionDiagnosticImpl
+> {}
 /**
  * Type extraction failed (e.g., complex or recursive types).
  */
-export const TypeExtractionDiagnostic = z.strictObject({
-	kind: z.literal('type_extraction_failed'),
-	...baseDiagnosticFields,
-	/** Name of the symbol whose type couldn't be extracted. */
-	symbolName: z.string()
-});
-export type TypeExtractionDiagnostic = z.infer<typeof TypeExtractionDiagnostic>;
+export const TypeExtractionDiagnostic: TypeExtractionDiagnosticSchema =
+	TypeExtractionDiagnosticImpl;
+export type TypeExtractionDiagnostic = v.InferOutput<typeof TypeExtractionDiagnostic>;
 
+const SignatureAnalysisDiagnosticImpl = v.strictObject({
+	kind: v.literal('signature_analysis_failed'),
+	...baseDiagnosticFields,
+	/** Name of the function or method. */
+	functionName: v.string()
+});
+/** @nodocs */
+export interface SignatureAnalysisDiagnosticSchema extends Named<
+	typeof SignatureAnalysisDiagnosticImpl
+> {}
 /**
  * Function/method signature analysis failed.
  */
-export const SignatureAnalysisDiagnostic = z.strictObject({
-	kind: z.literal('signature_analysis_failed'),
-	...baseDiagnosticFields,
-	/** Name of the function or method. */
-	functionName: z.string()
-});
-export type SignatureAnalysisDiagnostic = z.infer<typeof SignatureAnalysisDiagnostic>;
+export const SignatureAnalysisDiagnostic: SignatureAnalysisDiagnosticSchema =
+	SignatureAnalysisDiagnosticImpl;
+export type SignatureAnalysisDiagnostic = v.InferOutput<typeof SignatureAnalysisDiagnostic>;
 
+const ClassMemberDiagnosticImpl = v.strictObject({
+	kind: v.literal('class_member_failed'),
+	...baseDiagnosticFields,
+	/** Name of the class. */
+	className: v.string(),
+	/** Name of the member that failed. */
+	memberName: v.string()
+});
+/** @nodocs */
+export interface ClassMemberDiagnosticSchema extends Named<typeof ClassMemberDiagnosticImpl> {}
 /**
  * Class member analysis failed.
  */
-export const ClassMemberDiagnostic = z.strictObject({
-	kind: z.literal('class_member_failed'),
-	...baseDiagnosticFields,
-	/** Name of the class. */
-	className: z.string(),
-	/** Name of the member that failed. */
-	memberName: z.string()
-});
-export type ClassMemberDiagnostic = z.infer<typeof ClassMemberDiagnostic>;
+export const ClassMemberDiagnostic: ClassMemberDiagnosticSchema = ClassMemberDiagnosticImpl;
+export type ClassMemberDiagnostic = v.InferOutput<typeof ClassMemberDiagnostic>;
 
+const SveltePropDiagnosticImpl = v.strictObject({
+	kind: v.literal('svelte_prop_failed'),
+	...baseDiagnosticFields,
+	/** Name of the component. */
+	componentName: v.string(),
+	/** Name of the prop. */
+	propName: v.string()
+});
+/** @nodocs */
+export interface SveltePropDiagnosticSchema extends Named<typeof SveltePropDiagnosticImpl> {}
 /**
  * Svelte prop type resolution failed.
  *
@@ -197,16 +225,19 @@ export type ClassMemberDiagnostic = z.infer<typeof ClassMemberDiagnostic>;
  * line, the rule `remapVirtualDiagnosticPositions` applies to extractor
  * diagnostics.
  */
-export const SveltePropDiagnostic = z.strictObject({
-	kind: z.literal('svelte_prop_failed'),
+export const SveltePropDiagnostic: SveltePropDiagnosticSchema = SveltePropDiagnosticImpl;
+export type SveltePropDiagnostic = v.InferOutput<typeof SveltePropDiagnostic>;
+
+const LegacyPropsDiagnosticImpl = v.strictObject({
+	kind: v.literal('legacy_props'),
 	...baseDiagnosticFields,
 	/** Name of the component. */
-	componentName: z.string(),
-	/** Name of the prop. */
-	propName: z.string()
+	componentName: v.string(),
+	/** Exported prop names, in source order. */
+	propNames: v.pipe(v.array(v.string()), v.minLength(1))
 });
-export type SveltePropDiagnostic = z.infer<typeof SveltePropDiagnostic>;
-
+/** @nodocs */
+export interface LegacyPropsDiagnosticSchema extends Named<typeof LegacyPropsDiagnosticImpl> {}
 /**
  * Legacy (runes-less) component props detected — not extracted.
  *
@@ -217,16 +248,17 @@ export type SveltePropDiagnostic = z.infer<typeof SveltePropDiagnostic>;
  * renames of mutable bindings (`export {a as b}`) — with `line` pointing at
  * the first legacy prop export in the original `.svelte` source.
  */
-export const LegacyPropsDiagnostic = z.strictObject({
-	kind: z.literal('legacy_props'),
-	...baseDiagnosticFields,
-	/** Name of the component. */
-	componentName: z.string(),
-	/** Exported prop names, in source order. */
-	propNames: z.array(z.string()).min(1)
-});
-export type LegacyPropsDiagnostic = z.infer<typeof LegacyPropsDiagnostic>;
+export const LegacyPropsDiagnostic: LegacyPropsDiagnosticSchema = LegacyPropsDiagnosticImpl;
+export type LegacyPropsDiagnostic = v.InferOutput<typeof LegacyPropsDiagnostic>;
 
+const ModuleSkippedDiagnosticImpl = v.strictObject({
+	kind: v.literal('module_skipped'),
+	...baseDiagnosticFields,
+	/** Reason the module was skipped. */
+	reason: v.picklist(['not_in_program', 'no_analyzer', 'requires_program'])
+});
+/** @nodocs */
+export interface ModuleSkippedDiagnosticSchema extends Named<typeof ModuleSkippedDiagnosticImpl> {}
 /**
  * Module was skipped during the analysis pass.
  *
@@ -241,14 +273,17 @@ export type LegacyPropsDiagnostic = z.infer<typeof LegacyPropsDiagnostic>;
  *
  * Discovery-time file-read failures are a separate kind: `module_unreadable`.
  */
-export const ModuleSkippedDiagnostic = z.strictObject({
-	kind: z.literal('module_skipped'),
-	...baseDiagnosticFields,
-	/** Reason the module was skipped. */
-	reason: z.enum(['not_in_program', 'no_analyzer', 'requires_program'])
-});
-export type ModuleSkippedDiagnostic = z.infer<typeof ModuleSkippedDiagnostic>;
+export const ModuleSkippedDiagnostic: ModuleSkippedDiagnosticSchema = ModuleSkippedDiagnosticImpl;
+export type ModuleSkippedDiagnostic = v.InferOutput<typeof ModuleSkippedDiagnostic>;
 
+const ModuleUnreadableDiagnosticImpl = v.strictObject({
+	kind: v.literal('module_unreadable'),
+	...baseDiagnosticFields
+});
+/** @nodocs */
+export interface ModuleUnreadableDiagnosticSchema extends Named<
+	typeof ModuleUnreadableDiagnosticImpl
+> {}
 /**
  * File discovered via package.json `exports` exists but couldn't be read.
  *
@@ -257,36 +292,67 @@ export type ModuleSkippedDiagnostic = z.infer<typeof ModuleSkippedDiagnostic>;
  * `module_skipped` so severity is a stable per-kind property and downstream
  * consumers can route discovery failures separately from analysis-pass skips.
  */
-export const ModuleUnreadableDiagnostic = z.strictObject({
-	kind: z.literal('module_unreadable'),
+export const ModuleUnreadableDiagnostic: ModuleUnreadableDiagnosticSchema =
+	ModuleUnreadableDiagnosticImpl;
+export type ModuleUnreadableDiagnostic = v.InferOutput<typeof ModuleUnreadableDiagnostic>;
+
+const ImportParseDiagnosticImpl = v.strictObject({
+	kind: v.literal('import_parse_failed'),
 	...baseDiagnosticFields
 });
-export type ModuleUnreadableDiagnostic = z.infer<typeof ModuleUnreadableDiagnostic>;
-
+/** @nodocs */
+export interface ImportParseDiagnosticSchema extends Named<typeof ImportParseDiagnosticImpl> {}
 /**
  * Import scanning threw during dependency resolution.
  *
  * Not expected in practice: the parse in `lexImports` tolerates malformed
  * source rather than rejecting it, so this guards an unexpected throw.
  */
-export const ImportParseDiagnostic = z.strictObject({
-	kind: z.literal('import_parse_failed'),
-	...baseDiagnosticFields
-});
-export type ImportParseDiagnostic = z.infer<typeof ImportParseDiagnostic>;
+export const ImportParseDiagnostic: ImportParseDiagnosticSchema = ImportParseDiagnosticImpl;
+export type ImportParseDiagnostic = v.InferOutput<typeof ImportParseDiagnostic>;
 
+const DuplicateCommentDiagnosticImpl = v.strictObject({
+	kind: v.literal('duplicate_comment'),
+	...baseDiagnosticFields,
+	/** Which comment type is duplicated. */
+	commentType: v.picklist(['module_comment', 'doc_comment'])
+});
+/** @nodocs */
+export interface DuplicateCommentDiagnosticSchema extends Named<
+	typeof DuplicateCommentDiagnosticImpl
+> {}
 /**
  * Duplicate comment sources detected (e.g., both HTML and JSDoc `@module`,
  * or both HTML `@component` and JSDoc for component `docComment`).
  */
-export const DuplicateCommentDiagnostic = z.strictObject({
-	kind: z.literal('duplicate_comment'),
-	...baseDiagnosticFields,
-	/** Which comment type is duplicated. */
-	commentType: z.enum(['module_comment', 'doc_comment'])
-});
-export type DuplicateCommentDiagnostic = z.infer<typeof DuplicateCommentDiagnostic>;
+export const DuplicateCommentDiagnostic: DuplicateCommentDiagnosticSchema =
+	DuplicateCommentDiagnosticImpl;
+export type DuplicateCommentDiagnostic = v.InferOutput<typeof DuplicateCommentDiagnostic>;
 
+const MisplacedTagDiagnosticImpl = v.strictObject({
+	kind: v.literal('misplaced_tag'),
+	...baseDiagnosticFields,
+	/** The tag name without the `@` prefix (e.g., `'example'`, `'deprecated'`). */
+	tagName: v.picklist([
+		'example',
+		'deprecated',
+		'internal',
+		'since',
+		'see',
+		'throws',
+		'mutates',
+		'default',
+		'nodocs'
+	]),
+	/**
+	 * Name of the enclosing symbol: the function or method whose overload
+	 * carries the misplaced tag. Absent for module-comment misplacements (no
+	 * enclosing symbol).
+	 */
+	functionName: v.optional(v.string())
+});
+/** @nodocs */
+export interface MisplacedTagDiagnosticSchema extends Named<typeof MisplacedTagDiagnosticImpl> {}
 /**
  * A JSDoc tag found somewhere it has no effect.
  *
@@ -307,46 +373,47 @@ export type DuplicateCommentDiagnostic = z.infer<typeof DuplicateCommentDiagnost
  *   nothing except remain verbatim in `moduleComment` text. To omit a module
  *   from analysis, use `exclude` patterns instead.
  */
-export const MisplacedTagDiagnostic = z.strictObject({
-	kind: z.literal('misplaced_tag'),
-	...baseDiagnosticFields,
-	/** The tag name without the `@` prefix (e.g., `'example'`, `'deprecated'`). */
-	tagName: z.enum([
-		'example',
-		'deprecated',
-		'internal',
-		'since',
-		'see',
-		'throws',
-		'mutates',
-		'default',
-		'nodocs'
-	]),
-	/**
-	 * Name of the enclosing symbol: the function or method whose overload
-	 * carries the misplaced tag. Absent for module-comment misplacements (no
-	 * enclosing symbol).
-	 */
-	functionName: z.string().optional()
-});
-export type MisplacedTagDiagnostic = z.infer<typeof MisplacedTagDiagnostic>;
+export const MisplacedTagDiagnostic: MisplacedTagDiagnosticSchema = MisplacedTagDiagnosticImpl;
+export type MisplacedTagDiagnostic = v.InferOutput<typeof MisplacedTagDiagnostic>;
 
+const UnknownParamDiagnosticImpl = v.strictObject({
+	kind: v.literal('unknown_param'),
+	...baseDiagnosticFields,
+	/** The `@param` key that didn't match a real parameter. */
+	paramName: v.string(),
+	/** Name of the function or method. */
+	functionName: v.string()
+});
+/** @nodocs */
+export interface UnknownParamDiagnosticSchema extends Named<typeof UnknownParamDiagnosticImpl> {}
 /**
  * `@param` tag references a name that doesn't match any actual parameter.
  *
  * Usually a typo (`@param argz` for parameter `args`) or stale doc after a
  * rename. The description is dropped; analysis continues.
  */
-export const UnknownParamDiagnostic = z.strictObject({
-	kind: z.literal('unknown_param'),
-	...baseDiagnosticFields,
-	/** The `@param` key that didn't match a real parameter. */
-	paramName: z.string(),
-	/** Name of the function or method. */
-	functionName: z.string()
-});
-export type UnknownParamDiagnostic = z.infer<typeof UnknownParamDiagnostic>;
+export const UnknownParamDiagnostic: UnknownParamDiagnosticSchema = UnknownParamDiagnosticImpl;
+export type UnknownParamDiagnostic = v.InferOutput<typeof UnknownParamDiagnostic>;
 
+const DuplicateDeclarationDiagnosticImpl = v.strictObject({
+	kind: v.literal('duplicate_declaration'),
+	...baseDiagnosticFields,
+	/** The duplicated declaration name. */
+	declarationName: v.string(),
+	/**
+	 * Module paths where the name was defined (>= 2).
+	 *
+	 * `ModuleJson.path` values — relative to `sourceRoot`, so a different base
+	 * than the record's `file` (project-root-relative, like every diagnostic).
+	 * The two disagree textually whenever `sourceRoot` is non-empty; each names
+	 * what it says it names, a module vs. a file.
+	 */
+	modules: v.pipe(v.array(v.string()), v.minLength(2))
+});
+/** @nodocs */
+export interface DuplicateDeclarationDiagnosticSchema extends Named<
+	typeof DuplicateDeclarationDiagnosticImpl
+> {}
 /**
  * A declaration `name` appears in more than one module.
  *
@@ -356,23 +423,18 @@ export type UnknownParamDiagnostic = z.infer<typeof UnknownParamDiagnostic>;
  * fatal. The default slot (`name === 'default'`) is excluded — every module
  * owns its own.
  */
-export const DuplicateDeclarationDiagnostic = z.strictObject({
-	kind: z.literal('duplicate_declaration'),
-	...baseDiagnosticFields,
-	/** The duplicated declaration name. */
-	declarationName: z.string(),
-	/**
-	 * Module paths where the name was defined (>= 2).
-	 *
-	 * `ModuleJson.path` values — relative to `sourceRoot`, so a different base
-	 * than the record's `file` (project-root-relative, like every diagnostic).
-	 * The two disagree textually whenever `sourceRoot` is non-empty; each names
-	 * what it says it names, a module vs. a file.
-	 */
-	modules: z.array(z.string()).min(2)
-});
-export type DuplicateDeclarationDiagnostic = z.infer<typeof DuplicateDeclarationDiagnostic>;
+export const DuplicateDeclarationDiagnostic: DuplicateDeclarationDiagnosticSchema =
+	DuplicateDeclarationDiagnosticImpl;
+export type DuplicateDeclarationDiagnostic = v.InferOutput<typeof DuplicateDeclarationDiagnostic>;
 
+const SourceMapFailedDiagnosticImpl = v.strictObject({
+	kind: v.literal('source_map_failed'),
+	...baseDiagnosticFields
+});
+/** @nodocs */
+export interface SourceMapFailedDiagnosticSchema extends Named<
+	typeof SourceMapFailedDiagnosticImpl
+> {}
 /**
  * Source map parsing failed for a Svelte virtual file.
  *
@@ -387,12 +449,18 @@ export type DuplicateDeclarationDiagnostic = z.infer<typeof DuplicateDeclaration
  * through `setFile`/`setFiles` ingest diagnostics rather than the analysis
  * pass.
  */
-export const SourceMapFailedDiagnostic = z.strictObject({
-	kind: z.literal('source_map_failed'),
+export const SourceMapFailedDiagnostic: SourceMapFailedDiagnosticSchema =
+	SourceMapFailedDiagnosticImpl;
+export type SourceMapFailedDiagnostic = v.InferOutput<typeof SourceMapFailedDiagnostic>;
+
+const TransformFailedDiagnosticImpl = v.strictObject({
+	kind: v.literal('transform_failed'),
 	...baseDiagnosticFields
 });
-export type SourceMapFailedDiagnostic = z.infer<typeof SourceMapFailedDiagnostic>;
-
+/** @nodocs */
+export interface TransformFailedDiagnosticSchema extends Named<
+	typeof TransformFailedDiagnosticImpl
+> {}
 /**
  * svelte2tsx transform threw for a `.svelte` file.
  *
@@ -402,12 +470,20 @@ export type SourceMapFailedDiagnostic = z.infer<typeof SourceMapFailedDiagnostic
  * empty `declarations`). The originating error message lives in `message`;
  * this diagnostic is the authoritative cause-of-failure signal.
  */
-export const TransformFailedDiagnostic = z.strictObject({
-	kind: z.literal('transform_failed'),
-	...baseDiagnosticFields
-});
-export type TransformFailedDiagnostic = z.infer<typeof TransformFailedDiagnostic>;
+export const TransformFailedDiagnostic: TransformFailedDiagnosticSchema =
+	TransformFailedDiagnosticImpl;
+export type TransformFailedDiagnostic = v.InferOutput<typeof TransformFailedDiagnostic>;
 
+const ResolverFailedDiagnosticImpl = v.strictObject({
+	kind: v.literal('resolver_failed'),
+	...baseDiagnosticFields,
+	/** The import specifier the resolver failed on. */
+	specifier: v.string()
+});
+/** @nodocs */
+export interface ResolverFailedDiagnosticSchema extends Named<
+	typeof ResolverFailedDiagnosticImpl
+> {}
 /**
  * Import resolver threw while resolving a specifier.
  *
@@ -421,14 +497,18 @@ export type TransformFailedDiagnostic = z.infer<typeof TransformFailedDiagnostic
  *
  * Emitted at ingest time by the session's resolve phase.
  */
-export const ResolverFailedDiagnostic = z.strictObject({
-	kind: z.literal('resolver_failed'),
-	...baseDiagnosticFields,
-	/** The import specifier the resolver failed on. */
-	specifier: z.string()
-});
-export type ResolverFailedDiagnostic = z.infer<typeof ResolverFailedDiagnostic>;
+export const ResolverFailedDiagnostic: ResolverFailedDiagnosticSchema =
+	ResolverFailedDiagnosticImpl;
+export type ResolverFailedDiagnostic = v.InferOutput<typeof ResolverFailedDiagnostic>;
 
+const AliasLostDiagnosticImpl = v.strictObject({
+	kind: v.literal('alias_lost'),
+	...baseDiagnosticFields,
+	/** Name of the alias whose right-hand side resolves to a nameless type. */
+	aliasName: v.string()
+});
+/** @nodocs */
+export interface AliasLostDiagnosticSchema extends Named<typeof AliasLostDiagnosticImpl> {}
 /**
  * An exported type alias loses its name at use sites.
  *
@@ -446,13 +526,8 @@ export type ResolverFailedDiagnostic = z.infer<typeof ResolverFailedDiagnostic>;
  *
  * Always `warning`, query-time category (recomputed each `query()`).
  */
-export const AliasLostDiagnostic = z.strictObject({
-	kind: z.literal('alias_lost'),
-	...baseDiagnosticFields,
-	/** Name of the alias whose right-hand side resolves to a nameless type. */
-	aliasName: z.string()
-});
-export type AliasLostDiagnostic = z.infer<typeof AliasLostDiagnostic>;
+export const AliasLostDiagnostic: AliasLostDiagnosticSchema = AliasLostDiagnosticImpl;
+export type AliasLostDiagnostic = v.InferOutput<typeof AliasLostDiagnostic>;
 
 /**
  * Discriminated union of all diagnostic variants. Ingest-time kinds:
@@ -460,9 +535,11 @@ export type AliasLostDiagnostic = z.infer<typeof AliasLostDiagnostic>;
  * `resolver_failed`; discovery-time: `module_unreadable`; every other kind is
  * query-time.
  */
-// the explicit `ZodDiscriminatedUnion` annotation means a new variant must
-// land in both the type-parameter tuple and the runtime array
-export const Diagnostic: z.ZodDiscriminatedUnion<
+// the explicit `VariantSchema` annotation keeps the emitted declaration
+// referential (each variant by name, not re-inlined), and means a new variant
+// must land in both the type-parameter tuple and the runtime array
+export const Diagnostic: v.VariantSchema<
+	'kind',
 	[
 		typeof TypeExtractionDiagnostic,
 		typeof SignatureAnalysisDiagnostic,
@@ -481,8 +558,8 @@ export const Diagnostic: z.ZodDiscriminatedUnion<
 		typeof ResolverFailedDiagnostic,
 		typeof AliasLostDiagnostic
 	],
-	'kind'
-> = z.discriminatedUnion('kind', [
+	undefined
+> = v.variant('kind', [
 	TypeExtractionDiagnostic,
 	SignatureAnalysisDiagnostic,
 	ClassMemberDiagnostic,
@@ -500,7 +577,27 @@ export const Diagnostic: z.ZodDiscriminatedUnion<
 	ResolverFailedDiagnostic,
 	AliasLostDiagnostic
 ]);
-export type Diagnostic = z.infer<typeof Diagnostic>;
+export type Diagnostic = v.InferOutput<typeof Diagnostic>;
+
+const DiagnosticArray = v.array(Diagnostic);
+
+/**
+ * Validate an array of diagnostics.
+ *
+ * The stable way to validate diagnostics stored or sent on their own,
+ * independent of the schema library behind `Diagnostic`. For a whole
+ * analysis result use `parseAnalyzeResult`.
+ *
+ * @param value - an array of diagnostics, typically from `JSON.parse`
+ * @returns the validated diagnostics
+ * @throws Error when `value` doesn't match the schema; the message lists the
+ *   reported issues, one per line, as `path: message` (`0.kind: Invalid type: …`), the dot
+ *   path omitted for an issue at the root. The class is the schema library's
+ *   (valibot's `ValiError`, the structured list on `issues`), so catch it as a
+ *   plain `Error` unless you depend on valibot
+ */
+export const parseDiagnostics = (value: unknown): Array<Diagnostic> =>
+	parseWithSummary(DiagnosticArray, value);
 
 // Helpers
 

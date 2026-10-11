@@ -17,10 +17,9 @@ npm run build    # production build
 ## Dependencies
 
 This example lists `svelte` and `svelte2tsx` as explicit devDependencies
-because the `file:../..` link doesn't auto-install peer dependencies. Of the
-four peers (`svelte`, `svelte2tsx`, `typescript`, `zod`), the other two resolve
-through the linked package's own `node_modules`, as do its regular
-dependencies.
+because the `file:../..` link doesn't auto-install peer dependencies. The
+remaining peer, `typescript`, resolves through the linked package's own
+`node_modules`, as do its regular dependencies (`valibot` among them).
 
 ## Setup
 

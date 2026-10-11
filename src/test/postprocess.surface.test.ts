@@ -7,11 +7,11 @@
 
 import { test, assert, describe } from 'vitest';
 
-import { ModuleJson } from '#lib/types.ts';
+import { parseModuleJson, type ModuleJson } from '#lib/types.ts';
 import { resolveExportSurface } from '#lib/postprocess.ts';
 
-/** Parse a partial module through Zod to fill in array defaults. */
-const m = (input: { path: string; [key: string]: unknown }): ModuleJson => ModuleJson.parse(input);
+/** Parse a partial module through the schema to fill in array defaults. */
+const m = (input: { path: string; [key: string]: unknown }): ModuleJson => parseModuleJson(input);
 
 /** Project entries to a comparable `{name, via, module?}` shape. */
 const names = (

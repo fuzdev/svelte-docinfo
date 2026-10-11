@@ -5,7 +5,7 @@ import { readdir, readFile, rm } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { AnalyzeResultJson } from '#lib/analyze-core.ts';
+import { parseAnalyzeResult, type AnalyzeResultJson } from '#lib/analyze-core.ts';
 
 import {
 	EXAMPLES_API_DIR,
@@ -40,7 +40,7 @@ const ensureExampleInstalled = (exampleDir: string, label: string): void => {
 const validateOutput = async (path: string): Promise<AnalyzeResultJson> => {
 	if (!existsSync(path)) throw new Error(`Missing: ${path}`);
 	const raw: unknown = JSON.parse(await readFile(path, 'utf-8'));
-	const result = AnalyzeResultJson.parse(raw);
+	const result = parseAnalyzeResult(raw);
 	if (result.modules.length === 0) throw new Error(`Expected at least one module in ${path}`);
 	return result;
 };
@@ -110,7 +110,7 @@ describe('examples/cli', () => {
 	test('runs against examples/api and emits valid AnalyzeResultJson', async () => {
 		const result = await runCliCapture(['node', 'svelte-docinfo', EXAMPLES_API_DIR, '--quiet']);
 		assert.strictEqual(result.exitCode, 0, `stderr: ${result.stderr.join('\n')}`);
-		const parsed = AnalyzeResultJson.parse(JSON.parse(result.stdout.join('\n')));
+		const parsed = parseAnalyzeResult(JSON.parse(result.stdout.join('\n')));
 		assert.ok(parsed.modules.length > 0, 'expected at least one module');
 	});
 });

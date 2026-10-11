@@ -149,8 +149,8 @@ const {modules} = await analyze({
 				<li>
 					<strong>structured types</strong>: <code>typeInfo</code> trees beside the flat type
 					strings, with union members, type arguments, tuple elements, and alias names recovered
-					where TypeScript drops them (<code>z.infer</code> and friends); see the
-					<TomeLink slug="output-format">output format</TomeLink>
+					where TypeScript drops them (<code>z.infer</code>, valibot's <code>v.InferOutput</code>,
+					and friends); see the <TomeLink slug="output-format">output format</TomeLink>
 				</li>
 				<li>
 					<strong>merged value+type symbols</strong>: a schema/type pair
