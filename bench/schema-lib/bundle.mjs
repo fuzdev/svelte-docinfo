@@ -8,13 +8,14 @@
 
 import { mkdirSync, rmSync, symlinkSync, writeFileSync, readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { gzipSync, brotliCompressSync } from 'node:zlib';
 
 const args = process.argv.slice(2);
 const trees = [];
 let esbuildDir = null;
-let outDir = '/tmp/svelte-docinfo-bundle-bench';
+let outDir = join(tmpdir(), 'svelte-docinfo-bundle-bench');
 for (let i = 0; i < args.length; i++) {
 	if (args[i] === '--tree') {
 		const [name, dir] = args[++i].split(/=(.*)/s);

@@ -10,7 +10,8 @@
 set -euo pipefail
 src=$(realpath "$1")
 dest=$2
-global_link_target=${SVELTE_DOCINFO_LINK:-/home/desk/dev/svelte-docinfo}
+link="$(npm root -g)/svelte-docinfo"
+global_link_target=${SVELTE_DOCINFO_LINK:-$(readlink "$link" 2>/dev/null || true)}
 
 rm -rf "$dest"
 mkdir -p "$dest"
@@ -20,5 +21,5 @@ cd "$dest"
 git init -q && git add -A && git -c user.name=bench -c user.email=bench@localhost commit -qm snapshot
 nice npm ci --prefer-offline --no-audit --no-fund >/dev/null
 nice gro build >/dev/null
-ln -sfn "$global_link_target" "$(npm root -g)/svelte-docinfo"
+if [ -n "$global_link_target" ]; then ln -sfn "$global_link_target" "$link"; fi
 echo "built $dest ($(du -sh dist | cut -f1) dist)"

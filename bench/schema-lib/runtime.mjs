@@ -7,8 +7,8 @@
 //
 // Each (tree, corpus, run) is a fresh child process, interleaved round-robin so
 // machine drift spreads across trees. A tree is a checkout with `dist/` built and
-// its own `node_modules`. `:validate=false` passes `validate: false` to
-// `analyzeFromFiles` (the validate-optional prototype).
+// its own `node_modules`. Options after the path are passed to
+// `analyzeFromFiles`, e.g. `:validate=true` for a tree that has such an option.
 
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';

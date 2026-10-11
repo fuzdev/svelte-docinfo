@@ -1,7 +1,7 @@
 # schema-library benchmarks
 
 Scripts that compare svelte-docinfo builds that differ in their schema library
-(zod, valibot, or validation made optional). Every script takes built trees as
+(zod, valibot, or none on the analysis path). Every script takes built trees as
 `name=/path` arguments, so the same commands measure any set of checkouts.
 
 A _tree_ is a checkout with `dist/` built and its own `node_modules`. Build one
@@ -13,8 +13,8 @@ bench/schema-lib/prepare-tree.sh /path/to/checkout ~/.cache/docinfo-bench/trees/
 
 `prepare-tree.sh` works on a tar copy (no `.git`, no `node_modules`), so the
 build never touches the checkout, and it restores the global `svelte-docinfo`
-npm link that `gro build` re-points (set `SVELTE_DOCINFO_LINK` to the checkout
-the link should name).
+npm link that `gro build` re-points, to wherever it pointed before the build
+(`SVELTE_DOCINFO_LINK` overrides the restored target).
 
 | script | measures |
 | --- | --- |
@@ -37,4 +37,5 @@ Notes on reading the numbers:
 - `bundle.mjs` keeps `typescript`, `svelte`, `svelte2tsx`, and `vite` external.
   The schema library's share is the difference from the same bundle built with
   the library external.
-- A tree option such as `vo=/path:validate=true` is passed to `analyzeFromFiles`.
+- A tree option such as `name=/path:validate=true` is passed to `analyzeFromFiles`,
+  for a tree whose build has that option.
