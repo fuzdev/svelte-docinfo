@@ -39,7 +39,7 @@ import ts from 'typescript';
 import * as v from 'valibot';
 
 import { ModuleJson, parseModuleJson, type ModuleJsonInput } from './types.ts';
-import { parseWithSummary, type Named } from './error.ts';
+import { parseWithSummary, type Named } from './schema.ts';
 import type { ModuleAnalysis } from './declaration-build.ts';
 import { Diagnostic } from './diagnostics.ts';
 import type { AnalysisLog } from './log.ts';

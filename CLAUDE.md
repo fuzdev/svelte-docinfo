@@ -158,9 +158,11 @@ points to the TSDoc that owns its policy; read it before changing behavior. User
   - `createDefaultResolver`: TS resolution plus a manual `.svelte` fallback.
   - `lexImports` (a syntax-only TypeScript parse) and `noDepsResolver`.
 - `concurrency.ts` — `MAX_FILE_CONCURRENCY`, `MAX_RESOLVE_CONCURRENCY`, `mapConcurrent`.
-- `error.ts` — `toErrorMessage`, and `parseWithSummary`, which the `parse*` helpers throw
-  through so the message lists every reported issue, one `path: message` line each. Also the
-  `@nodocs` `Named` alias the schema interfaces extend through.
+- `error.ts` — `toErrorMessage`.
+- `schema.ts` — helpers the schema modules share, a leaf importing only valibot:
+  `parseWithSummary`, which the `parse*` helpers throw through so the message lists every
+  reported issue, one `path: message` line each, and the `@nodocs` `Named` alias the schema
+  interfaces extend through. Not in the barrel.
 - `source-config.ts`
   - Options: `ModuleSourceOptions`, `createSourceOptions`/`normalizeSourceOptions`,
     `ExcludeOption`.

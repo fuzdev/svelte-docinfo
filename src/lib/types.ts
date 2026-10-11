@@ -50,7 +50,7 @@
 
 import * as v from 'valibot';
 
-import { parseWithSummary, type Named } from './error.ts';
+import { parseWithSummary, type Named } from './schema.ts';
 
 /**
  * The kind of top-level exported declaration.
