@@ -53,7 +53,6 @@ import {
 	type ImportResolver,
 	type ResolveImport,
 	createDefaultResolver,
-	ensureLexerReady,
 	isNodeBuiltin,
 	lexImports,
 	normalizeResolveImport
@@ -694,8 +693,9 @@ export const createAnalysisSession = (options: AnalysisSessionOptions): Analysis
 		}
 
 		// Lex import specifiers — skipped when caller supplied pre-resolved deps.
-		// Sync — caller awaited ensureLexerReady. CSS/JSON files have nothing to
-		// lex; transform_failed Svelte has no virtual content to lex.
+		// CSS/JSON files have nothing to lex; transform_failed Svelte has no
+		// virtual content to lex. The parse tolerates malformed source, so the
+		// catch only guards an unexpected throw.
 		let specifiers: Array<string> = [];
 		if (
 			!usePreResolved &&
@@ -704,7 +704,7 @@ export const createAnalysisSession = (options: AnalysisSessionOptions): Analysis
 		) {
 			try {
 				const contentToLex = virtual ? virtual.content : file.content;
-				specifiers = lexImports(contentToLex, file.id);
+				specifiers = lexImports(contentToLex);
 			} catch (err) {
 				ingestDiagnostics.push({
 					kind: 'import_parse_failed',
@@ -853,8 +853,6 @@ export const createAnalysisSession = (options: AnalysisSessionOptions): Analysis
 		files: ReadonlyArray<SourceFileInfo>,
 		opts?: SetFileOptions
 	): Promise<{ result: SetFilesResult; rawDeps: Set<string> }> => {
-		await ensureLexerReady();
-
 		// Resolver gating: pick one only if any file in the batch lacks
 		// `dependencies` (i.e., needs lex+resolve). For fully pre-resolved
 		// batches the resolver is never consulted, so we skip `pickResolver`

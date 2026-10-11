@@ -206,9 +206,9 @@ await session.setFiles(files);`}
 		</p>
 		<ul>
 			<li>
-				<strong>Keep type-only edges</strong>: what the default lex+resolve path does for
-				<code>import type</code> and inline <code>type</code> specifiers (type-only re-exports like
-				<code>export type {`{X}`} from</code> produce no edge).
+				<strong>Keep type-only edges</strong>: what the default lex+resolve path does, for
+				<code>import type</code>, inline <code>type</code> specifiers, and type-only re-exports like
+				<code>export type {`{X}`} from</code>.
 			</li>
 			<li>
 				<strong>Drop type-only edges</strong>: what Gro's filer does, so the output reflects the

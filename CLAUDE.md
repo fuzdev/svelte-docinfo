@@ -143,7 +143,7 @@ points to the TSDoc that owns its policy; read it before changing behavior. User
 - `dep-resolver.ts`
   - `ImportResolver` (`{resolve, identity, invalidate?}`) and `ResolveImport`.
   - `createDefaultResolver`: TS resolution plus a manual `.svelte` fallback.
-  - `lexImports` (es-module-lexer) and `noDepsResolver`.
+  - `lexImports` (a syntax-only TypeScript parse) and `noDepsResolver`.
 - `concurrency.ts` — `MAX_FILE_CONCURRENCY`, `MAX_RESOLVE_CONCURRENCY`, `mapConcurrent`.
 - `error.ts` — `toErrorMessage`.
 - `source-config.ts`
@@ -327,8 +327,8 @@ authoritative.
   - `getProgram()` is reference-stable until a version bumps, and parsed ASTs survive via
     the document registry.
 - **Dependency resolution**
-  - Lex+resolve is the default: es-module-lexer finds import specifiers, which resolve in
-    parallel. That path keeps `import type` but drops `export type … from`.
+  - Lex+resolve is the default: a syntax-only TypeScript parse (`lexImports`) finds import
+    specifiers, type-only ones included, which resolve in parallel.
   - Pre-resolved is the fast path: `SourceFileInfo.dependencies` (e.g. from Gro's filer)
     skips both steps, and the session trusts it unchecked.
   - Resolver cache identity is `ImportResolver.identity`. The default resolver is built
@@ -565,7 +565,7 @@ fuz_ui and fuz_css consume `virtual:svelte-docinfo` directly: a hand-written
 
 ## Dependencies
 
-- **Runtime**: `commander`, `tinyglobby`, `picomatch`, `es-module-lexer`,
+- **Runtime**: `commander`, `tinyglobby`, `picomatch`,
   `@jridgewell/trace-mapping`.
 - **Peers** (required):
   - `svelte` 5+ and `svelte2tsx`, eagerly imported by every entry, so they're needed even

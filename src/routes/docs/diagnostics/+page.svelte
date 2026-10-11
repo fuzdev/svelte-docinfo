@@ -187,9 +187,10 @@
 					<tr>
 						<td><code>import_parse_failed</code></td>
 						<td>
-							<strong>Trigger:</strong> import parsing failed during dependency resolution.
-							<strong>Consequence:</strong> the module's dependency edges are dropped; the module
-							still analyzes. <strong>Ingest-time.</strong>
+							<strong>Trigger:</strong> import scanning threw during dependency resolution (not
+							expected: the parse tolerates malformed source). <strong>Consequence:</strong> the
+							module's dependency edges are dropped; the module still analyzes.
+							<strong>Ingest-time.</strong>
 						</td>
 					</tr>
 					<tr>

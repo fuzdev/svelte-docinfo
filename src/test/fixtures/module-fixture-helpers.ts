@@ -25,7 +25,7 @@ import {
 	normalizeDiagnosticPaths,
 	type AnalyzeResultJson
 } from '#lib/analyze-core.ts';
-import { ensureLexerReady, lexImports } from '#lib/dep-resolver.ts';
+import { lexImports } from '#lib/dep-resolver.ts';
 import { toErrorMessage } from '#lib/error.ts';
 import { computeDependents } from '#lib/postprocess.ts';
 import type { SvelteVirtualFile } from '#lib/svelte.ts';
@@ -186,7 +186,6 @@ export const captureFixtureProject = async (
 		svelteVirtualFiles,
 		contextSvelteFiles
 	} = options;
-	await ensureLexerReady();
 	const emittedIds = new Set(sourceFiles.map((f) => f.id));
 	const ingestDiagnostics: Array<Diagnostic> = [];
 	const withDependencies: Array<SourceFileInfo> = sourceFiles.map(({ id, content }) => {
@@ -195,7 +194,7 @@ export const captureFixtureProject = async (
 		// content is a capturable diagnostic, not a batch crash
 		let specifiers: Array<string> = [];
 		try {
-			specifiers = lexImports(contentToLex, id);
+			specifiers = lexImports(contentToLex);
 		} catch (err) {
 			ingestDiagnostics.push({
 				kind: 'import_parse_failed',

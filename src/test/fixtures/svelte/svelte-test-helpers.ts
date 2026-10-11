@@ -7,7 +7,7 @@ import { createAnalysisProgram, type VirtualFileEntry } from '#lib/typescript-pr
 import { buildAliasRegistry } from '#lib/typescript-alias-registry.ts';
 import type { AliasRegistry } from '#lib/typescript-extract-type-json.ts';
 import type { AnalyzeResultJson } from '#lib/analyze-core.ts';
-import { ensureLexerReady, lexImports } from '#lib/dep-resolver.ts';
+import { lexImports } from '#lib/dep-resolver.ts';
 import { isSource } from '#lib/source-config.ts';
 import type { SourceFileInfo } from '#lib/source.ts';
 
@@ -177,7 +177,7 @@ const assertNoEntryImports = (project: SvelteFixtureProject): void => {
 		const contentToLex = file.virtualFile?.content ?? file.sourceFile.content;
 		let specifiers: Array<string>;
 		try {
-			specifiers = lexImports(contentToLex, file.sourceFile.id);
+			specifiers = lexImports(contentToLex);
 		} catch {
 			continue;
 		}
@@ -237,8 +237,6 @@ export const analyzeSvelteFixtureModules = async (
 	const projects = inputs.map(({ name, input, extraFiles }) =>
 		mapFixtureProject(name, input, extraFiles)
 	);
-
-	await ensureLexerReady();
 
 	// One shared program over every fixture's files: svelte virtuals keyed by
 	// virtual path (entries carry `scriptKind` so JS-lang fixtures parse as

@@ -43,7 +43,6 @@
   "dependencies": {
     "@jridgewell/trace-mapping": "^0.3.25",
     "commander": "^14.0.3",
-    "es-module-lexer": "^2.0.0",
     "picomatch": "^4.0.4",
     "tinyglobby": "^0.2.15"
   },

@@ -264,7 +264,10 @@ export const ModuleUnreadableDiagnostic = z.strictObject({
 export type ModuleUnreadableDiagnostic = z.infer<typeof ModuleUnreadableDiagnostic>;
 
 /**
- * Import parsing failed during dependency resolution.
+ * Import scanning threw during dependency resolution.
+ *
+ * Not expected in practice: the parse in `lexImports` tolerates malformed
+ * source rather than rejecting it, so this guards an unexpected throw.
  */
 export const ImportParseDiagnostic = z.strictObject({
 	kind: z.literal('import_parse_failed'),

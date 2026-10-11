@@ -61,12 +61,10 @@ export interface SourceFileInfo {
 	 * supply this field own the correctness of the graph they hand over.
 	 *
 	 * Type-only imports (`import type {...}`) are the most common asymmetry
-	 * versus the lex+resolve path: the default lex (`es-module-lexer`) keeps
-	 * `import type` and inline `type` specifiers; pre-resolved callers backed
-	 * by a Gro-style filer typically drop them. Both are intentional within
-	 * their respective contracts. The default lex does drop type-only
-	 * re-exports (see `lexImports`), so such a re-export has a `reExports`
-	 * edge with no `dependencies` entry and seeds no context closure.
+	 * versus the lex+resolve path: the default lex (`lexImports`) keeps
+	 * type-only imports and re-exports; pre-resolved callers backed by a
+	 * Gro-style filer typically drop them. Both are intentional within their
+	 * respective contracts.
 	 *
 	 * Cache semantics: the session compares this array element-wise (shallow
 	 * equality) against the snapshot stored from the prior call — a fresh

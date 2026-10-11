@@ -636,8 +636,7 @@ export const finalizeDiagnostics = (
  *
  * `message` gets the same treatment as `file`, by textual substitution. A
  * message is free-form, and not every path in one comes from a field this
- * pass can see — `import_parse_failed` wraps an es-module-lexer error that
- * embeds the file name itself. Scrubbing here means the contract holds for
+ * pass can see — a wrapped error message can embed the file name itself. Scrubbing here means the contract holds for
  * the whole record rather than one field, so a producer can't reintroduce an
  * absolute path through prose.
  *
