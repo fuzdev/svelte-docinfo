@@ -55,11 +55,12 @@ points to the TSDoc that owns its policy; read it before changing behavior. User
   - Tags: `@param`, `@returns`, `@throws`, `@example`, `@deprecated`, `@internal`, `@see`,
     `@since`, `@default`, `@module`, `@nodocs`, `@mutates`. `@return` → `@returns` and
     `@defaultValue`/`@defaultvalue` → `@default`.
-  - `@internal` is a marker, not an exclusion: it sets `internalMessage` and the declaration
-    stays documented. `@nodocs` removes the declaration from docs and duplicate checking. It
-    applies to declarations and export statements only; in a module comment it has no
-    effect and warns `misplaced_tag`.
-  - `@mutates` splits target from description at ` - `. Dotted `@param obj.prop` tags fill
+  - `@internal` is a marker, not an exclusion: it sets `internalMessage` and the declaration,
+    member, or component prop stays documented. `@nodocs` removes the declaration from docs
+    and duplicate checking. It applies to declarations and export statements only; in a module
+    comment it has no effect and warns `misplaced_tag`.
+  - `@mutates` splits target from description at ` - `. On a component prop it declares what
+    the component writes into the value it's handed. Dotted `@param obj.prop` tags fill
     `ParameterJson.propertyDescriptions`.
   - `@default` → `defaultValue` lands on variables, component props, and function/variable
     members, never on top-level functions, overloads, or constructors.
@@ -393,6 +394,9 @@ threw).
 | aliasOf           | ✓        | ✓        | ✓     | ✓         | ✓    | ✓    | ✓         | ✓       | ✓         |                |                |                   |
 
 `ComponentPropJson`, `ParameterJson`, and `TupleElementJson` also carry `typeInfo`.
+`ComponentPropJson` carries the shared doc fields (`docFields` in `types.ts`: `examples`,
+`deprecatedMessage`, `seeAlso`, `throws`, `since`, `internalMessage`, `mutates`) plus
+`description` and `defaultValue`; `ParameterJson` carries none of `docFields`.
 `OverloadJson` carries `returnTypeInfo`.
 
 **Contracts that span fields** (full statements on the `types.ts` field docs):

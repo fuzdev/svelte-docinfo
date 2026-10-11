@@ -165,8 +165,7 @@
 				</li>
 				<li>
 					<code>internalMessage</code>: from <code>@internal</code>, a marker rather than an
-					exclusion (empty string for a bare tag). Declarations and members only, not component
-					props
+					exclusion (empty string for a bare tag)
 				</li>
 				<li>
 					<code>mutates</code>: from <code>@mutates</code>, a
@@ -386,7 +385,9 @@
 				</li>
 				<li>
 					<code>examples</code>, <code>deprecatedMessage</code>, <code>seeAlso</code>,
-					<code>throws</code>, <code>since</code>: from the prop's own doc comment
+					<code>throws</code>, <code>since</code>, <code>internalMessage</code>,
+					<code>mutates</code>: from the prop's own doc comment. On a prop, <code>mutates</code>
+					declares what the component writes into the object or array it's handed
 				</li>
 			</ul>
 			<p>

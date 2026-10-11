@@ -89,8 +89,8 @@
 					<tr>
 						<td><code>@internal</code></td>
 						<td>
-							<code>internalMessage</code> on the parent declaration or member. A marker, not an
-							exclusion (see <a href="#internal">@internal</a>)
+							<code>internalMessage</code> on the parent declaration, member, or component prop. A
+							marker, not an exclusion (see <a href="#internal">@internal</a>)
 						</td>
 					</tr>
 					<tr>
@@ -226,15 +226,24 @@ export function double(n: number | bigint): number | bigint {
 				for the bare form. Without a separator, the first line is the target and any following lines
 				are the description.
 			</p>
+			<p>
+				On a component prop, <code>@mutates</code> declares that the component writes into the
+				object or array it's handed, the same contract a function declares for a parameter:
+				<code>@mutates items - appends the selected entry</code>. Reassigning a prop isn't a
+				mutation in this sense; <code>bindable</code> covers that. The two combine: Svelte warns
+				when a component mutates state the parent didn't bind, so an in-place write into a parent's
+				<code>$state</code> usually sits on a <code>$bindable</code> prop.
+			</p>
 		</TomeSection>
 
 		<TomeSection>
 			<TomeSectionHeader text="@internal" />
 			<p>
 				<code>@internal</code> marks a symbol as not stable public API, per TSDoc. It lands as
-				<code>internalMessage</code> on declarations and members of every kind: an empty string for
-				a bare tag, or the trailing prose (<code>@internal used during development</code>), kept
-				separate from <code>docComment</code>.
+				<code>internalMessage</code> on declarations and members of every kind, and on component
+				props: an empty string for a bare tag, or the trailing prose
+				(<code>@internal used during development</code>), kept separate from
+				<code>docComment</code>.
 			</p>
 			<p>
 				It's a <strong>marker, not an exclusion</strong>: the declaration stays fully documented, so

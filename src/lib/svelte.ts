@@ -821,8 +821,11 @@ const assemblePropInfo = (
 		deprecatedMessage: tsdoc?.deprecatedMessage,
 		seeAlso: tsdoc?.seeAlso,
 		throws: tsdoc?.throws,
-		since: tsdoc?.since
+		since: tsdoc?.since,
+		internalMessage: tsdoc?.internalMessage
 	};
+	// mirrors `applyToDeclaration`: an empty record is absence
+	if (tsdoc?.mutates && Object.keys(tsdoc.mutates).length > 0) result.mutates = tsdoc.mutates;
 	if (typeInfo) result.typeInfo = typeInfo;
 	// Only set parameters when there are actual params to expose.
 	// Bare Snippet/Snippet<[]> doesn't set this — consumers use the type string for detection.

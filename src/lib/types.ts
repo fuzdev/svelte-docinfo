@@ -465,7 +465,35 @@ const docFields = {
 		.array(z.strictObject({ type: z.string().optional(), description: z.string() }))
 		.default([]),
 	/** Version introduced, from `@since` tag. */
-	since: z.string().optional()
+	since: z.string().optional(),
+	/**
+	 * Internal-API marker from the `@internal` tag. Presence means the tag was
+	 * written; an empty string is a bare tag with no trailing prose.
+	 *
+	 * A marker, not an exclusion: `@internal` means "not stable public API"
+	 * (TSDoc semantics) while the declaration, member, or prop stays
+	 * documented — unlike `@nodocs`, which removes a declaration from output
+	 * entirely (and is ignored on props and members).
+	 */
+	internalMessage: z.string().optional(),
+	/**
+	 * Mutation documentation from `@mutates` tags (non-standard), mapping keys to descriptions.
+	 *
+	 * Keys are intentionally unvalidated — typically a parameter name, but
+	 * authors may also use compound paths (`this.foo`, `obj.field`) or
+	 * multi-word external state references. Backticks are stripped from keys
+	 * so `` `a` `` and `a` normalize to one key; an empty-string value is a
+	 * bare tag with no description. The schema accepts any string key so
+	 * consumers can render whatever the author wrote.
+	 *
+	 * On a component prop it declares the component's mutation contract for
+	 * the value it's handed: the component writes into the prop's object or
+	 * array in place (`@mutates items - appends the selected entry`,
+	 * `@mutates options.cache - fills on first render`). Reassigning a prop is
+	 * not a mutation in this sense (`bindable` covers it), though a `$bindable`
+	 * prop can carry both.
+	 */
+	mutates: z.record(z.string(), z.string()).optional()
 } as const;
 
 /**
@@ -584,30 +612,6 @@ const declarationSharedFields = {
 	/** Generic type parameters like `<T, U>`. */
 	genericParams: z.array(GenericParamJson).default([]),
 	...docFields,
-	/**
-	 * Internal-API marker from the `@internal` tag. Presence means the tag was
-	 * written; an empty string is a bare tag with no trailing prose.
-	 *
-	 * A marker, not an exclusion: `@internal` means "not stable public API"
-	 * (TSDoc semantics) while the declaration stays documented — unlike
-	 * `@nodocs`, which removes it from output entirely.
-	 *
-	 * Deliberately here rather than in `docFields`: declarations and members
-	 * only, not `ComponentPropJson` (widen to props as a separate additive
-	 * change if demand appears).
-	 */
-	internalMessage: z.string().optional(),
-	/**
-	 * Mutation documentation from `@mutates` tags (non-standard), mapping keys to descriptions.
-	 *
-	 * Keys are intentionally unvalidated — typically a parameter name, but
-	 * authors may also use compound paths (`this.foo`, `obj.field`) or
-	 * multi-word external state references. Backticks are stripped from keys
-	 * so `` `a` `` and `a` normalize to one key; an empty-string value is a
-	 * bare tag with no description. The schema accepts any string key so
-	 * consumers can render whatever the author wrote.
-	 */
-	mutates: z.record(z.string(), z.string()).optional(),
 	/** Whether extraction failed partway through, leaving some fields missing (e.g., `typeSignature`, `parameters`). */
 	partial: z.boolean().default(false)
 } as const;

@@ -39,6 +39,23 @@
 							"description": "Description 5"
 						}
 					]
+				},
+				{
+					"name": "prop3",
+					"type": "{ a: string[]; }",
+					"description": "Description 6",
+					"internalMessage": "Description 8",
+					"mutates": {
+						"prop3": "Description 7",
+						"prop3.a": ""
+					}
+				},
+				{
+					"name": "prop4",
+					"type": "boolean",
+					"optional": true,
+					"description": "Description 9",
+					"internalMessage": ""
 				}
 			]
 		}

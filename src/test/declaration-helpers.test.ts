@@ -704,6 +704,12 @@ describe('compactReplacer', () => {
 						props: [
 							{ name: 'value', type: 'string', description: 'Description' },
 							{
+								name: 'items',
+								type: 'Array<string>',
+								internalMessage: '',
+								mutates: { items: 'appends', 'items.length': '' }
+							},
+							{
 								name: 'onChange',
 								type: '(v: string) => void',
 								optional: true,
