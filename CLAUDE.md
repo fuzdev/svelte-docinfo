@@ -98,6 +98,15 @@ points to the TSDoc that owns its policy; read it before changing behavior. User
     and throws when the config or anything in its `extends` chain fails to load (SvelteKit's
     generated tsconfig before `svelte-kit sync`), rather than analyzing with inherited
     options silently dropped; option-level diagnostics and TS18003 don't throw.
+  - `tsconfig: false` analyzes without a config file, on `DEFAULT_COMPILER_OPTIONS` (strict,
+    since the compiler's own defaults are non-strict before TypeScript 6). It's explicit,
+    never a fallback: a config that can't be found still throws.
+  - `rootFileNames` (`RootFileNames`: a list, or a function over the tsconfig's roots)
+    replaces the program's roots, which otherwise make cold cost scale with the project.
+    Narrowing changes output only for ambient types declared in a file nothing imports,
+    which then resolve to `any` with no diagnostic. The `RootFileNames` TSDoc owns the
+    policy. Every entry point forwards `tsconfig`, `compilerOptions`, and `rootFileNames`
+    (the CLI as `--tsconfig`/`--no-tsconfig` only).
   - `createIsExternalFile`/`createIsExternalPath` decide externality: outside the root,
     under `node_modules`, or a `.d.ts` outside the source root. That's a different axis from `isSource`
     — a gated local file isn't external.
@@ -260,9 +269,10 @@ place.
 ### Sources and Scope
 
 - **Vocabulary** — *owned*: ingested by the session. *Source* (emitted): owned and passing
-  `isSource`; only these produce a `ModuleJson`. *Gated*: in-root but failing `isSource`
-  (e.g. `internal/`), visible to the checker but never emitted. *Context*: gated files the
-  session reads from disk itself. *External*: a package, an out-of-root file, or a `.d.ts`
+  `isSource`, and not a closure-ingested dependency (see Context closure); only
+  these produce a `ModuleJson`. *Gated*: in-root but failing `isSource`
+  (e.g. `internal/`), visible to the checker but never emitted. *Context*: files the
+  session reads from disk itself: gated ones, plus source dependencies nobody supplied. *External*: a package, an out-of-root file, or a `.d.ts`
   outside the source root — a separate axis from gating.
 - **`SourceFileInfo`** — `{id, content, dependencies?}`. Files come from anywhere: disk,
   memory, or a build pipeline.
@@ -320,6 +330,14 @@ support older ones. The workflow, from the svelte2tsx virtual through props, is 
     and follow the other props in destructuring order. The rest element, a name the type
     lacks, and an index-signature-only name admit nothing.
   - `defaultValue` is verbatim source text, keyed by prop name (`class: c = 'a'` → `class`).
+- **Callback props** — a prop whose type has a call signature this project declared
+  carries `returnType`/`returnTypeInfo` and, when it has any, `parameters`. `returnType`
+  is the marker: snippets have `parameters` without it, and a zero-parameter callback
+  has it without `parameters`. `null` and the optional `undefined` are stripped first; a
+  union of functions is not a callback. External-origin signatures never count
+  (`localCallSignature`, the callable-member rule), which keeps `Component`-typed props
+  out and picks the own signature from `MouseEventHandler<…> & (() => void)`. The
+  `returnType` field doc in `types.ts` is the full statement.
 - **`acceptsChildren`** — true when a `Snippet`-typed `children` prop resolves, or when the
   template uses children.
 - **`docComment` precedence** — in-script JSDoc at or above `$props()` wins over the HTML
@@ -358,10 +376,15 @@ authoritative.
   sorted, so the same files ingested in any order, in one batch or across many `setFile`
   calls, give identical output from a fresh session (limits under `compareStrings` above).
 - **Context closure** (`contextClosure`, default `true`; `analyze()` passes `false`) — after
-  each batch, the session reads in-root, non-source, analyzable targets from disk and
-  ingests them, transitively. Context files emit nothing and add no edges, but they're
+  each batch, the session reads the in-root, analyzable targets it doesn't own from disk
+  and ingests them, transitively. Context files emit nothing and add no edges, but they're
   version-tracked instead of pinned at their first disk read. That keeps `internal/` edits
-  live, and it's the only way a gated Svelte dependency gets a virtual.
+  live, and it's the only way a Svelte dependency the caller didn't supply gets a virtual.
+  So a target is ingested even when it passes `isSource` (a module left out of `exports`,
+  or the rest of the project when one component is handed over), marked `context` on its
+  entry so it still emits nothing. Without it, every type drawn from an unsupplied
+  component is `any`; TS files are walked too because a component can sit behind a barrel.
+  Supplying the file later, a watcher's edit included, promotes it to an emitted input.
 - **Deferred resolutions** — a specifier that resolved to nothing isn't final.
   - When owned-set membership changes, the session calls the resolver's `invalidate()`.
   - A `setFiles` that adds paths retries the null slots of earlier lex+resolve entries
@@ -413,6 +436,8 @@ threw).
 | aliasOf           | ✓        | ✓        | ✓     | ✓         | ✓    | ✓    | ✓         | ✓       | ✓         |                |                |                   |
 
 `ComponentPropJson`, `ParameterJson`, and `TupleElementJson` also carry `typeInfo`.
+`ComponentPropJson` also carries `parameters` (snippets and callbacks) and
+`returnType`/`returnTypeInfo` (callbacks only).
 `ComponentPropJson` carries the shared doc fields (`docFields` in `types.ts`: `examples`,
 `deprecatedMessage`, `seeAlso`, `throws`, `since`, `internalMessage`, `mutates`) plus
 `description` and `defaultValue`; `ParameterJson` carries none of `docFields`.
@@ -537,13 +562,18 @@ identity, after resolving `aliasOf` chains. `@nodocs` exempts a declaration. Enc
   chains leave no trace.
 - **Gated canonicals** (project-local but excluded, e.g. `internal/`) → a full alias
   synthesized even for a same-name re-export, since the canonical emits nothing to link.
-  `aliasOf.module` then dangles by design, and no `reExports` edge is emitted.
+  `aliasOf.module` then dangles by design, and no `reExports` edge is emitted. A context
+  component (in source scope but ingested only by the closure) is treated the same;
+  `ExtractContext.isEmittedFile` is the predicate (`IsEmittedFile`), not bare `isSource`.
+  A source file never ingested at all keeps its `reExports` edge, dangling.
 - **Namespace** re-exports (`export * as ns from './x'`) → `NamespaceDeclarationJson` whose
   `module` points at the projected source. It's detected via `ValueModule` before
   `analyzeDeclaration`, which would otherwise leak `typeof import(...)`.
 - **Svelte component** re-exports → a `kind: 'component'` placeholder. Phase-2
   `resolveComponentAliases` fills props and docs from the canonical, filling gaps only;
-  gated canonicals are supplied as lookup-only context.
+  gated canonicals are supplied as lookup-only context. Only the component (the virtual's
+  default export) gets the placeholder: a re-exported `<script module>` function or type
+  is analyzed as what it is.
 
 Statement-level `@nodocs` suppresses the entry in every encoding. `resolveExportSurface`
 combines all of them into a module's full export surface with ES star semantics (explicit
@@ -579,7 +609,8 @@ pattern.
 ### CLI
 
 `npx svelte-docinfo [project-root]` writes compact JSON to stdout; `--pretty` and
-`-o <file>` adjust that. The full flag table is in `README.md` and in `cli.ts`, whose help
+`-o <file>` adjust that. `--tsconfig <path>` picks a config and `--no-tsconfig` analyzes
+without one. The full flag table is in `README.md` and in `cli.ts`, whose help
 text interpolates the defaults.
 
 - `--only <glob>` filters output modules after full analysis; diagnostics aren't filtered.

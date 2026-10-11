@@ -840,6 +840,51 @@ let {label}: {label: string} = $props();
 		);
 	});
 
+	test('--no-tsconfig analyzes a project that has none', async () => {
+		await withTestProject(
+			{ 'src/lib/a.ts': 'export const nullable: string | null = null;' },
+			async (projectRoot) => {
+				const missing = await runCliCapture(['node', 'svelte-docinfo', projectRoot, '--quiet']);
+				assert.strictEqual(missing.exitCode, 2);
+
+				const { exitCode, stdout } = await runCliCapture([
+					'node',
+					'svelte-docinfo',
+					projectRoot,
+					'--no-tsconfig',
+					'--quiet'
+				]);
+				assert.strictEqual(exitCode, 0);
+				const output = JSON.parse(stdout.join('\n'));
+				assert.strictEqual(output.modules[0].declarations[0].typeSignature, 'string | null');
+			},
+			{ tsconfig: false }
+		);
+	});
+
+	test('--tsconfig selects a config by path', async () => {
+		await withTestProject(
+			{
+				'src/lib/a.ts': 'export const nullable: string | null = null;',
+				'tsconfig.json': JSON.stringify({ compilerOptions: { strict: true } }),
+				'tsconfig.loose.json': JSON.stringify({ compilerOptions: { strict: false } })
+			},
+			async (projectRoot) => {
+				const { exitCode, stdout } = await runCliCapture([
+					'node',
+					'svelte-docinfo',
+					projectRoot,
+					'--tsconfig',
+					'tsconfig.loose.json',
+					'--quiet'
+				]);
+				assert.strictEqual(exitCode, 0);
+				const output = JSON.parse(stdout.join('\n'));
+				assert.strictEqual(output.modules[0].declarations[0].typeSignature, 'string');
+			}
+		);
+	});
+
 	test('--on-duplicates rejects invalid values', async () => {
 		await withTestProject(SIMPLE_PROJECT, async (projectRoot) => {
 			const { exitCode, stderr } = await runCliCapture([

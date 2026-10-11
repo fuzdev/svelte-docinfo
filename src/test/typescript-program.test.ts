@@ -10,6 +10,7 @@ import { join } from 'node:path';
 import { test, assert, describe } from 'vitest';
 
 import {
+	DEFAULT_COMPILER_OPTIONS,
 	createAnalysisLanguageService,
 	createOwnedDirIndex,
 	loadTsconfig
@@ -262,6 +263,149 @@ describe('loadTsconfig', () => {
 				},
 				{ tsconfig: false }
 			);
+		});
+	});
+
+	describe('tsconfig: false', () => {
+		test('loads without a config file, on the documented defaults', async () => {
+			await withTestProject(
+				{ 'src/lib/a.ts': 'export const a = 1;' },
+				async (projectRoot) => {
+					const { compilerOptions, rootFileNames } = loadTsconfig({ projectRoot, tsconfig: false });
+					assert.deepStrictEqual(compilerOptions, DEFAULT_COMPILER_OPTIONS);
+					assert.strictEqual(compilerOptions.strict, true);
+					assert.deepStrictEqual(rootFileNames, []);
+				},
+				{ tsconfig: false }
+			);
+		});
+
+		test('ignores a config file that exists', async () => {
+			await withTestProject(
+				{
+					'tsconfig.json': '{"compilerOptions": {"strict": false}, "include": ["src/**/*.ts"]}',
+					'src/lib/a.ts': 'export const a = 1;'
+				},
+				async (projectRoot) => {
+					const { compilerOptions, rootFileNames } = loadTsconfig({ projectRoot, tsconfig: false });
+					assert.strictEqual(compilerOptions.strict, true);
+					assert.deepStrictEqual(rootFileNames, []);
+				}
+			);
+		});
+
+		test('compilerOptions merge over the defaults per key', async () => {
+			await withTestProject(
+				{},
+				async (projectRoot) => {
+					const { compilerOptions } = loadTsconfig({
+						projectRoot,
+						tsconfig: false,
+						compilerOptions: { checkJs: false, noUncheckedIndexedAccess: true }
+					});
+					assert.deepStrictEqual(compilerOptions, {
+						...DEFAULT_COMPILER_OPTIONS,
+						checkJs: false,
+						noUncheckedIndexedAccess: true
+					});
+				},
+				{ tsconfig: false }
+			);
+		});
+
+		test('a missing config still throws without it', async () => {
+			await withTestProject(
+				{},
+				async (projectRoot) => {
+					assert.throws(
+						() => loadTsconfig({ projectRoot, tsconfig: 'tsconfig.does-not-exist.json' }),
+						/tsconfig\.does-not-exist\.json/
+					);
+				},
+				{ tsconfig: false }
+			);
+		});
+	});
+
+	describe('rootFileNames', () => {
+		const files = {
+			'src/app.d.ts': 'declare global {\n\ttype Ambient = 1;\n}\nexport {};',
+			'src/lib/a.ts': 'export const a = 1;',
+			'src/lib/b.ts': 'export const b = 2;'
+		};
+
+		test('a function filters the tsconfig roots', async () => {
+			await withTestProject(files, async (projectRoot) => {
+				const { rootFileNames } = loadTsconfig({
+					projectRoot,
+					rootFileNames: (roots) => roots.filter((file) => file.endsWith('.d.ts'))
+				});
+				assert.deepStrictEqual(rootFileNames, [join(projectRoot, 'src/app.d.ts')]);
+			});
+		});
+
+		test('a function cannot mutate the tsconfig roots it is handed', async () => {
+			await withTestProject(files, async (projectRoot) => {
+				const { rootFileNames } = loadTsconfig({
+					projectRoot,
+					rootFileNames: (roots) => {
+						const kept = roots.slice();
+						roots.length = 0;
+						return kept;
+					}
+				});
+				assert.deepStrictEqual(rootFileNames, loadTsconfig({ projectRoot }).rootFileNames);
+			});
+		});
+
+		test('a list replaces the tsconfig roots, relative entries resolving against projectRoot', async () => {
+			await withTestProject(files, async (projectRoot) => {
+				const { rootFileNames } = loadTsconfig({
+					projectRoot,
+					rootFileNames: ['src/lib/b.ts', join(projectRoot, 'src/app.d.ts')]
+				});
+				assert.deepStrictEqual(rootFileNames, [
+					join(projectRoot, 'src/lib/b.ts'),
+					join(projectRoot, 'src/app.d.ts')
+				]);
+			});
+		});
+
+		test('an empty list roots nothing', async () => {
+			await withTestProject(files, async (projectRoot) => {
+				assert.deepStrictEqual(loadTsconfig({ projectRoot, rootFileNames: [] }).rootFileNames, []);
+			});
+		});
+
+		test('under tsconfig: false a function receives no roots', async () => {
+			await withTestProject(files, async (projectRoot) => {
+				let received: Array<string> | undefined;
+				const { rootFileNames } = loadTsconfig({
+					projectRoot,
+					tsconfig: false,
+					rootFileNames: (roots) => {
+						received = roots;
+						return ['src/app.d.ts'];
+					}
+				});
+				assert.deepStrictEqual(received, []);
+				assert.deepStrictEqual(rootFileNames, [join(projectRoot, 'src/app.d.ts')]);
+			});
+		});
+
+		test('the language service program takes the narrowed roots', async () => {
+			await withTestProject(files, async (projectRoot) => {
+				const ls = createAnalysisLanguageService({ projectRoot, rootFileNames: [] });
+				try {
+					assert.deepStrictEqual(ls.getProgram().getRootFileNames(), []);
+					ls.setFile(join(projectRoot, 'src/lib/a.ts'), { content: files['src/lib/a.ts'] });
+					assert.deepStrictEqual(ls.getProgram().getRootFileNames(), [
+						join(projectRoot, 'src/lib/a.ts')
+					]);
+				} finally {
+					ls.dispose();
+				}
+			});
 		});
 	});
 

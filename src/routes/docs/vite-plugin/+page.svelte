@@ -126,6 +126,17 @@ svelteDocinfo({
   // 'warn'       → also log them
   // 'throw'      → also fail the build
   onDuplicates: undefined,
+
+  // tsconfig path relative to projectRoot, or false to analyze without one.
+  // Default: 'tsconfig.json'.
+  tsconfig: 'tsconfig.json',
+
+  // Compiler options merged over the tsconfig's. Default: none.
+  compilerOptions: undefined,
+
+  // The program's root files, in place of the tsconfig's: a list, or a
+  // function over the tsconfig's roots. Default: the tsconfig's roots.
+  rootFileNames: undefined,
 })`}
 		/>
 		<p>

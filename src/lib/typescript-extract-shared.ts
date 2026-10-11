@@ -37,7 +37,7 @@ import {
 	type AliasRegistry
 } from './typescript-extract-type-json.ts';
 import { createIsExternalFile, type IsExternalFile } from './typescript-program.ts';
-import type { ModuleSourceOptions } from './source-config.ts';
+import { isSource, type ModuleSourceOptions } from './source-config.ts';
 
 /**
  * The pass-scoped, cross-cutting state one extraction run threads through the
@@ -71,7 +71,29 @@ export interface ExtractContext {
 	 * construction site decides explicitly, like `aliasRegistry`.
 	 */
 	exactOptionalPropertyTypes: boolean;
+	/** Whether a file emits a module this pass (see `IsEmittedFile`). */
+	isEmittedFile: IsEmittedFile;
 }
+
+/**
+ * Whether the file at an absolute POSIX path emits a module in this analysis
+ * pass — the question the re-export encodings turn on: a re-export of an
+ * emitted canonical links to it, while one whose canonical emits nothing is
+ * documented where it's re-exported.
+ *
+ * Not quite `isSource`. A Svelte component the session ingested only as
+ * checker context (a sibling the caller didn't supply) passes `isSource` and
+ * emits nothing, and since it was analyzed, a re-export of it can be
+ * documented like one of a gated `internal/` component. `analyzeCore` excludes
+ * those; a caller analyzing one module with no such set falls back to
+ * `isSource`.
+ *
+ * A source file that was never ingested at all still counts as emitted here,
+ * deliberately: its re-exports keep their forward edge to a module absent
+ * from the output, the documented presence caveat `aliasOf.module` and
+ * `starExports` share.
+ */
+export type IsEmittedFile = (file: string) => boolean;
 
 /**
  * The module dispatchers' `ExtractContext` construction — `analyzeModule` and
@@ -93,13 +115,15 @@ export const createExtractContext = (
 	checker: ts.TypeChecker,
 	options: ModuleSourceOptions,
 	diagnostics: Array<Diagnostic>,
-	aliasRegistry: AliasRegistry | undefined
+	aliasRegistry: AliasRegistry | undefined,
+	isEmittedFile: IsEmittedFile = (file) => isSource(file, options)
 ): ExtractContext => ({
 	checker,
 	diagnostics,
 	isExternalFile: createIsExternalFile(options),
 	aliasRegistry,
-	exactOptionalPropertyTypes: !!program.getCompilerOptions().exactOptionalPropertyTypes
+	exactOptionalPropertyTypes: !!program.getCompilerOptions().exactOptionalPropertyTypes,
+	isEmittedFile
 });
 
 /**
@@ -516,7 +540,7 @@ const collectSymbolScopeTags = (
  * `optional`, hence the constant `false`). The written return annotation, when
  * one exists, feeds the tree's name recovery for aliases TypeScript dropped.
  */
-const applyReturnType = (
+export const applyReturnType = (
 	target: { returnType?: string; returnTypeInfo?: TypeJson },
 	sig: ts.Signature,
 	ctx: ExtractContext

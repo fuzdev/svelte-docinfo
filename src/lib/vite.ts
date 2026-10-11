@@ -60,7 +60,10 @@
 import { readFile } from 'node:fs/promises';
 import type { Environment, Logger as ViteLogger, Plugin, ViteDevServer } from 'vite';
 
+import type ts from 'typescript';
+
 import { createAnalysisSession, type AnalysisSession } from './session.ts';
+import type { RootFileNames } from './typescript-program.ts';
 import { normalizeDiagnosticPaths, type OnDuplicates } from './analyze-core.ts';
 import { discoverSourceFiles, type Discovery } from './discovery.ts';
 import type { SourceFileInfo } from './source.ts';
@@ -132,6 +135,19 @@ export interface VitePluginSvelteDocinfoOptions {
 	sourceOptions?: SourceOptionsOverrides;
 	/** Opt-in check that declaration names are unique across modules (see `OnDuplicates`). */
 	onDuplicates?: OnDuplicates;
+	/**
+	 * Path to the tsconfig, relative to the project root, or `false` to analyze
+	 * without one (see `LoadTsconfigOptions.tsconfig`).
+	 * @default 'tsconfig.json'
+	 */
+	tsconfig?: string | false;
+	/** Compiler options merged over the tsconfig's (see `LoadTsconfigOptions.compilerOptions`). */
+	compilerOptions?: ts.CompilerOptions;
+	/**
+	 * Root files for the program in place of the tsconfig's (see `RootFileNames`).
+	 * @default the tsconfig's roots
+	 */
+	rootFileNames?: RootFileNames;
 	/**
 	 * Dev re-analysis debounce delay in milliseconds. Coalesces rapid file changes.
 	 * @default 100
@@ -508,6 +524,9 @@ const svelteDocinfo = (options: VitePluginSvelteDocinfoOptions = {}): Plugin => 
 			session = createAnalysisSession({
 				sourceOptions: resolvedSourceOptions,
 				resolveImport: sessionResolver,
+				tsconfig: options.tsconfig,
+				compilerOptions: options.compilerOptions,
+				rootFileNames: options.rootFileNames,
 				log: logger ?? undefined
 			});
 			sessionEnvironment = this.environment;

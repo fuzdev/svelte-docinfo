@@ -42,6 +42,11 @@ const session = createAnalysisSession({
   // Optional (default true): also ingest the in-project non-source files
   // your sources import, so edits to them stay live.
   // contextClosure: true,
+  // Optional: a tsconfig path relative to the project root, or false to
+  // analyze without one. Default: 'tsconfig.json'.
+  // tsconfig: 'tsconfig.lib.json',
+  // Optional: the program's root files, in place of the tsconfig's.
+  // rootFileNames: (roots) => roots.filter((file) => file.endsWith('.d.ts')),
   // Optional: logger for session-level messages.
   // log: console,
 });`}
@@ -55,9 +60,20 @@ const session = createAnalysisSession({
 		<p>
 			The tsconfig (the <code>tsconfig</code> option, or the project's) is parsed once, at
 			construction. <code>compilerOptions</code> merge over it per key, and the type checker and
-			default resolver both see the merged result. The tsconfig file is still required, its whole
-			<code>extends</code> chain must load, and later edits to it aren't picked up; create a new
-			session.
+			default resolver both see the merged result. The tsconfig file is required and its whole
+			<code>extends</code> chain must load, unless you pass <code>tsconfig: false</code>, which
+			skips the file and uses built-in strict options
+			(<DeclarationLink name="DEFAULT_COMPILER_OPTIONS" />) under your <code>compilerOptions</code>.
+			Later edits to the tsconfig aren't picked up; create a new session.
+		</p>
+		<p>
+			By default every file the tsconfig includes is a root of the program, so a session fed a few
+			files of a large project still loads all of it. <code>rootFileNames</code> replaces those
+			roots with a list, or filters them with a function. The files you ingest and everything they
+			import are always loaded, so narrowing changes output only for types that arrive through no
+			import: ambient declarations in a file nothing imports resolve to <code>any</code> once that
+			file stops being a root. Keeping the <code>.d.ts</code> roots, as above, covers the usual
+			case; see <DeclarationLink name="RootFileNames" />.
 		</p>
 	</TomeSection>
 

@@ -46,6 +46,7 @@ export const mockExtractContext = (
 	isExternalFile: () => false,
 	aliasRegistry: undefined,
 	exactOptionalPropertyTypes: false,
+	isEmittedFile: () => true,
 	...overrides
 });
 

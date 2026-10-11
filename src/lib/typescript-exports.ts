@@ -30,12 +30,7 @@ import {
 	stripVirtualSuffix,
 	getComponentName
 } from './source.ts';
-import {
-	type ModuleSourceOptions,
-	extractDependencies,
-	extractPath,
-	isSource
-} from './source-config.ts';
+import { type ModuleSourceOptions, extractDependencies, extractPath } from './source-config.ts';
 import { createIsExternalPath } from './typescript-program.ts';
 import {
 	getLocalExportStatement,
@@ -43,7 +38,8 @@ import {
 	inferDeclarationKind,
 	isDeclaredInFile,
 	selectDeclarationNode,
-	type ExtractContext
+	type ExtractContext,
+	type IsEmittedFile
 } from './typescript-extract-shared.ts';
 import {
 	isAliasLostType,
@@ -186,7 +182,8 @@ const classifyNamespaceReExport = (
 	checker: ts.TypeChecker,
 	currentFileName: string,
 	options: ModuleSourceOptions,
-	isExternalPath: (file: string) => boolean
+	isExternalPath: (file: string) => boolean,
+	isEmittedFile: IsEmittedFile
 ): NamespaceClassification | null => {
 	const deeplyAliased = checker.getAliasedSymbol(exportSymbol);
 	if ((deeplyAliased.flags & ts.SymbolFlags.ValueModule) === 0) return null;
@@ -258,7 +255,7 @@ const classifyNamespaceReExport = (
 		kind: 'same-name',
 		canonicalModule: extractPath(canonicalFile, options),
 		sourceModule: extractPath(sourceModuleFile, options),
-		canonicalGated: !isSource(canonicalFile, options)
+		canonicalGated: !isEmittedFile(canonicalFile)
 	};
 };
 
@@ -312,17 +309,35 @@ const reExportPublicName = (
 		? getComponentName(canonicalFile)
 		: exportName;
 
+/** Whether `symbol` is what `sourceFile` exports as `default`, through any alias. */
+const isDefaultExportOf = (
+	symbol: ts.Symbol,
+	sourceFile: ts.SourceFile,
+	checker: ts.TypeChecker
+): boolean => {
+	const moduleSymbol = checker.getSymbolAtLocation(sourceFile);
+	const defaultExport =
+		moduleSymbol && checker.tryGetMemberInModuleExports('default', moduleSymbol);
+	if (!defaultExport) return false;
+	const resolved =
+		defaultExport.flags & ts.SymbolFlags.Alias
+			? checker.getAliasedSymbol(defaultExport)
+			: defaultExport;
+	return resolved === symbol || defaultExport === symbol;
+};
+
 /**
  * Synthesize a cross-file alias declaration for a renamed or documented
  * same-name re-export.
  *
- * Svelte canonicals get a `kind: 'component'` placeholder — running
- * `analyzeDeclaration` on svelte2tsx's `__SvelteComponent_` type alias would
- * leak internal names; phase-2 `resolveComponentAliases` copies
- * props/acceptsChildren/lang/etc. from the canonical (fill-gaps-only, so
- * local JSDoc applied by the caller sticks). Everything else is analyzed in
- * its own source file so the alias inherits `typeSignature`, `reactivity`,
- * `docComment`, `parameters`, etc.
+ * A Svelte component — the default export of a svelte2tsx virtual — gets a
+ * `kind: 'component'` placeholder: running `analyzeDeclaration` on
+ * svelte2tsx's `__SvelteComponent_` type alias would leak internal names;
+ * phase-2 `resolveComponentAliases` copies props/acceptsChildren/lang/etc.
+ * from the canonical (fill-gaps-only, so local JSDoc applied by the caller
+ * sticks). Everything else, a component's `<script module>` exports included,
+ * is analyzed in its own source file so the alias inherits `typeSignature`,
+ * `reactivity`, `docComment`, `parameters`, etc.
  *
  * `aliasOf.name` is the canonical's own symbol name — `'default'` for
  * default-slot canonicals (renames into and out of the slot flow through
@@ -337,7 +352,10 @@ const synthesizeCrossFileAlias = (
 	specifierLine: number | undefined,
 	ctx: ExtractContext
 ): DeclarationJsonBuild => {
-	if (isSvelteVirtualPath(originalSource.fileName)) {
+	if (
+		isSvelteVirtualPath(originalSource.fileName) &&
+		isDefaultExportOf(aliasedSymbol, originalSource, ctx.checker)
+	) {
 		return {
 			name: publicName,
 			kind: 'component',
@@ -457,7 +475,8 @@ export const analyzeExports = (
 					checker,
 					currentFileName,
 					options,
-					isExternalPath
+					isExternalPath,
+					ctx.isEmittedFile
 				);
 				if (nsClass) {
 					// The locality skip above filters star-projected bindings before
@@ -575,8 +594,10 @@ export const analyzeExports = (
 							declarations.push({ declaration: decl, nodocs: !!localTsdoc?.nodocs });
 						};
 
-						// Only track if the original is from a source module (not node_modules)
-						if (isSource(originalFileName, options)) {
+						// Only link when the original is a source module; one known to
+						// emit nothing (gated, or a context component) takes the
+						// synthesizing arm below
+						if (ctx.isEmittedFile(originalFileName)) {
 							const originalModule = extractPath(originalFileName, options);
 							// Use the IMMEDIATE alias (one hop) for rename detection so a
 							// same-name re-export of an intermediate alias is not mistaken
@@ -621,7 +642,7 @@ export const analyzeExports = (
 								// namespace classifier's `canonicalGated`). `aliasOf` points at
 								// the deep canonical — a real declaration.
 								const canonicalGated =
-									!isExternalPath(canonicalFile) && !isSource(canonicalFile, options);
+									!isExternalPath(canonicalFile) && !ctx.isEmittedFile(canonicalFile);
 
 								// Position 3 (content-conditional synthesis): if the local export
 								// statement carries JSDoc or @nodocs, synthesize an alias declaration
@@ -638,7 +659,7 @@ export const analyzeExports = (
 								if (
 									!localTsdoc?.nodocs &&
 									canonicalFile !== currentFileName &&
-									isSource(canonicalFile, options)
+									ctx.isEmittedFile(canonicalFile)
 								) {
 									reExports.push({
 										name: reExportName,
@@ -651,10 +672,11 @@ export const analyzeExports = (
 							continue;
 						}
 
-						// Re-export whose canonical is project-local but gated from
-						// output (the `internal/` convention, user excludes): the
-						// statement publishes the symbol *here*, and the canonical
-						// module emits nothing — so this module owns the docs. A full
+						// Re-export whose canonical is project-local but emits no
+						// module (the `internal/` convention, user excludes, a context
+						// component): the statement publishes the
+						// symbol *here*, and the canonical module emits nothing — so
+						// this module owns the docs. A full
 						// alias declaration is synthesized (same-name and renamed
 						// alike; there is no canonical to link an `alsoExportedFrom`
 						// edge to), inheriting the canonical's analyzed shape, with

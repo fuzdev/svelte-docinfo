@@ -37,7 +37,8 @@
 						]
 					},
 					"optional": true,
-					"description": "Renders as a button when provided — the doc on a redeclared name."
+					"description": "Renders as a button when provided — the doc on a redeclared name.",
+					"returnType": "void"
 				},
 				{
 					"name": "disabled",

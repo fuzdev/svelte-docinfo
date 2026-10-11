@@ -739,6 +739,37 @@ export function add(a: number, b: number): number {
 			}
 		});
 
+		test("'exports' types an exported component through an unexported sibling", async () => {
+			const { projectRoot, cleanup } = await createTestProject({
+				'src/lib/Button.svelte': `<script lang="ts">\n\tlet { variant }: { variant: 'primary' | 'secondary' } = $props();\n</script>\n<button>{variant}</button>`,
+				'src/lib/Modal.svelte': `<script lang="ts">\n\timport type { ComponentProps } from 'svelte';\n\timport Button from './Button.svelte';\n\tlet { confirm }: { confirm: ComponentProps<typeof Button>['variant'] } = $props();\n</script>\n<Button variant={confirm} />`,
+				'package.json': JSON.stringify({
+					name: 'test-pkg',
+					exports: { './Modal.svelte': { svelte: './dist/Modal.svelte' } }
+				})
+			});
+
+			try {
+				const { modules, diagnostics } = await analyzeFromFiles({
+					projectRoot,
+					discovery: 'exports'
+				});
+
+				// the sibling shapes the exported component's types without
+				// joining the emitted set
+				assert.deepStrictEqual(
+					modules.map((m) => m.path),
+					['Modal.svelte']
+				);
+				assert.deepStrictEqual(diagnostics, []);
+				const modal = modules[0]?.declarations.find((d) => d.name === 'Modal');
+				assert(modal?.kind === 'component');
+				assert.strictEqual(modal.props[0]?.type, '"primary" | "secondary"');
+			} finally {
+				await cleanup();
+			}
+		});
+
 		test("'exports' strict mode rejects combination with `include`", async () => {
 			const { projectRoot, cleanup } = await createTestProject({
 				'src/lib/foo.ts': 'export const foo = 1;',

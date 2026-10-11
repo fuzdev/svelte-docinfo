@@ -260,13 +260,22 @@ const session = createAnalysisSession({
 	<TomeSection>
 		<TomeSectionHeader text="Context files" />
 		<p>
-			By default a session also ingests the in-project, non-source files its sources import
-			(transitively, skipping <code>node_modules</code> and dot-directories), so edits to them, like
-			<code>internal/</code> modules, stay live instead of being read from disk once. These context
-			files emit no modules and add no edges. Their imports always go through lex+resolve, so when
-			the closure finds files, even a fully pre-resolved session builds the default resolver (unless
-			you supply <code>resolveImport</code>). <code>analyze()</code> turns the closure off;
-			<code>analyzeFromFiles</code> keeps it on.
+			By default a session also ingests the in-project files its sources import that you didn't
+			supply (transitively, skipping <code>node_modules</code> and dot-directories), so edits to
+			them, like <code>internal/</code> modules, stay live instead of being read from disk once.
+			These context files emit no modules and add no edges. Their imports always go through
+			lex+resolve, so when the closure finds files, even a fully pre-resolved session builds the
+			default resolver (unless you supply <code>resolveImport</code>). <code>analyze()</code> turns
+			the closure off; <code>analyzeFromFiles</code> keeps it on.
+		</p>
+		<p>
+			That includes source files, such as a component left out of <code>package.json</code>
+			<code>exports</code>, or the rest of the project when you hand over one component. The type
+			checker can only read a component through its transformed form, so without the ingest every
+			type drawn from that component would be <code>any</code>. Such a file still emits no module
+			until you supply it yourself; passing it to <code>setFile</code> for any reason, an edit
+			included, counts as supplying it. With the closure off, as in <code>analyze()</code>, pass
+			every component the checker needs.
 		</p>
 	</TomeSection>
 

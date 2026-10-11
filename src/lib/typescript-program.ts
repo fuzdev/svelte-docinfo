@@ -20,7 +20,7 @@
  */
 
 import { createRequire } from 'node:module';
-import { join, dirname } from 'node:path';
+import { join, dirname, resolve } from 'node:path';
 import ts from 'typescript';
 
 import type { AnalysisLog } from './log.ts';
@@ -44,18 +44,80 @@ export interface LoadTsconfigOptions {
 	projectRoot?: string;
 	/**
 	 * Path to tsconfig.json, relative to `projectRoot`; parent directories are
-	 * searched when it isn't there.
+	 * searched when it isn't there. Any config file name works, `jsconfig.json`
+	 * included.
+	 *
+	 * `false` analyzes without a config file: no lookup runs, the compiler
+	 * options are `DEFAULT_COMPILER_OPTIONS` with `compilerOptions` merged on
+	 * top, and there are no config roots. It's an explicit choice, never a
+	 * fallback — a config that's named or defaulted and can't be found still
+	 * throws.
 	 * @default 'tsconfig.json'
 	 */
-	tsconfig?: string;
+	tsconfig?: string | false;
 	/**
 	 * Compiler options merged on top of those parsed from `tsconfig.json`
-	 * (per-key override; user-supplied keys win). Does not bypass the
-	 * `tsconfig.json` file requirement — `loadTsconfig` still throws when no
-	 * config file is found.
+	 * (per-key override; user-supplied keys win), or on top of
+	 * `DEFAULT_COMPILER_OPTIONS` under `tsconfig: false`. Does not by itself
+	 * bypass the config file requirement — without `tsconfig: false`,
+	 * `loadTsconfig` still throws when no config file is found.
 	 */
 	compilerOptions?: ts.CompilerOptions;
+	/**
+	 * The program's root files beyond the analyzed ones, replacing the roots
+	 * the tsconfig's `files`/`include` produce (see `RootFileNames`).
+	 * @default the tsconfig's roots
+	 */
+	rootFileNames?: RootFileNames;
 }
+
+/**
+ * Root files for the analysis program: a list, or a function from the
+ * tsconfig's roots to the ones to keep (it receives `[]` under
+ * `tsconfig: false`). Paths are absolute or relative to `projectRoot`.
+ *
+ * By default every file the tsconfig includes is a root, so the cold cost of
+ * a program scales with the project — tests, routes, and config files are
+ * parsed and bound, along with the packages only they import — however few
+ * files are analyzed. The files a session or a one-shot entry analyzes, and
+ * their imports, are always in the program (they're roots of their own), so
+ * narrowing the roots changes output only where a type reaches a
+ * file through no import: an ambient declaration (`declare global`, a
+ * `declare module` augmentation, a script-style `.d.ts`) in a file nothing
+ * imports. Drop such a root and the types it declares resolve to `any`, with
+ * no diagnostic.
+ *
+ * Keeping the declaration files covers the usual home of ambient types:
+ *
+ * ```ts
+ * rootFileNames: (roots) => roots.filter((file) => file.endsWith('.d.ts'))
+ * ```
+ *
+ * `[]` roots nothing but the analyzed files — the fastest program, for
+ * projects known to declare no ambient types.
+ */
+export type RootFileNames = Array<string> | ((tsconfigRoots: Array<string>) => Array<string>);
+
+/**
+ * The compiler options used under `tsconfig: false`, before the caller's
+ * `compilerOptions` are merged on top.
+ *
+ * Set explicitly because the compiler's own defaults vary by TypeScript
+ * version, and before TypeScript 6 they are non-strict: without
+ * `strictNullChecks` a `string | null` prop prints as `string`.
+ * `allowJs`/`checkJs` type the imports of JS-lang components and `.js`
+ * modules.
+ */
+export const DEFAULT_COMPILER_OPTIONS: ts.CompilerOptions = {
+	strict: true,
+	target: ts.ScriptTarget.ESNext,
+	module: ts.ModuleKind.ESNext,
+	moduleResolution: ts.ModuleResolutionKind.Bundler,
+	allowJs: true,
+	checkJs: true,
+	skipLibCheck: true,
+	noEmit: true
+};
 
 /**
  * A host-served file entry: content plus optional parser treatment.
@@ -367,6 +429,11 @@ const formatConfigDiagnostic = (diagnostic: ts.Diagnostic, configPath: string): 
  * applies the rest of the config, and the project's own typecheck reports
  * them.
  *
+ * Under `tsconfig: false` no file is read: the options are
+ * `DEFAULT_COMPILER_OPTIONS` with `options.compilerOptions` merged on top, and
+ * the config contributes no roots. `options.rootFileNames` then replaces or
+ * filters the roots either way (see `RootFileNames`).
+ *
  * @throws Error if tsconfig.json (or the file named by `options.tsconfig`) is
  *   not found or fails to parse, or a config in its `extends` chain is missing
  *   or fails to parse. A missing SvelteKit-generated target adds a hint to run
@@ -377,6 +444,14 @@ export const loadTsconfig = (
 	log?: AnalysisLog
 ): { compilerOptions: ts.CompilerOptions; rootFileNames: Array<string> } => {
 	const projectRoot = options?.projectRoot ?? process.cwd();
+
+	if (options?.tsconfig === false) {
+		log?.info('analyzing without a tsconfig');
+		return {
+			compilerOptions: { ...DEFAULT_COMPILER_OPTIONS, ...options.compilerOptions },
+			rootFileNames: resolveRootFileNames(options.rootFileNames, [], projectRoot)
+		};
+	}
 	const tsconfigName = options?.tsconfig ?? 'tsconfig.json';
 
 	const configPath = ts.findConfigFile(projectRoot, ts.sys.fileExists, tsconfigName);
@@ -419,7 +494,26 @@ export const loadTsconfig = (
 		? { ...parsedConfig.options, ...options.compilerOptions }
 		: parsedConfig.options;
 
-	return { compilerOptions, rootFileNames: parsedConfig.fileNames };
+	return {
+		compilerOptions,
+		rootFileNames: resolveRootFileNames(options?.rootFileNames, parsedConfig.fileNames, projectRoot)
+	};
+};
+
+/**
+ * Apply a `RootFileNames` option to the tsconfig's roots: absent keeps them,
+ * a list replaces them, a function maps them. Results are POSIX and absolute
+ * (relative entries resolve against `projectRoot`), like every path the
+ * program hosts key on.
+ */
+const resolveRootFileNames = (
+	option: RootFileNames | undefined,
+	tsconfigRoots: Array<string>,
+	projectRoot: string
+): Array<string> => {
+	if (option === undefined) return tsconfigRoots;
+	const roots = typeof option === 'function' ? option([...tsconfigRoots]) : option;
+	return roots.map((file) => toPosixPath(resolve(projectRoot, file)));
 };
 
 /**
@@ -665,9 +759,10 @@ export const createAnalysisLanguageService = (
 	// Ancestor directories of the owned set, kept in lockstep by
 	// `setFileInternal`/`deleteFile` — see `createOwnedDirIndex`.
 	const ownedDirs = createOwnedDirIndex();
-	// Root file names from tsconfig — kept as a Set for fast membership checks
-	// during deleteFile (so a deleted owned file that was *also* in tsconfig
-	// stays in the program's root set, falling through to disk).
+	// Root file names from the tsconfig (or the `rootFileNames` option) — kept
+	// as a Set for fast membership checks during deleteFile (so a deleted owned
+	// file that was *also* a configured root stays in the program's root set,
+	// falling through to disk).
 	const tsconfigRoots = new Set<string>(rootFileNames);
 	// Virtual roots (e.g., `.__svelte2tsx__.ts` paths) added via `setFile`.
 	// Tracked separately so `deleteFile` can drop them from the LS's root list.

@@ -59,7 +59,14 @@
 					"name": "prop3",
 					"type": "(event: MouseEvent) => void",
 					"optional": true,
-					"description": "Description 3"
+					"description": "Description 3",
+					"parameters": [
+						{
+							"name": "event",
+							"type": "MouseEvent"
+						}
+					],
+					"returnType": "void"
 				},
 				{
 					"name": "prop4",

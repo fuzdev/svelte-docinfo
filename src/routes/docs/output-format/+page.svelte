@@ -399,7 +399,15 @@
 				</li>
 				<li>
 					<code>parameters</code>: structured parameters for snippet-typed props (e.g.,
-					<code>Snippet&lt;[text: string]&gt;</code>)
+					<code>Snippet&lt;[text: string]&gt;</code>) and callback props; absent when there are none
+				</li>
+				<li>
+					<code>returnType</code> and <code>returnTypeInfo</code>: a callback prop's return type
+					(<code>onpick?: (value: string) =&gt; void</code>, or a project alias for one). Its
+					presence is what marks a prop as a callback, including one with no parameters; snippets
+					never carry it. Only call signatures your project declares count, so a prop typed wholly
+					by a package (<code>MouseEventHandler&lt;HTMLButtonElement&gt;</code>, a
+					<code>Component</code>) has neither field
 				</li>
 				<li>
 					<code>examples</code>, <code>deprecatedMessage</code>, <code>seeAlso</code>,

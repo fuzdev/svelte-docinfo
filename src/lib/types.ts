@@ -616,15 +616,39 @@ const ComponentPropJsonImpl = v.strictObject({
 	/** Whether the prop uses the `$bindable()` rune, enabling two-way binding. */
 	bindable: v.optional(v.boolean(), false),
 	/**
-	 * Structured parameters for callable props (e.g., `Snippet<[text: string]>`).
+	 * Structured parameters for callable props: a snippet's
+	 * (`Snippet<[text: string]>`) or a callback's (`(value: string) => void`).
+	 * `returnType` tells the two apart — a callback has one, a snippet doesn't.
 	 *
 	 * Present when the prop has extractable parameters, absent otherwise.
-	 * Only populated when there are actual parameters — bare `Snippet` / `Snippet<[]>`
-	 * does not set this field. Intentionally optional without a default,
-	 * unlike the other array fields (see the input/output split in the module
-	 * comment): absence is a meaningful signal, not an empty list.
+	 * Only populated when there are actual parameters — bare `Snippet` /
+	 * `Snippet<[]>` and a zero-parameter callback do not set this field.
+	 * Intentionally optional without a default, unlike the other array fields
+	 * (see the input/output split in the module comment): absence is a
+	 * meaningful signal, not an empty list.
 	 */
 	parameters: v.optional(v.array(ParameterJson)),
+	/**
+	 * A callback prop's return type, and the marker that the prop is one:
+	 * present exactly when the prop's type has a call signature this project
+	 * declared (`onpick?: (value: string) => void`, or a project alias for
+	 * one). `parameters` holds that signature's parameters.
+	 *
+	 * The prop's type is read with `null` and the optional `undefined`
+	 * stripped, so `(() => void) | null` is a callback. A union of several
+	 * function types is not — `typeInfo` lists its members instead.
+	 *
+	 * Only project-declared signatures count, as for callable members. A prop
+	 * typed wholly by a package (`MouseEventHandler<HTMLButtonElement>`, a
+	 * `Component`) carries neither field, since an external callable isn't
+	 * always a callback. In an intersection of an own signature with an
+	 * external one (`MouseEventHandler<HTMLElement> & (() => void)`, the
+	 * shape a redeclared `onclick` over an attributes bag takes), the own
+	 * signature is the one described. Of several own signatures, the first.
+	 */
+	returnType: v.optional(v.string()),
+	/** Structured return type; absent when `returnType` is the whole story (see `TypeJson`). */
+	returnTypeInfo: v.optional(TypeJson),
 	...docFields
 });
 /** @nodocs */

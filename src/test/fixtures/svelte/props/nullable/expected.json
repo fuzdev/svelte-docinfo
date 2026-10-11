@@ -48,7 +48,8 @@
 						]
 					},
 					"optional": true,
-					"description": "Description 3"
+					"description": "Description 3",
+					"returnType": "void"
 				},
 				{
 					"name": "prop4",
@@ -60,7 +61,8 @@
 					"name": "prop5",
 					"type": "() => void",
 					"optional": true,
-					"description": "Description 5"
+					"description": "Description 5",
+					"returnType": "void"
 				}
 			]
 		}

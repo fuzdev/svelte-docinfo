@@ -17,9 +17,12 @@
  * @module
  */
 
+import type ts from 'typescript';
+
 import { errorsOf, formatDiagnostic, warningsOf } from './diagnostics.ts';
 import type { AnalysisLog } from './log.ts';
 import { createAnalysisSession, type AnalysisSession } from './session.ts';
+import type { RootFileNames } from './typescript-program.ts';
 import {
 	createSourceOptionsWithInclude,
 	type ExcludeOption,
@@ -67,6 +70,19 @@ export interface AnalyzeOptions {
 	 * you have a reason to control the cache scope.
 	 */
 	resolveImport?: ResolveImport;
+	/**
+	 * Path to the tsconfig, relative to the project root, or `false` to analyze
+	 * without one (see `LoadTsconfigOptions.tsconfig`).
+	 * @default 'tsconfig.json'
+	 */
+	tsconfig?: string | false;
+	/** Compiler options merged over the tsconfig's (see `LoadTsconfigOptions.compilerOptions`). */
+	compilerOptions?: ts.CompilerOptions;
+	/**
+	 * Root files for the program in place of the tsconfig's (see `RootFileNames`).
+	 * @default the tsconfig's roots
+	 */
+	rootFileNames?: RootFileNames;
 }
 
 /**
@@ -78,8 +94,8 @@ export interface AnalyzeOptions {
  *
  * @returns analyzed modules (sorted alphabetically) + concatenated ingest +
  *   query diagnostics
- * @throws Error if `sourceOptions` validation fails or `tsconfig.json` is
- *   missing at `projectRoot` or can't be loaded (see `loadTsconfig`). Also
+ * @throws Error if `sourceOptions` validation fails or the tsconfig is
+ *   missing or can't be loaded (see `loadTsconfig`; `tsconfig: false` skips it). Also
  *   propagates `onDuplicates: 'throw'` errors.
  */
 export const analyze = async (options: AnalyzeOptions): Promise<AnalyzeResultJson> => {
@@ -87,11 +103,14 @@ export const analyze = async (options: AnalyzeOptions): Promise<AnalyzeResultJso
 		sourceOptions: options.sourceOptions,
 		log: options.log,
 		resolveImport: options.resolveImport,
+		tsconfig: options.tsconfig,
+		compilerOptions: options.compilerOptions,
+		rootFileNames: options.rootFileNames,
 		// One-shot with caller-provided inputs: no watch loop, so TS/JS context
 		// is read exactly once via the LS disk fallback either way — closure
-		// ownership is pure overhead. Gated *Svelte* dependencies are the
-		// exception (the LS can't serve raw `.svelte` from disk); callers pass
-		// them in `sourceFiles` — the query gate keeps them out of output.
+		// ownership is pure overhead. *Svelte* dependencies are the exception
+		// (the LS can't serve raw `.svelte` from disk); callers pass them in
+		// `sourceFiles` — the query gate keeps the gated ones out of output.
 		contextClosure: false
 	});
 	try {
@@ -168,6 +187,19 @@ export interface AnalyzeFromFilesOptions {
 	discovery?: Discovery;
 	/** Dist directory name for exports-based discovery. @default 'dist' */
 	distDir?: string;
+	/**
+	 * Path to the tsconfig, relative to the project root, or `false` to analyze
+	 * without one (see `LoadTsconfigOptions.tsconfig`).
+	 * @default 'tsconfig.json'
+	 */
+	tsconfig?: string | false;
+	/** Compiler options merged over the tsconfig's (see `LoadTsconfigOptions.compilerOptions`). */
+	compilerOptions?: ts.CompilerOptions;
+	/**
+	 * Root files for the program in place of the tsconfig's (see `RootFileNames`).
+	 * @default the tsconfig's roots
+	 */
+	rootFileNames?: RootFileNames;
 }
 
 /**
@@ -197,7 +229,10 @@ export const analyzeFromFiles = async (
 		onDuplicates,
 		log,
 		discovery,
-		distDir
+		distDir,
+		tsconfig,
+		compilerOptions,
+		rootFileNames
 	} = options;
 
 	// A custom resolver with resolution turned off is a contradiction — the
@@ -251,7 +286,10 @@ export const analyzeFromFiles = async (
 	const session: AnalysisSession = createAnalysisSession({
 		sourceOptions: resolvedSourceOptions,
 		log,
-		resolveImport: sessionResolver
+		resolveImport: sessionResolver,
+		tsconfig,
+		compilerOptions,
+		rootFileNames
 		// Closure stays on (the session default) despite being one-shot:
 		// discovery excludes gated files, so a gated `.svelte` dependency
 		// (`export {default as X} from './internal/X.svelte'`) exists nowhere

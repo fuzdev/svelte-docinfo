@@ -194,13 +194,16 @@ export interface QueryOptions {
  * disk fallback, so non-source files (unsaved buffers, virtual-only helpers,
  * configs) can shape type resolution in the modules that import them.
  * `query()` gates the *module set* through `isSource`: only owned files under
- * `sourceOptions.sourcePaths` and not matching `exclude` emit a `ModuleJson`.
- * The gate emits no diagnostics — `query()` logs the gated count as info, and
+ * `sourceOptions.sourcePaths` and not matching `exclude` emit a `ModuleJson`,
+ * and of those, not a dependency the closure ingested on its own (see
+ * `contextClosure`). The gate emits no diagnostics — `query()` logs the gated count as info, and
  * `list()` reports the full owned set for introspection. By default the
  * session completes the owned set itself: `contextClosure` ingests the
  * in-root non-source dependency closure (e.g. `internal/` modules public
  * files import) so those files are version-tracked rather than pinned at
- * their first disk read.
+ * their first disk read. Source files the caller didn't supply are ingested
+ * the same way, since a Svelte dependency among them reaches the checker
+ * only through an ingested virtual.
  *
  * **Input order**: `query()` analyzes the owned set in `compareStrings` order
  * of file ID, and the language-service host returns owned program roots in
@@ -286,14 +289,18 @@ export interface AnalysisSession {
  * Options for `createAnalysisSession`.
  *
  * `documentRegistry` flows through to the underlying `LanguageService` only.
- * `tsconfig` and `compilerOptions` drive the LS's construction-time
- * `loadTsconfig` parse — the session's only tsconfig parse. The lazy default
- * `ImportResolver` reuses the LS's merged options via `getCompilerOptions()`,
- * so module resolution and the checker see the same merge semantics —
- * user-supplied `compilerOptions` override parsed tsconfig keys, but never
- * bypass the tsconfig.json file requirement. The parse is a construction-time
- * snapshot: a tsconfig.json edit mid-session is not picked up — create a new
- * session.
+ * `tsconfig`, `compilerOptions`, and `rootFileNames` drive the LS's
+ * construction-time `loadTsconfig` parse — the session's only tsconfig parse.
+ * The lazy default `ImportResolver` reuses the LS's merged options via
+ * `getCompilerOptions()`, so module resolution and the checker see the same
+ * merge semantics — user-supplied `compilerOptions` override parsed tsconfig
+ * keys, and only `tsconfig: false` lifts the config file requirement. The
+ * parse is a construction-time snapshot: a tsconfig.json edit mid-session is
+ * not picked up — create a new session.
+ *
+ * `rootFileNames` narrows the program to what the session is asked about: a
+ * session fed a few files of a large project otherwise pays for every file
+ * the tsconfig includes (see `RootFileNames` for what narrowing can cost).
  *
  * `projectRoot` and `virtualFiles` from the LS options shape are excluded —
  * the session derives `projectRoot` from `sourceOptions` and manages
@@ -325,18 +332,37 @@ export interface AnalysisSessionOptions extends Omit<
 	 */
 	resolveImport?: ResolveImport;
 	/**
-	 * Own the in-root non-source dependency closure as context files
-	 * (default `true`).
+	 * Own the in-root dependency closure the caller didn't supply as context
+	 * files (default `true`).
 	 *
 	 * After each ingest batch, the session reads from disk any file the
-	 * batch's imports resolved to that is under `projectRoot`, fails
-	 * `isSource` (outside `sourcePaths` or matching `exclude` — e.g. the
-	 * `src/lib/internal/` convention), has no `node_modules`/dot-directory
-	 * segments, and has an analyzer type — transitively, until the closure
-	 * converges. Context files are owned but never emit modules (`query()`
-	 * gates them), so this changes no output; what it changes is *freshness*:
-	 * an owned file's edit version-bumps the LS, whereas a disk-resolved file
-	 * is read once and pinned for the session's lifetime. Watch-style
+	 * batch's imports resolved to that is under `projectRoot`, isn't owned
+	 * yet, has no `node_modules`/dot-directory segments, and has an analyzer
+	 * type — transitively, until the closure converges. Context files are
+	 * owned but never emit modules, and add no dependency edges. For a file
+	 * that fails `isSource` (outside `sourcePaths` or matching `exclude` —
+	 * e.g. the `src/lib/internal/` convention) what this changes is
+	 * *freshness*: an owned file's edit version-bumps the LS, whereas a
+	 * disk-resolved file is read once and pinned for the session's lifetime.
+	 *
+	 * A file that passes `isSource` is ingested as context too when the
+	 * caller didn't supply it — a module left out of package `exports` under
+	 * exports discovery, or the rest of the project when a caller hands over
+	 * one component. That one changes output: the checker reads a Svelte
+	 * file only through its svelte2tsx virtual, so without the ingest every
+	 * type drawn from an unsupplied component (`ComponentProps<typeof
+	 * Sibling>`) is `any`, and the walk passes through unsupplied TS files
+	 * because a component can sit behind one (a barrel).
+	 *
+	 * Such a file still emits no module. Supplying it through `setFile` /
+	 * `setFiles` later makes it an emitted input, and that call reports it
+	 * changed. Any such call counts, a watcher handing over an edit included —
+	 * the session can't tell a refresh from an input — so a consumer that
+	 * wants an edited dependency to stay context must not pass it. A context
+	 * component's `<script module>` exports and the component itself, when
+	 * re-exported from an emitted module, document there as they do for a
+	 * gated `internal/` component, and its transform failure surfaces as
+	 * `transform_failed` through `allIngestDiagnostics()`. Watch-style
 	 * consumers (the Vite plugin) gate their watchers on
 	 * `isSource(file) || session.has(file)`, so context-file edits trigger
 	 * re-analysis and public output tracks internal types live.
@@ -408,6 +434,13 @@ interface OwnedEntryBase {
 	ingestDiagnostics: Array<Diagnostic>;
 	/** svelte2tsx threw during ingest — query synthesizes placeholder ModuleJson. */
 	transformFailed?: boolean;
+	/**
+	 * Set when the context closure ingested this file although it passes
+	 * `isSource`, so `query()` can't gate it by path: the entry feeds the
+	 * checker and emits no module. Cleared when the caller supplies the file
+	 * itself.
+	 */
+	context?: boolean;
 }
 
 interface OwnedEntryLexResolve extends OwnedEntryBase {
@@ -527,6 +560,7 @@ export const createAnalysisSession = (options: AnalysisSessionOptions): Analysis
 			projectRoot: sourceOptions.projectRoot,
 			tsconfig: options.tsconfig,
 			compilerOptions: options.compilerOptions,
+			rootFileNames: options.rootFileNames,
 			documentRegistry: options.documentRegistry
 		},
 		options.log
@@ -756,9 +790,18 @@ export const createAnalysisSession = (options: AnalysisSessionOptions): Analysis
 	// Phase 3: serial per-file LS push + entry write
 	const phase3 = (
 		pending: PendingIngest,
-		resolved: ReadonlyArray<string | null>
+		resolved: ReadonlyArray<string | null>,
+		asContext: boolean
 	): SetFileResult => {
 		if (pending.cacheHit) {
+			// The caller supplying a file the closure ingested as context makes it
+			// an input like any other. Nothing re-ingests, but the emitted set
+			// changes, so the call reports a change.
+			const existing = owned.get(pending.file.id);
+			if (!asContext && existing?.context) {
+				existing.context = undefined;
+				return { changed: true, diagnostics: [...pending.ingestDiagnostics] };
+			}
 			// Cached SetFileResult: same diagnostics array reference, changed: false.
 			// `[...]` clone keeps the caller from mutating the entry's stored array.
 			// Cached entry's diagnostics were normalized at the time the entry was stored.
@@ -823,6 +866,7 @@ export const createAnalysisSession = (options: AnalysisSessionOptions): Analysis
 			};
 		}
 		if (pending.transformFailed) entry.transformFailed = true;
+		if (asContext && isSource(pending.file.id, sourceOptions)) entry.context = true;
 		// A path new to the owned set falsifies cached resolution failures, so
 		// the generation moves; the dir index is idempotent and just gets told.
 		if (!owned.has(pending.file.id)) ownedGeneration++;
@@ -850,9 +894,11 @@ export const createAnalysisSession = (options: AnalysisSessionOptions): Analysis
 	// Batch ingest core: orchestrate three phases. `rawDeps` carries the
 	// batch's posixified resolved import targets before any `isSource`
 	// filtering — the context-closure seed; never stored on entries.
+	// `asContext` marks a closure batch (see `OwnedEntryBase.context`).
 	const runBatch = async (
 		files: ReadonlyArray<SourceFileInfo>,
-		opts?: SetFileOptions
+		opts: SetFileOptions | undefined,
+		asContext: boolean
 	): Promise<{ result: SetFilesResult; rawDeps: Set<string> }> => {
 		// Resolver gating: pick one only if any file in the batch lacks
 		// `dependencies` (i.e., needs lex+resolve). For fully pre-resolved
@@ -1022,7 +1068,7 @@ export const createAnalysisSession = (options: AnalysisSessionOptions): Analysis
 
 			for (let i = 0; i < pendings.length; i++) {
 				const pending = pendings[i]!;
-				const result = phase3(pending, resolvedByPending[i]!);
+				const result = phase3(pending, resolvedByPending[i]!, asContext);
 				perFile.set(pending.file.id, result);
 				if (result.changed) changedIds.add(pending.file.id);
 				for (const d of result.diagnostics) aggregateDiagnostics.push(d);
@@ -1046,16 +1092,19 @@ export const createAnalysisSession = (options: AnalysisSessionOptions): Analysis
 		: `${sourceOptions.projectRoot}/`;
 
 	// A raw dependency target qualifies as a context candidate when it is
-	// in-root, not already owned, fails `isSource` (source files come from the
-	// caller or discovery, never from closure — under exports discovery an
-	// undiscovered source file must not sneak into the emitted set), carries
-	// no `node_modules`/dot-directory segments (package deps and build caches
-	// are not project context), and has an analyzer type (binary assets a
-	// custom resolver resolves are not ingestable).
+	// in-root, not already owned, carries no `node_modules`/dot-directory
+	// segments (package deps and build caches are not project context), and
+	// has an analyzer type (binary assets a custom resolver resolves are not
+	// ingestable). Passing `isSource` doesn't disqualify it: a Svelte file
+	// reaches the checker only through an ingested virtual, and one can sit
+	// behind any number of TS files the caller didn't supply (a barrel), so
+	// the walk has to go through those too. Emitted modules still come only
+	// from the caller or discovery — under exports discovery an undiscovered
+	// source file must not sneak into the emitted set — which phase 3 keeps
+	// by marking such an entry `context`.
 	const isContextCandidate = (dep: string): boolean =>
 		!owned.has(dep) &&
 		dep.startsWith(rootPrefix) &&
-		!isSource(dep, sourceOptions) &&
 		!hasBaselineExcludedSegment(dep.slice(rootPrefix.length)) &&
 		sourceOptions.getAnalyzerType(dep) !== null;
 
@@ -1082,7 +1131,7 @@ export const createAnalysisSession = (options: AnalysisSessionOptions): Analysis
 			});
 			const files = loaded.filter((f) => f !== null);
 			if (files.length === 0) return;
-			const batch = await runBatch(files, opts);
+			const batch = await runBatch(files, opts, true);
 			candidates = [...batch.rawDeps].filter((id) => !attempted.has(id) && isContextCandidate(id));
 		}
 	};
@@ -1201,7 +1250,7 @@ export const createAnalysisSession = (options: AnalysisSessionOptions): Analysis
 	): Promise<SetFilesResult> => {
 		ingestSeq++;
 		const generationBefore = ownedGeneration;
-		const { result, rawDeps } = await runBatch(files, opts);
+		const { result, rawDeps } = await runBatch(files, opts, false);
 		if (contextClosureEnabled) await ingestContextClosure(rawDeps, opts);
 		// Only additions can settle a deferred resolution, and `deleteFile`
 		// moves the generation too — but a batch never deletes, so a moved
@@ -1258,8 +1307,8 @@ export const createAnalysisSession = (options: AnalysisSessionOptions): Analysis
 		// references a module it doesn't contain.
 		const log = opts?.log ?? options.log;
 		const emittedIds = new Set<string>();
-		for (const id of owned.keys()) {
-			if (isSource(id, sourceOptions)) emittedIds.add(id);
+		for (const [id, entry] of owned) {
+			if (!entry.context && isSource(id, sourceOptions)) emittedIds.add(id);
 		}
 		// the gate is silent in diagnostics (context files are a supported use,
 		// not a problem) — but a misconfigured sourcePaths yields an empty
@@ -1267,7 +1316,7 @@ export const createAnalysisSession = (options: AnalysisSessionOptions): Analysis
 		const gatedCount = owned.size - emittedIds.size;
 		if (gatedCount > 0) {
 			log?.info(
-				`Source gate: ${gatedCount} of ${owned.size} owned files emit no module (outside sourcePaths or matching exclude)`
+				`Source gate: ${gatedCount} of ${owned.size} owned files emit no module (outside sourcePaths, matching exclude, or context-only)`
 			);
 		}
 		const sourceFiles: Array<SourceFileInfo> = [];
@@ -1284,8 +1333,8 @@ export const createAnalysisSession = (options: AnalysisSessionOptions): Analysis
 		const ownedSorted = [...owned].sort((a, b) => compareStrings(a[0], b[0]));
 		for (const [id, entry] of ownedSorted) {
 			if (!emittedIds.has(id)) {
-				// Gated Svelte file with a good virtual (context closure, or a
-				// caller-pushed input): offered to `analyzeCore` as canonical-fill
+				// Non-emitting Svelte file with a good virtual (context closure, or
+				// a caller-pushed gated input): offered to `analyzeCore` as canonical-fill
 				// context so a public re-export of a gated component documents
 				// with props. Analyzed only when referenced; never emits.
 				if (entry.virtual && !entry.transformFailed) {

@@ -55,11 +55,16 @@ import {
 	type SourceFileInfo,
 	getComponentName
 } from './source.ts';
-import { type ModuleSourceOptions, extractPath, extractDependencies } from './source-config.ts';
+import {
+	type ModuleSourceOptions,
+	extractPath,
+	extractDependencies,
+	isSource
+} from './source-config.ts';
 import { toPosixPath, isAbsolutePosixPath } from './paths.ts';
 import { buildAliasRegistry, type AliasRegistrySource } from './typescript-alias-registry.ts';
 import type { AliasRegistry } from './typescript-extract-type-json.ts';
-import { createExtractContext } from './typescript-extract-shared.ts';
+import { createExtractContext, type IsEmittedFile } from './typescript-extract-shared.ts';
 import {
 	sortModules,
 	findDuplicates,
@@ -326,6 +331,8 @@ const toModuleJson = (raw: ModuleAnalysis): ModuleJson => {
  * `aliasRegistry` is optional at this boundary: direct callers assembling
  * modules themselves get written-name recovery only, while `analyzeCore`
  * passes the registry its pre-pass built (see `buildAliasRegistry`).
+ * `isEmittedFile` likewise: `analyzeCore` answers from its emitted set, and a
+ * direct caller falls back to `isSource` (see `IsEmittedFile`).
  *
  * @internal Importable from `svelte-docinfo/analyze-core.js` for tests and
  * power users; not stable API.
@@ -336,7 +343,8 @@ export const analyzeModule = (
 	options: ModuleSourceOptions,
 	diagnostics: Array<Diagnostic>,
 	log?: AnalysisLog,
-	aliasRegistry?: AliasRegistry
+	aliasRegistry?: AliasRegistry,
+	isEmittedFile?: IsEmittedFile
 ): ModuleJson | undefined => {
 	const checker = program.getTypeChecker();
 	const modulePath = extractPath(sourceFile.id, options);
@@ -377,7 +385,14 @@ export const analyzeModule = (
 		}
 		// the pass-scoped extraction context — constructed here because the
 		// dispatcher is where the program is in hand (see `analyzeExports`)
-		const ctx = createExtractContext(program, checker, options, diagnostics, aliasRegistry);
+		const ctx = createExtractContext(
+			program,
+			checker,
+			options,
+			diagnostics,
+			aliasRegistry,
+			isEmittedFile
+		);
 		raw = analyzeTypescriptModule(sourceFile, tsSourceFile, modulePath, ctx, options);
 	} else if (analyzerType === 'css' || analyzerType === 'json') {
 		const { dependencies, dependents } = extractDependencies(sourceFile, options);
@@ -428,8 +443,9 @@ export interface AnalyzeCoreInputs {
 	/** Svelte file IDs whose svelte2tsx transform failed at ingest. */
 	transformFailedIds?: ReadonlySet<string>;
 	/**
-	 * Gated Svelte files (owned but failing `isSource` — the `internal/`
-	 * convention) whose virtuals are in `svelteVirtualFiles`. Analyzed only
+	 * Svelte files that are owned but emit no module — gated ones (the
+	 * `internal/` convention) and source-scope components ingested only as
+	 * checker context — whose virtuals are in `svelteVirtualFiles`. Analyzed only
 	 * when an emitted component alias references them, as canonical-fill
 	 * context for `resolveComponentAliases` — their modules never emit and
 	 * their analysis diagnostics are dropped (`partial` on the canonical
@@ -456,7 +472,8 @@ const analyzeContextComponents = (
 	contextSvelteFiles: ReadonlyArray<SourceFileInfo>,
 	emittedModules: ReadonlyArray<ModuleJson>,
 	inputs: AnalyzeCoreInputs,
-	aliasRegistry: AliasRegistry
+	aliasRegistry: AliasRegistry,
+	isEmittedFile: IsEmittedFile
 ): Array<ModuleJson> => {
 	const { sourceOptions, program, svelteVirtualFiles } = inputs;
 	const referenced = new Set<string>();
@@ -481,7 +498,8 @@ const analyzeContextComponents = (
 			droppedDiagnostics,
 			program,
 			virtualFile,
-			aliasRegistry
+			aliasRegistry,
+			isEmittedFile
 		);
 		if (raw) contextModules.push(toModuleJson(raw));
 	}
@@ -521,6 +539,13 @@ export const analyzeCore = (inputs: AnalyzeCoreInputs): AnalyzeResultJson => {
 
 	const checker = program.getTypeChecker();
 	const diagnostics: Array<Diagnostic> = [];
+
+	// A context component can pass `isSource` and still emit nothing (see
+	// `IsEmittedFile`), so the re-export arms need more than `isSource` to
+	// tell a canonical they can link to from one they must document in place.
+	const contextIds = new Set(contextSvelteFiles?.map((f) => toPosixPath(f.id)));
+	const isEmittedFile: IsEmittedFile = (file) =>
+		!contextIds.has(file) && isSource(file, sourceOptions);
 
 	// Registry pre-pass: register the emitted set's exported lost aliases
 	// before any extraction, so every `resolveTypeInfo` call this cycle can
@@ -599,7 +624,8 @@ export const analyzeCore = (inputs: AnalyzeCoreInputs): AnalyzeResultJson => {
 				diagnostics,
 				program,
 				virtualFile,
-				aliasRegistry
+				aliasRegistry,
+				isEmittedFile
 			);
 			if (raw) {
 				mod = toModuleJson(raw);
@@ -607,7 +633,15 @@ export const analyzeCore = (inputs: AnalyzeCoreInputs): AnalyzeResultJson => {
 				log?.error(`Svelte module analysis failed: ${sourceFile.id}`);
 			}
 		} else {
-			mod = analyzeModule(sourceFile, program, sourceOptions, diagnostics, log, aliasRegistry);
+			mod = analyzeModule(
+				sourceFile,
+				program,
+				sourceOptions,
+				diagnostics,
+				log,
+				aliasRegistry,
+				isEmittedFile
+			);
 		}
 
 		if (!mod) continue;
@@ -619,7 +653,7 @@ export const analyzeCore = (inputs: AnalyzeCoreInputs): AnalyzeResultJson => {
 	// `mergeReExports` (their edges would back-link modules absent from
 	// output) and out of the emitted set.
 	const contextModules = contextSvelteFiles?.length
-		? analyzeContextComponents(contextSvelteFiles, modules, inputs, aliasRegistry)
+		? analyzeContextComponents(contextSvelteFiles, modules, inputs, aliasRegistry, isEmittedFile)
 		: [];
 
 	// Phase 2a: build alsoExportedFrom arrays from the modules' forward edges

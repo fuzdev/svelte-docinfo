@@ -245,6 +245,9 @@ Plugin options:
 | `resolveDependencies` | `true`                                               | Resolve import dependencies. When `false`, `dependencies`/`dependents` stay empty.                                                                                                                                     |
 | `hmrDebounceMs`       | `100`                                                | Dev re-analysis debounce delay in milliseconds.                                                                                                                                                                        |
 | `onDuplicates`        | —                                                    | Opt-in check that names are unique across modules, for packages with a flat export namespace: `'diagnostic'` \| `'warn'` \| `'throw'`. Off by default.                                                                |
+| `tsconfig`            | `'tsconfig.json'`                                    | Path to the tsconfig, relative to `projectRoot`, or `false` to analyze without one (built-in strict options, with `compilerOptions` merged on top). |
+| `compilerOptions`     | —                                                    | Compiler options merged over the tsconfig's, per key. |
+| `rootFileNames`       | the tsconfig's roots                                 | The program's root files in place of the tsconfig's: a list, or a function over the tsconfig's roots (`(roots) => roots.filter((f) => f.endsWith('.d.ts'))`). Narrowing speeds up cold analysis; an ambient type declared in a dropped root resolves to `any`. |
 
 Source-scope notes (shared with the [CLI](#cli) and `analyzeFromFiles`):
 
@@ -294,6 +297,8 @@ All CLI options:
 | `--only <pattern>`          | Glob filter applied to module paths in output (repeatable). Full project is still analyzed (re-exports/dependents stay correct); diagnostics aren't filtered                                  |
 | `--no-resolve-dependencies` | Disable dependency resolution                                                                                                                                                                 |
 | `--pretty`                  | Pretty-print JSON output (default: compact)                                                                                                                                                   |
+| `--tsconfig <path>`         | Path to the tsconfig, relative to project root (default: `tsconfig.json`, searched upward from project root) |
+| `--no-tsconfig`             | Analyze without a tsconfig, using built-in strict compiler options |
 | `-q, --quiet`               | Suppress info messages on stderr (warnings and errors still print)                                                                                                                            |
 | `--on-duplicates <mode>`    | Opt-in check that names are unique across modules, for packages with a flat export namespace: `diagnostic` \| `warn` \| `throw` (default: off)                                                |
 | `-V, --version`             | Show version number                                                                                                                                                                           |

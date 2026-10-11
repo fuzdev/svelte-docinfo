@@ -20,7 +20,8 @@
 				{
 					"name": "callback",
 					"type": "T",
-					"description": "Callback prop typed by the arrow-constrained param."
+					"description": "Callback prop typed by the arrow-constrained param.",
+					"returnType": "void"
 				},
 				{
 					"name": "items",

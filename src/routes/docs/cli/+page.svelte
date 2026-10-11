@@ -130,6 +130,17 @@ npx svelte-docinfo | jq -r '.modules[].declarations[].name'  # list all exported
 						</td>
 					</tr>
 					<tr>
+						<td class="white-space:nowrap"><code>--tsconfig &lt;path&gt;</code></td>
+						<td>
+							path to the tsconfig, relative to the project root (default:
+							<code>tsconfig.json</code>, searched upward from the project root)
+						</td>
+					</tr>
+					<tr>
+						<td><code>--no-tsconfig</code></td>
+						<td>analyze without a tsconfig, using built-in strict compiler options</td>
+					</tr>
+					<tr>
 						<td><code>--pretty</code></td>
 						<td>pretty-print JSON output (default: compact)</td>
 					</tr>

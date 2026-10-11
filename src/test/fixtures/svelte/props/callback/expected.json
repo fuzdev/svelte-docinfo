@@ -1,0 +1,229 @@
+{
+	"path": "PropsCallback.svelte",
+	"declarations": [
+		{
+			"name": "PropsCallback",
+			"kind": "component",
+			"sourceLine": 1,
+			"externalTypes": [
+				"HTMLButtonAttributes"
+			],
+			"props": [
+				{
+					"name": "a",
+					"type": "(x: string) => void",
+					"description": "Description 1",
+					"parameters": [
+						{
+							"name": "x",
+							"type": "string"
+						}
+					],
+					"returnType": "void"
+				},
+				{
+					"name": "b",
+					"type": "() => void",
+					"optional": true,
+					"description": "Description 2",
+					"returnType": "void"
+				},
+				{
+					"name": "c",
+					"type": "(() => void) | null",
+					"typeInfo": {
+						"kind": "union",
+						"members": [
+							{
+								"kind": "function",
+								"text": "() => void"
+							},
+							{
+								"kind": "intrinsic",
+								"text": "null"
+							}
+						]
+					},
+					"returnType": "void"
+				},
+				{
+					"name": "d",
+					"type": "A",
+					"optional": true,
+					"parameters": [
+						{
+							"name": "x",
+							"type": "string"
+						},
+						{
+							"name": "y",
+							"type": "number",
+							"optional": true
+						}
+					],
+					"returnType": "void"
+				},
+				{
+					"name": "e",
+					"type": "(x: number) => Promise<string[]>",
+					"optional": true,
+					"parameters": [
+						{
+							"name": "x",
+							"type": "number"
+						}
+					],
+					"returnType": "Promise<string[]>",
+					"returnTypeInfo": {
+						"kind": "reference",
+						"name": "Promise",
+						"typeArgs": [
+							{
+								"kind": "array",
+								"element": {
+									"kind": "intrinsic",
+									"text": "string"
+								}
+							}
+						]
+					}
+				},
+				{
+					"name": "f",
+					"type": "<T>(x: T, ...y: T[]) => T",
+					"optional": true,
+					"parameters": [
+						{
+							"name": "x",
+							"type": "T"
+						},
+						{
+							"name": "y",
+							"type": "T[]",
+							"rest": true
+						}
+					],
+					"returnType": "T"
+				},
+				{
+					"name": "g",
+					"type": "{ (x: string): void; (x: number, y: boolean): void; }",
+					"optional": true,
+					"parameters": [
+						{
+							"name": "x",
+							"type": "string"
+						}
+					],
+					"returnType": "void"
+				},
+				{
+					"name": "h",
+					"type": "((x: string) => void) | ((y: number) => void)",
+					"typeInfo": {
+						"kind": "union",
+						"members": [
+							{
+								"kind": "function",
+								"text": "(x: string) => void"
+							},
+							{
+								"kind": "function",
+								"text": "(y: number) => void"
+							}
+						]
+					},
+					"optional": true
+				},
+				{
+					"name": "i",
+					"type": "MouseEventHandler<HTMLButtonElement>",
+					"optional": true
+				},
+				{
+					"name": "onclick",
+					"type": "MouseEventHandler<HTMLButtonElement> & ((x: string) => void)",
+					"typeInfo": {
+						"kind": "intersection",
+						"members": [
+							{
+								"kind": "function",
+								"text": "MouseEventHandler<HTMLButtonElement>"
+							},
+							{
+								"kind": "function",
+								"text": "(x: string) => void"
+							}
+						]
+					},
+					"optional": true,
+					"parameters": [
+						{
+							"name": "x",
+							"type": "string"
+						}
+					],
+					"returnType": "void"
+				},
+				{
+					"name": "j",
+					"type": "Component<{ x: number; }, {}, string>",
+					"typeInfo": {
+						"kind": "reference",
+						"name": "Component",
+						"typeArgs": [
+							{
+								"kind": "object",
+								"text": "{ x: number; }"
+							},
+							{
+								"kind": "object",
+								"text": "{}"
+							},
+							{
+								"kind": "intrinsic",
+								"text": "string"
+							}
+						]
+					},
+					"optional": true
+				},
+				{
+					"name": "k",
+					"type": "Snippet<[x: string]>",
+					"typeInfo": {
+						"kind": "reference",
+						"name": "Snippet",
+						"typeArgs": [
+							{
+								"kind": "tuple",
+								"elements": [
+									{
+										"name": "x",
+										"type": {
+											"kind": "intrinsic",
+											"text": "string"
+										}
+									}
+								]
+							}
+						]
+					},
+					"optional": true,
+					"parameters": [
+						{
+							"name": "x",
+							"type": "string"
+						}
+					]
+				},
+				{
+					"name": "l",
+					"type": "new (x: number) => Date",
+					"optional": true
+				}
+			],
+			"acceptsChildren": true
+		}
+	]
+}

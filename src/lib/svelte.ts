@@ -51,7 +51,11 @@ import {
 	getTypeSignature,
 	createExtractContext,
 	optionalWidened,
-	type ExtractContext
+	extractSignatureParameters,
+	applyReturnType,
+	isExternalSignature,
+	type ExtractContext,
+	type IsEmittedFile
 } from './typescript-extract-shared.ts';
 import {
 	referenceSymbolName,
@@ -805,7 +809,8 @@ const assemblePropInfo = (
 	optional: boolean,
 	propDecl: ts.Node | undefined,
 	metadata: PropsMetadata,
-	parameters?: Array<ParameterJsonInput>
+	parameters?: Array<ParameterJsonInput>,
+	callbackReturn?: { returnType?: string; returnTypeInfo?: TypeJson }
 ): ComponentPropJsonInput => {
 	const tsdoc = propDecl ? parseComment(propDecl) : undefined;
 
@@ -827,10 +832,15 @@ const assemblePropInfo = (
 	// mirrors `applyToDeclaration`: an empty record is absence
 	if (tsdoc?.mutates && Object.keys(tsdoc.mutates).length > 0) result.mutates = tsdoc.mutates;
 	if (typeInfo) result.typeInfo = typeInfo;
-	// Only set parameters when there are actual params to expose.
-	// Bare Snippet/Snippet<[]> doesn't set this — consumers use the type string for detection.
+	// Only set parameters when there are actual params to expose. Bare
+	// Snippet/Snippet<[]> doesn't set this (consumers use the type string for
+	// detection), nor does a zero-parameter callback (`returnType` marks it).
 	if (parameters && parameters.length > 0) {
 		result.parameters = parameters;
+	}
+	if (callbackReturn?.returnType !== undefined) {
+		result.returnType = callbackReturn.returnType;
+		if (callbackReturn.returnTypeInfo) result.returnTypeInfo = callbackReturn.returnTypeInfo;
 	}
 	return result;
 };
@@ -1025,6 +1035,26 @@ export const extractSnippetParameters = (
 		return param;
 	});
 };
+
+/**
+ * The signature that makes a prop a callback: the first call signature of its
+ * type that this project declared, or `undefined` when there is none.
+ *
+ * External-origin signatures never count — the rule callable members follow
+ * (`populatePropertyMember`). It keeps the non-callbacks among external
+ * callables out (`Component`, an intersection of `Snippet`s, a class
+ * constructor's call form), and in an intersection of an own signature with an
+ * external one it selects the own. A union reports no signature: TypeScript
+ * synthesizes one whose parameters intersect the members', which describes
+ * none of them.
+ *
+ * Callers pass the type with `null`/`undefined` stripped, as for
+ * `isSnippetType`.
+ */
+const localCallSignature = (type: ts.Type, ctx: ExtractContext): ts.Signature | undefined =>
+	type.isUnion()
+		? undefined
+		: type.getCallSignatures().find((sig) => !isExternalSignature(sig, ctx.isExternalFile));
 
 /**
  * Check if a return type string matches svelte2tsx's snippet return type pattern.
@@ -1276,7 +1306,8 @@ const extractPropsViaChecker = (
 		// Get type string via checker
 		let typeString = 'any';
 		let typeInfo: TypeJson | undefined;
-		let snippetParams: Array<ParameterJsonInput> | undefined;
+		let callableParams: Array<ParameterJsonInput> | undefined;
+		let callbackReturn: { returnType?: string; returnTypeInfo?: TypeJson } | undefined;
 		try {
 			const propType = checker.getTypeOfSymbolAtLocation(prop, propsTypeNode);
 			// For optional properties, the checker includes `undefined` in the union.
@@ -1302,12 +1333,23 @@ const extractPropsViaChecker = (
 			if (isSnippetType(strippedPropType, checker)) {
 				// the same annotation feeds both trees, so a recovered name in the
 				// prop's tuple typeArg and in `parameters[i].typeInfo` can't disagree
-				snippetParams = extractSnippetParameters(
+				callableParams = extractSnippetParameters(
 					strippedPropType,
 					checker,
 					ctx.aliasRegistry,
 					annotation
 				);
+			} else {
+				const signature = localCallSignature(strippedPropType, ctx);
+				if (signature) {
+					// both or neither: parameters without a `returnType` would read
+					// as a snippet's
+					const parameters = extractSignatureParameters(signature, ctx, undefined);
+					const returned: { returnType?: string; returnTypeInfo?: TypeJson } = {};
+					applyReturnType(returned, signature, ctx);
+					callableParams = parameters;
+					callbackReturn = returned;
+				}
 			}
 		} catch (err) {
 			// Map position if possible. A prop declared outside the virtual (an
@@ -1336,7 +1378,16 @@ const extractPropsViaChecker = (
 		}
 
 		props.push(
-			assemblePropInfo(prop.name, typeString, typeInfo, optional, propDecl, metadata, snippetParams)
+			assemblePropInfo(
+				prop.name,
+				typeString,
+				typeInfo,
+				optional,
+				propDecl,
+				metadata,
+				callableParams,
+				callbackReturn
+			)
 		);
 	}
 
@@ -1389,7 +1440,8 @@ export const analyzeSvelteModule = (
 	diagnostics: Array<Diagnostic>,
 	program: ts.Program,
 	virtualFile: SvelteVirtualFile,
-	aliasRegistry?: AliasRegistry
+	aliasRegistry?: AliasRegistry,
+	isEmittedFile?: IsEmittedFile
 ): ModuleAnalysis | undefined => {
 	// Every diagnostic below carries the absolute `.svelte` id, never
 	// `modulePath` — see the `Diagnostic.file` schema doc for why the absolute
@@ -1415,7 +1467,14 @@ export const analyzeSvelteModule = (
 
 	// One pass-scoped extraction context, shared by the export walk (step 1)
 	// and the component synthesis (steps 3+)
-	const ctx = createExtractContext(program, checker, options, diagnostics, aliasRegistry);
+	const ctx = createExtractContext(
+		program,
+		checker,
+		options,
+		diagnostics,
+		aliasRegistry,
+		isEmittedFile
+	);
 
 	// 1. Use analyzeExports for full checker-backed analysis (same as .ts files).
 	// Its `moduleComment` is undefined for virtuals — the `<script module>`

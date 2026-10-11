@@ -110,6 +110,13 @@ export interface CliOptions {
 	 */
 	onDuplicates?: OnDuplicates;
 	/**
+	 * Path to the tsconfig, relative to the project root (undefined =
+	 * `tsconfig.json`), or `false` to analyze without one.
+	 *
+	 * Mapped from `--tsconfig <path>` and `--no-tsconfig`.
+	 */
+	tsconfig?: string | false;
+	/**
 	 * Glob patterns to filter the emitted `modules` array against `ModuleJson.path`
 	 * (undefined = emit all analyzed modules).
 	 *
@@ -207,6 +214,12 @@ export const runCli = async (argv: Array<string> = process.argv): Promise<number
 				'and may reference modules dropped from output.',
 			collect
 		)
+		.option(
+			'--tsconfig <path>',
+			'Path to the tsconfig, relative to project root (default: tsconfig.json, ' +
+				'searched upward from project root)'
+		)
+		.option('--no-tsconfig', 'Analyze without a tsconfig, using built-in strict compiler options')
 		.option('--pretty', 'Pretty-print JSON output', false)
 		.option(
 			'-q, --quiet',
@@ -234,6 +247,8 @@ Examples:
                                                   No common prefix — module paths stay project-relative
   $ svelte-docinfo --discovery glob               Skip package.json exports
   $ svelte-docinfo --discovery exports            Strict — fail if exports missing
+  $ svelte-docinfo --tsconfig tsconfig.lib.json   Use a specific tsconfig
+  $ svelte-docinfo --no-tsconfig                  Analyze a project that has no tsconfig
   $ svelte-docinfo --only 'components/**'         Emit only modules under components/
   $ svelte-docinfo --only '*.svelte'              Emit only Svelte modules (top-level)
   $ svelte-docinfo | jq .                         Pipe to jq for readable output`
@@ -265,6 +280,7 @@ Examples:
 					sourceDir: raw.sourceDir,
 					sourceRoot: raw.sourceRoot,
 					onDuplicates: raw.onDuplicates,
+					tsconfig: raw.tsconfig,
 					only: raw.only,
 					quiet: raw.quiet,
 					pretty: raw.pretty
@@ -302,6 +318,7 @@ Examples:
 					distDir: options.distDir,
 					...(sourceOptions !== undefined ? { sourceOptions } : {}),
 					...(options.onDuplicates !== undefined ? { onDuplicates: options.onDuplicates } : {}),
+					...(options.tsconfig !== undefined ? { tsconfig: options.tsconfig } : {}),
 					log
 				});
 
