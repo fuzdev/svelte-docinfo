@@ -167,6 +167,21 @@ export type GenericParamJson = z.infer<typeof GenericParamJson>;
  * the composite kinds only. An aliased object type becomes a `reference` under
  * its alias name.
  *
+ * svelte2tsx-generated aliases don't count. A component whose props have no
+ * name of their own (an inline `$props()` annotation, a JS component's JSDoc)
+ * types them through svelte2tsx's `$$ComponentProps`, which nothing exports;
+ * a legacy component with slots, through the shims'
+ * `__sveltets_2_PropsWithChildren`. The tree treats those aliases as absent:
+ * they're never a `name` or `alias`, a project alias over one
+ * (`type P = ComponentProps<typeof Button>`) recovers like any alias-lost type
+ * (below), and where nothing recovers the structure is expanded. A root whose
+ * flat string is the generated name, bare or as an array or tuple element
+ * (`$$ComponentProps[]`), keeps its tree, except object and function roots of
+ * a type alias, whose `members` carry them. The flat strings still print
+ * `$$ComponentProps`. Generated names inside a terminal node's `text`
+ * (`{ a: $$ComponentProps; }`, or an `other` node past the depth cap) are
+ * printed as the checker prints them.
+ *
  * **Callable classification**: callability is the load-bearing renderer
  * signal, so anything with a call signature is a `function` node — with one
  * narrow exception: a *named generic instantiation* (checker

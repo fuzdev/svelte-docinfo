@@ -495,6 +495,27 @@ const SVELTE_SHIM_FILE_NAMES = ['svelte-shims-v4.d.ts'];
 
 let svelteShimPaths: ReadonlyArray<string> | undefined;
 
+/** The shim files' POSIX paths, resolved once and cached (see `getSvelteShimRoots`). */
+const resolveSvelteShimPaths = (): ReadonlyArray<string> => {
+	if (!svelteShimPaths) {
+		const packageRoot = dirname(createRequire(import.meta.url).resolve('svelte2tsx'));
+		svelteShimPaths = SVELTE_SHIM_FILE_NAMES.map((n) => toPosixPath(join(packageRoot, n)));
+	}
+	return svelteShimPaths;
+};
+
+/**
+ * Whether a file is one of the svelte2tsx shims `getSvelteShimRoots` roots,
+ * compared by the same resolved path rather than by file name. The `TypeJson`
+ * builder reads it to treat a shim-declared svelte2tsx alias as nameless
+ * (`linkableAliasSymbol` in `typescript-extract-type-json.ts`).
+ *
+ * @param fileName - a POSIX path, as `ts.SourceFile.fileName` holds it
+ * @internal Not a stable API.
+ */
+export const isSvelteShimPath = (fileName: string): boolean =>
+	resolveSvelteShimPaths().includes(fileName);
+
 /**
  * The program roots svelte2tsx's shims add to a program over `paths`: the shim
  * files when any path is a Svelte virtual, otherwise none, so TS-only programs
@@ -536,13 +557,7 @@ let svelteShimPaths: ReadonlyArray<string> | undefined;
  */
 export const getSvelteShimRoots = (paths: Iterable<string>): ReadonlyArray<string> => {
 	for (const path of paths) {
-		if (isSvelteVirtualPath(path)) {
-			if (!svelteShimPaths) {
-				const packageRoot = dirname(createRequire(import.meta.url).resolve('svelte2tsx'));
-				svelteShimPaths = SVELTE_SHIM_FILE_NAMES.map((n) => toPosixPath(join(packageRoot, n)));
-			}
-			return svelteShimPaths;
-		}
+		if (isSvelteVirtualPath(path)) return resolveSvelteShimPaths();
 	}
 	return [];
 };

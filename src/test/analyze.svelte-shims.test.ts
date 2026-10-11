@@ -16,12 +16,14 @@
 import { test, assert, describe } from 'vitest';
 import { join } from 'node:path';
 import { symlink, unlink } from 'node:fs/promises';
+import ts from 'typescript';
 
 import { analyze } from '#lib/analyze.ts';
 import { createAnalysisSession } from '#lib/session.ts';
 import { createSourceOptions } from '#lib/source-config.ts';
 import type { SourceFileInfo } from '#lib/source.ts';
 import { transformSvelteSource } from '#lib/svelte.ts';
+import { resolveTypeInfo } from '#lib/typescript-extract-type-json.ts';
 import { createAnalysisProgram, getSvelteShimRoots } from '#lib/typescript-program.ts';
 
 import { findModule, withTestProject } from './test-helpers.ts';
@@ -55,7 +57,9 @@ const FILES = {
 /**
  * Component kinds beyond runes TS: JS-lang (JSDoc props), legacy
  * (`export let`), and props typed by an intersection, read through a `.ts`
- * module, plus a parameter whose alias the registry recovers.
+ * module, plus project aliases over their props that the two recovery
+ * channels name at use sites. JS props carry svelte2tsx's generated
+ * `$$ComponentProps` alias, which must not mask `JsProps`.
  */
 const MORE_FILES = {
 	'src/lib/JsComp.svelte': `<script>
@@ -82,6 +86,8 @@ import JsComp from './JsComp.svelte';
 import Legacy from './Legacy.svelte';
 export type InterProps = ComponentProps<typeof Inter>;
 export const takesInter = (p: ComponentProps<typeof Inter>) => p;
+export type JsProps = ComponentProps<typeof JsComp>;
+export const takesJs = (p: JsProps) => p;
 export const jsComp = JsComp;
 export const legacy = Legacy;
 `
@@ -145,9 +151,9 @@ describe('svelte2tsx shims', { timeout: 30_000 }, () => {
 			});
 			const uses = findModule(modules, 'uses.ts');
 
-			// non-`any` is the fix; the exact text carries svelte2tsx's generated
-			// names (`$$ComponentProps`, `__sveltets_2_IsomorphicComponent`), which
-			// are current behavior with a scrub planned, so they aren't pinned here
+			// non-`any` is the fix; flat strings are the checker's rendering, so the
+			// text carries svelte2tsx's generated names (`$$ComponentProps`,
+			// `__sveltets_2_IsomorphicComponent`), which aren't pinned here
 			const jsComp = uses.declarations.find((d) => d.name === 'jsComp');
 			assert.ok(jsComp);
 			assert.match(jsComp.typeSignature ?? '', /^Component</);
@@ -174,6 +180,104 @@ describe('svelte2tsx shims', { timeout: 30_000 }, () => {
 				module: 'uses.ts'
 			});
 			assert.ok(!diagnostics.some((d) => d.kind === 'alias_lost'));
+		});
+	});
+
+	test('a generated props alias does not mask the project alias over it', async () => {
+		await withLinkedProject(MORE_FILES, async (projectRoot) => {
+			const { modules } = await analyze({
+				sourceFiles: toSourceFiles(projectRoot, MORE_FILES),
+				sourceOptions: createSourceOptions(projectRoot)
+			});
+			const uses = findModule(modules, 'uses.ts');
+			const takesJs = uses.declarations.find((d) => d.name === 'takesJs');
+			assert(takesJs?.kind === 'function', 'expected a function');
+			// written channel at the annotation, registry at the inferred return
+			assert.deepStrictEqual(takesJs.parameters[0]?.typeInfo, {
+				kind: 'reference',
+				name: 'JsProps'
+			});
+			assert.deepStrictEqual(takesJs.returnTypeInfo, {
+				kind: 'reference',
+				name: 'JsProps',
+				module: 'uses.ts'
+			});
+			// flat strings keep the checker's rendering, not the recovered name
+			assert.notInclude(takesJs.parameters[0]?.type ?? '', 'JsProps');
+			const jsComp = uses.declarations.find((d) => d.name === 'jsComp');
+			assert(jsComp?.kind === 'variable', 'expected a variable');
+			assert(jsComp.typeInfo?.kind === 'reference', 'expected a reference');
+			assert.deepStrictEqual(jsComp.typeInfo.typeArgs?.[0], {
+				kind: 'reference',
+				name: 'JsProps',
+				module: 'uses.ts'
+			});
+		});
+	});
+
+	test('svelte2tsx-shaped aliases outside svelte2tsx files stay names', async () => {
+		// the Svelte file roots the shims, so a shim-named project alias is
+		// distinguished by its declaring file, not by the shims being absent
+		const files = {
+			'src/lib/Other.svelte': OTHER,
+			'src/lib/a.ts': `export type $$A = { a: number };
+export const fn = (x: Array<$$A>) => x;
+export type __sveltets_2_PropsWithChildren<P> = P & { b: number };
+export const fn2 = (x: __sveltets_2_PropsWithChildren<{ a: number }>) => x;
+`
+		};
+		await withLinkedProject(files, async (projectRoot) => {
+			const { modules } = await analyze({
+				sourceFiles: toSourceFiles(projectRoot, files),
+				sourceOptions: createSourceOptions(projectRoot)
+			});
+			const a = findModule(modules, 'a.ts');
+			const fn = a.declarations.find((d) => d.name === 'fn');
+			assert(fn?.kind === 'function', 'expected a function');
+			assert.deepStrictEqual(fn.returnTypeInfo, {
+				kind: 'array',
+				element: { kind: 'reference', name: '$$A' }
+			});
+			const fn2 = a.declarations.find((d) => d.name === 'fn2');
+			assert(fn2?.kind === 'function', 'expected a function');
+			assert(fn2.returnTypeInfo?.kind === 'intersection', 'expected an intersection');
+			assert.strictEqual(fn2.returnTypeInfo.alias, '__sveltets_2_PropsWithChildren');
+		});
+	});
+
+	test('svelte2tsx annotations never feed written-name recovery', async () => {
+		await withLinkedProject({}, async (projectRoot) => {
+			const { virtual } = transformSvelteSource({
+				id: join(projectRoot, 'src/lib/Other.svelte'),
+				content: OTHER
+			});
+			assert.ok(virtual);
+			const program = createAnalysisProgram({
+				projectRoot,
+				virtualFiles: new Map([[virtual.virtualPath, virtual]])
+			});
+			const sourceFile = program.getSourceFile(virtual.virtualPath);
+			assert.ok(sourceFile);
+			// the `$props()` annotation svelte2tsx writes: `let {a}: $$ComponentProps`
+			let written: ts.TypeReferenceNode | undefined;
+			const walk = (node: ts.Node): void => {
+				if (ts.isTypeReferenceNode(node) && node.typeName.getText() === '$$ComponentProps') {
+					written ??= node;
+				}
+				ts.forEachChild(node, walk);
+			};
+			walk(sourceFile);
+			assert.ok(written);
+			const checker = program.getTypeChecker();
+			const typeInfo = resolveTypeInfo(
+				checker.getTypeFromTypeNode(written),
+				checker,
+				undefined,
+				false,
+				{ writtenNode: written }
+			);
+			// the generated name is neither recovered nor printed: the root expands
+			assert.deepStrictEqual(typeInfo, { kind: 'object', text: '{ a: "a" | "b"; }' });
 		});
 	});
 

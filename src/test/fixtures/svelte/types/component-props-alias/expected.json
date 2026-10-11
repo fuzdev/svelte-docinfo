@@ -1,0 +1,889 @@
+{
+	"modules": [
+		{
+			"path": "TypesComponentPropsAlias/a.ts",
+			"declarations": [
+				{
+					"name": "A",
+					"kind": "type",
+					"typeSignature": "$$ComponentProps",
+					"sourceLine": 11,
+					"members": [
+						{
+							"name": "a",
+							"kind": "variable",
+							"typeSignature": "\"a\" | \"b\"",
+							"typeInfo": {
+								"kind": "union",
+								"members": [
+									{
+										"kind": "literal",
+										"value": "a",
+										"text": "\"a\""
+									},
+									{
+										"kind": "literal",
+										"value": "b",
+										"text": "\"b\""
+									}
+								]
+							}
+						}
+					]
+				},
+				{
+					"name": "fn1",
+					"kind": "function",
+					"typeSignature": "(a: $$ComponentProps): $$ComponentProps",
+					"sourceLine": 13,
+					"parameters": [
+						{
+							"name": "a",
+							"type": "$$ComponentProps",
+							"typeInfo": {
+								"kind": "reference",
+								"name": "A"
+							}
+						}
+					],
+					"returnType": "$$ComponentProps",
+					"returnTypeInfo": {
+						"kind": "reference",
+						"name": "A",
+						"module": "TypesComponentPropsAlias/a.ts"
+					}
+				},
+				{
+					"name": "fn2",
+					"kind": "function",
+					"typeSignature": "(a: $$ComponentProps): $$ComponentProps",
+					"sourceLine": 15,
+					"parameters": [
+						{
+							"name": "a",
+							"type": "$$ComponentProps",
+							"typeInfo": {
+								"kind": "reference",
+								"name": "A",
+								"module": "TypesComponentPropsAlias/a.ts"
+							}
+						}
+					],
+					"returnType": "$$ComponentProps",
+					"returnTypeInfo": {
+						"kind": "reference",
+						"name": "A",
+						"module": "TypesComponentPropsAlias/a.ts"
+					}
+				},
+				{
+					"name": "a",
+					"kind": "variable",
+					"typeSignature": "Component<$$ComponentProps, {}, \"\">",
+					"sourceLine": 17,
+					"typeInfo": {
+						"kind": "reference",
+						"name": "Component",
+						"typeArgs": [
+							{
+								"kind": "reference",
+								"name": "A",
+								"module": "TypesComponentPropsAlias/a.ts"
+							},
+							{
+								"kind": "object",
+								"text": "{}"
+							},
+							{
+								"kind": "literal",
+								"value": "",
+								"text": "\"\""
+							}
+						]
+					}
+				},
+				{
+					"name": "B",
+					"kind": "type",
+					"typeSignature": "E & { b: string; }",
+					"sourceLine": 19,
+					"typeInfo": {
+						"kind": "intersection",
+						"members": [
+							{
+								"kind": "reference",
+								"name": "E"
+							},
+							{
+								"kind": "object",
+								"text": "{ b: string; }"
+							}
+						]
+					},
+					"members": [
+						{
+							"name": "e",
+							"kind": "variable",
+							"typeSignature": "number"
+						},
+						{
+							"name": "b",
+							"kind": "variable",
+							"typeSignature": "string"
+						}
+					]
+				},
+				{
+					"name": "fn3",
+					"kind": "function",
+					"typeSignature": "(b: E & { b: string; }): E & { b: string; }",
+					"sourceLine": 21,
+					"parameters": [
+						{
+							"name": "b",
+							"type": "E & { b: string; }",
+							"typeInfo": {
+								"kind": "reference",
+								"name": "B"
+							}
+						}
+					],
+					"returnType": "E & { b: string; }",
+					"returnTypeInfo": {
+						"kind": "reference",
+						"name": "B",
+						"module": "TypesComponentPropsAlias/a.ts"
+					}
+				},
+				{
+					"name": "C",
+					"kind": "type",
+					"typeSignature": "$$ComponentProps",
+					"sourceLine": 23,
+					"members": [
+						{
+							"name": "c",
+							"kind": "variable",
+							"typeSignature": "number"
+						}
+					]
+				},
+				{
+					"name": "fn4",
+					"kind": "function",
+					"typeSignature": "(c: $$ComponentProps): $$ComponentProps",
+					"sourceLine": 25,
+					"parameters": [
+						{
+							"name": "c",
+							"type": "$$ComponentProps",
+							"typeInfo": {
+								"kind": "reference",
+								"name": "C"
+							}
+						}
+					],
+					"returnType": "$$ComponentProps",
+					"returnTypeInfo": {
+						"kind": "reference",
+						"name": "C",
+						"module": "TypesComponentPropsAlias/a.ts"
+					}
+				},
+				{
+					"name": "d",
+					"kind": "variable",
+					"typeSignature": "Component<$$ComponentProps, {}, \"\">",
+					"sourceLine": 27,
+					"typeInfo": {
+						"kind": "reference",
+						"name": "Component",
+						"typeArgs": [
+							{
+								"kind": "object",
+								"text": "{ d: number; }"
+							},
+							{
+								"kind": "object",
+								"text": "{}"
+							},
+							{
+								"kind": "literal",
+								"value": "",
+								"text": "\"\""
+							}
+						]
+					}
+				},
+				{
+					"name": "fn5",
+					"kind": "function",
+					"typeSignature": "(d: $$ComponentProps): $$ComponentProps",
+					"sourceLine": 29,
+					"parameters": [
+						{
+							"name": "d",
+							"type": "$$ComponentProps",
+							"typeInfo": {
+								"kind": "object",
+								"text": "{ d: number; }"
+							}
+						}
+					],
+					"returnType": "$$ComponentProps",
+					"returnTypeInfo": {
+						"kind": "object",
+						"text": "{ d: number; }"
+					}
+				},
+				{
+					"name": "G",
+					"kind": "type",
+					"typeSignature": "$$ComponentProps",
+					"sourceLine": 31,
+					"typeInfo": {
+						"kind": "union",
+						"members": [
+							{
+								"kind": "reference",
+								"name": "E"
+							},
+							{
+								"kind": "reference",
+								"name": "F"
+							}
+						]
+					}
+				},
+				{
+					"name": "fn6",
+					"kind": "function",
+					"typeSignature": "(g: $$ComponentProps): $$ComponentProps",
+					"sourceLine": 33,
+					"parameters": [
+						{
+							"name": "g",
+							"type": "$$ComponentProps",
+							"typeInfo": {
+								"kind": "reference",
+								"name": "G"
+							}
+						}
+					],
+					"returnType": "$$ComponentProps",
+					"returnTypeInfo": {
+						"kind": "union",
+						"members": [
+							{
+								"kind": "reference",
+								"name": "E"
+							},
+							{
+								"kind": "reference",
+								"name": "F"
+							}
+						]
+					}
+				},
+				{
+					"name": "fn7",
+					"kind": "function",
+					"typeSignature": "(g: $$ComponentProps): $$ComponentProps",
+					"sourceLine": 35,
+					"parameters": [
+						{
+							"name": "g",
+							"type": "$$ComponentProps",
+							"typeInfo": {
+								"kind": "union",
+								"members": [
+									{
+										"kind": "reference",
+										"name": "E"
+									},
+									{
+										"kind": "reference",
+										"name": "F"
+									}
+								]
+							}
+						}
+					],
+					"returnType": "$$ComponentProps",
+					"returnTypeInfo": {
+						"kind": "union",
+						"members": [
+							{
+								"kind": "reference",
+								"name": "E"
+							},
+							{
+								"kind": "reference",
+								"name": "F"
+							}
+						]
+					}
+				},
+				{
+					"name": "fn8",
+					"kind": "function",
+					"typeSignature": "(d: $$ComponentProps[]): $$ComponentProps[]",
+					"sourceLine": 37,
+					"parameters": [
+						{
+							"name": "d",
+							"type": "$$ComponentProps[]",
+							"typeInfo": {
+								"kind": "array",
+								"element": {
+									"kind": "object",
+									"text": "{ d: number; }"
+								}
+							}
+						}
+					],
+					"returnType": "$$ComponentProps[]",
+					"returnTypeInfo": {
+						"kind": "array",
+						"element": {
+							"kind": "object",
+							"text": "{ d: number; }"
+						}
+					}
+				},
+				{
+					"name": "fn9",
+					"kind": "function",
+					"typeSignature": "(d: readonly $$ComponentProps[]): readonly $$ComponentProps[]",
+					"sourceLine": 39,
+					"parameters": [
+						{
+							"name": "d",
+							"type": "readonly $$ComponentProps[]",
+							"typeInfo": {
+								"kind": "array",
+								"element": {
+									"kind": "object",
+									"text": "{ d: number; }"
+								},
+								"readonly": true
+							}
+						}
+					],
+					"returnType": "readonly $$ComponentProps[]",
+					"returnTypeInfo": {
+						"kind": "array",
+						"element": {
+							"kind": "object",
+							"text": "{ d: number; }"
+						},
+						"readonly": true
+					}
+				},
+				{
+					"name": "fn10",
+					"kind": "function",
+					"typeSignature": "(d: [first: $$ComponentProps, second?: number | undefined]): [first: $$ComponentProps, second?: number | undefined]",
+					"sourceLine": 41,
+					"parameters": [
+						{
+							"name": "d",
+							"type": "[first: $$ComponentProps, second?: number | undefined]",
+							"typeInfo": {
+								"kind": "tuple",
+								"elements": [
+									{
+										"name": "first",
+										"type": {
+											"kind": "object",
+											"text": "{ d: number; }"
+										}
+									},
+									{
+										"name": "second",
+										"type": {
+											"kind": "intrinsic",
+											"text": "number"
+										},
+										"optional": true
+									}
+								]
+							}
+						}
+					],
+					"returnType": "[first: $$ComponentProps, second?: number | undefined]",
+					"returnTypeInfo": {
+						"kind": "tuple",
+						"elements": [
+							{
+								"name": "first",
+								"type": {
+									"kind": "object",
+									"text": "{ d: number; }"
+								}
+							},
+							{
+								"name": "second",
+								"type": {
+									"kind": "intrinsic",
+									"text": "number"
+								},
+								"optional": true
+							}
+						]
+					}
+				},
+				{
+					"name": "LP",
+					"kind": "type",
+					"typeSignature": "__sveltets_2_PropsWithChildren<{ z: number; }, { default: {}; }>",
+					"sourceLine": 43,
+					"typeInfo": {
+						"kind": "intersection",
+						"members": [
+							{
+								"kind": "object",
+								"text": "{ z: number; }"
+							},
+							{
+								"kind": "object",
+								"text": "{ children?: any; }"
+							}
+						]
+					},
+					"members": [
+						{
+							"name": "z",
+							"kind": "variable",
+							"typeSignature": "number"
+						}
+					]
+				},
+				{
+					"name": "fn11",
+					"kind": "function",
+					"typeSignature": "(lp: __sveltets_2_PropsWithChildren<{ z: number; }, { default: {}; }>): __sveltets_2_PropsWithChildren<{ z: number; }, { default: {}; }>",
+					"sourceLine": 45,
+					"parameters": [
+						{
+							"name": "lp",
+							"type": "__sveltets_2_PropsWithChildren<{ z: number; }, { default: {}; }>",
+							"typeInfo": {
+								"kind": "reference",
+								"name": "LP"
+							}
+						}
+					],
+					"returnType": "__sveltets_2_PropsWithChildren<{ z: number; }, { default: {}; }>",
+					"returnTypeInfo": {
+						"kind": "reference",
+						"name": "LP",
+						"module": "TypesComponentPropsAlias/a.ts"
+					}
+				},
+				{
+					"name": "fn12",
+					"kind": "function",
+					"typeSignature": "(lp: __sveltets_2_PropsWithChildren<{ z: number; }, { default: {}; }>): __sveltets_2_PropsWithChildren<{ z: number; }, { default: {}; }>",
+					"sourceLine": 47,
+					"parameters": [
+						{
+							"name": "lp",
+							"type": "__sveltets_2_PropsWithChildren<{ z: number; }, { default: {}; }>",
+							"typeInfo": {
+								"kind": "reference",
+								"name": "LP",
+								"module": "TypesComponentPropsAlias/a.ts"
+							}
+						}
+					],
+					"returnType": "__sveltets_2_PropsWithChildren<{ z: number; }, { default: {}; }>",
+					"returnTypeInfo": {
+						"kind": "reference",
+						"name": "LP",
+						"module": "TypesComponentPropsAlias/a.ts"
+					}
+				},
+				{
+					"name": "LP2",
+					"kind": "type",
+					"typeSignature": "$$Props",
+					"sourceLine": 49,
+					"members": [
+						{
+							"name": "y",
+							"kind": "variable",
+							"typeSignature": "string"
+						}
+					]
+				},
+				{
+					"name": "fn13",
+					"kind": "function",
+					"typeSignature": "(lp: $$Props): $$Props",
+					"sourceLine": 51,
+					"parameters": [
+						{
+							"name": "lp",
+							"type": "$$Props",
+							"typeInfo": {
+								"kind": "reference",
+								"name": "LP2"
+							}
+						}
+					],
+					"returnType": "$$Props",
+					"returnTypeInfo": {
+						"kind": "reference",
+						"name": "LP2",
+						"module": "TypesComponentPropsAlias/a.ts"
+					}
+				},
+				{
+					"name": "fn14",
+					"kind": "function",
+					"typeSignature": "(d: [($$ComponentProps | undefined)?]): [($$ComponentProps | undefined)?]",
+					"sourceLine": 53,
+					"parameters": [
+						{
+							"name": "d",
+							"type": "[($$ComponentProps | undefined)?]",
+							"typeInfo": {
+								"kind": "tuple",
+								"elements": [
+									{
+										"type": {
+											"kind": "object",
+											"text": "{ d: number; }"
+										},
+										"optional": true
+									}
+								]
+							}
+						}
+					],
+					"returnType": "[($$ComponentProps | undefined)?]",
+					"returnTypeInfo": {
+						"kind": "tuple",
+						"elements": [
+							{
+								"type": {
+									"kind": "object",
+									"text": "{ d: number; }"
+								},
+								"optional": true
+							}
+						]
+					}
+				},
+				{
+					"name": "T4",
+					"kind": "type",
+					"typeSignature": "T4",
+					"sourceLine": 55,
+					"typeInfo": {
+						"kind": "tuple",
+						"elements": [
+							{
+								"type": {
+									"kind": "object",
+									"text": "{ d: number; }"
+								}
+							}
+						]
+					}
+				},
+				{
+					"name": "fn15",
+					"kind": "function",
+					"typeSignature": "(t: T4): T4",
+					"sourceLine": 57,
+					"parameters": [
+						{
+							"name": "t",
+							"type": "T4"
+						}
+					],
+					"returnType": "T4"
+				},
+				{
+					"name": "U4",
+					"kind": "type",
+					"typeSignature": "U4",
+					"sourceLine": 59,
+					"typeInfo": {
+						"kind": "union",
+						"alias": "U4",
+						"members": [
+							{
+								"kind": "object",
+								"text": "{ d: number; }"
+							},
+							{
+								"kind": "intrinsic",
+								"text": "undefined"
+							}
+						]
+					}
+				},
+				{
+					"name": "fn16",
+					"kind": "function",
+					"typeSignature": "(u: [U4?]): [U4?]",
+					"sourceLine": 61,
+					"parameters": [
+						{
+							"name": "u",
+							"type": "[U4?]"
+						}
+					],
+					"returnType": "[U4?]"
+				}
+			],
+			"dependencies": [
+				"TypesComponentPropsAlias/Legacy.svelte",
+				"TypesComponentPropsAlias/Legacy2.svelte",
+				"TypesComponentPropsAlias/Other1.svelte",
+				"TypesComponentPropsAlias/Other2.svelte",
+				"TypesComponentPropsAlias/Other3.svelte",
+				"TypesComponentPropsAlias/Other4.svelte",
+				"TypesComponentPropsAlias/Other5.svelte"
+			],
+			"dependents": [
+				"TypesComponentPropsAlias/TypesComponentPropsAlias.svelte"
+			]
+		},
+		{
+			"path": "TypesComponentPropsAlias/base.ts",
+			"declarations": [
+				{
+					"name": "E",
+					"kind": "interface",
+					"typeSignature": "E",
+					"sourceLine": 1,
+					"members": [
+						{
+							"name": "e",
+							"kind": "variable",
+							"typeSignature": "number"
+						}
+					]
+				},
+				{
+					"name": "F",
+					"kind": "interface",
+					"typeSignature": "F",
+					"sourceLine": 5,
+					"members": [
+						{
+							"name": "f",
+							"kind": "variable",
+							"typeSignature": "number"
+						}
+					]
+				}
+			],
+			"dependents": [
+				"TypesComponentPropsAlias/Other2.svelte",
+				"TypesComponentPropsAlias/Other5.svelte"
+			]
+		},
+		{
+			"path": "TypesComponentPropsAlias/Legacy.svelte",
+			"declarations": [
+				{
+					"name": "Legacy",
+					"kind": "component",
+					"sourceLine": 4
+				}
+			],
+			"dependents": [
+				"TypesComponentPropsAlias/a.ts"
+			]
+		},
+		{
+			"path": "TypesComponentPropsAlias/Legacy2.svelte",
+			"declarations": [
+				{
+					"name": "Legacy2",
+					"kind": "component",
+					"sourceLine": 4
+				}
+			],
+			"dependents": [
+				"TypesComponentPropsAlias/a.ts"
+			]
+		},
+		{
+			"path": "TypesComponentPropsAlias/Other1.svelte",
+			"declarations": [
+				{
+					"name": "Other1",
+					"kind": "component",
+					"sourceLine": 1,
+					"props": [
+						{
+							"name": "a",
+							"type": "\"a\" | \"b\"",
+							"typeInfo": {
+								"kind": "union",
+								"members": [
+									{
+										"kind": "literal",
+										"value": "a",
+										"text": "\"a\""
+									},
+									{
+										"kind": "literal",
+										"value": "b",
+										"text": "\"b\""
+									}
+								]
+							}
+						}
+					]
+				}
+			],
+			"dependents": [
+				"TypesComponentPropsAlias/a.ts"
+			]
+		},
+		{
+			"path": "TypesComponentPropsAlias/Other2.svelte",
+			"declarations": [
+				{
+					"name": "Other2",
+					"kind": "component",
+					"sourceLine": 1,
+					"props": [
+						{
+							"name": "e",
+							"type": "number"
+						},
+						{
+							"name": "b",
+							"type": "string"
+						}
+					]
+				}
+			],
+			"dependencies": [
+				"TypesComponentPropsAlias/base.ts"
+			],
+			"dependents": [
+				"TypesComponentPropsAlias/a.ts"
+			]
+		},
+		{
+			"path": "TypesComponentPropsAlias/Other3.svelte",
+			"declarations": [
+				{
+					"name": "Other3",
+					"kind": "component",
+					"sourceLine": 1,
+					"props": [
+						{
+							"name": "c",
+							"type": "number"
+						}
+					],
+					"lang": "js"
+				}
+			],
+			"dependents": [
+				"TypesComponentPropsAlias/a.ts"
+			]
+		},
+		{
+			"path": "TypesComponentPropsAlias/Other4.svelte",
+			"declarations": [
+				{
+					"name": "Other4",
+					"kind": "component",
+					"sourceLine": 1,
+					"props": [
+						{
+							"name": "d",
+							"type": "number"
+						}
+					]
+				}
+			],
+			"dependents": [
+				"TypesComponentPropsAlias/a.ts"
+			]
+		},
+		{
+			"path": "TypesComponentPropsAlias/Other5.svelte",
+			"declarations": [
+				{
+					"name": "Other5",
+					"kind": "component",
+					"sourceLine": 1
+				}
+			],
+			"dependencies": [
+				"TypesComponentPropsAlias/base.ts"
+			],
+			"dependents": [
+				"TypesComponentPropsAlias/a.ts"
+			]
+		},
+		{
+			"path": "TypesComponentPropsAlias/TypesComponentPropsAlias.svelte",
+			"declarations": [
+				{
+					"name": "TypesComponentPropsAlias",
+					"kind": "component",
+					"sourceLine": 1,
+					"props": [
+						{
+							"name": "prop",
+							"type": "$$ComponentProps",
+							"typeInfo": {
+								"kind": "reference",
+								"name": "A"
+							}
+						}
+					]
+				}
+			],
+			"dependencies": [
+				"TypesComponentPropsAlias/a.ts"
+			]
+		}
+	],
+	"diagnostics": [
+		{
+			"kind": "alias_lost",
+			"file": "src/lib/TypesComponentPropsAlias/a.ts",
+			"line": 31,
+			"column": 1,
+			"message": "Type alias \"G\" loses its name at use sites — the right-hand side resolves to a type the checker has no name for, so unannotated positions document its structure instead of the alias.",
+			"severity": "warning",
+			"aliasName": "G"
+		},
+		{
+			"kind": "legacy_props",
+			"file": "src/lib/TypesComponentPropsAlias/Legacy.svelte",
+			"line": 5,
+			"message": "Component \"Legacy\" declares props with legacy export let syntax (z). Legacy props are not extracted — migrate to $props().",
+			"severity": "warning",
+			"componentName": "Legacy",
+			"propNames": [
+				"z"
+			]
+		},
+		{
+			"kind": "legacy_props",
+			"file": "src/lib/TypesComponentPropsAlias/Legacy2.svelte",
+			"line": 7,
+			"message": "Component \"Legacy2\" declares props with legacy export let syntax (y). Legacy props are not extracted — migrate to $props().",
+			"severity": "warning",
+			"componentName": "Legacy2",
+			"propNames": [
+				"y"
+			]
+		}
+	]
+}

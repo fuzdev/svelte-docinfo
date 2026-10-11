@@ -173,11 +173,15 @@ export const SVELTE_COMPONENT_ALIAS_SUFFIX = '__SvelteComponent_';
  * `<ComponentName>__SvelteComponent_`. Building block for
  * `isSvelte2tsxGeneratedExport`, which adds the `default` slot.
  *
- * Export filtering is the whole guarantee: type text can still carry these
- * names, since component types print as the checker sees them
- * (`Component<$$ComponentProps, {}, "">`, `__sveltets_2_IsomorphicComponent<…>`).
- * See the TODO on the alias-reference branch in `typescript-extract-type-json.ts`
- * for the `$$`-prefixed aliases.
+ * Beyond export filtering, the `TypeJson` builder treats an alias with one of
+ * these names declared in a Svelte virtual or svelte2tsx's shims as no alias
+ * at all (`linkableAliasSymbol` in `typescript-extract-type-json.ts`), so
+ * `$$ComponentProps` and `__sveltets_2_PropsWithChildren` never reach a tree
+ * and don't mask a project alias over them. Flat type strings are the
+ * checker's rendering and still carry these names
+ * (`Component<$$ComponentProps, {}, "">`,
+ * `__sveltets_2_IsomorphicComponent<…>`), as do terminal `text` nodes nested
+ * in them and the generic-component interface `$$IsomorphicComponent`.
  */
 export const isSvelte2tsxInternal = (name: string): boolean =>
 	name.startsWith('$$') ||

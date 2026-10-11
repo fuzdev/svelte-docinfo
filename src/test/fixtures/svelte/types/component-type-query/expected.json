@@ -14,7 +14,8 @@
 						"typeArgs": [
 							{
 								"kind": "reference",
-								"name": "$$ComponentProps"
+								"name": "A",
+								"module": "TypesComponentTypeQuery/a.ts"
 							},
 							{
 								"kind": "object",

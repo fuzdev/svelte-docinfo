@@ -37,6 +37,7 @@ import {
 import {
 	isAliasLostType,
 	namedSymbolName,
+	linkableAliasSymbol,
 	unionMemberSetKey,
 	type AliasRegistry,
 	type AliasRegistryEntry
@@ -96,8 +97,9 @@ const containsAnonymousComponent = (
 	if (depth > MAX_GATE_WALK_DEPTH) return false;
 	if (seen.has(type)) return false;
 	seen.add(type);
-	// an aliased component prints by its alias name — readable, stop
-	if (type.aliasSymbol !== undefined) return false;
+	// an aliased component prints by its alias name — readable, stop (a
+	// svelte2tsx-generated alias doesn't count: its name is a dead lookup key)
+	if (linkableAliasSymbol(type) !== undefined) return false;
 	if (type.isUnion() || type.isIntersection()) {
 		return type.types.some((t) => containsAnonymousComponent(t, checker, seen, depth + 1));
 	}

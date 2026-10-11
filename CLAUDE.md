@@ -34,7 +34,10 @@ points to the TSDoc that owns its policy; read it before changing behavior. User
     other callable is `function`. Object literals and functions stay terminal `text`
     (1000-char budget). Depth is capped at 5, degrading to `{kind: 'other'}`.
   - **Name recovery** — TypeScript drops the alias of a type over an indexed access or
-    conditional (`z.infer<typeof S>`), expanding it at every use. Two channels recover
+    conditional (`z.infer<typeof S>`), expanding it at every use. A svelte2tsx-generated
+    alias (declared in a virtual or the shims) counts as none (`linkableAliasSymbol`), so
+    `ComponentProps<typeof X>` over inline props is lost the same way, never
+    `$$ComponentProps`. Two channels recover
     `{kind: 'reference', name}`. The **written** channel resolves the annotation at the
     site, through import aliases to the exported name (`specifierExportedName`). The
     **registry** channel (`buildAliasRegistry`, a query-scoped pre-pass) matches by type
@@ -100,9 +103,11 @@ points to the TSDoc that owns its policy; read it before changing behavior. User
     in-memory file in a directory absent from disk still resolves.
   - A program with Svelte virtuals also roots svelte2tsx's `svelte-shims-v4.d.ts`
     (`getSvelteShimRoots`), resolved from svelte-docinfo's own svelte2tsx. Without it every
-    component's type is `any`; TS-only programs root nothing extra. Component types print as
-    the checker sees them, svelte2tsx's generated names included
-    (`Component<$$ComponentProps, {}, "">`).
+    component's type is `any`; TS-only programs root nothing extra. Flat strings print
+    component types as the checker sees them, svelte2tsx's generated names included
+    (`Component<$$ComponentProps, {}, "">`); the `TypeJson` builder treats generated aliases
+    (`$$ComponentProps`, the shims' `__sveltets_2_PropsWithChildren`) as nameless
+    (`linkableAliasSymbol`), and identifies the shims by path (`isSvelteShimPath`).
 - `typescript-extract-*.ts` — per-kind extractors, `@internal`, imported directly (no barrel):
   - `-shared.ts`
     - `ExtractContext`, built by `createExtractContext`: pass-constant state only —

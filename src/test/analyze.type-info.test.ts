@@ -573,6 +573,40 @@ export const f = <E,>(c?: E): void => {};`
 		}
 	});
 
+	test('a recursive array or tuple alias at a parameter root terminates', async () => {
+		// each alias recurs through itself as an array or tuple element, so a
+		// root walk that descends into elements must stop at the alias; `D[]`
+		// is the control, where an interface breaks the cycle
+		const { modules, diagnostics } = await analyzeTestProject({
+			'src/lib/a.ts': `export type A = A[];
+export type B = readonly B[];
+export type C = [a: number, ...b: C[]];
+export interface D { a: D[] }
+export const fn1 = (a: A) => a;
+export const fn2 = (b: B) => b;
+export const fn3 = (c: C) => c;
+export const fn4 = (d: D[]) => d;`
+		});
+		assert.deepStrictEqual(
+			diagnostics.map((d) => d.kind),
+			[]
+		);
+		const module = modules[0];
+		assert.ok(module, 'expected a module');
+		for (const [name, type] of [
+			['fn1', 'A'],
+			['fn2', 'B'],
+			['fn3', 'C'],
+			['fn4', 'D[]']
+		] as const) {
+			const fn = module.declarations.find((d) => d.name === name);
+			assert(fn?.kind === 'function', `expected ${name} to be a function`);
+			assert.ok(!fn.partial, `expected ${name} to be complete`);
+			assert.strictEqual(fn.parameters[0]?.type, type);
+			assert.strictEqual(fn.returnType, type);
+		}
+	});
+
 	test('the text budget bounds one terminal node, without hand-slicing it', async () => {
 		// the width bound companion to the depth cap: a terminal node's whole
 		// payload is one string, so depth can't contain it. This is the shape a

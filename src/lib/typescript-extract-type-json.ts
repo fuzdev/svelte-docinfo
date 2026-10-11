@@ -29,6 +29,10 @@
  * recursive types with a name). Expansion, alias, and normalization policy
  * live on the `TypeJson` schema doc in `types.ts`.
  *
+ * svelte2tsx-generated aliases (`$$ComponentProps`,
+ * `__sveltets_2_PropsWithChildren`) count as no alias at all, here and in the
+ * registry pre-pass — every alias read goes through `linkableAliasSymbol`.
+ *
  * @internal Used by the extractors — not part of the public barrel export.
  *
  * @module
@@ -36,6 +40,8 @@
 
 import ts from 'typescript';
 
+import { isSvelte2tsxInternal, isSvelteVirtualPath } from './source.ts';
+import { isSvelteShimPath } from './typescript-program.ts';
 import type { TupleElementJson, TypeJson } from './types.ts';
 
 /**
@@ -75,6 +81,8 @@ const MAX_TERMINAL_TEXT = 1000;
  * the checker's canonical rendering.
  */
 const printType = (type: ts.Type, checker: ts.TypeChecker): string => {
+	// a generated alias's default rendering is its dead name, so expand it
+	if (hasGeneratedAlias(type)) return printAliasedType(type, checker);
 	const full = checker.typeToString(type, undefined, ts.TypeFormatFlags.NoTruncation);
 	return full.length <= MAX_TERMINAL_TEXT ? full : checker.typeToString(type);
 };
@@ -96,6 +104,85 @@ const printAliasedType = (type: ts.Type, checker: ts.TypeChecker): string => {
 		? full
 		: checker.typeToString(type, undefined, ts.TypeFormatFlags.InTypeAlias);
 };
+
+/**
+ * Whether an alias symbol is one svelte2tsx generated: an
+ * `isSvelte2tsxInternal` name declared in a Svelte virtual or in the shims
+ * analysis roots (`isSvelteShimPath`).
+ *
+ * - **In a virtual** — in practice that's `$$ComponentProps`, the alias
+ *   svelte2tsx writes for props without a name of their own (an inline
+ *   `$props()` annotation, or a JS component's JSDoc), which the component's
+ *   type then carries (`Component<$$ComponentProps, {}, "">`). A legacy
+ *   component's author-written `type $$Props` counts too: svelte2tsx reads it
+ *   by that reserved name, and like the generated alias it's local to the
+ *   component and never exported.
+ * - **In the shims** — `__sveltets_2_PropsWithChildren`, the props of a legacy
+ *   component with slots (`ComponentProps<Legacy>`).
+ *
+ * Requiring one of those files keeps a project's own `$$`- or
+ * `__sveltets_`-named alias in a `.ts` module a name. The shims' unprefixed
+ * globals (`Expand`, `KeysMatching`) stay names too: a project can write them.
+ */
+const isSvelte2tsxGeneratedAlias = (symbol: ts.Symbol): boolean =>
+	isSvelte2tsxInternal(symbol.name) &&
+	(symbol.declarations?.some((d) => {
+		const { fileName } = d.getSourceFile();
+		return isSvelteVirtualPath(fileName) || isSvelteShimPath(fileName);
+	}) ?? false);
+
+/** Whether a type's alias symbol is svelte2tsx-generated (`isSvelte2tsxGeneratedAlias`). */
+const hasGeneratedAlias = (type: ts.Type): boolean =>
+	type.aliasSymbol !== undefined && isSvelte2tsxGeneratedAlias(type.aliasSymbol);
+
+/**
+ * Whether a flat string prints a generated alias (`hasGeneratedAlias`) bare,
+ * or as an array or tuple element at any depth the tree reaches (`$$ComponentProps[]`,
+ * `readonly [first: $$ComponentProps]`), where no other node would carry the
+ * structure the name hides. Other containers need no help: a union,
+ * intersection, or generic reference over the alias already qualifies as
+ * structure, and a terminal `text` node prints it nested (see
+ * `isSvelte2tsxInternal`). The walk looks through a union only for an optional
+ * tuple element, whose type carries the widening `undefined`
+ * (`[$$ComponentProps?]`); at a root the union is already structure, so the
+ * answer there never matters.
+ *
+ * The walk stops at a project alias, which prints its own name, so a
+ * recursive array or tuple alias (`type R = R[]`) can't recur forever, and at
+ * the tree's depth cap, past which there's no structure left to keep.
+ */
+const printsGeneratedAlias = (type: ts.Type, checker: ts.TypeChecker, depth = 0): boolean => {
+	if (hasGeneratedAlias(type)) return true;
+	if (type.aliasSymbol !== undefined || depth >= MAX_TYPE_JSON_DEPTH) return false;
+	if (type.isUnion()) return type.types.some((t) => printsGeneratedAlias(t, checker, depth + 1));
+	return (
+		(checker.isArrayType(type) || checker.isTupleType(type)) &&
+		checker
+			.getTypeArguments(type as ts.TypeReference)
+			.some((t) => printsGeneratedAlias(t, checker, depth + 1))
+	);
+};
+
+/**
+ * The alias symbol a type may be named by: `type.aliasSymbol`, except a
+ * svelte2tsx-generated one (`isSvelte2tsxGeneratedAlias`), which counts as no
+ * alias at all. Every alias read in the tree builder and in name recovery goes
+ * through it, so a generated alias is nameless throughout:
+ *
+ * - it never surfaces as a `reference` name or a union/intersection `alias`,
+ *   since nothing exports it and it would be a dead lookup key
+ * - it doesn't pre-empt recovery: a project alias over it
+ *   (`type P = ComponentProps<typeof Button>`) is alias-lost
+ *   (`isAliasLostType`), so it registers, recovers at use sites through
+ *   either channel, and warns `alias_lost` when neither can
+ * - what nothing recovers prints its structure (`printType` expands the
+ *   alias), and a root whose flat string is the generated name keeps that
+ *   structure (`resolveTypeInfo`)
+ *
+ * The flat strings are the checker's rendering and keep the generated name.
+ */
+export const linkableAliasSymbol = (type: ts.Type): ts.Symbol | undefined =>
+	hasGeneratedAlias(type) ? undefined : type.aliasSymbol;
 
 /** Whether the type is `null` or a union with a `null` member. */
 const hasNullMember = (type: ts.Type): boolean =>
@@ -185,11 +272,15 @@ const isModuleObjectType = (type: ts.Type): boolean => {
  * al.), whose resolution lands on a pre-existing interned type that TypeScript
  * never retroactively stamps an alias symbol on.
  *
+ * An alias whose only alias symbol is svelte2tsx-generated counts as lost
+ * (`linkableAliasSymbol`): `type P = ComponentProps<typeof Button>` over inline
+ * props prints as `$$ComponentProps`, a name no consumer can look up.
+ *
  * The exception is a lost alias over an array root: `namedSymbolName` names it
  * `Array`, so the predicate is false and it never registers.
  */
 export const isAliasLostType = (type: ts.Type): boolean =>
-	type.aliasSymbol === undefined &&
+	linkableAliasSymbol(type) === undefined &&
 	namedSymbolName(type) === undefined &&
 	!(type.flags & (INTRINSIC_FLAGS | ts.TypeFlags.Literal));
 
@@ -369,7 +460,9 @@ const buildWrittenNameMap = (node: ts.TypeNode, checker: ts.TypeChecker): Map<ts
 				const type = checker.getTypeFromTypeNode(n);
 				if (!(type.flags & excluded) && !map.has(type)) {
 					const name = referenceNodeName(n, checker);
-					if (name !== undefined) map.set(type, name);
+					// a written generated alias (svelte2tsx's own annotations) names nothing
+					const generated = hasGeneratedAlias(type) && name === type.aliasSymbol?.name;
+					if (name !== undefined && !generated) map.set(type, name);
 				}
 			} catch {
 				// a malformed or unresolved annotation contributes no entry
@@ -459,7 +552,9 @@ const recoveredReference = (
 	memberSetEligible = false
 ): TypeJson | undefined => {
 	if (recovery.written === undefined && recovery.registry === undefined) return undefined;
-	if (type.aliasSymbol !== undefined || namedSymbolName(type) !== undefined) return undefined;
+	if (linkableAliasSymbol(type) !== undefined || namedSymbolName(type) !== undefined) {
+		return undefined;
+	}
 	const written = recovery.written?.(type);
 	if (written !== undefined) return { kind: 'reference', name: written };
 	const { registry } = recovery;
@@ -537,7 +632,8 @@ const literalNode = (type: ts.Type, checker: ts.TypeChecker): TypeJson | undefin
 
 /** Alias name for a union node — the alias symbol, or the enum symbol for enum-member unions. */
 const unionAlias = (type: ts.Type): string | undefined =>
-	type.aliasSymbol?.name ?? (type.flags & ts.TypeFlags.EnumLiteral ? type.symbol?.name : undefined);
+	linkableAliasSymbol(type)?.name ??
+	(type.flags & ts.TypeFlags.EnumLiteral ? type.symbol?.name : undefined);
 
 /** `ts.UnionType` with the internal `origin` field the printer reads (absent from the public declarations). */
 interface UnionTypeWithOrigin extends ts.UnionType {
@@ -848,7 +944,7 @@ const buildTypeJson = (
 		const recovered = recoveredReference(type, recovery, depth);
 		if (recovered) return recovered;
 		const members = type.types.map((t) => buildTypeJson(t, checker, depth + 1, recovery));
-		const alias = type.aliasSymbol?.name;
+		const alias = linkableAliasSymbol(type)?.name;
 		return alias === undefined
 			? { kind: 'intersection', members }
 			: { kind: 'intersection', alias, members };
@@ -877,27 +973,19 @@ const buildTypeJson = (
 		// aliased shapes reference by the alias name — the alias is the linkable
 		// identity, and its own declaration carries the structure (`type Foo =
 		// {...}` nested surfaces as `{kind: 'reference', name: 'Foo'}`)
-		if (type.aliasSymbol && type.aliasSymbol.name !== options.skipAliasName) {
-			// TODO: svelte2tsx-generated aliases (`$$ComponentProps`, see
-			// `isSvelte2tsxInternal`) reach here through component types
-			// (`typeof Button`, `ComponentProps<typeof Button>`) and are dead lookup
-			// keys. They also mask a project alias over them: with object-typed
-			// props, `type P = ComponentProps<typeof Button>` documents as
-			// `$$ComponentProps` at every use, an annotated `p: P` included, and no
-			// `alias_lost` fires, while intersection-typed props recover (recovery
-			// runs before the intersection `alias` above). Treat a generated alias
-			// as nameless so both recovery channels and `alias_lost` see it, then
-			// expand what nothing recovers (needs an alias-expanding print, since
-			// `printType` prints the alias name back)
+		// (a svelte2tsx-generated alias is no alias here — see `linkableAliasSymbol`
+		// — so its shape falls through to recovery and the structural branches)
+		const aliasSymbol = linkableAliasSymbol(type);
+		if (aliasSymbol && aliasSymbol.name !== options.skipAliasName) {
 			const aliasArgs = type.aliasTypeArguments;
 			if (aliasArgs?.length) {
 				return {
 					kind: 'reference',
-					name: type.aliasSymbol.name,
+					name: aliasSymbol.name,
 					typeArgs: aliasArgs.map((t) => buildTypeJson(t, checker, depth + 1, recovery))
 				};
 			}
-			return { kind: 'reference', name: type.aliasSymbol.name };
+			return { kind: 'reference', name: aliasSymbol.name };
 		}
 
 		// one consult for every nameless object shape, tuples included — tuple
@@ -1047,6 +1135,15 @@ export interface ResolveTypeInfoOptions {
  * recovered one stands against a flat sibling printing the anonymous
  * expansion, so the name exists only in the tree.
  *
+ * **Generated-alias roots relax it too.** A type whose alias is
+ * svelte2tsx-generated (`linkableAliasSymbol`) prints as that name in the flat
+ * string (`$$ComponentProps`), which nothing exports, so the node is emitted
+ * with the structure expanded — and so is an array or tuple over one
+ * (`$$ComponentProps[]`), whose expanded object element wouldn't otherwise
+ * qualify (`printsGeneratedAlias`). At a type-alias declaration the
+ * `REDUNDANT_WITH_MEMBERS` kinds still stay absent, since `members` carries
+ * them.
+ *
  * @param type - the checker type the flat string was printed from
  * @param checker - TypeScript type checker
  * @param aliasRegistry - the analyzed set's alias registry, or `undefined` when no pre-pass ran; required so a call site can't silently opt out of registry recovery
@@ -1081,6 +1178,11 @@ export const resolveTypeInfo = (
 		recoveredReference(target, recovery, 0, dropUndefined) !== undefined
 	) {
 		return node;
+	}
+	// the flat string prints svelte2tsx's generated alias name, which nothing
+	// can look up, so the tree is the only place the structure shows
+	if (printsGeneratedAlias(target, checker)) {
+		return ownAliasName !== undefined && REDUNDANT_WITH_MEMBERS.has(node.kind) ? undefined : node;
 	}
 	// the flat string is the bare alias name, so absence would say nothing
 	if (ownAliasName !== undefined && type.aliasSymbol?.name === ownAliasName) {

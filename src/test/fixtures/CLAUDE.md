@@ -185,7 +185,12 @@ Where each behavior is locked. Unit and behavior-level mechanics live in
 - Types: snippets, unions, tuples, literal unions, intersections with
   `HTMLAttributes`, `SvelteHTMLElements` extension, types derived from a
   component's own type (`typeof Other`, `ComponentProps<typeof Other>` from a
-  `.svelte` and a `.ts` module: `types/component-type-query`)
+  `.svelte` and a `.ts` module: `types/component-type-query`), and project
+  aliases over generated `$$ComponentProps` props recovering through both
+  channels, `alias_lost` where neither can, and unaliased props expanding, bare
+  and in arrays and tuples; legacy props through the shims'
+  `__sveltets_2_PropsWithChildren` and a reserved `$$Props`
+  (`types/component-props-alias`)
 - `externalTypes`:
   - `interface Props extends` a bag (`types/interface-extends-*`): single,
     generic, multiple, attribute-forwarding, through a local base, diamond,
