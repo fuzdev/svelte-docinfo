@@ -1,8 +1,9 @@
 import ts from 'typescript';
-import { z } from 'zod';
+import * as v from 'valibot';
 
 import type { TsdocParsedComment } from '#lib/tsdoc.ts';
 import { parseComment } from '#lib/tsdoc.ts';
+import { ComponentPropJson } from '#lib/types.ts';
 
 import { loadFixturesGeneric, type GenericFixture } from '../../test-helpers.ts';
 
@@ -11,24 +12,28 @@ export type TsdocFixture = GenericFixture<TsdocParsedComment | null>;
 /**
  * Schema mirror of `TsdocParsedComment`, for validating what `expected.json`
  * holds. Test-side rather than in `tsdoc.ts` because a parsed comment is an
- * intermediate, never wire data — the lib's Zod schemas
+ * intermediate, never wire data — the lib's schemas
  * (`types.ts`, `diagnostics.ts`) are the output data model.
  */
-const TsdocParsedCommentJson = z.strictObject({
-	text: z.string(),
-	params: z.record(z.string(), z.string()),
-	returns: z.string().optional(),
-	throws: z
-		.array(z.strictObject({ type: z.string().optional(), description: z.string() }))
-		.optional(),
-	examples: z.array(z.string()).optional(),
-	deprecatedMessage: z.string().optional(),
-	internalMessage: z.string().optional(),
-	seeAlso: z.array(z.string()).optional(),
-	since: z.string().optional(),
-	defaultValue: z.string().optional(),
-	mutates: z.record(z.string(), z.string()).optional(),
-	nodocs: z.boolean().optional()
+// the lib's unexported string-record schema, reached through a field that uses
+// it, so `constructor`/`prototype` keys validate here as they do in the output
+const StringRecord = v.unwrap(ComponentPropJson.entries.mutates);
+
+const TsdocParsedCommentJson = v.strictObject({
+	text: v.string(),
+	params: StringRecord,
+	returns: v.optional(v.string()),
+	throws: v.optional(
+		v.array(v.strictObject({ type: v.optional(v.string()), description: v.string() }))
+	),
+	examples: v.optional(v.array(v.string())),
+	deprecatedMessage: v.optional(v.string()),
+	internalMessage: v.optional(v.string()),
+	seeAlso: v.optional(v.array(v.string())),
+	since: v.optional(v.string()),
+	defaultValue: v.optional(v.string()),
+	mutates: v.optional(StringRecord),
+	nodocs: v.optional(v.boolean())
 });
 
 /**
@@ -36,15 +41,15 @@ const TsdocParsedCommentJson = z.strictObject({
  * it — carried in `validateTsdocStructure`'s parameter type so the guard can't
  * be dropped as unused.
  *
- * `.parse` checks only the fields the schema declares, so a field added to
+ * Parsing checks only the fields the schema declares, so a field added to
  * `TsdocParsedComment` and forgotten in the mirror would go unvalidated in
  * silence — exactly how the hand-rolled predecessor came to skip
  * `defaultValue`. A key on either side and not the other collapses this to
  * `never`, and every call to `validateTsdocStructure` stops compiling.
  */
 type SchemaMirroredComment = [
-	Exclude<keyof TsdocParsedComment, keyof z.infer<typeof TsdocParsedCommentJson>>,
-	Exclude<keyof z.infer<typeof TsdocParsedCommentJson>, keyof TsdocParsedComment>
+	Exclude<keyof TsdocParsedComment, keyof v.InferOutput<typeof TsdocParsedCommentJson>>,
+	Exclude<keyof v.InferOutput<typeof TsdocParsedCommentJson>, keyof TsdocParsedComment>
 ] extends [never, never]
 	? TsdocParsedComment
 	: never;
@@ -103,5 +108,5 @@ export const validateTsdocStructure = (tsdoc: SchemaMirroredComment | undefined)
 	if (!tsdoc) {
 		throw new Error('Expected tsdoc to be defined');
 	}
-	TsdocParsedCommentJson.parse(tsdoc);
+	v.parse(TsdocParsedCommentJson, tsdoc);
 };

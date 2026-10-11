@@ -98,7 +98,7 @@ export function fn(a: string | number): string | number { return a; }
 
 				// Output: parent has no @example/@since (the misplaced tags didn't reach it),
 				// and overloads[1] doesn't carry them either (signature-distinct fields only).
-				// Note: examples is `.default([])` in the schema, so absence parses as `[]`.
+				// Note: examples defaults to `[]` in the schema, so absence parses as `[]`.
 				const fn = modules.find((m) => m.path === 'fn.ts')?.declarations[0];
 				assert.ok(fn && fn.kind === 'function');
 				assert.deepStrictEqual(fn.examples, []);

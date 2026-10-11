@@ -1,5 +1,5 @@
 import { test, assert, describe } from 'vitest';
-import { z } from 'zod';
+import * as v from 'valibot';
 
 import {
 	byKind,
@@ -8,6 +8,7 @@ import {
 	formatDiagnostic,
 	hasErrors,
 	hasWarnings,
+	parseDiagnostics,
 	warningsOf,
 	type ClassMemberDiagnostic,
 	type LegacyPropsDiagnostic,
@@ -433,13 +434,13 @@ describe('diagnostics array', () => {
 		});
 	});
 
-	describe('Zod schema round-trip', () => {
+	describe('schema round-trip', () => {
 		// The schema must match every variant emitted by analysis code. Each
-		// factory produces a populated diagnostic; `Diagnostic.parse` must
+		// factory produces a populated diagnostic; parsing through `Diagnostic` must
 		// accept it without error and return a deep-equal object. Catches
 		// schema/interface drift — e.g., adding a variant without updating
 		// the discriminated union.
-		test('every variant survives Diagnostic.parse → JSON.stringify → JSON.parse → Diagnostic.parse', () => {
+		test('every variant survives parse → JSON.stringify → JSON.parse → parse', () => {
 			const variants: Array<Diagnostic> = [
 				createTypeDiagnostic(),
 				createSignatureDiagnostic(),
@@ -467,16 +468,16 @@ describe('diagnostics array', () => {
 				}
 			];
 			for (const d of variants) {
-				const validated = Diagnostic.parse(d);
-				const reparsed = Diagnostic.parse(JSON.parse(JSON.stringify(validated)));
+				const validated = v.parse(Diagnostic, d);
+				const reparsed = v.parse(Diagnostic, JSON.parse(JSON.stringify(validated)));
 				assert.deepEqual(reparsed, validated);
 			}
 		});
 
-		test('z.array(Diagnostic).parse accepts an empty array', () => {
+		test('parseDiagnostics accepts an empty array', () => {
 			// Diagnostics is a bare `Array<Diagnostic>` on the wire — no wrapper.
 			// CLI emits `[]` when no diagnostics are collected, and parse round-trips it.
-			const parsed = z.array(Diagnostic).parse([]);
+			const parsed = parseDiagnostics([]);
 			assert.deepEqual(parsed, []);
 		});
 
@@ -485,25 +486,25 @@ describe('diagnostics array', () => {
 			diagnostics.push(createModuleSkippedDiagnostic());
 
 			const json = JSON.stringify(diagnostics);
-			// No `line`/`column` keys in the JSON (per the optional() schema)
+			// no `line`/`column` keys in the JSON (they're optional in the schema)
 			assert.notInclude(json, 'line');
 			assert.notInclude(json, 'column');
 			assert.notInclude(json, 'null');
 
 			// Re-parse via schema
-			const reparsed = z.array(Diagnostic).parse(JSON.parse(json));
+			const reparsed = parseDiagnostics(JSON.parse(json));
 			assert.strictEqual(reparsed.length, 1);
 			assert.strictEqual(reparsed[0]!.line, undefined);
 			assert.strictEqual(reparsed[0]!.column, undefined);
 		});
 
-		test('populated diagnostics survive JSON.stringify → z.array(Diagnostic).parse', () => {
+		test('populated diagnostics survive JSON.stringify → parseDiagnostics', () => {
 			const diagnostics: Array<Diagnostic> = [];
 			diagnostics.push(createTypeDiagnostic({ line: 42, column: 7 }));
 			diagnostics.push(createModuleSkippedDiagnostic());
 			diagnostics.push(createMisplacedTagDiagnostic({ tagName: 'deprecated' }));
 
-			const reparsed = z.array(Diagnostic).parse(JSON.parse(JSON.stringify(diagnostics)));
+			const reparsed = parseDiagnostics(JSON.parse(JSON.stringify(diagnostics)));
 			assert.deepEqual(reparsed, diagnostics);
 			// Helpers behave identically against schema-parsed diagnostics
 			assert.strictEqual(hasErrors(reparsed), hasErrors(diagnostics));

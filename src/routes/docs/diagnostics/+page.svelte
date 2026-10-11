@@ -79,7 +79,8 @@
 				<code>diagnostics</code> is a plain
 				<code>Array&lt;<DeclarationLink name="Diagnostic" />&gt;</code> beside <code>modules</code>
 				in <DeclarationLink name="AnalyzeResultJson" />. It round-trips through
-				<code>JSON.stringify</code> and <code>z.array(Diagnostic).parse</code>. Each entry carries:
+				<code>JSON.stringify</code> and <DeclarationLink name="parseDiagnostics" />. Each entry
+				carries:
 			</p>
 			<ul>
 				<li><code>kind</code>: discriminant, one per failure mode (see table below)</li>
@@ -228,11 +229,13 @@
 						<td>
 							<strong>Trigger:</strong> TypeScript dropped the name of an exported type alias
 							(<code>aliasName</code>) whose right-hand side is an indexed access or conditional,
-							like <code>z.infer&lt;typeof S&gt;</code>, and svelte-docinfo can't
+							like <code>z.infer&lt;typeof S&gt;</code> or valibot's
+							<code>v.InferOutput&lt;typeof S&gt;</code>, and svelte-docinfo can't
 							<TomeLink slug="output-format" hash="Structured-types-typeInfo">recover it</TomeLink>.
-							Literal-only unions (<code>z.enum</code>) and brand intersections don't warn, since
-							they read fine expanded. <strong>Consequence:</strong> unannotated positions document
-							the alias's structure instead of its name. Where applicable, a nominal symbol
+							Literal-only unions (<code>z.enum</code>, <code>v.picklist</code>) and brand
+							intersections don't warn, since they read fine expanded. <strong>Consequence:</strong>
+							unannotated positions document the alias's structure instead of its name. Where
+							applicable, a nominal symbol
 							(<code>interface Foo extends z.infer&lt;typeof S&gt; &#123;&#125;</code>) restores it.
 						</td>
 					</tr>
@@ -383,7 +386,7 @@ if (hasErrors(diagnostics)) {
 				</TomeLink>
 				rules. The Vite plugin's <code>modules</code> and <code>diagnostics</code> exports are
 				always present, even when empty. See
-				<ModuleLink module_path="diagnostics.ts">diagnostics.ts</ModuleLink> for the Zod schemas and
+				<ModuleLink module_path="diagnostics.ts">diagnostics.ts</ModuleLink> for the schemas and
 				helpers.
 			</p>
 		</TomeSection>

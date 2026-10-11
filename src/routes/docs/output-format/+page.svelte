@@ -531,15 +531,16 @@ typeJsonToTokens(declaration.typeInfo);
 				<code>optional</code>, <code>acceptsChildren</code>, <code>partial</code>,
 				<code>rest</code>, <code>bindable</code>, and similar fields vanish at their default. The
 				<code>value</code> key is exempt, so a <code>{`{kind: "literal", value: false}`}</code> type
-				node survives. Parsing with the Zod schemas from
-				<ModuleLink module_path="types.ts">types.ts</ModuleLink> (or
-				<DeclarationLink name="AnalyzeResultJson" /> for the full envelope) restores every default,
-				so the round-trip is lossless.
+				node survives. Parsing with <DeclarationLink name="parseAnalyzeResult" /> (or
+				<DeclarationLink name="parseModuleJson" /> for one module) restores every default and
+				validates the shape, so the round-trip is lossless. The helpers are the stable entry point;
+				the <ModuleLink module_path="types.ts">valibot schemas</ModuleLink> behind them are exported
+				too.
 			</p>
 			<p>
-				Raw-JSON consumers (<code>jq</code>, pipelines that skip <code>.parse()</code>) must treat
-				<em>absent</em> as <em>false</em>: <code>decl.optional === false</code> fails because the
-				key is gone. Use the schemas, or truthiness checks like <code>if (decl.optional)</code>.
+				Raw-JSON consumers (<code>jq</code>, pipelines that skip parsing) must treat <em>absent</em>
+				as <em>false</em>: <code>decl.optional === false</code> fails because the key is gone. Parse
+				first, or use truthiness checks like <code>if (decl.optional)</code>.
 			</p>
 		</TomeSection>
 
@@ -773,8 +774,8 @@ export const TAU = Math.PI * 2;`}
 }`}
 			/>
 			<p>
-				See the <ModuleLink module_path="types.ts">types module</ModuleLink> for the full Zod
-				schemas, and the <TomeLink slug="api">API reference</TomeLink> for all exported types.
+				See the <ModuleLink module_path="types.ts">types module</ModuleLink> for the full schemas,
+				and the <TomeLink slug="api">API reference</TomeLink> for all exported types.
 			</p>
 		</TomeSection>
 	</section>

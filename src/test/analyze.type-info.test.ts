@@ -31,8 +31,9 @@
  */
 
 import { test, assert, describe } from 'vitest';
+import * as v from 'valibot';
 
-import { AnalyzeResultJson } from '#lib/analyze-core.ts';
+import { parseAnalyzeResult } from '#lib/analyze-core.ts';
 import { compactReplacer } from '#lib/declaration-helpers.ts';
 import { TypeJson, type ModuleJson } from '#lib/types.ts';
 
@@ -563,7 +564,7 @@ export const f = <E,>(c?: E): void => {};`
 		assert(declaration?.kind === 'type', 'expected a type declaration');
 		assert.ok(declaration.typeInfo, 'expected typeInfo on the recursive alias');
 		// must be parseable — i.e., finite — and bottom out in a degraded text node
-		const parsed = TypeJson.parse(declaration.typeInfo);
+		const parsed = v.parse(TypeJson, declaration.typeInfo);
 		let node = parsed;
 		let depth = 0;
 		while (node.kind === 'union' || node.kind === 'array') {
@@ -656,7 +657,7 @@ export const fn4 = (d: D[]) => d;`
 
 		// `compactReplacer` strips `false` flag fields but must not strip the
 		// data-bearing literal `value` — the keyed exemption under test
-		const restored = AnalyzeResultJson.parse(JSON.parse(JSON.stringify(result, compactReplacer)));
+		const restored = parseAnalyzeResult(JSON.parse(JSON.stringify(result, compactReplacer)));
 		assert.deepStrictEqual(findMember(restored.modules).typeInfo, expected);
 	});
 

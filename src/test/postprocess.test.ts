@@ -1,6 +1,11 @@
 import { test, assert, describe } from 'vitest';
 
-import { ComponentDeclarationJson, ModuleJson, type DeclarationKind } from '#lib/types.ts';
+import {
+	ComponentDeclarationJson,
+	parseModuleJson,
+	type DeclarationKind,
+	type ModuleJson
+} from '#lib/types.ts';
 import {
 	findDuplicates,
 	sortModules,
@@ -10,8 +15,8 @@ import {
 } from '#lib/postprocess.ts';
 import { type SourceFileInfo } from '#lib/source.ts';
 
-/** Parse a partial module through Zod to fill in array defaults. */
-const m = (input: { path: string; [key: string]: unknown }): ModuleJson => ModuleJson.parse(input);
+/** Parse a partial module through the schema to fill in array defaults. */
+const m = (input: { path: string; [key: string]: unknown }): ModuleJson => parseModuleJson(input);
 
 /**
  * Create a mock ModuleJson with test declarations.
@@ -723,7 +728,7 @@ describe('mergeReExports', () => {
 		]);
 
 		test('every ComponentDeclarationJson field is either inherited or in NOT_INHERITED', () => {
-			const schemaFields = Object.keys(ComponentDeclarationJson.shape);
+			const schemaFields = Object.keys(ComponentDeclarationJson.entries);
 
 			// Build canonical with a unique sentinel for every inheritable field.
 			const canonical = m({

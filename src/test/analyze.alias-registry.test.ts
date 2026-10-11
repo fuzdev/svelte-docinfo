@@ -16,6 +16,12 @@
  * locks live at `ts/declarations/{variable,function}/alias-lost-inferred`,
  * `ts/declarations/type/alias-lost-{callable,nullable-optional}`, and
  * `svelte/component/zod-merged-schema`.
+ *
+ * The same shapes run again over real valibot (`v.InferOutput<typeof S>` is an
+ * indexed access, so it loses its alias exactly like `z.infer`), locking that
+ * the registry and `alias_lost` behave identically across both libraries. The
+ * one deliberate difference is recursion: valibot's documented recursive
+ * pattern declares the type explicitly beside `v.lazy`, so it's never lost.
  */
 
 import { test, assert, describe, beforeAll } from 'vitest';
@@ -395,6 +401,222 @@ describe('alias_lost diagnostic', () => {
 		assert.ok(
 			generic.modules[0]?.declarations.some((d) => d.kind === 'component'),
 			'expected the component to analyze'
+		);
+	});
+});
+
+const VALIBOT_SCHEMAS = `import * as v from 'valibot';
+
+/** The canonical schema/type pair — a merged value+type symbol. */
+export const Point = v.strictObject({ x: v.number(), y: v.number() });
+export type Point = v.InferOutput<typeof Point>;
+/** Identity-equal to \`Point\` — enters the ambiguity set, loses the tie-break. */
+export type PointOutput = v.InferOutput<typeof Point>;
+
+/** A default splits input and output into distinct types. */
+export const WithDefault = v.strictObject({ a: v.optional(v.string(), 'x') });
+export type WithDefault = v.InferOutput<typeof WithDefault>;
+export type WithDefaultInput = v.InferInput<typeof WithDefault>;
+
+/** A literal union — interned, never registrable, excluded from the warning. */
+export const Kind = v.picklist(['a', 'b']);
+export type Kind = v.InferOutput<typeof Kind>;
+
+/** A null-bearing union — the member-set side index's case. */
+export const NullableSchema = v.nullable(Point);
+export type NullablePoint = v.InferOutput<typeof NullableSchema>;
+
+/** valibot's documented recursive pattern — an explicit type beside \`v.lazy\`. */
+export type Category = { name: string; children: Array<Category> };
+export const Category: v.GenericSchema<Category> = v.strictObject({
+	name: v.string(),
+	children: v.array(v.lazy(() => Category))
+});
+
+/** Two aliases over one schema — the tie-break decides the single winner. */
+export const Twin = v.strictObject({ t: v.string() });
+export type TwinB = v.InferOutput<typeof Twin>;
+export type TwinA = v.InferOutput<typeof Twin>;
+
+/** A primitive union — lost, unrecoverable, not excluded: the warning's residue. */
+export const Id = v.union([v.string(), v.number()]);
+export type Id = v.InferOutput<typeof Id>;
+
+/** A brand intersection — lost and unrecoverable but excluded from the warning. */
+export const Uid = v.pipe(v.string(), v.brand('Uid'));
+export type Uid = v.InferOutput<typeof Uid>;
+
+/** An array-root loss — \`namedSymbolName\` is \`Array\`, outside the predicate. */
+export const ArrSchema = v.array(v.strictObject({ a: v.string() }));
+export type Arr = v.InferOutput<typeof ArrSchema>;
+
+const HiddenSchema = v.strictObject({ h: v.string() });
+/** @nodocs */
+export type Hidden = v.InferOutput<typeof HiddenSchema>;
+
+declare const hiddenSeed: Hidden;
+/** Inferred position of the nodocs-excluded alias — must not recover its name. */
+export const derivedHidden = hiddenSeed;
+`;
+
+const VALIBOT_CONSUMERS = `import * as v from 'valibot';
+import {
+	ArrSchema,
+	Category,
+	Kind,
+	Point,
+	Twin,
+	type NullablePoint,
+	type WithDefaultInput
+} from './schemas.js';
+
+declare const seedInput: WithDefaultInput;
+
+export const parsePoint = (input: unknown) => v.parse(Point, input);
+export const pointList = (input: unknown) => [v.parse(Point, input)];
+export const pointLater = async (input: unknown) => v.parse(Point, input);
+export const pointDeep = (input: unknown) => [[[[[v.parse(Point, input)]]]]];
+export const parseKind = (input: unknown) => v.parse(Kind, input);
+export const derivedInput = seedInput;
+export const parseCategory = (input: unknown) => v.parse(Category, input);
+export const parseTwin = (input: unknown) => v.parse(Twin, input);
+export const parseArr = (input: unknown) => v.parse(ArrSchema, input);
+
+export type OptionalHolder = {
+	maybe?: NullablePoint;
+};
+`;
+
+describe('alias registry over real valibot', () => {
+	let valibotResult: AnalyzeResultJson;
+	let valibotSchemas: ModuleJson;
+	let valibotConsumers: ModuleJson;
+
+	beforeAll(async () => {
+		const projectRoot = process.cwd();
+		const files: Record<string, string> = {
+			'src/lib/schemas.ts': VALIBOT_SCHEMAS,
+			'src/lib/consumers.ts': VALIBOT_CONSUMERS
+		};
+		valibotResult = await analyze({
+			sourceFiles: Object.entries(files).map(([path, content]) => ({
+				id: join(projectRoot, path),
+				content
+			})),
+			sourceOptions: testSourceOptions()
+		});
+		valibotSchemas = valibotResult.modules.find((m) => m.path === 'schemas.ts')!;
+		valibotConsumers = valibotResult.modules.find((m) => m.path === 'consumers.ts')!;
+		assert.ok(valibotSchemas, 'expected the schemas module');
+		assert.ok(valibotConsumers, 'expected the consumers module');
+	}, 60_000);
+
+	test('merged pairs document the type meaning with members', () => {
+		const point = declOf(valibotSchemas, 'Point');
+		assert(point.kind === 'type', 'expected a type declaration');
+		assert.strictEqual(point.mergedValue, true);
+		assert.strictEqual(point.typeSignature, '{ x: number; y: number; }');
+		assert.deepStrictEqual(
+			point.members.map((m) => m.name),
+			['x', 'y']
+		);
+		for (const name of ['WithDefault', 'Kind', 'Id', 'Uid', 'Category']) {
+			const decl = declOf(valibotSchemas, name);
+			assert(decl.kind === 'type', `expected a type declaration for ${name}`);
+			assert.strictEqual(decl.mergedValue, true, `expected ${name} merged`);
+		}
+		// a type-only alias over the same schema carries no value meaning
+		const pointOutput = declOf(valibotSchemas, 'PointOutput');
+		assert(pointOutput.kind === 'type', 'expected a type declaration');
+		assert.strictEqual(pointOutput.mergedValue, false);
+	});
+
+	test('inferred positions recover registered names like zod', () => {
+		const parsePoint = declOf(valibotConsumers, 'parsePoint');
+		assert(parsePoint.kind === 'function', 'expected a function');
+		assert.deepStrictEqual(parsePoint.returnTypeInfo, schemaRef('Point'));
+		assert.strictEqual(parsePoint.returnType, '{ x: number; y: number; }');
+
+		const list = declOf(valibotConsumers, 'pointList');
+		assert(list.kind === 'function', 'expected a function');
+		assert.deepStrictEqual(list.returnTypeInfo, { kind: 'array', element: schemaRef('Point') });
+
+		const later = declOf(valibotConsumers, 'pointLater');
+		assert(later.kind === 'function', 'expected a function');
+		assert.deepStrictEqual(later.returnTypeInfo, {
+			kind: 'reference',
+			name: 'Promise',
+			typeArgs: [schemaRef('Point')]
+		});
+
+		const deep = declOf(valibotConsumers, 'pointDeep');
+		assert(deep.kind === 'function', 'expected a function');
+		let node = deep.returnTypeInfo;
+		for (let i = 0; i < 5; i++) {
+			assert(node?.kind === 'array', `expected an array node at depth ${i}`);
+			node = node.element;
+		}
+		assert.deepStrictEqual(node, schemaRef('Point'));
+
+		const derivedInput = declOf(valibotConsumers, 'derivedInput');
+		assert(derivedInput.kind === 'variable', 'expected a variable');
+		assert.deepStrictEqual(derivedInput.typeInfo, schemaRef('WithDefaultInput'));
+
+		// TwinA and TwinB are identity-equal; the tie-break picks TwinA
+		const twin = declOf(valibotConsumers, 'parseTwin');
+		assert(twin.kind === 'function', 'expected a function');
+		assert.deepStrictEqual(twin.returnTypeInfo, schemaRef('TwinA'));
+
+		const holder = declOf(valibotConsumers, 'OptionalHolder');
+		assert(holder.kind === 'type', 'expected a type declaration');
+		const maybe = holder.members.find((m) => m.name === 'maybe');
+		assert(maybe?.kind === 'variable', 'expected a variable member');
+		assert.deepStrictEqual(maybe.typeInfo, schemaRef('NullablePoint'));
+	});
+
+	test('picklist literal unions, array roots, and @nodocs never recover', () => {
+		const kind = declOf(valibotConsumers, 'parseKind');
+		assert(kind.kind === 'function', 'expected a function');
+		assert(kind.returnTypeInfo?.kind === 'union', 'expected a union tree');
+		assert.deepStrictEqual(kind.returnTypeInfo.members, [
+			{ kind: 'literal', value: 'a', text: '"a"' },
+			{ kind: 'literal', value: 'b', text: '"b"' }
+		]);
+		const arr = declOf(valibotConsumers, 'parseArr');
+		assert(arr.kind === 'function', 'expected a function');
+		assert.strictEqual(arr.returnTypeInfo, undefined);
+		const hidden = declOf(valibotSchemas, 'derivedHidden');
+		assert(hidden.kind === 'variable', 'expected a variable');
+		assert.strictEqual(hidden.typeInfo, undefined);
+	});
+
+	test('the explicitly typed recursive schema is checker-named, not lost', () => {
+		const parseCategory = declOf(valibotConsumers, 'parseCategory');
+		assert(parseCategory.kind === 'function', 'expected a function');
+		assert.strictEqual(parseCategory.returnType, 'Category');
+		assert.strictEqual(parseCategory.returnTypeInfo, undefined);
+		const category = declOf(valibotSchemas, 'Category');
+		assert(category.kind === 'type', 'expected a type declaration');
+		const children = category.members.find((m) => m.name === 'children');
+		assert(children?.kind === 'variable', 'expected a variable member');
+		// checker-named, so no registry `module`
+		assert.deepStrictEqual(children.typeInfo, {
+			kind: 'array',
+			element: { kind: 'reference', name: 'Category' }
+		});
+	});
+
+	test('alias_lost fires on the same residue as zod', () => {
+		// `Id` again; the brand intersection (`string & Brand<"Uid">`) is
+		// excluded like zod's `$brand`
+		const warnings = byKind(valibotResult.diagnostics, 'alias_lost');
+		assert.deepStrictEqual(
+			warnings.map((w) => w.aliasName),
+			['Id']
+		);
+		assert.deepStrictEqual(
+			valibotResult.diagnostics.map((d) => d.kind),
+			['alias_lost']
 		);
 	});
 });

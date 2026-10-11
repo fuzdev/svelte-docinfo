@@ -8,19 +8,19 @@
  * /// <reference types="svelte-docinfo/virtual-svelte-docinfo.js" />
  * ```
  *
- * ## Wire shape vs Zod output shape
+ * ## Wire shape vs parsed output shape
  *
  * The module's shape is `AnalyzeResultJsonWire` — the input-side counterpart
  * to `AnalyzeResultJson`. The plugin serializes `modules` through
  * `compactReplacer`, which strips empty arrays and `false` values to keep the
- * bundle small. So fields like `declarations`, `members`, `props` that are
- * `.default([])` in the schema arrive as `undefined` on any module that has
- * none, and `.default(false)` booleans arrive as `undefined` when false.
+ * bundle small. So fields like `declarations`, `members`, `props` that default
+ * to `[]` in the schema arrive as `undefined` on any module that has none,
+ * and `false`-defaulted booleans arrive as `undefined` when false.
  *
- * `ModuleJsonInput` (the `z.input` of `ModuleJson`) reflects this — its
- * default-bearing fields are optional. Consumers either use optional
+ * `ModuleJsonInput` (the schema input type of `ModuleJson`) reflects this —
+ * its default-bearing fields are optional. Consumers either use optional
  * chaining (`mod.declarations?.length`) or run the value through
- * `AnalyzeResultJson.parse({modules, diagnostics})` to restore defaults.
+ * `parseAnalyzeResult({modules, diagnostics})` to restore defaults.
  *
  * `diagnostics` is serialized without the replacer, so the array is always
  * present and `Diagnostic` itself has no defaults to strip — the static

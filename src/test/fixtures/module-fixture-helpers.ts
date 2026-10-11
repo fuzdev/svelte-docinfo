@@ -15,7 +15,7 @@
  */
 
 import type ts from 'typescript';
-import { z } from 'zod';
+import * as v from 'valibot';
 import { posix } from 'node:path';
 
 import { ModuleJson } from '#lib/types.ts';
@@ -41,16 +41,16 @@ import type { GenericFixture } from '../test-helpers.ts';
  * `AnalyzeResultJson` envelope because a fixture is exactly one module; the
  * envelope's `modules` array would add a wrapper level with no information.
  *
- * Fixtures are written through `compactReplacer`, so defaulted fields
- * (`.default([])`, `.default(false)`) are stripped on disk and restored by
- * `.parse()`.
+ * Fixtures are written through `compactReplacer`, so defaulted fields (empty
+ * arrays, `false` booleans) are stripped on disk and restored by parsing.
  */
-export const ModuleFixtureJson = ModuleJson.extend({
-	diagnostics: z.array(Diagnostic).default([])
+export const ModuleFixtureJson = v.strictObject({
+	...ModuleJson.entries,
+	diagnostics: v.optional(v.array(Diagnostic), () => [])
 });
-export type ModuleFixtureJson = z.infer<typeof ModuleFixtureJson>;
+export type ModuleFixtureJson = v.InferOutput<typeof ModuleFixtureJson>;
 /** Wire (serialized) form of `ModuleFixtureJson` — the shape read from disk. */
-export type ModuleFixtureJsonInput = z.input<typeof ModuleFixtureJson>;
+export type ModuleFixtureJsonInput = v.InferInput<typeof ModuleFixtureJson>;
 
 /**
  * A loaded module fixture: raw input beside the expected wire-form
@@ -224,7 +224,7 @@ export const captureFixtureProject = async (
 };
 
 /**
- * Validate a fixture's expected module object: parses through the Zod schema —
+ * Validate a fixture's expected module object: parses through the schema —
  * strictly stronger than any hand-rolled structural check and can't fall
  * behind the data model. `components` additionally requires that exact count
  * of component declarations (the svelte set requires exactly one).
@@ -233,7 +233,7 @@ export const validateModuleFixture = (
 	expected: ModuleFixtureJsonInput,
 	options?: { components?: number }
 ): void => {
-	const parsed = ModuleFixtureJson.parse(expected);
+	const parsed = v.parse(ModuleFixtureJson, expected);
 	if (options?.components !== undefined) {
 		const components = parsed.declarations.filter((d) => d.kind === 'component');
 		if (components.length !== options.components) {

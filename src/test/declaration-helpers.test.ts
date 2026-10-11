@@ -13,13 +13,13 @@
 import { readFileSync } from 'node:fs';
 import { globSync } from 'tinyglobby';
 import { test, assert, describe } from 'vitest';
-import { ZodError } from 'zod';
+import * as v from 'valibot';
 
 import {
 	DeclarationJson,
 	MemberJson,
 	type ConstructorMemberJson,
-	ModuleJson,
+	parseModuleJson,
 	TypeJson
 } from '#lib/types.ts';
 import {
@@ -31,10 +31,10 @@ import {
 	typeJsonToText,
 	type TypeJsonToken
 } from '#lib/declaration-helpers.ts';
-import { AnalyzeResultJson } from '#lib/analyze-core.ts';
+import { AnalyzeResultJson, parseAnalyzeResult } from '#lib/analyze-core.ts';
 
 const d = (input: { name?: string; kind: string; [key: string]: unknown }): DeclarationJson =>
-	DeclarationJson.parse(input);
+	v.parse(DeclarationJson, input);
 
 describe('getDisplayName', () => {
 	describe('non-generic declarations', () => {
@@ -477,47 +477,88 @@ describe('compactReplacer', () => {
 		assert.strictEqual(JSON.stringify(false, compactReplacer), undefined);
 	});
 
-	test('round-trips DeclarationJson through Zod parse', () => {
+	test('round-trips DeclarationJson through parse', () => {
 		const original = d({ name: 'test', kind: 'function' });
 		const json = JSON.stringify(original, compactReplacer);
-		const restored = DeclarationJson.parse(JSON.parse(json));
+		const restored = v.parse(DeclarationJson, JSON.parse(json));
 
-		// Empty arrays should be restored by Zod .default([])
+		// empty arrays are restored by the schema's array defaults
 		assert.deepStrictEqual(restored.genericParams, []);
 		assert.deepStrictEqual(restored.alsoExportedFrom, []);
 		assert.strictEqual(restored.name, 'test');
 	});
 
-	test('every z.boolean().default in types.ts uses false (locks compactReplacer invariant)', () => {
+	test('every defaulted v.boolean() in types.ts defaults to false (locks compactReplacer invariant)', () => {
 		// `compactReplacer` strips `value === false` for every boolean it sees,
 		// which is only safe round-trip-wise if every boolean in the schema
-		// defaults to `false` (Zod restores the default on `.parse()`).
-		// A `z.boolean().default(true)` would silently break round-tripping:
-		// compact serialization drops the `false` value, then `.parse()` restores
+		// defaults to `false` (parsing restores the default).
+		// A `v.optional(v.boolean(), true)` would silently break round-tripping:
+		// compact serialization drops the `false` value, then parsing restores
 		// the schema default `true`. This test catches that at the source level.
 		const typesUrl = new URL('../lib/types.ts', import.meta.url);
 		const source = readFileSync(typesUrl, 'utf-8');
 		// Strip block + line comments so JSDoc examples don't trigger false positives
 		const code = source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/[^\n]*/g, '');
-		const matches = Array.from(code.matchAll(/z\.boolean\(\)\.default\(([^)]+)\)/g));
+		const matches = Array.from(code.matchAll(/v\.optional\(\s*v\.boolean\(\),\s*([^)]+)\)/g));
 		assert.ok(
 			matches.length > 0,
-			'Expected at least one z.boolean().default(...) in types.ts (regex broke?)'
+			'Expected at least one v.optional(v.boolean(), ...) in types.ts (regex broke?)'
 		);
 		const violations = matches.map((m) => m[1]!.trim()).filter((arg) => arg !== 'false');
 		assert.deepStrictEqual(
 			violations,
 			[],
-			`Found ${violations.length} z.boolean().default(...) call(s) with non-false default: ${violations.join(', ')}. ` +
+			`Found ${violations.length} v.optional(v.boolean(), ...) call(s) with non-false default: ${violations.join(', ')}. ` +
 				`compactReplacer in declaration-helpers.ts strips every false boolean from compact output, ` +
 				`which only round-trips correctly when every defaulted boolean defaults to false. ` +
 				`Either change the default to false, or extend compactReplacer + this test.`
 		);
 	});
 
-	test('round-trips full ModuleJson through Zod parse', () => {
+	test('every schema default is `false` or a fresh-array factory (walks the schema tree)', () => {
+		// valibot returns a non-function default as-is, so a literal `[]` default
+		// would hand every parse the same array — a mutation through one result
+		// would leak into the next. And `compactReplacer` strips only `[]` and
+		// `false`, so those are the only defaults the wire round-trip restores.
+		// Walks every schema reachable from the `AnalyzeResultJson` envelope.
+		const seen: Set<unknown> = new Set();
+		const defaults: Array<{ path: string; value: unknown }> = [];
+		const walk = (schema: unknown, path: string): void => {
+			if (typeof schema !== 'object' || schema === null || seen.has(schema)) return;
+			seen.add(schema);
+			const s = schema as Record<string, unknown>;
+			if (s.type === 'optional' && s.default !== undefined) {
+				defaults.push({ path, value: s.default });
+			}
+			if (s.type === 'lazy') walk((s.getter as () => unknown)(), path);
+			if (s.wrapped) walk(s.wrapped, path);
+			if (s.item) walk(s.item, `${path}[]`);
+			if (Array.isArray(s.options)) for (const option of s.options) walk(option, path);
+			if (Array.isArray(s.pipe)) for (const item of s.pipe) walk(item, path);
+			if (s.entries) {
+				for (const [key, entry] of Object.entries(s.entries as Record<string, unknown>)) {
+					walk(entry, `${path}.${key}`);
+				}
+			}
+		};
+		walk(AnalyzeResultJson, 'AnalyzeResultJson');
+		assert.ok(defaults.length > 0, 'expected defaults in the schema tree (walk broke?)');
+		const violations: Array<string> = [];
+		for (const { path, value } of defaults) {
+			if (value === false) continue;
+			if (typeof value === 'function') {
+				const a: unknown = (value as () => unknown)();
+				const b: unknown = (value as () => unknown)();
+				if (Array.isArray(a) && a.length === 0 && Array.isArray(b) && a !== b) continue;
+			}
+			violations.push(path);
+		}
+		assert.deepStrictEqual(violations, [], `defaults other than false or () => []`);
+	});
+
+	test('round-trips full ModuleJson through parse', () => {
 		const original = [
-			ModuleJson.parse({
+			parseModuleJson({
 				path: 'utils.ts',
 				declarations: [
 					{
@@ -536,28 +577,28 @@ describe('compactReplacer', () => {
 		];
 
 		const json = JSON.stringify(original, compactReplacer);
-		const restored = (JSON.parse(json) as Array<unknown>).map((m) => ModuleJson.parse(m));
+		const restored = (JSON.parse(json) as Array<unknown>).map((m) => parseModuleJson(m));
 
 		assert.strictEqual(restored[0]!.path, 'utils.ts');
 		assert.strictEqual(restored[0]!.declarations.length, 3);
 		assert.strictEqual(restored[0]!.moduleComment, 'Utility module.');
 		assert.deepStrictEqual(restored[0]!.dependencies, ['core.ts']);
 		assert.deepStrictEqual(restored[0]!.starExports, ['helpers.ts']);
-		// Zod restores defaults stripped by compact serialization
+		// parsing restores defaults stripped by compact serialization
 		assert.deepStrictEqual(restored[0]!.dependents, []);
 		assert.deepStrictEqual(restored[0]!.declarations[0]!.alsoExportedFrom, []);
 	});
 
 	test('parse → stringify(compactReplacer) → parse is a faithful round-trip across every variant', () => {
 		// Stricter than the tests above. The source-regex test
-		// (`every z.boolean().default in types.ts uses false`) catches *new*
-		// `.default(true)` violations, but it doesn't catch:
-		//   - removing a `.default(false)` on an existing field (now required;
-		//     compact strips `false`, parse rejects)
-		//   - removing a `.default([])` on an array field (compact strips `[]`,
-		//     parse fills nothing → field becomes undefined where it was `[]`)
+		// (`every defaulted v.boolean() in types.ts defaults to false`) catches
+		// *new* `true` defaults, but it doesn't catch:
+		//   - removing a `false` default on an existing field (now optional
+		//     without a default; compact strips `false`, parse leaves it absent)
+		//   - removing an array default (compact strips `[]`, parse fills
+		//     nothing → field becomes undefined where it was `[]`)
 		//   - adding a new field whose runtime value compactReplacer drops but
-		//     Zod doesn't restore
+		//     the schema doesn't restore
 		// Whole-shape diff after a real round-trip catches all of these.
 		//
 		// Coverage: every declaration variant (9), every member variant (3),
@@ -566,7 +607,7 @@ describe('compactReplacer', () => {
 		// least one optional and one defaulted field so a regression on any
 		// of them surfaces.
 		const fixture = [
-			ModuleJson.parse({
+			parseModuleJson({
 				path: 'comprehensive.ts',
 				declarations: [
 					// FunctionDeclarationJson — overloads, doc fields, generic params, mutates, partial
@@ -768,13 +809,13 @@ describe('compactReplacer', () => {
 		];
 
 		const json = JSON.stringify(fixture, compactReplacer);
-		const restored = (JSON.parse(json) as Array<unknown>).map((m) => ModuleJson.parse(m));
+		const restored = (JSON.parse(json) as Array<unknown>).map((m) => parseModuleJson(m));
 
 		assert.deepStrictEqual(restored, fixture);
 	});
 
 	test('AnalyzeResultJson envelope round-trips through compactReplacer (both populated)', () => {
-		const original = AnalyzeResultJson.parse({
+		const original = parseAnalyzeResult({
 			modules: [
 				{
 					path: 'utils.ts',
@@ -794,7 +835,7 @@ describe('compactReplacer', () => {
 		});
 
 		const json = JSON.stringify(original, compactReplacer);
-		const restored = AnalyzeResultJson.parse(JSON.parse(json));
+		const restored = parseAnalyzeResult(JSON.parse(json));
 
 		assert.deepStrictEqual(restored, original);
 	});
@@ -802,12 +843,12 @@ describe('compactReplacer', () => {
 	test('AnalyzeResultJson envelope round-trips through compactReplacer (both empty)', () => {
 		// Both arrays empty — wire form collapses to `{}`, schema restores `[]`,
 		// so the CLI needs no top-level carve-out.
-		const original = AnalyzeResultJson.parse({ modules: [], diagnostics: [] });
+		const original = parseAnalyzeResult({ modules: [], diagnostics: [] });
 
 		const json = JSON.stringify(original, compactReplacer);
 		assert.strictEqual(json, '{}');
 
-		const restored = AnalyzeResultJson.parse(JSON.parse(json));
+		const restored = parseAnalyzeResult(JSON.parse(json));
 		assert.deepStrictEqual(restored, original);
 		assert.deepStrictEqual(restored.modules, []);
 		assert.deepStrictEqual(restored.diagnostics, []);
@@ -815,15 +856,15 @@ describe('compactReplacer', () => {
 
 	test('AnalyzeResultJson envelope round-trips through compactReplacer (mixed empty)', () => {
 		// Modules populated, diagnostics empty.
-		const a = AnalyzeResultJson.parse({
+		const a = parseAnalyzeResult({
 			modules: [{ path: 'a.ts', declarations: [] }],
 			diagnostics: []
 		});
 		const aJson = JSON.stringify(a, compactReplacer);
-		assert.deepStrictEqual(AnalyzeResultJson.parse(JSON.parse(aJson)), a);
+		assert.deepStrictEqual(parseAnalyzeResult(JSON.parse(aJson)), a);
 
 		// Modules empty, diagnostics populated.
-		const b = AnalyzeResultJson.parse({
+		const b = parseAnalyzeResult({
 			modules: [],
 			diagnostics: [
 				{
@@ -836,7 +877,7 @@ describe('compactReplacer', () => {
 			]
 		});
 		const bJson = JSON.stringify(b, compactReplacer);
-		assert.deepStrictEqual(AnalyzeResultJson.parse(JSON.parse(bJson)), b);
+		assert.deepStrictEqual(parseAnalyzeResult(JSON.parse(bJson)), b);
 	});
 });
 
@@ -911,7 +952,7 @@ describe('isKind', () => {
 
 	describe('MemberJson narrowing', () => {
 		const member = (input: { name: string; kind: string; [key: string]: unknown }): MemberJson =>
-			MemberJson.parse(input);
+			v.parse(MemberJson, input);
 
 		test('narrows function members', () => {
 			const m = member({ name: 'method', kind: 'function' });
@@ -1316,7 +1357,7 @@ describe('typeJsonToTokens over the fixture corpus', () => {
 		// the walk finding nothing would pass vacuously — assert a floor
 		assert.isAtLeast(trees.length, 10, 'expected the corpus walk to find trees');
 		for (const raw of trees) {
-			const tree = TypeJson.parse(raw);
+			const tree = v.parse(TypeJson, raw);
 			const tokens = typeJsonToTokens(tree);
 			assert.isAbove(tokens.length, 0);
 			let prev: TypeJsonToken | undefined;
@@ -1336,47 +1377,47 @@ describe('typeJsonToTokens over the fixture corpus', () => {
 	});
 });
 
-describe('Zod schema validation', () => {
+describe('schema validation', () => {
 	test('ModuleJson rejects unknown keys (strictObject)', () => {
-		assert.throws(() => ModuleJson.parse({ path: 'foo.ts', unknownField: true }), ZodError);
+		assert.throws(() => parseModuleJson({ path: 'foo.ts', unknownField: true }), v.ValiError);
 	});
 
 	test('DeclarationJson rejects unknown keys (strictObject)', () => {
 		assert.throws(
-			() => DeclarationJson.parse({ name: 'foo', kind: 'function', unknownField: true }),
-			ZodError
+			() => v.parse(DeclarationJson, { name: 'foo', kind: 'function', unknownField: true }),
+			v.ValiError
 		);
 	});
 
 	test('DeclarationJson rejects invalid kind', () => {
-		assert.throws(() => DeclarationJson.parse({ name: 'foo', kind: 'invalid' }), ZodError);
+		assert.throws(() => v.parse(DeclarationJson, { name: 'foo', kind: 'invalid' }), v.ValiError);
 	});
 
 	test('MemberJson rejects invalid kind', () => {
-		assert.throws(() => MemberJson.parse({ name: 'foo', kind: 'class' }), ZodError);
+		assert.throws(() => v.parse(MemberJson, { name: 'foo', kind: 'class' }), v.ValiError);
 	});
 
 	test('InterfaceDeclarationJson rejects "properties" key', () => {
 		assert.throws(
 			() =>
-				DeclarationJson.parse({
+				v.parse(DeclarationJson, {
 					name: 'A',
 					kind: 'interface',
 					properties: [{ name: 'a', kind: 'variable' }]
 				}),
-			ZodError
+			v.ValiError
 		);
 	});
 
 	test('TypeDeclarationJson rejects "properties" key', () => {
 		assert.throws(
 			() =>
-				DeclarationJson.parse({
+				v.parse(DeclarationJson, {
 					name: 'A',
 					kind: 'type',
 					properties: [{ name: 'a', kind: 'variable' }]
 				}),
-			ZodError
+			v.ValiError
 		);
 	});
 
@@ -1389,7 +1430,7 @@ describe('Zod schema validation', () => {
 		] as const;
 
 		for (const input of containers) {
-			const decl = DeclarationJson.parse(input);
+			const decl = v.parse(DeclarationJson, input);
 			if ('members' in decl) {
 				assert.strictEqual(decl.members.length, 1, `${input.kind} should have 1 member`);
 				assert.strictEqual(decl.members[0]!.name, 'a');

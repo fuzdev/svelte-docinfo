@@ -13,7 +13,7 @@ import {
 	synthesizeSnippetTypeSignature
 } from '#lib/svelte.ts';
 import { type Diagnostic, hasErrors, hasWarnings, warningsOf } from '#lib/diagnostics.ts';
-import { AnalyzeResultJson } from '#lib/analyze-core.ts';
+import { parseAnalyzeResult } from '#lib/analyze-core.ts';
 import type { ModuleAnalysis } from '#lib/declaration-build.ts';
 import type { SourceFileInfo } from '#lib/source.ts';
 import type { ModuleSourceOptions } from '#lib/source-config.ts';
@@ -109,7 +109,7 @@ describe('svelte component analyzer (fixture-based)', () => {
 				// entry module carries the fixture's own component (component
 				// re-export aliases may sit beside it as further component
 				// declarations, so "exactly one" would be wrong here).
-				const parsed = AnalyzeResultJson.parse(fixture.expected);
+				const parsed = parseAnalyzeResult(fixture.expected);
 				const name = fixtureNameToComponentName(fixture.name);
 				const entryModule = parsed.modules.find((m) => m.path === svelteFixtureEntryPath(name));
 				assert.ok(entryModule, `Missing entry module for fixture "${fixture.name}"`);
@@ -2127,7 +2127,7 @@ describe('svelte acceptsChildren detection', () => {
 		);
 
 		assert.strictEqual(result.acceptsChildren, true);
-		// Props are undefined (not []) because analyzeTestComponent returns pre-Zod build objects
+		// Props are undefined (not []) because analyzeTestComponent returns unparsed build objects
 		assert.ok(!result.props || result.props.length === 0, 'Expected no props');
 	});
 

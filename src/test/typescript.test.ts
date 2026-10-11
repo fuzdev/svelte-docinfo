@@ -1,11 +1,12 @@
 import { test, assert, describe, beforeAll } from 'vitest';
 import ts from 'typescript';
+import * as v from 'valibot';
 
 import { createAnalysisProgram } from '#lib/typescript-program.ts';
 import { detectReactivity, extractSignatureParameters } from '#lib/typescript-extract-shared.ts';
 import { analyzeExports, analyzeTypescriptModule } from '#lib/typescript-exports.ts';
 import { type Diagnostic, hasErrors, hasWarnings } from '#lib/diagnostics.ts';
-import { AnalyzeResultJson } from '#lib/analyze-core.ts';
+import { parseAnalyzeResult } from '#lib/analyze-core.ts';
 
 import {
 	loadFixtures,
@@ -41,13 +42,13 @@ describe('TypeScript helpers (fixture-based)', () => {
 
 	test('all fixtures have valid structure', () => {
 		for (const fixture of fixtures) {
-			// Validate through the Zod schemas — strictly stronger than any
+			// Validate through the schemas — strictly stronger than any
 			// hand-rolled structural check and can't fall behind the data model.
 			// Multi-file fixtures capture the AnalyzeResultJson envelope.
 			if (fixture.extraFiles) {
-				AnalyzeResultJson.parse(fixture.expected);
+				parseAnalyzeResult(fixture.expected);
 			} else {
-				ModuleFixtureJson.parse(fixture.expected);
+				v.parse(ModuleFixtureJson, fixture.expected);
 			}
 		}
 	});
@@ -61,9 +62,9 @@ describe('TypeScript helpers (fixture-based)', () => {
 			throw new Error('declarations/class/private-excluded fixture not found');
 		}
 
-		// Parse through Zod to restore stripped array/boolean defaults so
+		// Parse through the schema to restore stripped array/boolean defaults so
 		// `result.members` is `Array<...>` (Output shape), not optional.
-		const result = ModuleFixtureJson.parse(privateFieldsFixture.expected).declarations[0];
+		const result = v.parse(ModuleFixtureJson, privateFieldsFixture.expected).declarations[0];
 
 		// Verify that private members are NOT in the output
 		if (result?.kind === 'class') {
@@ -97,7 +98,7 @@ describe('TypeScript helpers (fixture-based)', () => {
 			throw new Error('members/class-accessors fixture not found');
 		}
 
-		const result = ModuleFixtureJson.parse(accessorsFixture.expected).declarations[0];
+		const result = v.parse(ModuleFixtureJson, accessorsFixture.expected).declarations[0];
 
 		if (result?.kind !== 'class' || result.members.length === 0) {
 			throw new Error('Expected members to be defined for class A');

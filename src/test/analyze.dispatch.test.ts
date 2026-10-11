@@ -336,7 +336,7 @@ let {value}: {value: string} = $props();
 		);
 
 		assert.ok(result);
-		// No exports → declarations is empty array (Zod default)
+		// No exports → declarations is empty array (schema default)
 		assert.deepStrictEqual(result.declarations, []);
 		assert.strictEqual(result.reExports.length, 0);
 	});

@@ -15,10 +15,9 @@ from a single function call to full control over file discovery and diagnostics.
 ## Dependencies
 
 This example lists `svelte` and `svelte2tsx` as explicit dependencies
-because the `file:../..` link doesn't auto-install peer dependencies. Of the
-four peers (`svelte`, `svelte2tsx`, `typescript`, `zod`), the other two resolve
-through the linked package's own `node_modules`, as do its regular
-dependencies.
+because the `file:../..` link doesn't auto-install peer dependencies. The
+remaining peer, `typescript`, resolves through the linked package's own
+`node_modules`, as do its regular dependencies (`valibot` among them).
 
 ## Run
 
@@ -91,8 +90,8 @@ if (hasErrors(diagnostics)) {
 ```
 
 `diagnostics` is a plain `Array<Diagnostic>`, round-trip-safe through
-`JSON.stringify` and `z.array(Diagnostic).parse` (or the whole envelope via
-`AnalyzeResultJson.parse`). Query it with the free helpers (`hasErrors`,
+`JSON.stringify` and `parseDiagnostics` (or the whole envelope via
+`parseAnalyzeResult`). Query it with the free helpers (`hasErrors`,
 `hasWarnings`, `errorsOf`, `warningsOf`, `byKind`).
 
 See [analyze-diagnostics.js](analyze-diagnostics.js) for the full script.

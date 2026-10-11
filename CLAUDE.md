@@ -19,7 +19,7 @@ points to the TSDoc that owns its policy; read it before changing behavior. User
 
 - **Type resolution** — imported types, generics, inferred types. Every member type is
   checker-backed.
-- **Structured types** — optional `typeInfo` (`TypeJson`, a recursive 10-kind Zod schema)
+- **Structured types** — optional `typeInfo` (`TypeJson`, a recursive 10-kind valibot schema)
   beside the flat type strings: component props, parameters (snippet tuple elements
   included), `returnTypeInfo` (functions, methods, overloads), type-alias/interface/class
   members, variable and type-alias declarations. Policy lives on the `TypeJson` schema
@@ -136,8 +136,8 @@ points to the TSDoc that owns its policy; read it before changing behavior. User
   namespace classification, re-export JSDoc routing, merged symbols, and `alias_lost`.
 - `tsdoc.ts` — `parseComment`, `applyToDeclaration`, `cleanComment`, `hasDocContent`.
 - `diagnostics.ts` — `Diagnostic` (16-variant discriminated union), `DiagnosticKind`,
-  `DiagnosticSeverity`, and read helpers (`hasErrors`, `errorsOf`, `byKind`,
-  `formatDiagnostic`, …). Diagnostics are a plain `Array<Diagnostic>`.
+  `DiagnosticSeverity`, `parseDiagnostics`, and read helpers (`hasErrors`, `errorsOf`,
+  `byKind`, `formatDiagnostic`, …). Diagnostics are a plain `Array<Diagnostic>`.
 - `log.ts` — `AnalysisLog` (`info`/`warn`/`error`): unstructured progress, separate from
   diagnostics.
 
@@ -158,19 +158,27 @@ points to the TSDoc that owns its policy; read it before changing behavior. User
   - `createDefaultResolver`: TS resolution plus a manual `.svelte` fallback.
   - `lexImports` (a syntax-only TypeScript parse) and `noDepsResolver`.
 - `concurrency.ts` — `MAX_FILE_CONCURRENCY`, `MAX_RESOLVE_CONCURRENCY`, `mapConcurrent`.
-- `error.ts` — `toErrorMessage`.
+- `error.ts` — `toErrorMessage`, and `parseWithSummary`, which the `parse*` helpers throw
+  through so the message lists every reported issue, one `path: message` line each. Also the
+  `@nodocs` `Named` alias the schema interfaces extend through.
 - `source-config.ts`
   - Options: `ModuleSourceOptions`, `createSourceOptions`/`normalizeSourceOptions`,
     `ExcludeOption`.
   - Source gating and paths: `isSource`, `extractPath`, `extractDependencies`.
   - Include widening (`createSourceOptionsWithInclude`), pattern normalization, and the
     baseline exclusions.
-- `types.ts` — the output schemas: `ModuleJson`, `DeclarationJson` (9 variants),
-  `MemberJson` (3), `TypeJson` (10 kinds), `OverloadJson`, and friends. Field-level policy
-  lives here.
+- `types.ts` — the output schemas (valibot): `ModuleJson`, `DeclarationJson` (9 variants),
+  `MemberJson` (3), `TypeJson` (10 kinds), `OverloadJson`, and friends, plus
+  `parseModuleJson`. Field-level policy lives here. Each exported object schema is typed
+  through a `@nodocs` `FooSchema` interface (`extends Named<typeof FooImpl>`), which keeps
+  the emitted declarations referential and small. A fully inlined `ModuleJson` sends
+  consumers past TypeScript's instantiation depth (TS2589); a name on that root is enough
+  to clear it, and the rest are there for size. `diagnostics.ts` and `AnalyzeResultJson` follow
+  suit. `dist-types.test.ts` holds the emitted declarations to that: referential schema
+  consts, a size budget, and a consumer that typechecks against them.
 - `declaration-build.ts` — permissive build-time types (`DeclarationJsonBuild`,
-  `MemberJsonBuild`, …): every field optional except `kind`. Zod validates at the
-  `ModuleJson.parse()` boundary.
+  `MemberJsonBuild`, …): every field optional except `kind`. The schemas validate at the
+  `parseModuleJson` boundary.
 - `declaration-helpers.ts`
   - Display and import generation: `getDisplayName`, `generateImport`.
   - `compactReplacer` and `isKind`.
@@ -205,7 +213,8 @@ points to the TSDoc that owns its policy; read it before changing behavior. User
     `normalizeModulePathsInTypes`.
   - `OnDuplicates`: the opt-in flat-namespace check. Off by default, since most packages
     reuse names across modules; any mode emits `duplicate_declaration`.
-  - The envelope schemas `AnalyzeResultJson` and `AnalyzeResultJsonWire`.
+  - The envelope schemas `AnalyzeResultJson` and `AnalyzeResultJsonWire`, and
+    `parseAnalyzeResult`.
 - `vite.ts` — default export `svelteDocinfo`, serving `virtual:svelte-docinfo`.
   - Hooks: `configResolved`, `buildStart`, `buildEnd` (disposes the session),
     `resolveId`/`load`, and `configureServer` (watch plus debounced re-analysis, gated on
@@ -365,7 +374,7 @@ authoritative.
 `externalStarExports`, and `partial` (a placeholder for a Svelte file whose transform
 threw).
 
-**DeclarationJson** — `z.discriminatedUnion('kind', …)` over 9 strict variants. Narrow with
+**DeclarationJson** — `v.variant('kind', …)` over 9 strict variants. Narrow with
 `isKind(decl, 'function')`.
 
 - `DeclarationKind`: `'type' | 'function' | 'variable' | 'class' | 'interface' | 'enum' |
@@ -453,9 +462,14 @@ threw).
   `export {default} from './x'` all carry `name === 'default'`. Renames *out* of the slot
   carry the new name plus `aliasOf: {module, name: 'default'}`. Svelte components use their
   filename-derived name.
-- **Wire format** — array fields `.default([])`. `compactReplacer` strips empties and
-  `false` (except the `value` key, so a literal `false` node survives), and `.parse()`
-  restores them.
+- **Wire format** — array fields default to `[]` and flags to `false`. `compactReplacer`
+  strips empties and `false` (except the `value` key, so a literal `false` node survives),
+  and the parse helpers (`parseAnalyzeResult`, `parseModuleJson`, `parseDiagnostics`)
+  restore them. The helpers are the stable, library-agnostic contract; the raw schemas
+  are exported too. Array defaults are factories (`() => []`), since valibot returns a
+  non-function default as-is and a literal `[]` would be shared across parses. String
+  maps (`mutates`, `propertyDescriptions`) use a local `StringRecord` schema, since
+  `v.record` drops `constructor` and `prototype` keys.
 
 ## Key Design Decisions
 
@@ -477,10 +491,10 @@ whole-output pass, so a new printing site can't miss it.
 
 ### Diagnostic Collection
 
-- **The envelope** — `AnalyzeResultJson` is `{modules, diagnostics}`, both `.default([])`,
-  and round-trips through `JSON.stringify`/`.parse`. Diagnostics accumulate without
-  halting. A declaration or member whose extraction failed mid-flight carries
-  `partial: true`, so consumers can spot incomplete data without cross-referencing.
+- **The envelope** — `AnalyzeResultJson` is `{modules, diagnostics}`, both defaulting to
+  `[]`, and round-trips through `JSON.stringify`/`parseAnalyzeResult`. Diagnostics
+  accumulate without halting. A declaration or member whose extraction failed mid-flight
+  carries `partial: true`, so consumers can spot incomplete data without cross-referencing.
 - **`Diagnostic.file`** — project-root-relative, with a `../` form for out-of-root files.
   - Producers emit the absolute id, and `normalizeDiagnosticPaths` relativizes it.
   - `message` gets the same path and virtual-suffix scrub.
@@ -555,7 +569,7 @@ Lock-in tests: `src/test/analyze.reexport-{edges,namespace,forward,gated}.test.t
 - `createAnalysisSession()` — incremental (the Vite plugin, LSP-style tools)
 
 All three produce `AnalyzeResultJson`. The CLI and the Vite virtual module emit the same
-shape through `compactReplacer`, so parse through `AnalyzeResultJson` to restore defaults.
+shape through `compactReplacer`, so parse through `parseAnalyzeResult` to restore defaults.
 Consumers own package metadata; see `LibraryJson` in `@fuzdev/fuz_util` for the fuz
 pattern.
 
@@ -578,13 +592,16 @@ fuz_ui and fuz_css consume `virtual:svelte-docinfo` directly: a hand-written
 ## Dependencies
 
 - **Runtime**: `commander`, `tinyglobby`, `picomatch`,
-  `@jridgewell/trace-mapping`.
+  `@jridgewell/trace-mapping`, and `valibot` (the output schemas). `valibot` is a regular
+  dependency, not a peer: consumers validating through the parse helpers never import it.
 - **Peers** (required):
   - `svelte` 5+ and `svelte2tsx`, eagerly imported by every entry, so they're needed even
     for TS-only analysis.
   - `typescript` 5.9+ or 6, so consumers don't carry a second TS.
-  - `zod` 4+, so schema types resolve to one instance.
 - **Peers** (optional): `vite` 6+, for the Vite plugin only (it uses `server.environments`).
+- **Dev-only**: `zod`, as the analyzed library in tests and fixtures (the merged
+  schema/type pattern, alias-lost recovery). `src/lib` never imports it, and a test in
+  `types.test.ts` guards that.
 
 ## Testing
 
