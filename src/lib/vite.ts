@@ -11,6 +11,24 @@
  * there's no in-place HMR update); `setFiles`'s `changedIds` skip re-analysis
  * when nothing changed. The watcher gates on `isSource(file) || session.has(file)`.
  *
+ * Dev server lifecycle (details in the comments on `server`, `adoptedServers`,
+ * `invalidateAndReload`, and `buildEnd`):
+ *
+ * - Requires Vite 6+: dev uses only the per-environment server APIs (module
+ *   graphs, the client hot channel, the client `pluginContainer` as resolver),
+ *   so it runs clean under Vite's `future` removal flags, and
+ *   `configureServer` throws without `server.environments`.
+ * - Changed output is invalidated in every environment graph that loaded the
+ *   virtual module, then the client gets a `full-reload`.
+ * - One server at a time: `configureServer` only records a server, and its
+ *   client environment's `buildStart` adopts it once it starts. A restart that
+ *   reuses the plugin (inline plugins) and fails before its new server starts
+ *   leaves the plugin on the old server, which Vite keeps running. Watcher
+ *   events from a server never adopted are dropped.
+ * - `buildEnd` disposes only the session its own environment's `buildStart`
+ *   created, since a middleware-mode restart runs the new `buildStart` before
+ *   the old `buildEnd`.
+ *
  * Consumers import the analysis result:
  *
  * ```ts
