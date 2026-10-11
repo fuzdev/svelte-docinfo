@@ -116,13 +116,6 @@ npx svelte-docinfo | jq -r '.modules[].declarations[].name'  # list all exported
 						</td>
 					</tr>
 					<tr>
-						<td class="white-space:nowrap"><code>--on-duplicates &lt;mode&gt;</code></td>
-						<td>
-							dispatch on duplicate declaration names: <code>throw</code> | <code>warn</code>
-							(default: emit <code>duplicate_declaration</code> diagnostic, no dispatch)
-						</td>
-					</tr>
-					<tr>
 						<td class="white-space:nowrap"><code>--only &lt;pattern&gt;</code></td>
 						<td>
 							glob filter on output module paths (repeatable). The full project is still analyzed,
@@ -143,6 +136,14 @@ npx svelte-docinfo | jq -r '.modules[].declarations[].name'  # list all exported
 					<tr>
 						<td><code>-q, --quiet</code></td>
 						<td>suppress info messages on stderr (warnings and errors still print)</td>
+					</tr>
+					<tr>
+						<td class="white-space:nowrap"><code>--on-duplicates &lt;mode&gt;</code></td>
+						<td>
+							opt-in check that names are unique across modules, for packages with a flat export
+							namespace: <code>diagnostic</code> | <code>warn</code> | <code>throw</code> (default:
+							off)
+						</td>
 					</tr>
 					<tr>
 						<td><code>-V, --version</code></td>
@@ -170,8 +171,7 @@ npx svelte-docinfo | jq -r '.modules[].declarations[].name'  # list all exported
 			<p>
 				Exit codes: <strong>0</strong> success, <strong>1</strong> analysis errors,
 				<strong>2</strong> CLI errors or a thrown analysis error (a missing or unloadable
-				<code>tsconfig.json</code>, an <code>--on-duplicates throw</code> collision, strict exports
-				discovery failing).
+				<code>tsconfig.json</code>, strict exports discovery failing).
 			</p>
 		</TomeSection>
 

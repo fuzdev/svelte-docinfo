@@ -13,8 +13,8 @@
 
 export { analyze, analyzeFromFiles } from './analyze.ts';
 export type { AnalyzeOptions, AnalyzeFromFilesOptions } from './analyze.ts';
-export { throwOnDuplicates, AnalyzeResultJson } from './analyze-core.ts';
-export type { AnalyzeResultJsonWire, OnDuplicates, OnDuplicatesCallback } from './analyze-core.ts';
+export { AnalyzeResultJson } from './analyze-core.ts';
+export type { AnalyzeResultJsonWire, OnDuplicates } from './analyze-core.ts';
 export { createAnalysisSession } from './session.ts';
 export type {
 	AnalysisSession,
@@ -88,13 +88,8 @@ export type {
 
 // Post-processing
 
-export {
-	findDuplicates,
-	mergeReExports,
-	resolveComponentAliases,
-	resolveExportSurface
-} from './postprocess.ts';
-export type { DuplicateDeclaration, ExportSurface, ExportSurfaceEntry } from './postprocess.ts';
+export { mergeReExports, resolveComponentAliases, resolveExportSurface } from './postprocess.ts';
+export type { ExportSurface, ExportSurfaceEntry } from './postprocess.ts';
 
 // File system helpers
 

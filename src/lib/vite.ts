@@ -112,7 +112,7 @@ export interface VitePluginSvelteDocinfoOptions {
 	 * Partial overrides for default source options (SvelteKit `src/lib` layout).
 	 */
 	sourceOptions?: SourceOptionsOverrides;
-	/** Behavior when duplicate declaration names are found across modules. */
+	/** Opt-in check that declaration names are unique across modules (see `OnDuplicates`). */
 	onDuplicates?: OnDuplicates;
 	/**
 	 * Dev re-analysis debounce delay in milliseconds. Coalesces rapid file changes.

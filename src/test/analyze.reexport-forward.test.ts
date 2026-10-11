@@ -501,7 +501,11 @@ let {label}: {label: string} = $props();
 
 		await withTestProject(files, async (projectRoot) => {
 			const { sourceFiles, sourceOptions } = setupAnalysis(projectRoot, files);
-			const { modules, diagnostics } = await analyze({ sourceFiles, sourceOptions });
+			const { modules, diagnostics } = await analyze({
+				sourceFiles,
+				sourceOptions,
+				onDuplicates: 'diagnostic'
+			});
 
 			const barrel = modules.find((m) => m.path === 'barrel.ts')!;
 			assert.deepStrictEqual(barrel.reExports, [

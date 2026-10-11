@@ -183,8 +183,8 @@
 				</li>
 			</ul>
 			<p>
-				Declarations tagged <code>@nodocs</code> are excluded from the output and from duplicate
-				name checking.
+				Declarations tagged <code>@nodocs</code> are excluded from the output and from the opt-in
+				duplicate-name check.
 			</p>
 
 			<TomeSection>

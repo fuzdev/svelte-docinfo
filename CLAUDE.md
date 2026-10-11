@@ -188,7 +188,9 @@ points to the TSDoc that owns its policy; read it before changing behavior. User
 - `analyze-core.ts`
   - `analyzeCore`: the two-phase loop.
   - `analyzeModule`, `finalizeDiagnostics`, `normalizeDiagnosticPaths`,
-    `normalizeModulePathsInTypes`, `throwOnDuplicates`.
+    `normalizeModulePathsInTypes`.
+  - `OnDuplicates`: the opt-in flat-namespace check. Off by default, since most packages
+    reuse names across modules; any mode emits `duplicate_declaration`.
   - The envelope schemas `AnalyzeResultJson` and `AnalyzeResultJsonWire`.
 - `vite.ts` — default export `svelteDocinfo`, serving `virtual:svelte-docinfo`.
   - Hooks: `configResolved`, `buildStart`, `buildEnd` (disposes the session),
@@ -233,8 +235,8 @@ expose every module's full API.
    declarations and re-export facts. Gated Svelte virtuals (`contextSvelteFiles`) are
    analyzed only when an emitted alias references them.
 2. **Linking** — `mergeReExports`, `resolveComponentAliases`, `sortModules`,
-   `findDuplicates` (always surfaced as `duplicate_declaration`; `onDuplicates` only adds
-   dispatch), `normalizeModulePathsInTypes`, and `finalizeDiagnostics`.
+   `findDuplicates` (only when `onDuplicates` is set), `normalizeModulePathsInTypes`, and
+   `finalizeDiagnostics`.
 
 The `postprocess.ts` passes are pure (new arrays, structural sharing).
 `normalizeModulePathsInTypes` and `finalizeDiagnostics` then rewrite phase 2's own output in
@@ -473,8 +475,8 @@ whole-output pass, so a new printing site can't miss it.
   - Virtual positions are remapped to `.svelte` positions first; `finalizeDiagnostics`
     owns that ordering, and an unmappable position drops its line and column.
 - **Severity** is fixed per kind: `transform_failed` and `module_unreadable` are errors;
-  everything else is a warning. `duplicate_declaration` emits regardless of `onDuplicates`,
-  which only controls dispatch (throw, warn, or callback).
+  everything else is a warning. `duplicate_declaration` emits only under the opt-in
+  `onDuplicates`, whose `'warn'` and `'throw'` modes add a log or a throw.
 - **Categories**
   - **Ingest-time** kinds (`transform_failed`, `source_map_failed`, `import_parse_failed`,
     `resolver_failed`) come back from `setFile`/`setFiles` and persist on the entry.
@@ -489,9 +491,9 @@ whole-output pass, so a new printing site can't miss it.
 
 ### Re-Export Philosophy
 
-`findDuplicates` flags duplicate names across modules by canonical identity, after
-resolving `aliasOf` chains. `@nodocs` exempts a declaration. Encodings (mechanics in
-`typescript-exports.ts` and `postprocess.ts`):
+The opt-in `findDuplicates` check flags duplicate names across modules by canonical
+identity, after resolving `aliasOf` chains. `@nodocs` exempts a declaration. Encodings
+(mechanics in `typescript-exports.ts` and `postprocess.ts`):
 
 - **Same-name** re-export → `alsoExportedFrom` on the canonical, plus the forward edge
   `ModuleJson.reExports` (`{name, module, typeOnly, sourceLine}`) on the re-exporter.

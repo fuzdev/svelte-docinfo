@@ -1067,6 +1067,8 @@ let {label}: {label: string} = $props();
 					projectRoot,
 					'--only',
 					'wanted.ts',
+					'--on-duplicates',
+					'diagnostic',
 					'--quiet'
 				]);
 

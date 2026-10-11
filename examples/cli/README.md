@@ -59,7 +59,6 @@ npx svelte-docinfo -e "**/*.test.ts"  # exclude files matching a pattern
 npx svelte-docinfo --discovery glob   # skip package.json exports, use glob instead
 npx svelte-docinfo --discovery exports  # strict — fail if package.json exports is missing or resolves to no files
 npx svelte-docinfo --no-resolve-dependencies  # skip dependency graph resolution
-npx svelte-docinfo --on-duplicates throw  # enforce flat namespace (fail on duplicate names)
 npx svelte-docinfo --only 'components/**'  # emit only modules matching glob (analysis still runs on full project)
 npx svelte-docinfo -q                 # suppress info messages on stderr
 ```
@@ -132,4 +131,4 @@ npx svelte-docinfo | jq '.modules[].declarations[]
 | ---- | --------------- |
 | 0    | Success         |
 | 1    | Analysis errors |
-| 2    | CLI errors or a thrown analysis error (missing or unloadable `tsconfig.json`, `--on-duplicates throw` collision) |
+| 2    | CLI errors or a thrown analysis error (missing or unloadable `tsconfig.json`) |

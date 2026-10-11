@@ -3,7 +3,7 @@
  *
  * These functions transform analysis results after module-level analysis is complete:
  *
- * 1. **Validation** — `findDuplicates` checks flat namespace constraints
+ * 1. **Validation** — `findDuplicates` checks the opt-in flat-namespace constraint
  * 2. **Transformation** — `mergeReExports` resolves re-export relationships,
  *    `resolveComponentAliases` fills component aliases from their canonicals,
  *    `computeDependents` builds bidirectional dependency graphs
@@ -128,22 +128,14 @@ const resolveCanonicalIdentity = (
  * (`export {default as Foo} from './Foo.svelte'`) therefore doesn't flag.
  * When a name does flag, all occurrences are reported, aliases included.
  *
- * Callers can decide how to handle duplicates (throw, warn, ignore).
+ * The analysis entry points run this only under the opt-in `onDuplicates`.
  *
  * @returns `Map` of declaration names to their `DuplicateDeclaration` occurrences (only includes duplicates)
  *
  * @example
  * ```ts
  * const duplicates = findDuplicates(modules);
- * if (duplicates.size > 0) {
- *   for (const [name, occurrences] of duplicates) {
- *     console.error(`"${name}" found in:`);
- *     for (const {declaration, module} of occurrences) {
- *       console.error(`  - ${module}:${declaration.sourceLine} (${declaration.kind})`);
- *     }
- *   }
- *   throw new Error(`Found ${duplicates.size} duplicate declaration names`);
- * }
+ * duplicates.get('parse'); // [{declaration, module: 'a.ts'}, {declaration, module: 'b.ts'}]
  * ```
  */
 export const findDuplicates = (

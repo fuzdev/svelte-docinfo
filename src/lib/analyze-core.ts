@@ -13,10 +13,8 @@
  * - `analyzeModule` — the per-module dispatcher for non-Svelte files (TS / CSS /
  *   JSON; Svelte needs `analyzeSvelteModule`). `@internal`; exposed for tests
  *   and power users via the subpath.
- * - `AnalyzeResultJson` / `AnalyzeResultJsonWire` / `OnDuplicates` /
- *   `OnDuplicatesCallback` — shared types surfaced through the main barrel
- *   directly from this module.
- * - `throwOnDuplicates` — convenience callback paired with `OnDuplicates`.
+ * - `AnalyzeResultJson` / `AnalyzeResultJsonWire` / `OnDuplicates` — shared
+ *   types surfaced through the main barrel directly from this module.
  * - `finalizeDiagnostics` — the diagnostic boundary passes (virtual position
  *   remap, then path normalization) in their required order; the one call for
  *   callers assembling modules themselves.
@@ -28,7 +26,7 @@
  *   assembling modules itself through `analyzeModule` can meet the same
  *   output contract.
  *
- * The barrel-surfaced schemas, types, and `throwOnDuplicates` are stable API.
+ * The barrel-surfaced schemas and types are stable API.
  * Everything else is subpath-only; `analyzeCore` and `analyzeModule` are
  * `@internal`.
  *
@@ -72,53 +70,24 @@ import {
 // Duplicate handling
 
 /**
- * Custom callback for handling duplicate declaration names.
+ * Opt-in check that declaration names are unique across modules.
  *
- * Use the `'throw'` or `'warn'` shortcuts on `onDuplicates` for the common
- * cases. Pass a function to fully control reporting.
+ * For packages that keep a flat export namespace, where every exported name
+ * is unique across the whole package. Most packages don't, and two modules
+ * exporting the same name is ordinary, so the check is off by default:
+ * omitted, duplicate detection doesn't run and nothing is reported.
  *
- * @param duplicates - map of declaration names to their `DuplicateDeclaration` occurrences across modules
- * @param log - logger for reporting (only `error` method required)
+ * Every mode emits a `duplicate_declaration` diagnostic per colliding name:
+ *
+ * - `'diagnostic'` — the diagnostics only
+ * - `'warn'` — also log the collisions to `log.warn` and continue
+ * - `'throw'` — also throw an `Error` listing every duplicate
+ *
+ * The throw fires before the result is returned, so `'throw'` callers never
+ * reach the diagnostics array. For custom handling, use `'diagnostic'` and
+ * read the records with `byKind(diagnostics, 'duplicate_declaration')`.
  */
-export type OnDuplicatesCallback = (
-	duplicates: Map<string, Array<DuplicateDeclaration>>,
-	log: Pick<AnalysisLog, 'error'>
-) => void;
-
-/**
- * Behavior selector for duplicate declaration names across modules.
- *
- * - `'throw'` — throw an `Error` listing every duplicate (strict flat-namespace enforcement)
- * - `'warn'` — log to `log.error` and continue
- * - `OnDuplicatesCallback` — custom handler
- *
- * Omitted entirely: no dispatch runs, but a `duplicate_declaration` diagnostic
- * is still emitted into the diagnostics array for every collision (the diagnostic
- * is the data; this option is the action).
- *
- * **`'throw'` trade-off**: the throw fires after diagnostics are emitted but
- * before the result is returned, so `'throw'` callers never reach the
- * diagnostics array. Callers that want fail-fast *and* diagnostic access
- * should omit `onDuplicates` and inspect themselves:
- *
- * ```ts
- * const result = await analyze({...});
- * if (hasErrors(result.diagnostics)) throw new Error('analysis errors');
- * ```
- *
- * Or use an `OnDuplicatesCallback` and stash the data before throwing.
- */
-export type OnDuplicates = 'throw' | 'warn' | OnDuplicatesCallback;
-
-/**
- * Convenience `OnDuplicatesCallback` that throws on any duplicate.
- *
- * @throws Error listing every duplicate name and module location
- */
-export const throwOnDuplicates: OnDuplicatesCallback = (duplicates) => {
-	if (duplicates.size === 0) return;
-	throw new Error(formatDuplicates(duplicates));
-};
+export type OnDuplicates = 'diagnostic' | 'warn' | 'throw';
 
 const formatDuplicates = (duplicates: Map<string, Array<DuplicateDeclaration>>): string => {
 	const details = Array.from(duplicates)
@@ -135,9 +104,8 @@ const formatDuplicates = (duplicates: Map<string, Array<DuplicateDeclaration>>):
 
 	return (
 		`Found ${duplicates.size} duplicate declaration name${duplicates.size === 1 ? '' : 's'} across modules. ` +
-		'The flat namespace requires unique names. To resolve: ' +
-		'(1) rename one of the conflicting declarations, or ' +
-		'(2) add /** @nodocs */ to exclude from documentation.\n' +
+		'To resolve, rename one of the conflicting declarations, ' +
+		'or mark one /** @nodocs */ if it is not public API.\n' +
 		details
 	);
 };
@@ -179,16 +147,10 @@ const dispatchOnDuplicates = (
 	duplicates: Map<string, Array<DuplicateDeclaration>>,
 	log?: AnalysisLog
 ): void => {
-	if (duplicates.size === 0) return;
-	if (mode === 'throw') {
-		throw new Error(formatDuplicates(duplicates));
-	}
-	const errorLog: Pick<AnalysisLog, 'error'> = log ?? { error: (msg) => console.error(msg) };
-	if (mode === 'warn') {
-		errorLog.error(formatDuplicates(duplicates));
-		return;
-	}
-	mode(duplicates, errorLog);
+	if (duplicates.size === 0 || mode === 'diagnostic') return;
+	const message = formatDuplicates(duplicates);
+	if (mode === 'throw') throw new Error(message);
+	(log?.warn ?? console.warn)(message);
 };
 
 // Result types
@@ -620,13 +582,10 @@ export const analyzeCore = (inputs: AnalyzeCoreInputs): AnalyzeResultJson => {
 
 	const sortedModules = sortModules(resolvedModules);
 
-	// Always run duplicate detection so a `duplicate_declaration` diagnostic
-	// reaches consumers regardless of `onDuplicates`. The `onDuplicates`
-	// callback/shortcut still fires for callers that want fail-fast or custom
-	// handling — diagnostics is the data, `onDuplicates` is the action.
-	const duplicates = findDuplicates(sortedModules);
-	emitDuplicateDiagnostics(diagnostics, duplicates, sourceIdsByModulePath);
+	// opt-in flat-namespace check, see `OnDuplicates`
 	if (onDuplicates) {
+		const duplicates = findDuplicates(sortedModules);
+		emitDuplicateDiagnostics(diagnostics, duplicates, sourceIdsByModulePath);
 		dispatchOnDuplicates(onDuplicates, duplicates, log);
 	}
 

@@ -8,7 +8,7 @@ from a single function call to full control over file discovery and diagnostics.
 | `analyze-simple.js`           | Most projects — one function call handles everything                       |
 | `analyze-custom-discovery.js` | Custom glob patterns and file discovery                                    |
 | `analyze-build-tool.js`       | Build tool integration where you already have files in memory              |
-| `analyze-diagnostics.js`      | Error handling, duplicate detection, diagnostic inspection                 |
+| `analyze-diagnostics.js`      | Error handling, diagnostic inspection                                      |
 | `analyze-non-sveltekit.js`    | Non-SvelteKit layouts — custom `sourcePaths` and source root               |
 | `analyze-session.js`          | Persistent session — reuse parsed ASTs across calls (HMR, LSP-style tools) |
 
@@ -81,10 +81,7 @@ so you can inspect problems in batch after analysis completes:
 ```js
 import { analyzeFromFiles, errorsOf, hasErrors } from 'svelte-docinfo';
 
-const { modules, diagnostics } = await analyzeFromFiles({
-	projectRoot: dir,
-	onDuplicates: 'throw'
-});
+const { modules, diagnostics } = await analyzeFromFiles({ projectRoot: dir });
 
 if (hasErrors(diagnostics)) {
 	for (const d of errorsOf(diagnostics)) {

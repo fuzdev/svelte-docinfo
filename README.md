@@ -226,12 +226,12 @@ Plugin options:
 | `projectRoot`         | Vite's resolved `config.root`                        | Absolute path to project root.                                                                                                                                                                                         |
 | `include`             | —                                                    | Glob patterns to include (relative to `projectRoot`; absolute inside it accepted). Collapses `discovery: 'auto'` to glob; combining with `discovery: 'exports'` throws. Widens the source scope — see the notes below. |
 | `exclude`             | `['**/*.test.ts', '**/*.spec.ts', '**/internal/**']` | Glob patterns to exclude. An array fully replaces the defaults; the callback form extends them (`(defaults) => [...defaults, '**/*.gen.ts']`). The always-on baseline below still applies.                             |
-| `discovery`           | `'auto'`                                             | Discovery strategy: `'auto'` \| `'exports'` \| `'glob'`. `'exports'` is strict and fails if `package.json` exports is missing or resolves to no files.                                                                                |
+| `discovery`           | `'auto'`                                             | Discovery strategy: `'auto'` \| `'exports'` \| `'glob'`. `'exports'` is strict and fails if `package.json` exports is missing or resolves to no files.                                                                 |
 | `distDir`             | `'dist'`                                             | Dist directory name for exports-based discovery.                                                                                                                                                                       |
 | `sourceOptions`       | `{sourcePaths: ['src/lib'], …}`                      | Partial overrides for default source options (SvelteKit `src/lib` layout).                                                                                                                                             |
 | `resolveDependencies` | `true`                                               | Resolve import dependencies. When `false`, `dependencies`/`dependents` stay empty.                                                                                                                                     |
-| `onDuplicates`        | —                                                    | Dispatch on duplicate declaration names: `'throw'` \| `'warn'` \| callback. Diagnostic emits regardless of dispatch.                                                                                                   |
 | `hmrDebounceMs`       | `100`                                                | Dev re-analysis debounce delay in milliseconds.                                                                                                                                                                        |
+| `onDuplicates`        | —                                                    | Opt-in check that names are unique across modules, for packages with a flat export namespace: `'diagnostic'` \| `'warn'` \| `'throw'`. Off by default.                                                                |
 
 Source-scope notes (shared with the [CLI](#cli) and `analyzeFromFiles`):
 
@@ -274,21 +274,21 @@ All CLI options:
 | `-i, --include <pattern>`   | Include pattern (repeatable, replaces exports discovery, widens the source scope; incompatible with `--discovery exports`)                                                                    |
 | `-e, --exclude <pattern>`   | Exclude glob, applied at discovery and analysis (repeatable; fully replaces the defaults `**/*.test.ts`, `**/*.spec.ts`, `**/internal/**` — no merge; the always-on baseline applies beneath) |
 | `-o, --output <file>`       | Output file (default: stdout; pass `-` for explicit stdout, so `-o "$OUT"` works when `$OUT=-`)                                                                                               |
-| `--discovery <mode>`        | `auto` \| `exports` \| `glob` (default: `auto` — exports first, glob fallback). `exports` is strict and fails if package.json exports is missing or resolves to no files                                     |
+| `--discovery <mode>`        | `auto` \| `exports` \| `glob` (default: `auto` — exports first, glob fallback). `exports` is strict and fails if package.json exports is missing or resolves to no files                      |
 | `--dist-dir <dir>`          | Dist directory for exports discovery (default: dist)                                                                                                                                          |
 | `--source-dir <dir>`        | Source directory, relative to project root or absolute inside it (default: src/lib). Repeatable for monorepos; drives the implicit include glob when no `--include` is provided               |
 | `--source-root <dir>`       | Source root for module-path stripping (default: single source-dir or longest common prefix; pass `.` for project-relative paths)                                                              |
-| `--on-duplicates <mode>`    | Dispatch on duplicate declaration names: `throw` \| `warn` (default: emit `duplicate_declaration` diagnostic, no dispatch)                                                                    |
 | `--only <pattern>`          | Glob filter applied to module paths in output (repeatable). Full project is still analyzed (re-exports/dependents stay correct); diagnostics aren't filtered                                  |
 | `--no-resolve-dependencies` | Disable dependency resolution                                                                                                                                                                 |
 | `--pretty`                  | Pretty-print JSON output (default: compact)                                                                                                                                                   |
 | `-q, --quiet`               | Suppress info messages on stderr (warnings and errors still print)                                                                                                                            |
+| `--on-duplicates <mode>`    | Opt-in check that names are unique across modules, for packages with a flat export namespace: `diagnostic` \| `warn` \| `throw` (default: off)                                                |
 | `-V, --version`             | Show version number                                                                                                                                                                           |
 
 The [Vite plugin](#vite-plugin)'s source-scope notes apply here too: explicit `--include` patterns widen the source scope (module paths become relative to the widened root, and a pattern with no base scopes the whole project root and logs an info line); `node_modules` and dot-directories below a source dir are always excluded regardless of `--exclude`; absolute paths and patterns inside the project root are accepted, and out-of-root ones fail loudly.
 
 Exit codes: 0 (success), 1 (analysis errors), 2 (CLI errors or a thrown analysis error, like a
-missing or unloadable `tsconfig.json` or an `--on-duplicates throw` collision).
+missing or unloadable `tsconfig.json`).
 
 See [examples/cli/](examples/cli/README.md) for more usage patterns.
 

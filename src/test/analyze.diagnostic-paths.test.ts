@@ -78,7 +78,8 @@ const analyzeProject = async (projectRoot: string) => {
 				content: await readFile(join(dir, name), 'utf8')
 			}))
 		),
-		sourceOptions: createSourceOptions(projectRoot)
+		sourceOptions: createSourceOptions(projectRoot),
+		onDuplicates: 'diagnostic'
 	});
 };
 
@@ -178,7 +179,11 @@ describe('Diagnostic.file rejoins with projectRoot', () => {
 				'src/lib/b.ts': `export const dup = 2;`
 			},
 			async (projectRoot) => {
-				const { modules, diagnostics } = await analyzeFromFiles({ projectRoot, discovery: 'glob' });
+				const { modules, diagnostics } = await analyzeFromFiles({
+					projectRoot,
+					discovery: 'glob',
+					onDuplicates: 'diagnostic'
+				});
 				assert.isAtLeast(diagnostics.length, 3);
 				const modulePaths = new Set(modules.map((m) => m.path));
 				for (const d of diagnostics) {
@@ -253,10 +258,13 @@ describe('producers agree on one base', () => {
 	test('duplicate_declaration keeps module paths in `modules` and the message', async () => {
 		// The two bases coexist inside one record by design: `file` is a file
 		// path, `modules` names modules.
-		const { diagnostics } = await analyzeTestProject({
-			'src/lib/a.ts': `export const dup = 1;`,
-			'src/lib/b.ts': `export const dup = 2;`
-		});
+		const { diagnostics } = await analyzeTestProject(
+			{
+				'src/lib/a.ts': `export const dup = 1;`,
+				'src/lib/b.ts': `export const dup = 2;`
+			},
+			{ onDuplicates: 'diagnostic' }
+		);
 		const [duplicate] = byKind(diagnostics, 'duplicate_declaration');
 		assert.ok(duplicate);
 		assert.strictEqual(duplicate.file, 'src/lib/a.ts');

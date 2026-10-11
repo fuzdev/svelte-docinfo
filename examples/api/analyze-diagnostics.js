@@ -1,4 +1,4 @@
-/** Diagnostics and duplicate detection - shows error handling and validation. */
+/** Diagnostics - shows error handling and validation. */
 
 import { writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
@@ -15,13 +15,7 @@ import {
 
 const dir = dirname(fileURLToPath(import.meta.url));
 
-const { modules, diagnostics } = await analyzeFromFiles({
-	projectRoot: dir,
-	// Throws if any two declarations share the same name across modules.
-	// Use 'warn' to log instead of throwing, or pass a function for custom handling.
-	// Omit this for libraries that don't need flat namespace enforcement.
-	onDuplicates: 'throw'
-});
+const { modules, diagnostics } = await analyzeFromFiles({ projectRoot: dir });
 
 // Inspect diagnostics for warnings and errors. `diagnostics` is a plain
 // `Array<Diagnostic>` — round-trip-safe through JSON.

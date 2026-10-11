@@ -113,18 +113,19 @@ svelteDocinfo({
   // Resolve module dependency graph. Default: true.
   resolveDependencies: true,
 
-  // Dispatch on duplicate declaration names across modules.
-  // 'throw' | 'warn' | (duplicates, log) => void.
-  // Default: undefined (only the duplicate_declaration diagnostic).
-  // Set to 'throw' to fail fast on duplicates.
-  onDuplicates: undefined,
-
   // Partial overrides for default source options (SvelteKit src/lib layout).
   // Merged into createSourceOptions(projectRoot, sourceOptions).
   sourceOptions: {sourcePaths: ['src/lib']},
 
   // dev re-analysis debounce in ms. Default: 100.
   hmrDebounceMs: 100,
+
+  // Opt-in check that names are unique across modules, for packages with a
+  // flat export namespace. Default: undefined (off).
+  // 'diagnostic' → emit duplicate_declaration diagnostics
+  // 'warn'       → also log them
+  // 'throw'      → also fail the build
+  onDuplicates: undefined,
 })`}
 		/>
 		<p>

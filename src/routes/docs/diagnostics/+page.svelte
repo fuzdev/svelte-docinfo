@@ -238,11 +238,12 @@
 					<tr>
 						<td><code>duplicate_declaration</code></td>
 						<td>
-							<strong>Trigger:</strong> a declaration name appears in more than one module.
-							<code>declarationName</code> and <code>modules</code> name the conflict;
+							<strong>Trigger:</strong> a declaration name appears in more than one module, and the
+							opt-in <code>onDuplicates</code> check is on (for packages with a flat export
+							namespace). <code>declarationName</code> and <code>modules</code> name the conflict;
 							<code>modules</code> holds <code>ModuleJson.path</code> values, unlike
-							<code>file</code>. <strong>Consequence:</strong> always emitted;
-							<code>onDuplicates</code> only adds a throw, log, or callback.
+							<code>file</code>. <strong>Consequence:</strong> none beyond the diagnostic, unless
+							<code>onDuplicates</code> is <code>'warn'</code> (logs) or <code>'throw'</code>.
 						</td>
 					</tr>
 					<tr>

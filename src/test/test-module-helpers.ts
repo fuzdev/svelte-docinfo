@@ -17,7 +17,7 @@ import {
 	type SourceOptionsOverrides
 } from '#lib/source-config.ts';
 import { applyVirtualFiles, loadTsconfig, type VirtualFileEntry } from '#lib/typescript-program.ts';
-import { analyze } from '#lib/analyze.ts';
+import { analyze, type AnalyzeOptions } from '#lib/analyze.ts';
 import type { AnalyzeResultJson } from '#lib/analyze-core.ts';
 import { transformSvelteSource, type SvelteVirtualFile } from '#lib/svelte.ts';
 import type { SourceFileInfo } from '#lib/source.ts';
@@ -38,14 +38,18 @@ import { withTestProject } from './test-helpers.ts';
  * `analyze()` over `process.cwd()`-rooted ids with `testSourceOptions()`
  * instead — the tmpdir this creates has no reachable `node_modules`.
  */
-export const analyzeTestProject = (files: Record<string, string>): Promise<AnalyzeResultJson> =>
+export const analyzeTestProject = (
+	files: Record<string, string>,
+	options?: Pick<AnalyzeOptions, 'onDuplicates'>
+): Promise<AnalyzeResultJson> =>
 	withTestProject(files, (projectRoot) =>
 		analyze({
 			sourceFiles: Object.entries(files).map(([path, content]) => ({
 				id: join(projectRoot, path),
 				content
 			})),
-			sourceOptions: createSourceOptions(projectRoot)
+			sourceOptions: createSourceOptions(projectRoot),
+			...options
 		})
 	);
 

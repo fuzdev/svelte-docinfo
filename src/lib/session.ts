@@ -149,7 +149,7 @@ export interface SetFilesResult {
  * Per-call input to `query`.
  */
 export interface QueryOptions {
-	/** Behavior when duplicate declaration names are found across modules. */
+	/** Opt-in check that declaration names are unique across modules (see `OnDuplicates`). */
 	onDuplicates?: OnDuplicates;
 	/** Per-call logger override (defaults to the session-level logger). */
 	log?: AnalysisLog;
@@ -513,7 +513,7 @@ interface PendingIngest {
  * const session = createAnalysisSession({sourceOptions, contextClosure: false});
  * try {
  *   await session.setFiles(sourceFiles);
- *   return session.query({onDuplicates: 'throw'});
+ *   return session.query();
  * } finally {
  *   session.dispose();
  * }

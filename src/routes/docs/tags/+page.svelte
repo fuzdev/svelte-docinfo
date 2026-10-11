@@ -124,7 +124,7 @@
 					<tr>
 						<td><code>@nodocs</code></td>
 						<td>
-							Excludes the declaration from output and from duplicate-name checking (see
+							Excludes the declaration from output and from the opt-in duplicate-name check (see
 							<a href="#nodocs">@nodocs</a>). Applies to declarations and export statements only: in
 							a <code>@module</code> comment it warns and does nothing, and on a member or component
 							prop it silently does nothing
@@ -251,9 +251,9 @@ export function double(n: number | bigint): number | bigint {
 			</p>
 			<ul>
 				<li>
-					<strong>Duplicate checking</strong>: a hidden helper named <code>parse</code> can coexist
-					with a public <code>parse</code> in another module without
-					<code>duplicate_declaration</code>.
+					<strong>Duplicate checking</strong> (opt-in, via <code>onDuplicates</code>): a hidden
+					helper named <code>parse</code> can coexist with a public <code>parse</code> in another
+					module without <code>duplicate_declaration</code>.
 				</li>
 				<li>
 					<strong>Re-exports</strong>: on a re-export statement, it drops the

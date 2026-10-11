@@ -37,9 +37,12 @@ const collect = (value: string, previous: Array<string> | undefined): Array<stri
 	previous ? [...previous, value] : [value];
 
 /** Allowed values for `--on-duplicates`. */
-const ON_DUPLICATES_VALUES = ['throw', 'warn'] as const;
-type OnDuplicatesFlag = (typeof ON_DUPLICATES_VALUES)[number];
-const isOnDuplicatesFlag = (value: string): value is OnDuplicatesFlag =>
+const ON_DUPLICATES_VALUES = [
+	'diagnostic',
+	'warn',
+	'throw'
+] as const satisfies ReadonlyArray<OnDuplicates>;
+const isOnDuplicatesFlag = (value: string): value is OnDuplicates =>
 	(ON_DUPLICATES_VALUES as ReadonlyArray<string>).includes(value);
 
 /** Allowed values for `--discovery`. */
@@ -102,13 +105,10 @@ export interface CliOptions {
 	 */
 	sourceRoot?: string;
 	/**
-	 * Behavior when duplicate declaration names are found across modules
-	 * (undefined = emit `duplicate_declaration` diagnostic, no dispatch).
-	 *
-	 * Duplicate detection always runs regardless of this option — the diagnostic
-	 * is the data, this option is the dispatch action.
+	 * Opt-in check that declaration names are unique across modules (see
+	 * `OnDuplicates`). Undefined skips the check.
 	 */
-	onDuplicates?: OnDuplicatesFlag;
+	onDuplicates?: OnDuplicates;
 	/**
 	 * Glob patterns to filter the emitted `modules` array against `ModuleJson.path`
 	 * (undefined = emit all analyzed modules).
@@ -200,11 +200,6 @@ export const runCli = async (argv: Array<string> = process.argv): Promise<number
 				'or longest common prefix when multiple). Pass `.` to keep paths project-relative.'
 		)
 		.option(
-			'--on-duplicates <mode>',
-			`Dispatch on duplicate declaration names across modules: ${ON_DUPLICATES_VALUES.join('|')} ` +
-				'(default: emit duplicate_declaration diagnostic, no dispatch)'
-		)
-		.option(
 			'--only <pattern>',
 			'Glob filter applied to module paths in output (repeatable). ' +
 				'Full project is still analyzed — re-exports/dependents stay correct — ' +
@@ -217,6 +212,13 @@ export const runCli = async (argv: Array<string> = process.argv): Promise<number
 			'-q, --quiet',
 			'Suppress info messages on stderr (warnings and errors still print)',
 			false
+		)
+		.option(
+			'--on-duplicates <mode>',
+			'Opt-in check that declaration names are unique across modules, ' +
+				`for packages with a flat export namespace: ${ON_DUPLICATES_VALUES.join('|')} ` +
+				'(default: off). Every mode emits duplicate_declaration diagnostics; ' +
+				'warn also logs them and throw fails the run.'
 		)
 		.addHelpText(
 			'after',
@@ -232,7 +234,6 @@ Examples:
                                                   No common prefix — module paths stay project-relative
   $ svelte-docinfo --discovery glob               Skip package.json exports
   $ svelte-docinfo --discovery exports            Strict — fail if exports missing
-  $ svelte-docinfo --on-duplicates throw          Enforce flat namespace
   $ svelte-docinfo --only 'components/**'         Emit only modules under components/
   $ svelte-docinfo --only '*.svelte'              Emit only Svelte modules (top-level)
   $ svelte-docinfo | jq .                         Pipe to jq for readable output`
@@ -292,8 +293,6 @@ Examples:
 							}
 						: undefined;
 
-				const onDuplicates: OnDuplicates | undefined = options.onDuplicates;
-
 				const { modules, diagnostics } = await analyzeFromFiles({
 					projectRoot: resolvedRoot,
 					include: options.include,
@@ -302,7 +301,7 @@ Examples:
 					discovery: options.discovery,
 					distDir: options.distDir,
 					...(sourceOptions !== undefined ? { sourceOptions } : {}),
-					...(onDuplicates !== undefined ? { onDuplicates } : {}),
+					...(options.onDuplicates !== undefined ? { onDuplicates: options.onDuplicates } : {}),
 					log
 				});
 

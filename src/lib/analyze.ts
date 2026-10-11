@@ -55,7 +55,7 @@ export interface AnalyzeOptions {
 	sourceFiles: ReadonlyArray<SourceFileInfo>;
 	/** Module source options for path extraction and source filtering. */
 	sourceOptions: ModuleSourceOptions;
-	/** Behavior when duplicate declaration names are found across modules. */
+	/** Opt-in check that declaration names are unique across modules (see `OnDuplicates`). */
 	onDuplicates?: OnDuplicates;
 	/** Optional logger for status and diagnostic messages. */
 	log?: AnalysisLog;
@@ -121,7 +121,7 @@ export interface AnalyzeFromFilesOptions {
 	projectRoot: string;
 	/** Partial overrides for default source options (SvelteKit `src/lib` layout). */
 	sourceOptions?: SourceOptionsOverrides;
-	/** Behavior when duplicate declaration names are found across modules. */
+	/** Opt-in check that declaration names are unique across modules (see `OnDuplicates`). */
 	onDuplicates?: OnDuplicates;
 	/** Optional logger for status and diagnostic messages. */
 	log?: AnalysisLog;

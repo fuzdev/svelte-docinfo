@@ -15,11 +15,9 @@ import { test, assert, describe } from 'vitest';
 import { join } from 'node:path';
 
 import { analyze, type AnalyzeOptions } from '#lib/analyze.ts';
-import { throwOnDuplicates } from '#lib/analyze-core.ts';
 import { byKind, errorsOf, hasErrors, hasWarnings, warningsOf } from '#lib/diagnostics.ts';
 import type { SourceFileInfo } from '#lib/source.ts';
 import { createSourceOptions } from '#lib/source-config.ts';
-import { type DuplicateDeclaration } from '#lib/postprocess.ts';
 import { ModuleJson } from '#lib/types.ts';
 
 import { withTestProject } from './test-helpers.ts';
@@ -232,7 +230,7 @@ export function public_function(): string {
 			});
 		});
 
-		test("onDuplicates: 'warn' logs to log.error and continues", async () => {
+		test("onDuplicates: 'warn' logs to log.warn and continues", async () => {
 			const files = {
 				'src/lib/foo.ts': 'export type Duplicate = { value: string };',
 				'src/lib/bar.ts': 'export class Duplicate {}'
@@ -241,11 +239,11 @@ export function public_function(): string {
 			await withTestProject(files, async (projectRoot) => {
 				const { sourceFiles, sourceOptions } = setupAnalysis(projectRoot, files);
 
-				const errors: Array<string> = [];
+				const warnings: Array<string> = [];
 				const log = {
 					info: () => {},
-					warn: () => {},
-					error: (msg: string) => errors.push(msg)
+					warn: (msg: string) => warnings.push(msg),
+					error: () => {}
 				};
 
 				const { modules } = await analyze({
@@ -256,15 +254,15 @@ export function public_function(): string {
 				});
 
 				assert.strictEqual(modules.length, 2, 'Should still produce both modules');
-				assert.strictEqual(errors.length, 1, 'Should log exactly one duplicate error');
+				assert.strictEqual(warnings.length, 1, 'Should log exactly one duplicate warning');
 				assert.ok(
-					errors[0]!.toLowerCase().includes('duplicate'),
-					`Error message should mention duplicates, got: ${errors[0]}`
+					warnings[0]!.toLowerCase().includes('duplicate'),
+					`Warning should mention duplicates, got: ${warnings[0]}`
 				);
 			});
 		});
 
-		test('does not throw without onDuplicates callback', async () => {
+		test('skips duplicate detection without onDuplicates', async () => {
 			const files = {
 				'src/lib/foo.ts': 'export type Duplicate = { value: string };',
 				'src/lib/bar.ts': 'export class Duplicate {}'
@@ -273,40 +271,17 @@ export function public_function(): string {
 			await withTestProject(files, async (projectRoot) => {
 				const { sourceFiles, sourceOptions } = setupAnalysis(projectRoot, files);
 
-				// Should not throw
 				const { modules, diagnostics } = await analyze({
 					sourceFiles,
 					sourceOptions
 				});
 
 				assert.strictEqual(modules.length, 2, 'Should analyze both modules');
-
-				// Duplicates should still surface as a diagnostic even without onDuplicates
-				const dupes = byKind(diagnostics, 'duplicate_declaration');
-				assert.strictEqual(dupes.length, 1, 'Should emit one duplicate_declaration diagnostic');
-				assert.strictEqual(dupes[0]!.declarationName, 'Duplicate');
-				assert.deepStrictEqual(dupes[0]!.modules.slice().sort(), ['bar.ts', 'foo.ts']);
-				assert.strictEqual(dupes[0]!.severity, 'warning');
-
-				// Verify declarations are preserved (not silently dropped)
-				const fooModule = modules.find((m) => m.path === 'foo.ts');
-				const barModule = modules.find((m) => m.path === 'bar.ts');
-				assert.ok(fooModule, 'Should find foo.ts');
-				assert.ok(barModule, 'Should find bar.ts');
-				assert.strictEqual(
-					fooModule.declarations.length,
-					1,
-					'foo.ts should retain its declaration'
-				);
-				assert.strictEqual(
-					barModule.declarations.length,
-					1,
-					'bar.ts should retain its declaration'
-				);
+				assert.strictEqual(byKind(diagnostics, 'duplicate_declaration').length, 0);
 			});
 		});
 
-		test('throwOnDuplicates callback throws like the "throw" shortcut', async () => {
+		test("'diagnostic' emits duplicate_declaration without throwing", async () => {
 			const files = {
 				'src/lib/foo.ts': 'export type Duplicate = { value: string };',
 				'src/lib/bar.ts': 'export class Duplicate {}'
@@ -315,55 +290,25 @@ export function public_function(): string {
 			await withTestProject(files, async (projectRoot) => {
 				const { sourceFiles, sourceOptions } = setupAnalysis(projectRoot, files);
 
-				let thrown: unknown;
-				try {
-					await analyze({
-						sourceFiles,
-						sourceOptions,
-						onDuplicates: throwOnDuplicates
-					});
-				} catch (err) {
-					thrown = err;
-				}
-
-				assert.ok(thrown instanceof Error, 'should throw an Error');
-				assert.match(thrown.message, /duplicate/i);
-			});
-		});
-
-		test('throwOnDuplicates is a no-op when there are no duplicates', () => {
-			// Direct call — bypasses analyze entirely so this stays focused on the helper.
-			assert.doesNotThrow(() => throwOnDuplicates(new Map(), { error: () => {} }));
-		});
-
-		test('custom onDuplicates callback receives duplicate info', async () => {
-			const files = {
-				'src/lib/a.ts': 'export const Shared = 1;',
-				'src/lib/b.ts': 'export const Shared = 2;',
-				'src/lib/c.ts': 'export const Shared = 3;'
-			};
-
-			await withTestProject(files, async (projectRoot) => {
-				const { sourceFiles, sourceOptions } = setupAnalysis(projectRoot, files);
-
-				let receivedDuplicates: Map<string, Array<DuplicateDeclaration>> | null = null;
-
-				await analyze({
+				const { modules, diagnostics } = await analyze({
 					sourceFiles,
 					sourceOptions,
-					onDuplicates: (duplicates) => {
-						receivedDuplicates = duplicates;
-					}
+					onDuplicates: 'diagnostic'
 				});
 
-				assert.ok(receivedDuplicates, 'Callback should receive duplicates');
-				// Type narrowing: receivedDuplicates is now known to be non-null
-				const duplicates = receivedDuplicates as Map<string, Array<DuplicateDeclaration>>;
-				assert.strictEqual(duplicates.size, 1, 'Should have 1 duplicate name');
-				assert.ok(duplicates.has('Shared'), 'Should have "Shared" as duplicate');
+				const dupes = byKind(diagnostics, 'duplicate_declaration');
+				assert.strictEqual(dupes.length, 1, 'Should emit one duplicate_declaration diagnostic');
+				assert.strictEqual(dupes[0]!.declarationName, 'Duplicate');
+				assert.deepStrictEqual(dupes[0]!.modules.slice().sort(), ['bar.ts', 'foo.ts']);
+				assert.strictEqual(dupes[0]!.severity, 'warning');
 
-				const occurrences = duplicates.get('Shared')!;
-				assert.strictEqual(occurrences.length, 3, 'Should have 3 occurrences');
+				// declarations are preserved, not silently dropped
+				const fooModule = modules.find((m) => m.path === 'foo.ts');
+				const barModule = modules.find((m) => m.path === 'bar.ts');
+				assert.ok(fooModule, 'Should find foo.ts');
+				assert.ok(barModule, 'Should find bar.ts');
+				assert.strictEqual(fooModule.declarations.length, 1);
+				assert.strictEqual(barModule.declarations.length, 1);
 			});
 		});
 	});

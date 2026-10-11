@@ -347,11 +347,11 @@ export type UnknownParamDiagnostic = z.infer<typeof UnknownParamDiagnostic>;
 /**
  * A declaration `name` appears in more than one module.
  *
- * Library docs assume a flat namespace — two modules exporting the same name
- * collide when consumers `import {name}`. Emitted at `warning` severity so
- * the analysis result remains usable; consumers who want it fatal can promote
- * via `onDuplicates: 'throw'` or by inspecting the diagnostic. The default
- * slot (`name === 'default'`) is excluded — every module owns its own.
+ * Opt-in: emitted only when `onDuplicates` is set, for packages that keep a
+ * flat export namespace (see `OnDuplicates`). Emitted at `warning` severity
+ * so the analysis result remains usable; `onDuplicates: 'throw'` makes it
+ * fatal. The default slot (`name === 'default'`) is excluded — every module
+ * owns its own.
  */
 export const DuplicateDeclarationDiagnostic = z.strictObject({
 	kind: z.literal('duplicate_declaration'),
