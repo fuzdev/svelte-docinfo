@@ -1,5 +1,31 @@
 # svelte-docinfo
 
+## 0.11.0
+
+### Minor Changes
+
+- feat: add `internalMessage` and `mutates` to component props ([2042a66](https://github.com/fuzdev/svelte-docinfo/commit/2042a66))
+
+  `@internal` and `@mutates` in a component prop's JSDoc were dropped. `ComponentPropJson` now carries both, with the same shapes as on declarations and members: `internalMessage` is the tag's trailing prose (an empty string for a bare tag), and `mutates` maps each target to its description. On a prop, `@mutates` declares that the component writes into the object or array it's handed (`@mutates items - appends the selected entry`), the same contract a function declares for a parameter. Additive: output for props without these tags is unchanged.
+
+- feat: document component props the `$props()` destructuring names, even when an external type declares them ([ac38905](https://github.com/fuzdev/svelte-docinfo/commit/ac38905))
+
+  Props contributed by an external type, like the attributes in `HTMLInputAttributes`, are left out of `props` and summarized in `externalTypes`. Now a prop the component names in its `$props()` destructuring is documented anyway, since binding it shows the component handles it: in `let {value, type = 'text', disabled, ...rest}: Props = $props()`, `type` and `disabled` appear in `props` with the external declaration's type and JSDoc and the destructuring's default. Renamed elements (`class: className`) document the prop name, nested patterns their top-level name, and the rest element nothing. A name the props type has only through an index signature (`data-${string}`) isn't added. These props follow the others, in destructuring order. `externalTypes` still lists their bags. Components that don't destructure `$props()` are unchanged.
+
+  A renamed prop's destructuring default is now read: `class: className = 'a'` gives `class` a `defaultValue` of `'a'`, where before the default was keyed by the local name and lost, for local props too. A nested pattern's default is read the same way: `a: {b} = {b: 1}` gives `a` a `defaultValue` of `{b: 1}`.
+
+### Patch Changes
+
+- fix: root svelte2tsx's shims so component types resolve instead of `any` ([71ad3ea](https://github.com/fuzdev/svelte-docinfo/commit/71ad3ea))
+
+  The analysis program never loaded svelte2tsx's ambient declarations (`svelte-shims-v4.d.ts`), so the helpers every Svelte virtual calls didn't resolve and each component's default export typed as `any`. Anything typed through a component degraded with it, in `.svelte` and `.ts` modules alike: `ComponentProps<typeof Button>['variant']` documented as `any`, and so did `export const b = Button`. Programs with Svelte files now root the shims, resolved from svelte-docinfo's own svelte2tsx, and those types resolve: `"primary" | "secondary"`, and `Component<Props, {}, "">` for a component with a named props type. Props without a name of their own (an inline `$props()` annotation, or a JS component's JSDoc) print with svelte2tsx's generated name in flat type strings, `Component<$$ComponentProps, {}, "">`, and legacy components print as svelte2tsx's `__sveltets_2_IsomorphicComponent<…>`. `typeInfo` never names svelte2tsx's generated aliases (`$$ComponentProps`, or `__sveltets_2_PropsWithChildren` for a legacy component with slots): a project alias over such props (`type P = ComponentProps<typeof Button>`) is recovered at use sites like any alias TypeScript dropped, annotated or inferred, and gets `alias_lost` where it can't be; props with no alias show their structure, bare or as an array or tuple element. A generated name nested inside a terminal node's `text` (a printed object or function type, or a node past the depth cap) stays as the checker prints it. Component props were already correct, since they're read from the `$props()` annotation. TS-only programs are unchanged.
+
+- fix: list union members in `typeInfo` in the order they were written ([7061b0c](https://github.com/fuzdev/svelte-docinfo/commit/7061b0c))
+
+  TypeScript orders a union's members by when each member type was first created anywhere in the program, not by how the union was written, so `align?: 'start' | 'end' | 'top' | 'bottom'` could document as `"top" | "start" | "end" | "bottom"`, and an unrelated edit could reorder it. `typeInfo` and `returnTypeInfo` trees now list union members in written order: the alias declaration's order for an aliased union, at every use, inferred ones included, and otherwise the order of the annotation at that position. `null` and `undefined` still come last, and a member written as a named alias still appears as its own node, now at its written position (`Size | 'x'` no longer reads `"x" | Size`). Unions with no written form (inferred types, `keyof`, mapped and conditional results, generic alias instantiations) keep TypeScript's order.
+
+  Flat type strings (`typeSignature`, `type`, `returnType`) are unchanged and still print in TypeScript's order, so a tree and its flat string can list the same members in different orders. Read the tree for the author's order, such as control options.
+
 ## 0.10.1
 
 ### Patch Changes
