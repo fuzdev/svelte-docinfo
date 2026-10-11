@@ -4,6 +4,7 @@
  * These are integration tests covering the full pipeline from file discovery to analysis.
  */
 
+import { join } from 'node:path';
 import { test, assert, describe } from 'vitest';
 
 import { analyzeFromFiles } from '#lib/analyze.ts';
@@ -17,7 +18,9 @@ import {
 	assertHasDeclaration,
 	assertHasComponentDeclaration,
 	assertHasParameters,
-	assertHasProps
+	assertHasProps,
+	TEST_TSCONFIG_COMPILER_OPTIONS,
+	withTestProject
 } from './test-helpers.ts';
 
 describe('analyzeFromFiles', { timeout: 15_000 }, () => {
@@ -561,6 +564,40 @@ export const exposed = secret + 1;`,
 			} finally {
 				await cleanup();
 			}
+		});
+	});
+
+	describe('tsconfig found by walking up', () => {
+		// `projectRoot` has no tsconfig of its own, so `ts.findConfigFile` finds
+		// the parent's, whose `include` resolves from the parent's directory:
+		// its files join the program (an ambient type in `other/` resolves) but
+		// stay out of the documented modules, which come from `projectRoot` only,
+		// even the parent's own `src/lib/b.ts`, where the default source path
+		// would match were it resolved from the config's directory
+		test('adds the config include to the program without documenting out-of-root files', async () => {
+			await withTestProject(
+				{
+					'tsconfig.json': JSON.stringify({
+						compilerOptions: TEST_TSCONFIG_COMPILER_OPTIONS,
+						include: ['**/*.ts']
+					}),
+					'other/ambient.d.ts': 'declare global { type Ambient = {k: string} } export {};',
+					'src/lib/b.ts': 'export const b = 1;',
+					'pkg/src/lib/a.ts': 'export const a = (x: Ambient) => x.k;'
+				},
+				async (root) => {
+					const { modules } = await analyzeFromFiles({ projectRoot: join(root, 'pkg') });
+					assert.deepStrictEqual(
+						modules.map((m) => m.path),
+						['a.ts']
+					);
+					const a = assertHasDeclaration(findModule(modules, 'a.ts'), 'a');
+					assert.ok(
+						a.typeSignature?.endsWith(': string'),
+						`the ambient type resolves, got ${a.typeSignature}`
+					);
+				}
+			);
 		});
 	});
 
