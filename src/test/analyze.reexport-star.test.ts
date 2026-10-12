@@ -272,7 +272,7 @@ describe('star exports over modules that emit nothing', () => {
 
 	test('a star over a non-input component projects its module exports, not the component', async () => {
 		const files = {
-			'src/lib/Widget.svelte': `<script lang="ts" module>\n\texport type A = 'a' | 'b';\n\texport const fn = (x: A): A => x;\n</script>\n\n<script lang="ts">\n\tlet { a }: { a: A } = $props();\n</script>\n\n{a}`,
+			'src/lib/Widget.svelte': `<script lang="ts" module>\n\texport type A = 'a' | 'b';\n\texport const fn = (x: A): A => x;\n\texport { snip };\n</script>\n\n<script lang="ts">\n\tlet { a }: { a: A } = $props();\n</script>\n\n{a}\n\n{#snippet snip(x: string)}\n\t{x}\n{/snippet}`,
 			'src/lib/index.ts': `export * from './Widget.svelte';`
 		};
 		// the component is supplied as context: `analyze()` reads nothing itself
@@ -292,9 +292,20 @@ describe('star exports over modules that emit nothing', () => {
 		assert.deepStrictEqual(result.diagnostics, []);
 		// the component is the default export, which a star never projects, and
 		// no svelte2tsx-generated name leaks
-		assert.deepStrictEqual(shapes(moduleAt(result, 'index.ts')), [
+		const index = moduleAt(result, 'index.ts');
+		assert.deepStrictEqual(shapes(index), [
 			['A', 'type', 'Widget.svelte', 'A'],
-			['fn', 'function', 'Widget.svelte', 'fn']
+			['fn', 'function', 'Widget.svelte', 'fn'],
+			['snip', 'snippet', 'Widget.svelte', 'snip']
 		]);
+		// an exported snippet keeps its kind and a clean signature, not the
+		// function svelte2tsx turns it into
+		const snip = index.declarations[2]!;
+		assert.strictEqual(snip.typeSignature, 'Snippet<[x: string]>');
+		assert(snip.kind === 'snippet');
+		assert.deepStrictEqual(
+			snip.parameters.map((p) => [p.name, p.type]),
+			[['x', 'string']]
+		);
 	});
 });

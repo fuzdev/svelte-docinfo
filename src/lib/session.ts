@@ -385,7 +385,7 @@ export interface AnalysisSessionOptions extends Omit<
 	 *
 	 * Context batches always ingest in lex+resolve mode (their edges exist
 	 * only to walk the closure — context files emit nothing), so a fully
-	 * pre-resolved consumer whose files import in-root non-source paths
+	 * pre-resolved consumer whose files import in-root paths it didn't supply
 	 * constructs the default resolver after all. Context ingest diagnostics
 	 * surface via `allIngestDiagnostics()`, not the batch return, and
 	 * `setFiles` results stay keyed by the caller's input IDs. Unreadable
@@ -1184,7 +1184,8 @@ export const createAnalysisSession = (options: AnalysisSessionOptions): Analysis
 	// any — the claim was true then and isn't now. Gaps, each corrected only on
 	// the importer's next content change: a resolver that throws *here* leaves
 	// the slot deferred with its original diagnostic standing; a newly resolved
-	// edge to an in-root non-source file doesn't seed a context-closure round;
+	// edge to an in-root file the session doesn't own doesn't seed a
+	// context-closure round;
 	// and an owned file *shadowing* a target that already resolved from disk
 	// (`dep.ts` displacing `dep.js`) is outside this pass entirely, since the
 	// entry has no deferred slot to retry.

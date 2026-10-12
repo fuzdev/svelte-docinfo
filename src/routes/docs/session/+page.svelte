@@ -39,8 +39,8 @@ const session = createAnalysisSession({
   // Optional: session-default ImportResolver (or a bare resolve function).
   // Defaults to TypeScript module resolution with your tsconfig.
   // resolveImport: myResolver,
-  // Optional (default true): also ingest the in-project non-source files
-  // your sources import, so edits to them stay live.
+  // Optional (default true): also ingest the in-project files your inputs
+  // import that you didn't supply, as non-emitting context.
   // contextClosure: true,
   // Optional: a tsconfig path relative to the project root, or false to
   // analyze without one. Default: 'tsconfig.json'.

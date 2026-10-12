@@ -23,7 +23,7 @@
 			The <ModuleLink module_path="vite.ts">Vite plugin</ModuleLink> is the recommended path for
 			SvelteKit and Vite projects. It runs analysis at build time and serves the result as
 			<Code lang="ts" inline content="'virtual:svelte-docinfo'" />. In dev it watches your source
-			files, plus non-source files they import like <code>internal/</code> modules, and reloads the
+			files, plus the other files they import like <code>internal/</code> modules, and reloads the
 			page when an edit changes the result.
 		</p>
 	</section>
@@ -172,9 +172,11 @@ svelteDocinfo({
 				root) fail at startup
 			</li>
 			<li>
-				<strong>configureServer</strong>: in dev, watches source files and the non-source files they
+				<strong>configureServer</strong>: in dev, watches source files and the other files they
 				import (e.g. <code>internal/</code> modules), debounces re-analysis, and reloads the page
-				only when the output changes. Unchanged files aren't re-parsed.
+				only when the output changes. Unchanged files aren't re-parsed. Only the files discovery
+				selects emit modules, as in a build: an edit elsewhere refreshes the analysis without adding
+				one, and a newly created file is checked against discovery again.
 			</li>
 			<li>
 				<strong>buildStart</strong>: creates a session, discovers and ingests the source files, runs

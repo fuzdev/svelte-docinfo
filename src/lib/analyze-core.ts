@@ -46,6 +46,7 @@ import type { AnalysisLog } from './log.ts';
 import { analyzeTypescriptModule } from './typescript-exports.ts';
 import {
 	analyzeSvelteModule,
+	reclassifySnippetDeclaration,
 	remapVirtualDiagnosticPositions,
 	type SvelteVirtualFile
 } from './svelte.ts';
@@ -389,6 +390,12 @@ export const analyzeModule = (
 			isEmittedFile
 		);
 		raw = analyzeTypescriptModule(sourceFile, tsSourceFile, modulePath, ctx, options);
+		// a TS module can't declare a snippet, but it can re-export one from a
+		// component that emits nothing, and the synthesized alias is analyzed
+		// off the svelte2tsx virtual like the component's own would be
+		for (const d of raw.declarations) {
+			if (d.declaration.aliasOf) reclassifySnippetDeclaration(d.declaration);
+		}
 	} else if (analyzerType === 'css' || analyzerType === 'json') {
 		const { dependencies, dependents } = extractDependencies(sourceFile, options);
 		raw = {

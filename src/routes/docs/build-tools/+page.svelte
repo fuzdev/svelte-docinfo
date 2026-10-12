@@ -27,8 +27,8 @@
 		</p>
 		<p>
 			The analyzer reads the disk only for the tsconfig, for type-checker context you don't supply,
-			and, except in <code>analyze()</code>, for the in-project non-source files your sources import
-			(<a href="#Context-files">context files</a>).
+			and, except in <code>analyze()</code>, for the in-project files your inputs import that you
+			didn't supply (<a href="#Context-files">context files</a>).
 		</p>
 	</section>
 

@@ -1075,6 +1075,32 @@ export const isSnippetReturnType = (returnType: string): boolean => {
 };
 
 /**
+ * Turn the function declaration svelte2tsx makes of an exported snippet back
+ * into a `kind: 'snippet'`, in place; any other declaration is left alone.
+ *
+ * svelte2tsx transforms `{#snippet}` + export into an arrow function whose
+ * return type is `ReturnType<import('svelte').Snippet>` (`isSnippetReturnType`),
+ * so the checker-backed extraction sees a function with svelte2tsx's types.
+ * Runs wherever such a declaration can surface: a component's own module
+ * exports, and an alias another module synthesizes when it re-exports the
+ * snippet from a component that emits no module of its own.
+ *
+ * @mutates declaration - sets `kind` and `typeSignature`, drops the return and overload fields
+ */
+export const reclassifySnippetDeclaration = (declaration: DeclarationJsonBuild): void => {
+	if (declaration.kind !== 'function' || !declaration.returnType) return;
+	if (!isSnippetReturnType(declaration.returnType)) return;
+	declaration.kind = 'snippet';
+	// a clean Snippet type string instead of the svelte2tsx noise
+	declaration.typeSignature = synthesizeSnippetTypeSignature(declaration.parameters ?? []);
+	// snippets don't have meaningful return types or overloads
+	delete declaration.returnType;
+	delete declaration.returnTypeInfo;
+	delete declaration.returnDescription;
+	delete declaration.overloads;
+};
+
+/**
  * Synthesize a `Snippet<[...]>` type string from structured parameters.
  *
  * Used for `kind: 'snippet'` declarations where the raw svelte2tsx type
@@ -1500,21 +1526,7 @@ export const analyzeSvelteModule = (
 		const name = d.declaration.name;
 		if (name === undefined || isSvelte2tsxGeneratedExport(name)) continue;
 
-		// Reclassify exported snippets: svelte2tsx transforms {#snippet} + export
-		// into arrow functions with ReturnType<import('svelte').Snippet> return type.
-		if (d.declaration.kind === 'function' && d.declaration.returnType) {
-			if (isSnippetReturnType(d.declaration.returnType)) {
-				d.declaration.kind = 'snippet';
-				// Synthesize a clean Snippet type string instead of the svelte2tsx noise
-				const params = d.declaration.parameters ?? [];
-				d.declaration.typeSignature = synthesizeSnippetTypeSignature(params);
-				// Snippets don't have meaningful return types or overloads
-				delete d.declaration.returnType;
-				delete d.declaration.returnTypeInfo;
-				delete d.declaration.returnDescription;
-				delete d.declaration.overloads;
-			}
-		}
+		reclassifySnippetDeclaration(d.declaration);
 
 		moduleDeclarations.push(d);
 	}

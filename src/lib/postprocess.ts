@@ -509,8 +509,11 @@ export interface ExportSurface {
 	/** Surface entries, sorted by `name` (case-insensitive order, `compareStrings`). */
 	entries: Array<ExportSurfaceEntry>;
 	/**
-	 * Star targets (own or transitive) absent from the analyzed set — their
-	 * projected names are unknown, so the surface is incomplete.
+	 * Star targets (own or transitive) absent from `modules` — their
+	 * projected names are unknown, so the surface is incomplete. Empty for a
+	 * whole analysis result, whose `starExports` only name modules it
+	 * contains; it fills when `modules` is a subset of one (a filtered list,
+	 * modules assembled by hand).
 	 */
 	unresolvedStarExports: Array<string>;
 	/**
