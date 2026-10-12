@@ -1367,9 +1367,15 @@ export interface ReExportJsonSchema extends Named<typeof ReExportJsonImpl> {}
  *
  * `@nodocs` on the export statement suppresses the entry (and the
  * `alsoExportedFrom` back-link). When the canonical declaration itself is
- * `@nodocs`, or the canonical module isn't part of the analyzed set, the
- * entry still exists but has no matching back-link — the same presence
- * caveat as `aliasOf.module` and `starExports`.
+ * `@nodocs`, the entry still exists but has no matching back-link. `module`
+ * is always a module in the same result: a re-export whose canonical module
+ * emits nothing (gated, or outside the analyzed inputs) is a declaration with
+ * `aliasOf` in the re-exporting module instead, and `aliasOf.module` is the
+ * one field that can name a module the result doesn't contain.
+ *
+ * A star over a module that emits nothing produces entries here too, one per
+ * projected binding whose canonical does emit, with the star statement's
+ * line and type-only-ness (see `ModuleJson.starExports`).
  */
 export const ReExportJson: ReExportJsonSchema = ReExportJsonImpl;
 export type ReExportJson = v.InferOutput<typeof ReExportJson>;
@@ -1438,6 +1444,17 @@ const ModuleJsonImpl = v.strictObject({
 	 * suppresses the entry, like the other re-export encodings. `export type *
 	 * from` is recorded like a value star — per-statement type-only-ness isn't
 	 * captured.
+	 *
+	 * Only modules that are themselves in the result appear. A star over a
+	 * project module that emits nothing (gated, or outside the analyzed
+	 * inputs) has no entry: the bindings it projects are documented in this
+	 * module as the named re-exports the star stands for — declarations with
+	 * `aliasOf`, or `reExports` entries for bindings whose canonical does
+	 * emit — following ES star semantics (`default` doesn't project, a local
+	 * export shadows, a name two stars disagree on is excluded). A binding
+	 * such a module re-exports from a package is not recorded anywhere, and
+	 * neither is a star over a component that failed to transform, which lands
+	 * in `externalStarExports` under its relative specifier.
 	 */
 	starExports: v.optional(v.array(v.string()), () => []),
 	/**

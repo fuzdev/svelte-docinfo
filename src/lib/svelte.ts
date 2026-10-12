@@ -1566,6 +1566,13 @@ export const analyzeSvelteModule = (
 					}
 				} else if (stmt.exportClause && ts.isNamespaceExport(stmt.exportClause)) {
 					addExportNode(stmt.exportClause.name.text, stmt.exportClause);
+				} else if (!stmt.exportClause) {
+					// `export * from`: no binding to name, but the declarations and
+					// edges materialized from a star over a module that emits
+					// nothing carry the statement's line
+					const line =
+						virtualTsSource.getLineAndCharacterOfPosition(stmt.getStart(virtualTsSource)).line + 1;
+					if (!exportNodesByLine.has(line)) exportNodesByLine.set(line, stmt);
 				}
 			}
 		}
@@ -1577,7 +1584,11 @@ export const analyzeSvelteModule = (
 			const fromExportStatement =
 				d.declaration.aliasOf !== undefined || d.declaration.kind === 'namespace';
 			const node = fromExportStatement
-				? exportNodesByName.get(d.declaration.name)
+				? (exportNodesByName.get(d.declaration.name) ??
+					// star-materialized: no specifier names it, its line is the star's
+					(d.declaration.sourceLine !== undefined
+						? exportNodesByLine.get(d.declaration.sourceLine)
+						: undefined))
 				: nodesByName.get(d.declaration.name);
 			if (node) d.declaration.sourceLine = originalLineOf(node);
 		}

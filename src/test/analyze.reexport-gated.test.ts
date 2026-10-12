@@ -13,8 +13,8 @@
  *
  * Locked contracts: synthesis for same-name/renamed/import-then-export
  * forms; no `externalReExports`/`reExports` entries for gated targets; star
- * exports from gated modules land in `starExports` (surfacing as
- * `unresolvedStarExports` at surface resolution); namespace re-exports from
+ * exports from gated modules document their bindings in the re-exporting
+ * module (more in `analyze.reexport-star.test.ts`); namespace re-exports from
  * gated modules classify as namespaces; two modules re-exporting the same
  * gated symbol dedupe by canonical identity; local JSDoc overrides and
  * `@nodocs` suppresses as everywhere else; genuinely external re-exports
@@ -133,21 +133,30 @@ describe('re-exports from gated internal modules', () => {
 		assert.isFalse(result.diagnostics.some((d) => d.kind === 'duplicate_declaration'));
 	});
 
-	test('a star export from a gated module lands in starExports, not externalStarExports', async () => {
+	test('a star export from a gated module documents its bindings in the re-exporting module', async () => {
 		const result = await analyzeProject({
-			'src/lib/internal/helper.ts': `export const s: number = 1;`,
+			'src/lib/internal/helper.ts': `/** Doc */\nexport const s: number = 1;`,
 			'src/lib/api.ts': `export * from './internal/helper.ts';`
 		});
 		const api = result.modules.find((m) => m.path === 'api.ts');
 		assert.ok(api);
-		assert.deepStrictEqual(api.starExports, ['internal/helper.ts']);
+		// The gated module emits nothing, so a `starExports` entry would name a
+		// module absent from output and leave `s` documented nowhere. The star
+		// is read as the named re-exports it stands for.
+		assert.deepStrictEqual(api.starExports, []);
 		assert.deepStrictEqual(api.externalStarExports, []);
+		assert.deepStrictEqual(
+			api.declarations.map((d) => [d.name, d.kind, d.docComment, d.aliasOf, d.sourceLine]),
+			[['s', 'variable', 'Doc', { module: 'internal/helper.ts', name: 's' }, 1]]
+		);
 
-		// Surface resolution reports the gated target as unresolved — truthful
-		// incompleteness rather than a fabricated external entry.
 		const surface = resolveExportSurface(result.modules, 'api.ts');
 		assert.ok(surface);
-		assert.deepStrictEqual(surface.unresolvedStarExports, ['internal/helper.ts']);
+		assert.deepStrictEqual(surface.unresolvedStarExports, []);
+		assert.deepStrictEqual(
+			surface.entries.map((e) => e.name),
+			['s']
+		);
 	});
 
 	test('a namespace re-export of a gated module classifies as a namespace', async () => {

@@ -91,10 +91,10 @@ export interface ExtractContext {
  * file. `analyzeCore` answers from the set it was handed; a caller analyzing
  * one module with no set to consult falls back to `isSource`.
  *
- * Named and namespace re-exports only. `export * from` a file that emits
- * nothing still records it in `starExports` and materializes none of its
- * bindings, so those names are documented nowhere (`resolveExportSurface`
- * reports the star as unresolved).
+ * Stars follow the same rule: `export * from` a file that emits nothing is
+ * read as the named re-exports it stands for (`collectMaterializedStars` in
+ * `typescript-exports.ts`), and only a star over an emitted module is a
+ * `starExports` entry.
  */
 export type IsEmittedFile = (file: string) => boolean;
 

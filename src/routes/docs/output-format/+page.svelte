@@ -296,7 +296,10 @@
 				</li>
 				<li>
 					<strong>Star exports</strong>: <code>export * from './x'</code> lands on
-					<code>ModuleJson.starExports</code>, with no per-declaration entries.
+					<code>ModuleJson.starExports</code>, with no per-declaration entries. When <code>x</code>
+					emits no module (it's excluded, or isn't among the analyzed files), the star is instead
+					read as the named re-exports it stands for, so each projected name is documented in the
+					re-exporting module (except names that file re-exports from a package).
 				</li>
 				<li>
 					<strong>Gated canonicals</strong>: re-exporting a symbol from a module excluded from

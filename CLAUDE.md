@@ -562,8 +562,13 @@ identity, after resolving `aliasOf` chains. `@nodocs` exempts a declaration. Enc
     synthesized in the re-exporting module, so the local content has a home.
 - **Renamed** re-export → a synthesized declaration with `aliasOf`: a full re-analysis of
   the canonical, with `sourceLine` at the local specifier.
-- **Star exports** → `starExports`. Projected bindings are never materialized in the
-  projecting module, whatever their kind.
+- **Star exports** → `starExports`, when the target emits a module; its projected bindings
+  are never materialized in the projecting module, whatever their kind. A star over a
+  module that emits nothing (gated, or outside the analyzed inputs) has no entry and is
+  read as the named same-name re-exports it stands for (`collectMaterializedStars`), each
+  binding going through the arms below with ES star semantics: no `default`, local
+  exports shadow, names two stars disagree on are excluded, and a name an emitted star
+  also provides stays with that star.
 - **External** (the immediate target is a package) → `externalReExports` /
   `externalStarExports`. These are flat statement facts. Import-then-export and indirect
   chains leave no trace.
@@ -573,9 +578,8 @@ identity, after resolving `aliasOf` chains. `@nodocs` exempts a declaration. Enc
   canonical outside the analyzed inputs is treated the same, source-scope or not (a
   context file, a module left out of `exports`): the predicate is
   `ExtractContext.isEmittedFile` (`IsEmittedFile`, the emitted set), not `isSource`, so a
-  `reExports` edge never points at a module the output lacks. `export *` is not covered:
-  a star over a non-emitted file stays in `starExports` and its names go undocumented.
-  A component with no virtual (transform failed, or unsupplied with the closure off)
+  `reExports` edge never points at a module the output lacks, and neither does a
+  `starExports` entry. A component with no virtual (transform failed, or unsupplied with the closure off)
   re-exports as a `partial` component (`virtuallessSvelteTarget`, which lists its
   limits).
 - **Namespace** re-exports (`export * as ns from './x'`) → `NamespaceDeclarationJson` whose

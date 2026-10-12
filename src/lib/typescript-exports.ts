@@ -141,9 +141,10 @@ const walkSameNameCanonical = (
  *   with `aliasOf` pointing at the canonical.
  *
  * Star-projected namespace bindings (`export * from` a module whose export
- * table contains `ns`) never reach classification — the caller's locality
- * skip filters them first; `starExports` is their sole encoding like every
- * other star-projected binding.
+ * table contains `ns`) never reach classification when the star's target
+ * emits a module — the caller's locality skip filters them first, and
+ * `starExports` is their sole encoding like every other star-projected
+ * binding. Over a target that emits nothing they classify as same-name.
  */
 type NamespaceClassification =
 	| { kind: 'origination'; sourceModule: string }
@@ -185,7 +186,8 @@ const classifyNamespaceReExport = (
 	currentFileName: string,
 	options: ModuleSourceOptions,
 	isExternalPath: (file: string) => boolean,
-	isEmittedFile: IsEmittedFile
+	isEmittedFile: IsEmittedFile,
+	starProjected: boolean
 ): NamespaceClassification | null => {
 	const deeplyAliased = checker.getAliasedSymbol(exportSymbol);
 	if ((deeplyAliased.flags & ts.SymbolFlags.ValueModule) === 0) return null;
@@ -203,11 +205,23 @@ const classifyNamespaceReExport = (
 	// Origination: export's first declaration is itself a NamespaceExport in
 	// this file. The caller's locality skip filters star-projected bindings
 	// before classification, but merged symbols could put a foreign
-	// declaration first — bail rather than misclassify.
+	// declaration first — bail rather than misclassify. The one foreign
+	// NamespaceExport that does classify is a binding materialized from a
+	// star (see `collectMaterializedStars`): this module forwards the
+	// namespace under its own name, which is the same-name shape, with the
+	// defining file as canonical.
 	const exportDecl = exportSymbol.declarations?.[0];
 	if (exportDecl && ts.isNamespaceExport(exportDecl)) {
 		const definingFile = stripVirtualSuffix(exportDecl.getSourceFile().fileName);
-		if (definingFile !== currentFileName) return null;
+		if (definingFile !== currentFileName) {
+			if (!starProjected || isExternalPath(definingFile)) return null;
+			return {
+				kind: 'same-name',
+				canonicalModule: extractPath(definingFile, options),
+				sourceModule: extractPath(sourceModuleFile, options),
+				canonicalGated: !isEmittedFile(definingFile)
+			};
+		}
 		return { kind: 'origination', sourceModule: extractPath(sourceModuleFile, options) };
 	}
 
@@ -408,6 +422,108 @@ const synthesizeCrossFileAlias = (
 	return analyzed;
 };
 
+/** The symbol an export binding ultimately names: an alias's target, else the symbol itself. */
+const resolveAlias = (symbol: ts.Symbol, checker: ts.TypeChecker): ts.Symbol =>
+	symbol.flags & ts.SymbolFlags.Alias ? checker.getAliasedSymbol(symbol) : symbol;
+
+/** A star-projected binding to document, as `collectMaterializedStars` resolved it. */
+interface MaterializedStar {
+	/** The `export * from` statement the binding is documented under. */
+	statement: ts.ExportDeclaration;
+	/** The binding the name resolves to through that star. */
+	resolved: ts.Symbol;
+}
+
+/**
+ * The bindings a module publishes only through `export * from` a project file
+ * that emits no module (gated, or outside the analyzed inputs), keyed by name
+ * with the star statement that projects each.
+ *
+ * `starExports` can't carry these: the target isn't in the output, so the
+ * names would be documented nowhere. The caller instead treats each as the
+ * named same-name re-export the star stands for, which routes it through the
+ * ordinary re-export arms — a link when its canonical does emit, a
+ * synthesized alias when it doesn't.
+ *
+ * ES star semantics decide membership, not TypeScript's export table (which
+ * keeps the first of two conflicting stars): `default` never projects, a
+ * local export of the same name shadows, and a name two stars resolve to
+ * different bindings is ambiguous and excluded. A name an emitted star target
+ * also provides is left to that target's `starExports` entry.
+ * svelte2tsx-generated names are skipped, and a statement-level `@nodocs`
+ * suppresses the whole star, as it does for an emitted target — its bindings
+ * still count toward ambiguity, since the module exports them all the same.
+ *
+ * Each entry carries the binding the star resolves the name to; the caller
+ * checks the export table's symbol against it, so a symbol the table took
+ * from some other star is never documented under this one.
+ *
+ * Not reconciled: a name an emitted star and a non-emitted star resolve
+ * differently is ambiguous under ES, but stays with the emitted star's
+ * `starExports` entry, which can't exclude a single name.
+ */
+const collectMaterializedStars = (
+	sourceFile: ts.SourceFile,
+	localExports: ReadonlyArray<ts.Symbol>,
+	currentFileName: string,
+	checker: ts.TypeChecker,
+	isExternalPath: (file: string) => boolean,
+	isEmittedFile: IsEmittedFile
+): Map<string, MaterializedStar> => {
+	// every star's projected bindings, by name, with whether its target emits
+	// and whether the statement is `@nodocs`
+	interface Provider extends MaterializedStar {
+		emitted: boolean;
+		suppressed: boolean;
+	}
+	const providers = new Map<string, Array<Provider>>();
+	let anyMaterialized = false;
+	for (const statement of sourceFile.statements) {
+		if (
+			!ts.isExportDeclaration(statement) ||
+			statement.exportClause ||
+			!statement.moduleSpecifier ||
+			!ts.isStringLiteral(statement.moduleSpecifier)
+		) {
+			continue;
+		}
+		const suppressed = !!parseComment(statement, sourceFile)?.nodocs;
+		const moduleSymbol = checker.getSymbolAtLocation(statement.moduleSpecifier);
+		const targetFile = moduleSymbol && getPrimaryDeclarationFile(moduleSymbol);
+		if (!moduleSymbol || !targetFile || isExternalPath(targetFile)) continue;
+		const emitted = isEmittedFile(targetFile);
+		if (!emitted && !suppressed) anyMaterialized = true;
+		for (const projected of checker.getExportsOfModule(moduleSymbol)) {
+			if (projected.name === 'default' || isSvelte2tsxGeneratedExport(projected.name)) continue;
+			let list = providers.get(projected.name);
+			if (!list) providers.set(projected.name, (list = []));
+			list.push({
+				statement,
+				resolved: resolveAlias(projected, checker),
+				emitted,
+				suppressed
+			});
+		}
+	}
+
+	const materialized = new Map<string, MaterializedStar>();
+	if (!anyMaterialized) return materialized;
+	const shadowed = new Set<string>();
+	for (const symbol of localExports) {
+		if (isDeclaredInFile(symbol, currentFileName)) shadowed.add(symbol.name);
+	}
+	for (const [name, list] of providers) {
+		if (shadowed.has(name)) continue;
+		if (list.some((p) => p.emitted)) continue;
+		if (list.some((p) => p.resolved !== list[0]!.resolved)) continue;
+		const provider = list.find((p) => !p.suppressed);
+		if (provider) {
+			materialized.set(name, { statement: provider.statement, resolved: provider.resolved });
+		}
+	}
+	return materialized;
+};
+
 /**
  * Analyze all exports from a TypeScript source file.
  *
@@ -455,7 +571,8 @@ export const analyzeExports = (
 		sourceFile,
 		checker,
 		options,
-		isExternalPath
+		isExternalPath,
+		ctx.isEmittedFile
 	);
 
 	// Normalize virtual paths once (e.g., Foo.svelte.__svelte2tsx__.ts → Foo.svelte)
@@ -480,11 +597,29 @@ export const analyzeExports = (
 	const symbol = checker.getSymbolAtLocation(sourceFile);
 	if (symbol) {
 		const exports = checker.getExportsOfModule(symbol);
+		const materializedStars = collectMaterializedStars(
+			sourceFile,
+			exports,
+			currentFileName,
+			checker,
+			isExternalPath,
+			ctx.isEmittedFile
+		);
 		for (const exportSymbol of exports) {
 			// Check if this is an alias (potential re-export) using the Alias flag
 			const isAlias = (exportSymbol.flags & ts.SymbolFlags.Alias) !== 0;
+			// The star statement to treat this binding as a named re-export
+			// of, when it arrives only through a star over a module that
+			// emits nothing (see `collectMaterializedStars`).
+			const materialized = isDeclaredInFile(exportSymbol, currentFileName)
+				? undefined
+				: materializedStars.get(exportSymbol.name);
+			const star =
+				materialized && materialized.resolved === resolveAlias(exportSymbol, checker)
+					? materialized.statement
+					: undefined;
 
-			if (isAlias) {
+			if (isAlias || star) {
 				// Star-projected alias bindings: `export * from './b'` projects
 				// b.ts's own re-export bindings into this module's export table,
 				// sharing the foreign declaration node (an `ExportSpecifier` or,
@@ -495,8 +630,14 @@ export const analyzeExports = (
 				// contain and read the foreign statement's JSDoc as if local
 				// (synthesizing duplicate declarations with mis-attributed docs).
 				// Runs before namespace classification so star-projected
-				// namespace bindings are silenced uniformly.
-				if (!isDeclaredInFile(exportSymbol, currentFileName)) continue;
+				// namespace bindings are silenced uniformly. The exception is a
+				// star over a module that emits nothing: there is no
+				// `starExports` entry to carry the binding, so it is processed
+				// as the named re-export the star stands for, positioned at the
+				// star statement and never reading a foreign statement's JSDoc
+				// (`getLocalExportStatement` finds none in this file).
+				if (!star && !isDeclaredInFile(exportSymbol, currentFileName)) continue;
+				const starLine = star ? lineOf(star) : undefined;
 
 				// Namespace re-exports (`export * as ns from './x'` and re-exports
 				// of such bindings) need special handling: their deeply-resolved
@@ -507,14 +648,17 @@ export const analyzeExports = (
 				// is robust to arbitrary re-export chain depth (the immediate-alias
 				// shape is fragile — intermediate hops are `ExportSpecifier` nodes,
 				// not `NamespaceExport`).
-				const nsClass = classifyNamespaceReExport(
-					exportSymbol,
-					checker,
-					currentFileName,
-					options,
-					isExternalPath,
-					ctx.isEmittedFile
-				);
+				const nsClass = isAlias
+					? classifyNamespaceReExport(
+							exportSymbol,
+							checker,
+							currentFileName,
+							options,
+							isExternalPath,
+							ctx.isEmittedFile,
+							star !== undefined
+						)
+					: null;
 				if (nsClass) {
 					// The locality skip above filters star-projected bindings before
 					// classification, so origination/renamed/same-name statements are
@@ -523,7 +667,7 @@ export const analyzeExports = (
 					// a foreign node.
 					const local = getLocalExportStatement(exportSymbol, sourceFile);
 					const localTsdoc = local ? parseComment(local.statement, sourceFile) : undefined;
-					const nsSpecifierLine = local ? lineOf(local.node) : undefined;
+					const nsSpecifierLine = local ? lineOf(local.node) : starLine;
 
 					if (nsClass.kind === 'origination') {
 						const decl: DeclarationJsonBuild = {
@@ -593,7 +737,8 @@ export const analyzeExports = (
 				}
 
 				// This might be a re-export - use getAliasedSymbol to find the original
-				const aliasedSymbol = checker.getAliasedSymbol(exportSymbol);
+				// (a star-projected binding declared in its target is its own original)
+				const aliasedSymbol = isAlias ? checker.getAliasedSymbol(exportSymbol) : exportSymbol;
 				const originalSource = getPrimaryDeclarationSourceFile(aliasedSymbol);
 
 				if (originalSource) {
@@ -606,8 +751,8 @@ export const analyzeExports = (
 						// lives on the ExportDeclaration, not on the canonical's
 						// declaration in the foreign file.
 						const local = getLocalExportStatement(exportSymbol, sourceFile);
-						const specifierTypeOnly = local ? isTypeOnlyLocalExport(local) : false;
-						const specifierLine = local ? lineOf(local.node) : undefined;
+						const specifierTypeOnly = local ? isTypeOnlyLocalExport(local) : !!star?.isTypeOnly;
+						const specifierLine = local ? lineOf(local.node) : starLine;
 						const localTsdoc = local ? parseComment(local.statement, sourceFile) : undefined;
 
 						// Synthesize a full alias declaration under `publicName`
@@ -662,7 +807,9 @@ export const analyzeExports = (
 							// same-name re-export of an intermediate alias is not mistaken
 							// for a rename relative to the deeply-resolved canonical (whose
 							// name may differ from this hop's name).
-							const immediateAlias = checker.getImmediateAliasedSymbol(exportSymbol);
+							const immediateAlias = isAlias
+								? checker.getImmediateAliasedSymbol(exportSymbol)
+								: undefined;
 							const immediateName = immediateAlias?.name ?? aliasedSymbol.name;
 							const isRenamed = exportSymbol.name !== immediateName;
 
@@ -764,7 +911,9 @@ export const analyzeExports = (
 						// through a project-local *gated* module also stays silent
 						// (nothing owns the entry, a documented margin) rather than
 						// recording a relative path as a package specifier.
-						const immediateExternal = checker.getImmediateAliasedSymbol(exportSymbol);
+						const immediateExternal = isAlias
+							? checker.getImmediateAliasedSymbol(exportSymbol)
+							: undefined;
 						const immediateExternalFile =
 							immediateExternal && getPrimaryDeclarationFile(immediateExternal);
 						if (!immediateExternalFile || !isExternalPath(immediateExternalFile)) continue;
@@ -793,8 +942,9 @@ export const analyzeExports = (
 			// encoding is `starExports`; analyzing them here would duplicate the
 			// canonical declaration into this module (triggering spurious
 			// duplicate_declaration diagnostics, with sourceLine pointing into
-			// the foreign file).
-			if (!isAlias && !isDeclaredInFile(exportSymbol, currentFileName)) continue;
+			// the foreign file). A materialized star binding was handled by the
+			// arms above, or has nothing resolvable to describe.
+			if (star || (!isAlias && !isDeclaredInFile(exportSymbol, currentFileName))) continue;
 
 			// Normal export or within-file alias - declared in this file.
 			// For within-file aliases (export { x } or export { x as y }), resolve to
@@ -1112,11 +1262,12 @@ const stripModuleTag = (text: string): string => {
 /**
  * Extract star exports (`export * from './module'` / `'pkg'`) from a source file.
  *
- * Uses the type checker to resolve module specifiers. Project-local targets land
- * in `starExports` as `sourceRoot`-relative paths, gated ones included (they
- * aren't in the analyzed set, so `resolveExportSurface` reports them in
- * `unresolvedStarExports`). External targets land in `externalStarExports` as
- * written. Unresolvable specifiers (missing package, typo) are silently skipped.
+ * Uses the type checker to resolve module specifiers. Project-local targets that
+ * emit a module land in `starExports` as `sourceRoot`-relative paths; ones that
+ * emit nothing are omitted, their bindings materialized by the caller
+ * (`collectMaterializedStars`). External targets land in `externalStarExports`
+ * as written. Unresolvable specifiers (missing package, typo) are silently
+ * skipped.
  *
  * Statement-level `@nodocs` suppresses the entry — the same rule as the other
  * re-export encodings (same-name edges and renamed aliases).
@@ -1125,7 +1276,8 @@ const extractStarExports = (
 	sourceFile: ts.SourceFile,
 	checker: ts.TypeChecker,
 	options: ModuleSourceOptions,
-	isExternalPath: (file: string) => boolean
+	isExternalPath: (file: string) => boolean,
+	isEmittedFile: IsEmittedFile
 ): { starExports: Array<string>; externalStarExports: Array<string> } => {
 	const starExports: Array<string> = [];
 	const externalStarExports: Array<string> = [];
@@ -1145,12 +1297,15 @@ const extractStarExports = (
 			const resolvedPath = moduleSymbol && getPrimaryDeclarationFile(moduleSymbol);
 			if (resolvedPath) {
 				if (!isExternalPath(resolvedPath)) {
-					// Project-local target — source or gated (`internal/`
-					// convention, user excludes). A gated target's path isn't in
-					// the analyzed set, so `resolveExportSurface` reports it via
-					// `unresolvedStarExports` — truthful incompleteness, instead
-					// of recording a relative path as an external package.
-					starExports.push(extractPath(resolvedPath, options));
+					// Project-local target. One that emits a module is recorded
+					// here and its bindings stay with it. One that emits nothing
+					// (gated, or outside the analyzed inputs) is left out: its
+					// bindings are materialized in this module instead (see
+					// `collectMaterializedStars`), so no entry points at a module
+					// the output lacks.
+					if (isEmittedFile(resolvedPath)) {
+						starExports.push(extractPath(resolvedPath, options));
+					}
 				} else {
 					// External package — record the specifier as written
 					externalStarExports.push(statement.moduleSpecifier.text);
