@@ -1,1 +1,6 @@
 src/test/fixtures/**/*.json
+src/test/fixtures/svelte/component/nested-script-lang/input.svelte
+src/test/fixtures/svelte/component/nested-script-legacy/input.svelte
+src/test/fixtures/svelte/component/nested-script-module/input.svelte
+src/test/fixtures/svelte/component/nested-script-runes/input.svelte
+src/test/fixtures/svelte/component/script-after-template/input.svelte

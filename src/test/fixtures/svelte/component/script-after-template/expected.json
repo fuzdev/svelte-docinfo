@@ -1,0 +1,26 @@
+{
+	"path": "ComponentScriptAfterTemplate.svelte",
+	"declarations": [
+		{
+			"name": "ComponentScriptAfterTemplate",
+			"kind": "component",
+			"sourceLine": 5,
+			"props": [
+				{
+					"name": "a",
+					"type": "string",
+					"description": "Description 1",
+					"bindable": true
+				},
+				{
+					"name": "b",
+					"type": "number",
+					"optional": true,
+					"defaultValue": "1",
+					"bindable": true
+				}
+			]
+		}
+	],
+	"moduleComment": "Module description."
+}

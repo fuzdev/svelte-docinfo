@@ -24,7 +24,7 @@ import { dirname, join } from 'node:path';
 import type { ComponentDeclarationJson, ModuleJson } from '#lib/types.ts';
 import { analyze } from '#lib/analyze.ts';
 import { byKind, type Diagnostic } from '#lib/diagnostics.ts';
-import { analyzeSvelteModule } from '#lib/svelte.ts';
+import { analyzeSvelteModule, type SvelteVirtualFile } from '#lib/svelte.ts';
 import { scanLegacyExports } from '#lib/svelte-legacy.ts';
 
 import { assertHasComponentDeclaration, assertHasProps, findModule } from './test-helpers.ts';
@@ -379,9 +379,8 @@ Description.
 	});
 
 	test('an export in a script nested in the template is not a prop and not a failure', async () => {
-		// `findScriptTags` takes the nested tag for the instance script, so the
-		// scan finds an export, while svelte2tsx reads a legacy component with
-		// no exports and writes an empty props value
+		// a nested `<script>` is an ordinary element, not the instance script,
+		// so the scan never reads it
 		const { modules, diagnostics } = await analyzeTestProject({
 			'src/lib/Head.svelte': `<svelte:head>
 	<script>
@@ -796,20 +795,26 @@ describe('legacy render classification', () => {
 });
 
 describe('legacy empty props value', () => {
-	// the scan reads the nested script, svelte2tsx finds no exports
-	const SOURCE = `<div>
-	<script>
-		export let a = 1;
-	</script>
-</div>
+	// The scan reads exports svelte2tsx doesn't: Svelte's parser, and so
+	// `findScriptTags`, take a closing tag with whitespace before its `>`,
+	// while svelte2tsx's own tag matcher skips the whole script and writes an
+	// empty props value.
+	const SOURCE = `<script>
+	export let a = 1;
+</script >
+<div>text1</div>
 `;
+	const TS_SOURCE = SOURCE.replace('<script>', '<script lang="ts">');
 	const ID = join(process.cwd(), 'src/lib/LegacyEmptyValueProbe.svelte');
 
 	const analyzeProbe = (
-		doctor: (content: string) => string = (content) => content
+		doctor: (content: string) => string = (content) => content,
+		source = SOURCE
 	): { component: ComponentDeclarationJson | undefined; failures: Array<Diagnostic> } => {
-		const sourceFile = { id: ID, content: SOURCE };
+		const sourceFile = { id: ID, content: source };
 		const transformed = transformOrThrow(sourceFile);
+		// the premise: the scan has an export to read
+		assert.include(transformed.scriptTags?.[0]?.content, 'export let a');
 		const virtual = { ...transformed, content: doctor(transformed.content) };
 		const program = createCachedAnalysisProgram(new Map([[virtual.virtualPath, virtual]]));
 		const diagnostics: Array<Diagnostic> = [];
@@ -850,26 +855,97 @@ describe('legacy empty props value', () => {
 		assert.strictEqual(failures.length, 1);
 	});
 
-	test('a TS component with no exports beside a nested script export has no props and no failure', async () => {
-		// the TS form of the empty value, `{} as Record<string, never>`: the
-		// nested script comes first, so the scan reads it instead of the
-		// instance script
+	test('the TS form of the empty value has no props and no failure', () => {
+		// `{} as Record<string, never>`, where the JS form is a JSDoc cast
+		const { component, failures } = analyzeProbe((content) => {
+			assert.include(content, '{} as Record<string, never>');
+			return content;
+		}, TS_SOURCE);
+		assert.strictEqual(component?.props, undefined);
+		assert.deepStrictEqual(failures, []);
+	});
+});
+
+describe('legacy props beside a nested script', () => {
+	test('a nested script ahead of the instance script does not hide its props', async () => {
 		const { modules, diagnostics } = await analyzeTestProject({
 			'src/lib/Comp.svelte': `<svelte:head>
 	<script>
-		export let a = 1;
+		export let nested = 1;
 	</script>
 </svelte:head>
 <script lang="ts">
-	const b: number = 1;
+	export let a: string;
 </script>
-<div>{b}</div>
+<div>{a}</div>
 `
 		});
-		assert.deepStrictEqual(
-			assertHasComponentDeclaration(findModule(modules, 'Comp.svelte'), 'Comp').props,
-			[]
-		);
+		propsOf(compOf(modules), ['a']);
 		assert.deepStrictEqual(diagnostics, []);
+	});
+
+	test('an accessor under an authored $$Props stays out with a nested script first', async () => {
+		// the accessors are read from the instance script; read from the nested
+		// one instead, `fn` would pass for a prop `$$Props` declares
+		const { modules, diagnostics } = await analyzeTestProject({
+			'src/lib/Comp.svelte': `<svelte:head>
+	<script>
+		export let nested = 1;
+	</script>
+</svelte:head>
+<script lang="ts">
+	interface $$Props {
+		a: string;
+	}
+	export let a: string;
+	export const fn = (): string => a;
+</script>
+<div>{a}</div>
+`
+		});
+		propsOf(compOf(modules), ['a']);
+		assert.deepStrictEqual(diagnostics, []);
+	});
+});
+
+describe('script tags on the virtual', () => {
+	const SOURCE = `<script lang="ts">
+	export let a: string;
+</script>
+<div>{a}</div>
+`;
+	const ID = join(process.cwd(), 'src/lib/LegacyScriptTagsProbe.svelte');
+
+	const analyzeProbe = (
+		doctor: (virtual: SvelteVirtualFile) => SvelteVirtualFile
+	): ComponentDeclarationJson | undefined => {
+		const sourceFile = { id: ID, content: SOURCE };
+		const virtual = doctor(transformOrThrow(sourceFile));
+		const program = createCachedAnalysisProgram(new Map([[virtual.virtualPath, virtual]]));
+		const analysis = analyzeSvelteModule(
+			sourceFile,
+			'LegacyScriptTagsProbe.svelte',
+			program.getTypeChecker(),
+			createTestSourceOptions(dirname(ID)),
+			[],
+			program,
+			virtual
+		);
+		return analysis?.declarations[0]?.declaration as ComponentDeclarationJson | undefined;
+	};
+
+	test('analysis reads the tags the virtual carries, without locating them again', () => {
+		// a virtual that says the component has no script: the source's
+		// `export let` is never scanned
+		assert.strictEqual(
+			analyzeProbe((virtual) => ({ ...virtual, scriptTags: [] }))?.props,
+			undefined
+		);
+	});
+
+	test('a virtual that carries none has them located in the source', () => {
+		const component = analyzeProbe(({ scriptTags: _, ...virtual }) => virtual);
+		assert.ok(component);
+		propsOf(component, ['a']);
 	});
 });

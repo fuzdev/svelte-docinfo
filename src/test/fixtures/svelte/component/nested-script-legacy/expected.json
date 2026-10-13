@@ -1,0 +1,25 @@
+{
+	"path": "ComponentNestedScriptLegacy.svelte",
+	"declarations": [
+		{
+			"name": "ComponentNestedScriptLegacy",
+			"kind": "component",
+			"sourceLine": 9,
+			"props": [
+				{
+					"name": "a",
+					"type": "string",
+					"description": "Description 1",
+					"bindable": true
+				},
+				{
+					"name": "b",
+					"type": "number",
+					"optional": true,
+					"defaultValue": "1",
+					"bindable": true
+				}
+			]
+		}
+	]
+}

@@ -1,0 +1,23 @@
+{
+	"path": "ComponentNestedScriptRunes.svelte",
+	"declarations": [
+		{
+			"name": "ComponentNestedScriptRunes",
+			"kind": "component",
+			"sourceLine": 7,
+			"props": [
+				{
+					"name": "a",
+					"type": "string",
+					"description": "Description 1"
+				},
+				{
+					"name": "b",
+					"type": "number",
+					"optional": true,
+					"defaultValue": "1"
+				}
+			]
+		}
+	]
+}

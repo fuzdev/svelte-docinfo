@@ -585,6 +585,33 @@ describe('extractScriptContent', () => {
 		const result = extractScriptContent(svelteSource);
 		assert.isUndefined(result, 'code sample inside a comment is not a script element');
 	});
+
+	test('skips a script nested in the template ahead of the instance script', () => {
+		const svelteSource = `<svelte:head>
+	<script>
+		const nested = 1;
+	</script>
+</svelte:head>
+<script lang="ts">
+	const foo = 'bar';
+</script>
+<p>Content</p>`;
+
+		const result = extractScriptContent(svelteSource);
+		assert.ok(result);
+		assert.include(result, "const foo = 'bar'");
+		assert.notInclude(result, 'nested');
+	});
+
+	test('returns undefined when the only script is nested in the template', () => {
+		const svelteSource = `<div>
+	<script>
+		const nested = 1;
+	</script>
+</div>`;
+
+		assert.isUndefined(extractScriptContent(svelteSource));
+	});
 });
 
 describe('extractModuleScriptContent', () => {
@@ -678,6 +705,32 @@ describe('extractModuleScriptContent', () => {
 		assert.ok(result);
 		assert.include(result, 'shared');
 	});
+
+	test('skips a module script nested in the template', () => {
+		const svelteSource = `<svelte:head>
+	<script module>
+		export const nested = 1;
+	</script>
+</svelte:head>
+<script module>
+	export const shared = 'value';
+</script>
+<p>Content</p>`;
+
+		const result = extractModuleScriptContent(svelteSource);
+		assert.ok(result);
+		assert.include(result, 'shared');
+		assert.notInclude(result, 'nested');
+	});
+
+	test('returns undefined when the only module script is nested in the template', () => {
+		const svelteSource = `<div><script module>export const nested = 1;</script></div>
+<script>
+	const foo = 'bar';
+</script>`;
+
+		assert.isUndefined(extractModuleScriptContent(svelteSource));
+	});
 });
 
 describe('transformSvelteSource script-kind detection', () => {
@@ -747,6 +800,39 @@ describe('transformSvelteSource script-kind detection', () => {
 <pre>{'<script lang="ts">'}</pre>
 <div>{a}</div>`);
 		assert.strictEqual(kind, ts.ScriptKind.JS);
+	});
+
+	test('lang="ts" on a script nested in the template does not flip a JS component to TS', () => {
+		const kind = scriptKindOf(`<svelte:head>
+	<script lang="ts">
+		const nested: number = 1;
+	</script>
+</svelte:head>
+<script>
+	let {a} = $props();
+</script>
+<div>{a}</div>`);
+		assert.strictEqual(kind, ts.ScriptKind.JS);
+	});
+
+	test('the virtual carries the located script tags, nested ones left out', () => {
+		const result = transformSvelteSource({
+			id: '/project/src/lib/Comp.svelte',
+			content: `<script module lang="ts">
+	export const shared: string = 'value';
+</script>
+<script lang="ts">
+	let {a}: {a: string} = $props();
+</script>
+<div><script>const nested = 1;</script></div>
+<div>{a}</div>`
+		});
+		assert.ok(result.virtual?.scriptTags);
+		assert.deepStrictEqual(
+			result.virtual.scriptTags.map((tag) => tag.attributes.has('module')),
+			[true, false]
+		);
+		assert.include(result.virtual.scriptTags[1]!.content, '$props()');
 	});
 
 	test('lang="ts" on the module script counts', () => {

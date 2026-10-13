@@ -1,0 +1,23 @@
+{
+	"path": "ComponentNestedScriptLang.svelte",
+	"declarations": [
+		{
+			"name": "ComponentNestedScriptLang",
+			"kind": "component",
+			"sourceLine": 7,
+			"props": [
+				{
+					"name": "a",
+					"type": "string"
+				},
+				{
+					"name": "b",
+					"type": "number",
+					"optional": true,
+					"defaultValue": "1"
+				}
+			],
+			"lang": "js"
+		}
+	]
+}

@@ -1,0 +1,62 @@
+{
+	"path": "ComponentNestedScriptModule.svelte",
+	"declarations": [
+		{
+			"name": "ComponentNestedScriptModule",
+			"kind": "component",
+			"sourceLine": 26,
+			"props": [
+				{
+					"name": "b",
+					"type": "A",
+					"typeInfo": {
+						"kind": "union",
+						"alias": "A",
+						"members": [
+							{
+								"kind": "literal",
+								"value": "a",
+								"text": "\"a\""
+							},
+							{
+								"kind": "literal",
+								"value": "b",
+								"text": "\"b\""
+							}
+						]
+					}
+				}
+			]
+		},
+		{
+			"name": "a",
+			"kind": "variable",
+			"docComment": "Description 1",
+			"typeSignature": "1",
+			"sourceLine": 21
+		},
+		{
+			"name": "A",
+			"kind": "type",
+			"typeSignature": "A",
+			"sourceLine": 23,
+			"typeInfo": {
+				"kind": "union",
+				"alias": "A",
+				"members": [
+					{
+						"kind": "literal",
+						"value": "a",
+						"text": "\"a\""
+					},
+					{
+						"kind": "literal",
+						"value": "b",
+						"text": "\"b\""
+					}
+				]
+			}
+		}
+	],
+	"moduleComment": "Module description."
+}

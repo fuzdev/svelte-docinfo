@@ -158,8 +158,12 @@ points to the TSDoc that owns its policy; read it before changing behavior. User
 - `svelte.ts`
   - `analyzeSvelteModule`, `transformSvelteSource`.
   - Script and module-comment extraction, always from the *original* source, never the
-    virtual.
+    virtual. The component's script tags are located once, at transform, and ride the
+    virtual (`SvelteVirtualFile.scriptTags`).
   - Snippet helpers.
+- `svelte-scripts.ts` — `@internal`, imported directly (not in the barrel):
+  `findScriptTags`, which locates a component's top-level `<script>` tags (see Svelte
+  Component Analysis), `scanScriptTags`, and `isModuleScript`.
 - `svelte-legacy.ts` — `@internal`, imported directly (not in the barrel): the legacy
   `export let` scan (`scanLegacyExports`) and props anchor (`resolveLegacyPropsAnchor`).
 - `source.ts` — `SourceFileInfo`, file-type predicates, virtual-path helpers
@@ -326,6 +330,20 @@ support older ones. The workflow, from the svelte2tsx virtual through props, is 
 - **Virtuals** — each `.svelte` file becomes a `.__svelte2tsx__.ts` virtual that the checker
   sees; the raw `.svelte` is never pushed to the LS. `.svelte` imports map to virtuals via
   `resolveSvelteVirtualSpecifier`, shared by both program paths.
+- **Script tags** — only a top-level `<script>` is the component's instance or module
+  script, as in Svelte; one nested in an element, a block, or `<svelte:head>` is an
+  ordinary element and is never read. `findScriptTags` (`svelte-scripts.ts`, whose TSDoc
+  owns the policy) decides in two steps:
+  - A regex scan finds every tag. A tag preceded by nothing but whitespace, complete HTML
+    comments, and earlier such tags is top-level by construction (`provenTopLevel`), which
+    settles the usual scripts-first component with no parse.
+  - Otherwise Svelte's parser decides, on the source with script and style content
+    blanked. svelte2tsx parses the same way but demotes only tags the parser reads as
+    nested elements, so a tag spelled in an expression string or attribute value is still
+    a script to it. If the parser throws, every matched tag is kept.
+  - The result is computed at transform time and carried on the virtual, so a query
+    doesn't repeat it. The script language (`scriptKind`), the legacy `export let` scan,
+    and the in-script `@module` comments all read these tags.
 - **`<script module>` exports** analyze through the virtual; svelte2tsx internals are
   filtered (`isSvelte2tsxGeneratedExport`), and positions are remapped to the original
   source.
@@ -380,9 +398,9 @@ support older ones. The workflow, from the svelte2tsx virtual through props, is 
     reads as runes (a rune in the script) skips the scan: its exported bindings are
     instance exports, so no props and no diagnostic.
   - When the scan finds exports but svelte2tsx's props value is empty
-    (`propsValueHasNoExports`), svelte2tsx wins: no props, no diagnostic. That absorbs a
-    `<script>` nested in the template, which `findScriptTags` takes for the instance
-    script, when the instance script itself exports nothing.
+    (`propsValueHasNoExports`), svelte2tsx wins: no props, no diagnostic. That absorbs an
+    instance script closed as `</script >`, which Svelte and `findScriptTags` accept and
+    svelte2tsx's tag matcher doesn't.
   - An unrecognized mode or props value yields no props and a `svelte_prop_failed` per
     export.
   - The in-script doc slot doesn't exist, so `docComment` is the HTML comment only.

@@ -185,6 +185,14 @@ Where each behavior is locked. Unit and behavior-level mechanics live in
   rune-free script — nor a named slot alone: `slot-*`), exported snippets
   (`exported-snippet*`), merged valibot schema, JS components (`javascript`,
   `props/jsdoc-type`)
+- Script tags: a `<script>` nested in the template is not the component's
+  (`component/nested-script-*`): ahead of a legacy instance script (`-legacy`)
+  and a runes one (`-runes`), with `lang="ts"` in a JS component (`-lang`),
+  with its own `@module` comment and export ahead of a `<script module>`
+  (`-module`), as JSON-LD in `<svelte:head>` (`-json-ld`); a top-level script
+  below the template is (`component/script-after-template`). These inputs keep
+  their tag order through `.formatignore`, since the formatter moves scripts
+  to the top
 - Legacy `export let` (`*/legacy-*`): props with the HTML fallback doc
   (`component/legacy-export-let`), TS with defaults, JSDoc, and imported types
   (`props/legacy-typescript`), JS with `@type` and initializer optionality
