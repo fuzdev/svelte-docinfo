@@ -163,8 +163,9 @@ export interface LegacyPropsAnchor {
 	node: ts.Node;
 	/**
 	 * Whether `node` is a written type whose properties carry their own
-	 * optionality. False for a JS component, where every property of the object
-	 * literal reads as required and optionality comes from the script instead
+	 * optionality. False for a bare object literal (a JS component, and a TS one
+	 * whose exports are all untyped and uninitialized), where every property
+	 * reads as required and optionality comes from the script instead
 	 * (`LegacyProp.hasInitializer`).
 	 */
 	typed: boolean;
@@ -179,17 +180,6 @@ export interface LegacyPropsAnchor {
 	authored: boolean;
 }
 
-/**
- * What `resolveLegacyPropsAnchor` found:
- *
- * - a `LegacyPropsAnchor` to extract props from
- * - `'not_legacy'` — svelte2tsx read the component as runes and wrote an empty
- *   props type, so the scanned exports aren't props and nothing is wrong
- * - `'unrecognized'` — a shape this module doesn't know, or one the checker
- *   threw on
- */
-export type LegacyPropsResolution = LegacyPropsAnchor | 'not_legacy' | 'unrecognized';
-
 /** The reserved alias svelte2tsx reads a legacy component's authored props type from. */
 const PROPS_ALIAS = '$$Props';
 
@@ -198,18 +188,6 @@ const isPropsAliasReference = (node: ts.TypeNode): boolean =>
 	ts.isTypeReferenceNode(node) &&
 	ts.isIdentifier(node.typeName) &&
 	node.typeName.text === PROPS_ALIAS;
-
-/**
- * Whether a type node is `Record<string, never>`, the empty props type
- * svelte2tsx writes for a component it reads as runes.
- */
-const isEmptyPropsRecord = (node: ts.TypeNode): boolean =>
-	ts.isTypeReferenceNode(node) &&
-	ts.isIdentifier(node.typeName) &&
-	node.typeName.text === 'Record' &&
-	node.typeArguments?.length === 2 &&
-	node.typeArguments[0]!.kind === ts.SyntaxKind.StringKeyword &&
-	node.typeArguments[1]!.kind === ts.SyntaxKind.NeverKeyword;
 
 /**
  * Classify the written props type of a legacy component: `false` for the
@@ -231,23 +209,53 @@ const isAuthoredPropsType = (node: ts.TypeNode): boolean | undefined => {
 };
 
 /**
+ * Whether svelte2tsx saw no exports in the instance script: the `props` value
+ * it built from them is an empty object literal, under whatever cast types it
+ * (`{} as Record<string, never>`, or in JS a JSDoc cast on `({})`).
+ *
+ * A statement about exports, not about mode. It tests the value, not the
+ * type: the value is what svelte2tsx assembles from the exports it found, so
+ * empty means none in TS and JS alike, with no reading of a JSDoc cast and no
+ * dependence on how the empty type is spelled. A value with any property or
+ * spread in it isn't empty, so a non-empty value under an unknown type stays
+ * unrecognized.
+ *
+ * @param propsValue - the `props` value of the object `$$render` returns, when the virtual has one
+ * @returns `false` too when there is no value
+ */
+export const propsValueHasNoExports = (propsValue: ts.Expression | undefined): boolean => {
+	let value = propsValue;
+	while (value && (ts.isAsExpression(value) || ts.isParenthesizedExpression(value))) {
+		value = value.expression;
+	}
+	return !!value && ts.isObjectLiteralExpression(value) && value.properties.length === 0;
+};
+
+/**
  * Resolve the props anchor of a legacy component from its svelte2tsx virtual.
  *
  * svelte2tsx ends `$$render` with `return {props: …, slots: …, …}`, and the
  * `props` value is the anchor. The shapes recognized:
  *
- * - **TS** — `<object> as <Type>`. The type is a literal svelte2tsx writes
+ * - **Typed** — `<object> as <Type>`. The type is a literal svelte2tsx writes
  *   from the exports, carrying each prop's JSDoc and optionality
  *   (`{a?: typeof a, b: number}`), or the author's reserved `$$Props`, bare or
  *   intersected with a literal of the accessors.
- * - **JS** — a bare object literal (`{a: a, b: b}`), with each binding's JSDoc
- *   copied onto its property, so a `@type` there types the prop.
- * - **Read as runes** — `{} as Record<string, never>`, or in JS the same type
- *   in a JSDoc cast. svelte2tsx saw a rune in the script, so an exported
- *   binding there is an instance export, not a prop: `'not_legacy'`.
+ * - **Untyped** — a bare object literal (`{a: a, b: b}`), what a JS component
+ *   gets, and a TS one whose exports are all untyped and uninitialized, with
+ *   each binding's JSDoc copied onto its property, so a `@type` there types
+ *   the prop.
  *
- * Anything else is `'unrecognized'`: an unknown virtual yields no props rather
- * than guessed ones.
+ * Anything else is `undefined`: an unknown virtual yields no props rather
+ * than guessed ones, and the caller reports it.
+ *
+ * A props value svelte2tsx built from no exports is unrecognized here too;
+ * the caller asks `propsValueHasNoExports` first.
+ *
+ * Whether the component is legacy at all isn't decided here. The caller asks
+ * only for a component svelte2tsx read as legacy (`classifyRenderMode` in
+ * `svelte.ts`); one it read as runes has an empty props type that would be
+ * unrecognized here, and its exported bindings are instance exports.
  *
  * The props are what the type declares, so an `export let` name an authored
  * `$$Props` leaves out is no prop: a typed consumer can't pass it.
@@ -260,16 +268,14 @@ const isAuthoredPropsType = (node: ts.TypeNode): boolean | undefined => {
  * - An export clause written above its binding loses the binding's JSDoc too,
  *   and in TS reads as optional.
  *
- * Runes components that declare `$props()` return a `props` value as well, but
- * they anchor on that declaration and never reach here.
- *
  * @param propsValue - the `props` value of the object `$$render` returns, when the virtual has one
+ * @returns the anchor, or `undefined` when the value's shape isn't recognized or the checker throws
  */
 export const resolveLegacyPropsAnchor = (
 	propsValue: ts.Expression | undefined,
 	checker: ts.TypeChecker
-): LegacyPropsResolution => {
-	if (!propsValue) return 'unrecognized';
+): LegacyPropsAnchor | undefined => {
+	if (!propsValue) return undefined;
 
 	let node: ts.Node;
 	let typed: boolean;
@@ -278,26 +284,19 @@ export const resolveLegacyPropsAnchor = (
 		node = propsValue;
 		typed = false;
 		authored = false;
-	} else {
-		// TS writes the type in an `as`, JS in a JSDoc cast on a parenthesized `{}`
-		const typeNode = ts.isAsExpression(propsValue)
-			? propsValue.type
-			: ts.isParenthesizedExpression(propsValue)
-				? ts.getJSDocType(propsValue)
-				: undefined;
-		if (!typeNode) return 'unrecognized';
-		if (isEmptyPropsRecord(typeNode)) return 'not_legacy';
-		const authoredType = isAuthoredPropsType(typeNode);
-		// a JSDoc cast only ever carries the empty record
-		if (authoredType === undefined || !ts.isAsExpression(propsValue)) return 'unrecognized';
-		node = typeNode;
+	} else if (ts.isAsExpression(propsValue)) {
+		const authoredType = isAuthoredPropsType(propsValue.type);
+		if (authoredType === undefined) return undefined;
+		node = propsValue.type;
 		typed = true;
 		authored = authoredType;
+	} else {
+		return undefined;
 	}
 
 	try {
 		return { type: checker.getTypeAtLocation(node), node, typed, authored };
 	} catch (_) {
-		return 'unrecognized';
+		return undefined;
 	}
 };

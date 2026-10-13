@@ -349,10 +349,12 @@ support older ones. The workflow, from the svelte2tsx virtual through props, is 
 - **`acceptsChildren`** — true when a `Snippet`-typed `children` prop resolves, when the
   template uses children, or when a legacy component has a default slot (a template
   `<slot />` or a declared `$$Slots`, read off the `$$render` return's `slots` value by
-  `hasDefaultSlot`). Legacy here is svelte2tsx's reading (`isLegacyRender`: the return's
-  `bindings` value is a string literal, a call when it reads runes), since analysis never
-  sees the compiler's `runes` option. It covers propless and template-only components. A
-  runes component's `<slot />` is ignored, and a named slot alone doesn't count.
+  `hasDefaultSlot`). Legacy here is svelte2tsx's reading (`classifyRenderMode`: the
+  return's `bindings` value is a string literal, a `__sveltets_$$bindings` call when it
+  reads runes, anything else unrecognized), since analysis never sees the compiler's
+  `runes` option. It's the one mode signal, shared with the legacy props path. It covers
+  propless and template-only components. A runes component's `<slot />` is ignored, and a
+  named slot alone doesn't count.
 - **`docComment` precedence** — in-script JSDoc at or above `$props()` wins over the HTML
   `@component` comment, and `duplicate_comment` warns when both exist.
   - Type-only blocks (`@type`/`@typedef`) don't count (`hasDocContent`).
@@ -374,9 +376,15 @@ support older ones. The workflow, from the svelte2tsx virtual through props, is 
   - Accessors (`export const`, `export function`, `export class`) and type-only exports
     aren't props.
   - Slots and events aren't modeled, beyond the default slot setting `acceptsChildren`.
-  - A component svelte2tsx reads as runes (a rune in the script) gets an empty props type:
-    its exported bindings are instance exports, so no props and no diagnostic.
-  - An unrecognized return shape yields no props and a `svelte_prop_failed` per export.
+  - Only a component `classifyRenderMode` reads as legacy takes this path. One svelte2tsx
+    reads as runes (a rune in the script) skips the scan: its exported bindings are
+    instance exports, so no props and no diagnostic.
+  - When the scan finds exports but svelte2tsx's props value is empty
+    (`propsValueHasNoExports`), svelte2tsx wins: no props, no diagnostic. That absorbs a
+    `<script>` nested in the template, which `findScriptTags` takes for the instance
+    script, when the instance script itself exports nothing.
+  - An unrecognized mode or props value yields no props and a `svelte_prop_failed` per
+    export.
   - The in-script doc slot doesn't exist, so `docComment` is the HTML comment only.
 
 ### Incremental Analysis (`createAnalysisSession`)
