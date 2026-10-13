@@ -2,8 +2,9 @@ import{$ as e,A as t,G as n,J as r,M as i,P as a,X as o,Z as s,dt as c,ft as l,h
 				the recommended path. It runs the analysis at build time and serves the result as a virtual
 				module that stays current in dev:</p> <!> <p>Run the <!> to inspect a project from the command line:</p> <!> <p>For standalone use or custom build tools, two functions cover most cases. <!> discovers files for you:</p> <!> <p>If your build tool already has file contents in memory, <!> skips discovery. See the <!> guide:</p> <!> <p>For long-lived consumers that re-analyze the same source set (Vite plugin, LSP-style tools), <!> returns a persistent handle that reuses
 				parsed ASTs and svelte2tsx output across calls. See the <!> guide.</p> <p>See the <!> for all exported functions and types.</p>`,1),S=i(`<!> <p>Standalone <code></code> declarations document as a bare variable with
-				no members (namespace re-exports <em>are</em> supported). Decorators aren't modeled.</p> <p>Svelte 4 features like slots are not supported. Legacy <code>export let</code> props aren't
-				extracted, but a <code>legacy_props</code> warning names them. Svelte context usage isn't
+				no members (namespace re-exports <em>are</em> supported). Decorators aren't modeled.</p> <p>Legacy <code>export let</code> components document their props like any other, every one of
+				them <code>bindable</code>. A default <code>&lt;slot /&gt;</code> sets <code>acceptsChildren</code> on a legacy component, with or without props, and is ignored on
+				a runes one; named slots, slot props, and events aren't modeled. Svelte context usage isn't
 				captured either.</p>`,1),C=i(`<!> <ul><li><strong>full type resolution</strong>: infers complex types without manual annotations,
 					including generics, imported types, and inferred return types, with source locations for
 					every declaration</li> <li><strong><!></strong>: extracts standard
