@@ -372,8 +372,7 @@ Known gaps:
 
 - context tracking (transitive detection of common patterns seems tractable)
 - standalone `namespace Foo {}` declarations and decorators are not yet supported
-- Svelte 4 legacy features (slots, events, `$restProps`) are out of scope — Svelte 5 snippets and callback props replace most of them
-- legacy `export let` props aren't extracted (the component gets zero props), but a `legacy_props` warning names them
+- legacy `export let` components document their props (all `bindable`), and a default `<slot />` sets `acceptsChildren` on any component, but named slots, slot props, events, and `$$restProps` aren't modeled — Svelte 5 snippets and callback props replace most of them
 - `@nodocs` applies to declarations and export statements only; on a member or component prop it's ignored without a warning
 
 [Issues](https://github.com/fuzdev/svelte-docinfo/issues) for bugs and

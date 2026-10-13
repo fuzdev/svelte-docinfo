@@ -1,0 +1,17 @@
+{
+	"path": "ComponentLegacySlotNamed.svelte",
+	"declarations": [
+		{
+			"name": "ComponentLegacySlotNamed",
+			"kind": "component",
+			"sourceLine": 3,
+			"props": [
+				{
+					"name": "a",
+					"type": "string",
+					"bindable": true
+				}
+			]
+		}
+	]
+}

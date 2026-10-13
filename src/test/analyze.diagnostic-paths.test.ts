@@ -67,6 +67,17 @@ const NODOCS_MODULE_COMMENT_SVELTE = `<!--
 </script>
 `;
 
+/** A component documented twice, which warns `duplicate_comment` from the Svelte layer. */
+const DUPLICATE_COMMENT_SVELTE = `<!--
+	@component
+	Description.
+-->
+<script lang="ts">
+	/** Description 1 */
+	let {a}: {a: string} = $props();
+</script>
+`;
+
 /** Analyze every file already written under the project's `src/lib`. */
 const analyzeProject = async (projectRoot: string) => {
 	const dir = join(projectRoot, 'src/lib');
@@ -105,8 +116,6 @@ describe('Diagnostic.file rejoins with projectRoot', () => {
 	let {a}: {a: string} = $props();
 </script>
 `,
-				// legacy_props (Svelte layer)
-				'src/lib/Legacy.svelte': `<script lang="ts">\n\texport let prop1: string;\n</script>\n`,
 				// misplaced_tag from a module comment (Svelte layer)
 				'src/lib/Nodocs.svelte': NODOCS_MODULE_COMMENT_SVELTE,
 				// misplaced_tag from a module comment (TypeScript path)
@@ -123,7 +132,6 @@ describe('Diagnostic.file rejoins with projectRoot', () => {
 				const kinds = new Set(diagnostics.map((d) => d.kind));
 				for (const kind of [
 					'duplicate_comment',
-					'legacy_props',
 					'misplaced_tag',
 					'unknown_param',
 					'duplicate_declaration'
@@ -147,7 +155,7 @@ describe('Diagnostic.file rejoins with projectRoot', () => {
 		// into `file` collides. Catches a future kind without naming it.
 		await withTestProject(
 			{
-				'src/lib/Legacy.svelte': `<script lang="ts">\n\texport let prop1: string;\n</script>\n`,
+				'src/lib/Dup.svelte': DUPLICATE_COMMENT_SVELTE,
 				'src/lib/nodocs.ts': NODOCS_MODULE_COMMENT_TS,
 				'src/lib/a.ts': `export const dup = 1;`,
 				'src/lib/b.ts': `export const dup = 2;`
@@ -173,7 +181,7 @@ describe('Diagnostic.file rejoins with projectRoot', () => {
 		// its own (`analyze.ts`) rather than through `analyzeCore`.
 		await withTestProject(
 			{
-				'src/lib/Legacy.svelte': `<script lang="ts">\n\texport let prop1: string;\n</script>\n`,
+				'src/lib/Dup.svelte': DUPLICATE_COMMENT_SVELTE,
 				'src/lib/nodocs.ts': NODOCS_MODULE_COMMENT_TS,
 				'src/lib/a.ts': `export const dup = 1;`,
 				'src/lib/b.ts': `export const dup = 2;`
@@ -237,15 +245,6 @@ describe('producers agree on one base', () => {
 		assert.strictEqual(byKind(diagnostics, 'unknown_param').length, 1);
 	});
 
-	test('legacy_props reports project-root-relative', async () => {
-		const { diagnostics } = await analyzeTestProject({
-			'src/lib/Legacy.svelte': `<script lang="ts">\n\texport let prop1: string;\n</script>\n`
-		});
-		const [legacy] = byKind(diagnostics, 'legacy_props');
-		assert.ok(legacy);
-		assert.strictEqual(legacy.file, 'src/lib/Legacy.svelte');
-	});
-
 	test('duplicate_comment reports project-root-relative', async () => {
 		const { diagnostics } = await analyzeTestProject({
 			'src/lib/Widget.svelte': DUPLICATE_COMMENT_COMPONENT
@@ -280,15 +279,15 @@ describe('the base does not track sourceRoot', () => {
 		// that's invisible whenever `sourceRoot` happens to be empty.
 		await withTestProject(
 			{
-				'src/lib/Legacy.svelte': `<script lang="ts">\n\texport let prop1: string;\n</script>\n`,
+				'src/lib/Dup.svelte': DUPLICATE_COMMENT_SVELTE,
 				'src/lib/nodocs.ts': NODOCS_MODULE_COMMENT_TS
 			},
 			async (projectRoot) => {
 				const { modules, diagnostics } = await analyze({
 					sourceFiles: [
 						{
-							id: join(projectRoot, 'src/lib/Legacy.svelte'),
-							content: `<script lang="ts">\n\texport let prop1: string;\n</script>\n`
+							id: join(projectRoot, 'src/lib/Dup.svelte'),
+							content: DUPLICATE_COMMENT_SVELTE
 						},
 						{ id: join(projectRoot, 'src/lib/nodocs.ts'), content: NODOCS_MODULE_COMMENT_TS }
 					],
@@ -297,12 +296,12 @@ describe('the base does not track sourceRoot', () => {
 
 				// module paths took the wider root
 				assert.deepStrictEqual(modules.map((m) => m.path).sort(), [
-					'lib/Legacy.svelte',
+					'lib/Dup.svelte',
 					'lib/nodocs.ts'
 				]);
 				// diagnostics did not
 				assert.deepStrictEqual(diagnostics.map((d) => d.file).sort(), [
-					'src/lib/Legacy.svelte',
+					'src/lib/Dup.svelte',
 					'src/lib/nodocs.ts'
 				]);
 				for (const d of diagnostics) {

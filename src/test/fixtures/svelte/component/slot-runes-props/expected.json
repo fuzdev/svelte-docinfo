@@ -1,0 +1,17 @@
+{
+	"path": "ComponentSlotRunesProps.svelte",
+	"declarations": [
+		{
+			"name": "ComponentSlotRunesProps",
+			"kind": "component",
+			"sourceLine": 1,
+			"props": [
+				{
+					"name": "a",
+					"type": "string"
+				}
+			],
+			"acceptsChildren": true
+		}
+	]
+}

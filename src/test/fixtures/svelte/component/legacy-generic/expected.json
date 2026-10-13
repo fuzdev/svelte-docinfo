@@ -1,0 +1,52 @@
+{
+	"path": "ComponentLegacyGeneric.svelte",
+	"declarations": [
+		{
+			"name": "ComponentLegacyGeneric",
+			"kind": "component",
+			"sourceLine": 3,
+			"genericParams": [
+				{
+					"name": "T",
+					"constraint": "{ a: string }"
+				},
+				{
+					"name": "U",
+					"defaultType": "T[]"
+				}
+			],
+			"props": [
+				{
+					"name": "a",
+					"type": "T",
+					"bindable": true
+				},
+				{
+					"name": "b",
+					"type": "T[]",
+					"optional": true,
+					"defaultValue": "[]",
+					"bindable": true
+				},
+				{
+					"name": "c",
+					"type": "U",
+					"optional": true,
+					"bindable": true
+				},
+				{
+					"name": "d",
+					"type": "(x: T) => void",
+					"bindable": true,
+					"parameters": [
+						{
+							"name": "x",
+							"type": "T"
+						}
+					],
+					"returnType": "void"
+				}
+			]
+		}
+	]
+}

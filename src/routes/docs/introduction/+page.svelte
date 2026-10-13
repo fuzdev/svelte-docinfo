@@ -126,9 +126,10 @@ const {modules} = await analyze({
 				no members (namespace re-exports <em>are</em> supported). Decorators aren't modeled.
 			</p>
 			<p>
-				Svelte 4 features like slots are not supported. Legacy <code>export let</code> props aren't
-				extracted, but a <code>legacy_props</code> warning names them. Svelte context usage isn't
-				captured either.
+				Legacy <code>export let</code> components document their props like any other, every one of
+				them <code>bindable</code>. A default <code>&lt;slot /&gt;</code> sets
+				<code>acceptsChildren</code> on any component; named slots, slot props, and events aren't
+				modeled. Svelte context usage isn't captured either.
 			</p>
 		</TomeSection>
 		<TomeSection>

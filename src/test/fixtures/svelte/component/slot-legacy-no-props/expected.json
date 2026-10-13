@@ -1,0 +1,11 @@
+{
+	"path": "ComponentSlotLegacyNoProps.svelte",
+	"declarations": [
+		{
+			"name": "ComponentSlotLegacyNoProps",
+			"kind": "component",
+			"sourceLine": 3,
+			"acceptsChildren": true
+		}
+	]
+}

@@ -71,7 +71,7 @@ with `diagnostics`). Each fixture gets its own `analyzeCore` call (svelte
 fixtures share one batch program but are analyzed separately), so there's no
 cross-fixture duplicate detection, and `analyzeCore`'s boundary passes give
 original-source positions and machine-independent paths. Module
-comments, `legacy_props`, `duplicate_comment`, and other warnings are
+comments, `duplicate_comment`, and other warnings are
 locked, not just declarations. Output goes through `compactReplacer`, so
 defaulted fields are stripped on disk. A fixture with nothing to report is
 just `{"path": "..."}`.
@@ -179,10 +179,22 @@ Where each behavior is locked. Unit and behavior-level mechanics live in
   the filter, TS and JS (`props/destructured-external*`)
 - Component: JSDoc/`@component`, docComment precedence (`doccomment-*`), module
   comments (`module-comment*`), no props, template-only, generics,
-  `acceptsChildren` (`children-*`, `no-children`), exported snippets
+  `acceptsChildren` (`children-*`, `no-children`; a default slot in a
+  template-only, propless legacy, `$props()`, and rune-using exported-binding
+  component, and a named slot alone not setting it: `slot-*`), exported snippets
   (`exported-snippet*`), merged valibot schema, JS components (`javascript`,
-  `props/jsdoc-type`), legacy `export let` (`legacy-export-let` — zero props,
-  HTML fallback doc, `legacy_props` warning)
+  `props/jsdoc-type`)
+- Legacy `export let` (`*/legacy-*`): props with the HTML fallback doc
+  (`component/legacy-export-let`), TS with defaults, JSDoc, and imported types
+  (`props/legacy-typescript`), JS with `@type` and initializer optionality
+  (`props/legacy-javascript`), accessors, type-only exports, and the
+  `export {a as class}` rename (`props/legacy-accessors-rename`), callbacks and
+  snippets (`props/legacy-callback`), `$$restProps`/`$$props` use
+  (`props/legacy-rest-props`), generics (`component/legacy-generic`), default
+  slot → `acceptsChildren` and named-slot-only → not
+  (`component/legacy-slot-{default,named}`), `$$Props` over an external bag with
+  an index signature and an admitted `export let` name
+  (`types/legacy-props-external`)
 - Types: snippets, unions, tuples, literal unions, intersections with
   `HTMLAttributes`, `SvelteHTMLElements` extension, types derived from a
   component's own type (`typeof Other`, `ComponentProps<typeof Other>` from a

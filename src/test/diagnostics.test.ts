@@ -11,7 +11,6 @@ import {
 	parseDiagnostics,
 	warningsOf,
 	type ClassMemberDiagnostic,
-	type LegacyPropsDiagnostic,
 	type MisplacedTagDiagnostic,
 	type ModuleSkippedDiagnostic,
 	type SignatureAnalysisDiagnostic,
@@ -83,22 +82,6 @@ const createSveltePropDiagnostic = (
 	severity: 'warning',
 	componentName: 'Button',
 	propName: 'variant',
-	...overrides
-});
-
-/**
- * Create a legacy_props diagnostic for testing.
- */
-const createLegacyPropsDiagnostic = (
-	overrides: Partial<LegacyPropsDiagnostic> = {}
-): LegacyPropsDiagnostic => ({
-	kind: 'legacy_props',
-	file: 'Button.svelte',
-	line: 3,
-	message: 'Component "Button" declares props with legacy export let syntax (variant)',
-	severity: 'warning',
-	componentName: 'Button',
-	propNames: ['variant'],
 	...overrides
 });
 
@@ -446,7 +429,6 @@ describe('diagnostics array', () => {
 				createSignatureDiagnostic(),
 				createClassMemberDiagnostic(),
 				createSveltePropDiagnostic(),
-				createLegacyPropsDiagnostic(),
 				createModuleSkippedDiagnostic(),
 				createMisplacedTagDiagnostic(),
 				createUnknownParamDiagnostic(),
@@ -704,7 +686,6 @@ describe('diagnostic type discrimination', () => {
 			createSignatureDiagnostic(),
 			createClassMemberDiagnostic(),
 			createSveltePropDiagnostic(),
-			createLegacyPropsDiagnostic(),
 			createModuleSkippedDiagnostic(),
 			createMisplacedTagDiagnostic(),
 			createUnknownParamDiagnostic()
@@ -725,10 +706,6 @@ describe('diagnostic type discrimination', () => {
 				case 'svelte_prop_failed':
 					assert.strictEqual(d.componentName, 'Button');
 					assert.strictEqual(d.propName, 'variant');
-					break;
-				case 'legacy_props':
-					assert.strictEqual(d.componentName, 'Button');
-					assert.deepEqual(d.propNames, ['variant']);
 					break;
 				case 'module_skipped':
 					assert.strictEqual(d.reason, 'no_analyzer');

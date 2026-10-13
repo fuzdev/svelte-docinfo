@@ -694,7 +694,15 @@
 				{
 					"name": "Legacy",
 					"kind": "component",
-					"sourceLine": 4
+					"sourceLine": 4,
+					"props": [
+						{
+							"name": "z",
+							"type": "number",
+							"bindable": true
+						}
+					],
+					"acceptsChildren": true
 				}
 			],
 			"dependents": [
@@ -707,7 +715,14 @@
 				{
 					"name": "Legacy2",
 					"kind": "component",
-					"sourceLine": 4
+					"sourceLine": 4,
+					"props": [
+						{
+							"name": "y",
+							"type": "string",
+							"bindable": true
+						}
+					]
 				}
 			],
 			"dependents": [
@@ -862,28 +877,6 @@
 			"message": "Type alias \"G\" loses its name at use sites — the right-hand side resolves to a type the checker has no name for, so unannotated positions document its structure instead of the alias.",
 			"severity": "warning",
 			"aliasName": "G"
-		},
-		{
-			"kind": "legacy_props",
-			"file": "src/lib/TypesComponentPropsAlias/Legacy.svelte",
-			"line": 5,
-			"message": "Component \"Legacy\" declares props with legacy export let syntax (z). Legacy props are not extracted — migrate to $props().",
-			"severity": "warning",
-			"componentName": "Legacy",
-			"propNames": [
-				"z"
-			]
-		},
-		{
-			"kind": "legacy_props",
-			"file": "src/lib/TypesComponentPropsAlias/Legacy2.svelte",
-			"line": 7,
-			"message": "Component \"Legacy2\" declares props with legacy export let syntax (y). Legacy props are not extracted — migrate to $props().",
-			"severity": "warning",
-			"componentName": "Legacy2",
-			"propNames": [
-				"y"
-			]
 		}
 	]
 }

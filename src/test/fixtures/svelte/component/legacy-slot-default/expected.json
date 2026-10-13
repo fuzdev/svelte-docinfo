@@ -1,0 +1,18 @@
+{
+	"path": "ComponentLegacySlotDefault.svelte",
+	"declarations": [
+		{
+			"name": "ComponentLegacySlotDefault",
+			"kind": "component",
+			"sourceLine": 3,
+			"props": [
+				{
+					"name": "a",
+					"type": "string",
+					"bindable": true
+				}
+			],
+			"acceptsChildren": true
+		}
+	]
+}

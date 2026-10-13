@@ -78,7 +78,8 @@ points to the TSDoc that owns its policy; read it before changing behavior. User
   merges document the class.
 - **Svelte 5 components** — props, generics, snippets, and `acceptsChildren` via svelte2tsx +
   the checker. JS components (no `lang="ts"`) take props from the JSDoc `@type` on
-  `$props()`, or from the typedef svelte2tsx synthesizes for untyped destructuring.
+  `$props()`, or from the typedef svelte2tsx synthesizes for untyped destructuring. Legacy
+  `export let` components document their props the same way (see Svelte Component Analysis).
 - **Runes** — `$state`, `$state.raw`, `$derived`, `$derived.by` are detected syntactically in
   every file (`reactivity`).
 - **Re-exports and diagnostics** — see Key Design Decisions. Dependency edges: Sources and
@@ -146,7 +147,7 @@ points to the TSDoc that owns its policy; read it before changing behavior. User
   `analyzeExports`, `analyzeDeclaration`, `extractModuleComment`. Handles alias chains,
   namespace classification, re-export JSDoc routing, merged symbols, and `alias_lost`.
 - `tsdoc.ts` — `parseComment`, `applyToDeclaration`, `cleanComment`, `hasDocContent`.
-- `diagnostics.ts` — `Diagnostic` (16-variant discriminated union), `DiagnosticKind`,
+- `diagnostics.ts` — `Diagnostic` (a discriminated union on `kind`), `DiagnosticKind`,
   `DiagnosticSeverity`, `parseDiagnostics`, and read helpers (`hasErrors`, `errorsOf`,
   `byKind`, `formatDiagnostic`, …). Diagnostics are a plain `Array<Diagnostic>`.
 - `log.ts` — `AnalysisLog` (`info`/`warn`/`error`): unstructured progress, separate from
@@ -159,6 +160,8 @@ points to the TSDoc that owns its policy; read it before changing behavior. User
   - Script and module-comment extraction, always from the *original* source, never the
     virtual.
   - Snippet helpers.
+- `svelte-legacy.ts` — `@internal`, imported directly (not in the barrel): the legacy
+  `export let` scan (`scanLegacyExports`) and props anchor (`resolveLegacyPropsAnchor`).
 - `source.ts` — `SourceFileInfo`, file-type predicates, virtual-path helpers
   (`stripVirtualSuffix`, `SVELTE_VIRTUAL_SUFFIX`), the svelte2tsx generated-name filter
   (`isSvelte2tsxGeneratedExport`), and `getDefaultAnalyzer`.
@@ -343,14 +346,37 @@ support older ones. The workflow, from the svelte2tsx virtual through props, is 
   (`localCallSignature`, the callable-member rule), which keeps `Component`-typed props
   out and picks the own signature from `MouseEventHandler<…> & (() => void)`. The
   `returnType` field doc in `types.ts` is the full statement.
-- **`acceptsChildren`** — true when a `Snippet`-typed `children` prop resolves, or when the
-  template uses children.
+- **`acceptsChildren`** — true when a `Snippet`-typed `children` prop resolves, when the
+  template uses children, or when the component has a default slot (a template `<slot />`
+  or a declared `$$Slots`, read off the `$$render` return's `slots` value by
+  `hasDefaultSlot`). The slot rule holds for every component: runes or legacy, with props
+  or without, template-only included. A named slot alone doesn't count.
 - **`docComment` precedence** — in-script JSDoc at or above `$props()` wins over the HTML
   `@component` comment, and `duplicate_comment` warns when both exist.
   - Type-only blocks (`@type`/`@typedef`) don't count (`hasDocContent`).
   - A component with no `$props()` gets only the HTML comment.
   - `@nodocs` is read from whichever source wins.
-- **Legacy `export let`** — zero props, but a `legacy_props` warning names them.
+- **Legacy `export let`** — a component with no `$props()` whose instance script exports
+  mutable bindings gets its props from the `$$render` return's `props` value instead
+  (`svelte-legacy.ts`, one call site), through the same `extractPropsViaChecker` via a
+  `PropsAnchor`.
+  - Every prop is `bindable`. `defaultValue` is the initializer's text from the original
+    script, the `export {a as b}` rename form included.
+  - TS components read a type, and optionality is that type's: the literal svelte2tsx
+    writes from the exports, or the author's reserved `$$Props`, which filters like a runes
+    props type, with the `export let` names as the admitted ones. An `export let` name
+    `$$Props` doesn't declare is dropped, since a typed consumer can't pass it. JS
+    components have only an object literal, so the type comes from each binding's JSDoc
+    `@type` and a prop is optional when it has an initializer.
+  - Order is the exports' source order, then props only `$$Props` declares.
+  - Accessors (`export const`, `export function`, `export class`) and type-only exports
+    aren't props.
+  - Slots and events aren't modeled, beyond the default slot setting `acceptsChildren` as
+    it does for any component.
+  - A component svelte2tsx reads as runes (a rune in the script) gets an empty props type:
+    its exported bindings are instance exports, so no props and no diagnostic.
+  - An unrecognized return shape yields no props and a `svelte_prop_failed` per export.
+  - The in-script doc slot doesn't exist, so `docComment` is the HTML comment only.
 
 ### Incremental Analysis (`createAnalysisSession`)
 
@@ -610,6 +636,12 @@ Lock-in tests: `src/test/analyze.reexport-{edges,namespace,forward,gated}.test.t
   (`export type {c as d} from`) are all silently dropped.
 - `ParameterJson` deliberately has no doc fields like `examples`/`since`, unlike
   `ComponentPropJson`.
+- Legacy components: named slots, slot props, and events aren't modeled. Two export forms
+  follow svelte2tsx's props value where it departs from Svelte. A binding exported both
+  directly and through a renaming clause (`export let a; export {a as b}`) keeps only `b`,
+  without the binding's JSDoc; TS reads it as optional, JS by the initializer like any
+  other prop. An export clause written above its binding loses the binding's JSDoc
+  (the type still resolves), and in TS reads as optional.
 
 ## API
 

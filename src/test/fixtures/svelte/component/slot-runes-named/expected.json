@@ -1,0 +1,16 @@
+{
+	"path": "ComponentSlotRunesNamed.svelte",
+	"declarations": [
+		{
+			"name": "ComponentSlotRunesNamed",
+			"kind": "component",
+			"sourceLine": 1,
+			"props": [
+				{
+					"name": "a",
+					"type": "string"
+				}
+			]
+		}
+	]
+}

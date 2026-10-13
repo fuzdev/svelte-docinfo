@@ -1,0 +1,71 @@
+{
+	"path": "TypesLegacyPropsExternal.svelte",
+	"declarations": [
+		{
+			"name": "TypesLegacyPropsExternal",
+			"kind": "component",
+			"sourceLine": 3,
+			"externalTypes": [
+				"Pick<SvelteHTMLElements['button'], 'id' | 'class' | 'disabled'>"
+			],
+			"props": [
+				{
+					"name": "disabled",
+					"type": "boolean | null",
+					"typeInfo": {
+						"kind": "union",
+						"members": [
+							{
+								"kind": "intrinsic",
+								"text": "boolean"
+							},
+							{
+								"kind": "intrinsic",
+								"text": "null"
+							}
+						]
+					},
+					"optional": true,
+					"defaultValue": "false",
+					"bindable": true
+				},
+				{
+					"name": "c",
+					"type": "string",
+					"optional": true,
+					"defaultValue": "'value'",
+					"bindable": true
+				},
+				{
+					"name": "a",
+					"type": "\"a\" | \"b\"",
+					"typeInfo": {
+						"kind": "union",
+						"members": [
+							{
+								"kind": "literal",
+								"value": "a",
+								"text": "\"a\""
+							},
+							{
+								"kind": "literal",
+								"value": "b",
+								"text": "\"b\""
+							}
+						]
+					},
+					"optional": true,
+					"description": "Description 1",
+					"defaultValue": "'a'",
+					"bindable": true
+				},
+				{
+					"name": "b",
+					"type": "number",
+					"description": "Description 2",
+					"bindable": true
+				}
+			]
+		}
+	]
+}

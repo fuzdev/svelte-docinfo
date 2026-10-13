@@ -96,7 +96,8 @@ export type DeclarationModifier = v.InferOutput<typeof DeclarationModifier>;
  *
  * Only the value-producing reactivity runes are represented here — `$props`
  * and `$bindable` are modeled separately as `ComponentPropJson.bindable`
- * (and prop-presence on the `props` array). A renderer wanting "all rune
+ * (and prop-presence on the `props` array), which a legacy `export let` prop
+ * sets too. A renderer wanting "all rune
  * annotations across declarations and props" needs to read both this field
  * and `ComponentPropJson.bindable`.
  *
@@ -613,7 +614,11 @@ const ComponentPropJsonImpl = v.strictObject({
 	 * included, no normalization; consumers render it as highlighted TS.
 	 */
 	defaultValue: v.optional(v.string()),
-	/** Whether the prop uses the `$bindable()` rune, enabling two-way binding. */
+	/**
+	 * Whether the prop supports two-way binding (`bind:name`): declared with the
+	 * `$bindable()` rune, or any prop of a legacy `export let` component, where
+	 * every prop can be bound.
+	 */
 	bindable: v.optional(v.boolean(), false),
 	/**
 	 * Structured parameters for callable props: a snippet's
@@ -659,7 +664,8 @@ export interface ComponentPropJsonSchema extends Named<typeof ComponentPropJsonI
  * Standalone schema (not extending `ParameterJson`) because component props
  * have different semantics: named attributes with no positional order
  * (`<Foo {a} {b} />` = `<Foo {b} {a} />`), no rest parameters,
- * and support for two-way binding via `$bindable` rune.
+ * and support for two-way binding (the `$bindable` rune, or a legacy
+ * `export let` prop).
  */
 export const ComponentPropJson: ComponentPropJsonSchema = ComponentPropJsonImpl;
 export type ComponentPropJson = v.InferOutput<typeof ComponentPropJson>;
@@ -1230,7 +1236,12 @@ const ComponentDeclarationJsonImpl = v.strictObject({
 	 * a package.
 	 */
 	props: v.optional(v.array(ComponentPropJson), () => []),
-	/** Whether the component accepts children (explicit `children` prop, inherited, or implicit template usage). */
+	/**
+	 * Whether the component accepts children: an explicit or inherited
+	 * `Snippet`-typed `children` prop, implicit template usage, or a default
+	 * slot (`<slot />` or a declared `$$Slots`) in any component. A named slot
+	 * alone doesn't set it.
+	 */
 	acceptsChildren: v.optional(v.boolean(), false),
 	/** Script language. `undefined` means TypeScript (default), `'js'` for JavaScript-only components. */
 	lang: v.optional(v.picklist(['js']))

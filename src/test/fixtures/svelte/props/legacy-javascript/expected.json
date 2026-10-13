@@ -1,0 +1,68 @@
+{
+	"path": "PropsLegacyJavascript.svelte",
+	"declarations": [
+		{
+			"name": "PropsLegacyJavascript",
+			"kind": "component",
+			"sourceLine": 3,
+			"props": [
+				{
+					"name": "a",
+					"type": "string",
+					"bindable": true
+				},
+				{
+					"name": "b",
+					"type": "number",
+					"optional": true,
+					"description": "Description 1",
+					"defaultValue": "1",
+					"bindable": true,
+					"deprecatedMessage": "Description 2"
+				},
+				{
+					"name": "c",
+					"type": "any",
+					"bindable": true
+				},
+				{
+					"name": "d",
+					"type": "string",
+					"optional": true,
+					"defaultValue": "'value'",
+					"bindable": true
+				},
+				{
+					"name": "e",
+					"type": "\"a\" | \"b\"",
+					"typeInfo": {
+						"kind": "union",
+						"members": [
+							{
+								"kind": "literal",
+								"value": "a",
+								"text": "\"a\""
+							},
+							{
+								"kind": "literal",
+								"value": "b",
+								"text": "\"b\""
+							}
+						]
+					},
+					"optional": true,
+					"bindable": true
+				},
+				{
+					"name": "f",
+					"type": "{ a: number; }",
+					"optional": true,
+					"description": "Description 3",
+					"defaultValue": "{ a: 1 }",
+					"bindable": true
+				}
+			],
+			"lang": "js"
+		}
+	]
+}

@@ -1,0 +1,81 @@
+{
+	"path": "PropsLegacyCallback.svelte",
+	"declarations": [
+		{
+			"name": "PropsLegacyCallback",
+			"kind": "component",
+			"sourceLine": 3,
+			"props": [
+				{
+					"name": "a",
+					"type": "(x: number, y?: string | undefined) => boolean",
+					"bindable": true,
+					"parameters": [
+						{
+							"name": "x",
+							"type": "number"
+						},
+						{
+							"name": "y",
+							"type": "string",
+							"optional": true
+						}
+					],
+					"returnType": "boolean"
+				},
+				{
+					"name": "b",
+					"type": "() => void",
+					"optional": true,
+					"description": "Description 1",
+					"bindable": true,
+					"returnType": "void"
+				},
+				{
+					"name": "c",
+					"type": "(x: number) => number",
+					"optional": true,
+					"defaultValue": "(x: number): number => x",
+					"bindable": true,
+					"parameters": [
+						{
+							"name": "x",
+							"type": "number"
+						}
+					],
+					"returnType": "number"
+				},
+				{
+					"name": "d",
+					"type": "Snippet<[x: number]>",
+					"typeInfo": {
+						"kind": "reference",
+						"name": "Snippet",
+						"typeArgs": [
+							{
+								"kind": "tuple",
+								"elements": [
+									{
+										"name": "x",
+										"type": {
+											"kind": "intrinsic",
+											"text": "number"
+										}
+									}
+								]
+							}
+						]
+					},
+					"optional": true,
+					"bindable": true,
+					"parameters": [
+						{
+							"name": "x",
+							"type": "number"
+						}
+					]
+				}
+			]
+		}
+	]
+}

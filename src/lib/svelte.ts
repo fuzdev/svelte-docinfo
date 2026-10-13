@@ -19,6 +19,7 @@
  * @see `typescript-extract-type-json.ts` for `resolveTypeInfo`, `referenceSymbolName`, `tupleElements`, `restElementForms`
  * @see `tsdoc.ts` for `parseComment`, `applyToDeclaration`
  * @see `source.ts` for `SourceFileInfo`, `getComponentName`
+ * @see `svelte-legacy.ts` for `scanLegacyExports`, `resolveLegacyPropsAnchor`
  *
  * @module
  */
@@ -82,6 +83,7 @@ import { compareStrings } from './postprocess.ts';
 import { type Diagnostic } from './diagnostics.ts';
 import { toErrorMessage } from './error.ts';
 import { toPosixPath } from './paths.ts';
+import { resolveLegacyPropsAnchor, scanLegacyExports } from './svelte-legacy.ts';
 
 /** Resolved source map type (avoids repeating the verbose `InstanceType<...>` inline). */
 type SourceMap = InstanceType<typeof TraceMap>;
@@ -260,6 +262,11 @@ const assertSvelteVersion = (): void => {
 interface ComponentNodes {
 	/** `function $$render()`, whose body is the instance `<script>`. */
 	renderFunction?: ts.FunctionDeclaration;
+	/**
+	 * The object `$$render` returns (`{props: …, slots: …, …}`): where the
+	 * default slot is read, and a legacy component's props.
+	 */
+	renderReturn?: ts.ObjectLiteralExpression;
 	/** `class __sveltets_Render`, emitted for generic components. */
 	renderClass?: ts.ClassDeclaration;
 	/** `const <Name>__SvelteComponent_`, which carries the HTML `@component` JSDoc. */
@@ -273,6 +280,8 @@ const findComponentNodes = (virtualSource: ts.SourceFile): ComponentNodes => {
 		if (ts.isFunctionDeclaration(statement)) {
 			if (statement.name?.text === SVELTE2TSX_IDENTIFIERS.RENDER_FUNCTION) {
 				nodes.renderFunction = statement;
+				const returned = statement.body?.statements.findLast(ts.isReturnStatement)?.expression;
+				if (returned && ts.isObjectLiteralExpression(returned)) nodes.renderReturn = returned;
 			}
 		} else if (ts.isClassDeclaration(statement)) {
 			if (statement.name?.text === SVELTE2TSX_IDENTIFIERS.RENDER_CLASS) {
@@ -290,6 +299,38 @@ const findComponentNodes = (virtualSource: ts.SourceFile): ComponentNodes => {
 		}
 	}
 	return nodes;
+};
+
+/** The value of `name: …` in the object `$$render` returns, when it's a plain property assignment. */
+const renderReturnValue = (nodes: ComponentNodes, name: string): ts.Expression | undefined => {
+	for (const property of nodes.renderReturn?.properties ?? []) {
+		if (
+			ts.isPropertyAssignment(property) &&
+			ts.isIdentifier(property.name) &&
+			property.name.text === name
+		) {
+			return property.initializer;
+		}
+	}
+	return undefined;
+};
+
+/**
+ * Whether a component has a default slot, read off the type of the `slots`
+ * value `$$render` returns. That covers a template `<slot />` and a declared
+ * `$$Slots`, in any component: legacy or runes, with props or without, with a
+ * script or template-only. A named slot alone doesn't count.
+ *
+ * @returns `false` too when the virtual has no recognized `slots` value or the checker throws
+ */
+const hasDefaultSlot = (nodes: ComponentNodes, checker: ts.TypeChecker): boolean => {
+	const slots = renderReturnValue(nodes, 'slots');
+	if (!slots) return false;
+	try {
+		return checker.getTypeAtLocation(slots).getProperty('default') !== undefined;
+	} catch (_) {
+		return false;
+	}
 };
 
 /**
@@ -481,9 +522,9 @@ const isModuleScript = (attributes: Map<string, string | true>): boolean =>
  *
  * TS is a syntactic superset of both script langs, so the parse serves JS
  * scripts too. Parents are set so consumers can call `getStart()` freely.
- * Shared by `extractSvelteModuleComment` and the legacy-prop scan —
- * `analyzeSvelteModule` parses the instance script once and hands the result
- * to both.
+ * Shared by `extractSvelteModuleComment` and the legacy-export scan
+ * (`scanLegacyExports`) — `analyzeSvelteModule` parses the instance script once
+ * and hands the result to both.
  */
 const parseScriptContent = (scriptContent: string): ts.SourceFile =>
 	ts.createSourceFile('script.ts', scriptContent, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
@@ -495,75 +536,6 @@ const lineOfOffset = (text: string, offset: number): number => {
 		if (text.charCodeAt(i) === 10 /* \n */) line++;
 	}
 	return line;
-};
-
-/** A legacy prop found by `detectLegacyProps`. */
-interface LegacyProp {
-	/** Exported prop name (the rename in `export {a as b}` form). */
-	name: string;
-	/** Offset within the script content — the caller owns line mapping. */
-	pos: number;
-}
-
-/**
- * Detect legacy `export let` props in an instance script.
- *
- * Runes-less components declare props by exporting mutable bindings —
- * `export let a` / `export var a` directly, or `let a; export {a as b}` for
- * renames (the reserved-word workaround). Presence of either form is a
- * reliable legacy signal without classifying the component's mode: `export
- * let` is a compile error in runes mode, so no valid component mixes it with
- * `$props()`. `export const` / `export function` are accessors, not props,
- * and type-only exports aren't runtime bindings — both stay out. The scan
- * reads the *original* instance script (via `parseScriptContent`) because
- * svelte2tsx rewrites the `export` modifier away inside `$$render`; a purely
- * syntactic walk over top-level statements is all it needs.
- *
- * @param scriptSource - parsed instance `<script>` content from the original source
- * @returns detected props in source order; empty when the component isn't legacy
- */
-const detectLegacyProps = (scriptSource: ts.SourceFile): Array<LegacyProp> => {
-	// top-level non-const bindings, for the export-clause rename form
-	const mutableBindings: Set<string> = new Set();
-	const found: Array<LegacyProp> = [];
-
-	for (const statement of scriptSource.statements) {
-		if (!ts.isVariableStatement(statement)) continue;
-		// const/using/await-using bindings aren't reassignable — accessors, not props
-		if (statement.declarationList.flags & (ts.NodeFlags.Const | ts.NodeFlags.Using)) continue;
-		const exported =
-			statement.modifiers?.some((m) => m.kind === ts.SyntaxKind.ExportKeyword) ?? false;
-		for (const declaration of statement.declarationList.declarations) {
-			// legacy props are simple identifiers; skip destructuring defensively
-			if (!ts.isIdentifier(declaration.name)) continue;
-			// a directly-exported binding can still be renamed by a clause —
-			// `export let a; export {a as b}` declares props `a` and `b`
-			mutableBindings.add(declaration.name.text);
-			if (exported) {
-				found.push({ name: declaration.name.text, pos: declaration.name.getStart(scriptSource) });
-			}
-		}
-	}
-
-	// separate pass — an export clause may precede the binding it re-exports
-	for (const statement of scriptSource.statements) {
-		if (
-			!ts.isExportDeclaration(statement) ||
-			statement.isTypeOnly ||
-			statement.moduleSpecifier !== undefined ||
-			statement.exportClause === undefined ||
-			!ts.isNamedExports(statement.exportClause)
-		) {
-			continue;
-		}
-		for (const spec of statement.exportClause.elements) {
-			if (spec.isTypeOnly) continue;
-			if (!mutableBindings.has((spec.propertyName ?? spec.name).text)) continue;
-			found.push({ name: spec.name.text, pos: spec.getStart(scriptSource) });
-		}
-	}
-
-	return found.sort((a, b) => a.pos - b.pos);
 };
 
 /**
@@ -808,7 +780,7 @@ const assemblePropInfo = (
 	typeInfo: TypeJson | undefined,
 	optional: boolean,
 	propDecl: ts.Node | undefined,
-	metadata: PropsMetadata,
+	anchor: PropsAnchor,
 	parameters?: Array<ParameterJsonInput>,
 	callbackReturn?: { returnType?: string; returnTypeInfo?: TypeJson }
 ): ComponentPropJsonInput => {
@@ -820,8 +792,8 @@ const assemblePropInfo = (
 		optional,
 		description: tsdoc?.text || undefined,
 		// Default value: AST first (source of truth), then @default tag (fallback)
-		defaultValue: metadata.propsDefaults.get(propName) ?? tsdoc?.defaultValue,
-		bindable: metadata.bindableProps.has(propName),
+		defaultValue: anchor.defaults.get(propName) ?? tsdoc?.defaultValue,
+		bindable: anchor.bindable === 'all' || anchor.bindable.has(propName),
 		examples: tsdoc?.examples,
 		deprecatedMessage: tsdoc?.deprecatedMessage,
 		seeAlso: tsdoc?.seeAlso,
@@ -1169,60 +1141,94 @@ const detectChildrenSnippet = (
 };
 
 /**
- * Extract props from svelte2tsx output using the TypeScript checker.
+ * Where a component's props are read from: the resolved props type plus what
+ * the component's own script says about each prop. `extractPropsViaChecker`
+ * projects props from it the same way whichever syntax declared them.
  *
- * Anchors on `metadata.propsDeclaration` (located by `extractPropsMetadata`'s
- * traversal) and uses `checker.getTypeAtLocation()` to resolve the props type,
- * including imported types that are not locally defined.
+ * Runes components build one from the `$props()` declaration
+ * (`resolveRunesPropsAnchor`); legacy `export let` components from the
+ * `$$render` return (`resolveLegacyPropsAnchor`). The optional fields are the
+ * legacy differences, absent on the runes path.
  */
-const extractPropsViaChecker = (
-	virtualSource: ts.SourceFile,
+interface PropsAnchor {
+	/** The props type. */
+	type: ts.Type;
+	/**
+	 * The node the type was read from, in the component's own virtual. Property
+	 * types resolve at it, its file is the component's own for picking a prop's
+	 * representative declaration, and when it's a type node the `externalTypes`
+	 * walk reads it.
+	 */
+	node: ts.Node;
+	/**
+	 * Prop names the script itself binds, in source order: the `$props()`
+	 * destructuring's, or the `export let` names. An external-origin property
+	 * is documented only when named here.
+	 */
+	scriptNames: ReadonlyArray<string>;
+	/** Default values as written in the script, keyed by prop name. */
+	defaults: ReadonlyMap<string, string>;
+	/** The bindable prop names, or `'all'`. */
+	bindable: ReadonlySet<string> | 'all';
+	/**
+	 * Order every `scriptNames` prop first, in that order, ahead of props only
+	 * the type declares. Unset, props the project declares come first in
+	 * declaration order and `scriptNames` orders just the admitted external
+	 * ones.
+	 */
+	scriptNamesFirst?: boolean;
+	/**
+	 * Which of the type's properties are props. Unset, all are. A legacy
+	 * component's type also lists its accessors, which aren't passed in.
+	 */
+	isProp?: (name: string) => boolean;
+	/**
+	 * Optional prop names, replacing the type's own optionality. Set when the
+	 * type can't carry it: a legacy JS component's props object, whose every
+	 * property reads as required.
+	 */
+	optionalNames?: ReadonlySet<string>;
+}
+
+/**
+ * Resolve the props anchor of a runes component: the type of its `$props()`
+ * declaration, with the destructuring's names and defaults and the
+ * `$bindable()` props.
+ *
+ * Emits `svelte_prop_failed` when the declaration names a type the checker
+ * throws on.
+ *
+ * @returns the anchor, or `undefined` when the declaration carries no type or it doesn't resolve
+ */
+const resolveRunesPropsAnchor = (
+	metadata: PropsMetadata,
+	propsDeclaration: ts.VariableDeclaration,
 	ctx: ExtractContext,
 	componentName: string,
-	diagnosticFile: string,
-	sourceMap: SourceMap | null,
-	metadata: PropsMetadata
-): {
-	props: Array<ComponentPropJsonInput>;
-	externalTypes?: Array<string>;
-	acceptsChildren: boolean;
-} => {
-	const { checker, diagnostics } = ctx;
-	// Resolve the $props() declaration's type via the checker. Type and node
-	// are both-or-neither — the node is what `filterDocumentedProperties` and
-	// snippet extraction walk, so a resolved type without one is useless
-	let resolvedProps: { type: ts.Type; node: ts.Node } | undefined;
-	let propsTypeName: string | undefined;
-
-	if (metadata.propsDeclaration) {
-		// JS components carry the props type as JSDoc instead of a TypeNode —
-		// the author's `@type {Props}`, or the `@type {$$ComponentProps}`
-		// typedef svelte2tsx synthesizes for untyped destructuring. The JSDoc
-		// type participates in checking because JS-lang virtuals parse with
-		// `ScriptKind.JS` (see `SvelteVirtualFile.scriptKind`). TS virtuals
-		// never reach the fallback — svelte2tsx synthesizes a real annotation
-		// (`$$ComponentProps`) even for untyped `$props()` — so a stray JSDoc
-		// `@type` on a TS component is ignored, not honored.
-		const typeNode = metadata.propsDeclaration.type ?? ts.getJSDocType(metadata.propsDeclaration);
-		if (typeNode) {
-			// Read the name from the AST before the checker call so a throw
-			// below still knows what it failed to resolve
-			if (ts.isTypeReferenceNode(typeNode) && ts.isIdentifier(typeNode.typeName)) {
-				propsTypeName = typeNode.typeName.text;
-			}
-			try {
-				resolvedProps = { type: checker.getTypeAtLocation(typeNode), node: typeNode };
-			} catch (_) {
-				// Fall through — resolvedProps stays undefined
-			}
-		}
-	}
-
-	if (!resolvedProps) {
-		// If $props() was used with a type name but the checker threw resolving
-		// it, emit a diagnostic
-		if (propsTypeName) {
-			diagnostics.push({
+	diagnosticFile: string
+): PropsAnchor | undefined => {
+	// JS components carry the props type as JSDoc instead of a TypeNode —
+	// the author's `@type {Props}`, or the `@type {$$ComponentProps}`
+	// typedef svelte2tsx synthesizes for untyped destructuring. The JSDoc
+	// type participates in checking because JS-lang virtuals parse with
+	// `ScriptKind.JS` (see `SvelteVirtualFile.scriptKind`). TS virtuals
+	// never reach the fallback — svelte2tsx synthesizes a real annotation
+	// (`$$ComponentProps`) even for untyped `$props()` — so a stray JSDoc
+	// `@type` on a TS component is ignored, not honored.
+	const typeNode = propsDeclaration.type ?? ts.getJSDocType(propsDeclaration);
+	if (!typeNode) return undefined;
+	// Type and node are both-or-neither — the node is what
+	// `filterDocumentedProperties` and snippet extraction walk, so a resolved
+	// type without one is useless
+	let type: ts.Type;
+	try {
+		type = ctx.checker.getTypeAtLocation(typeNode);
+	} catch (_) {
+		// the name is read from the AST, so a throw still knows what it failed
+		// to resolve; an unnamed type fails silently
+		if (ts.isTypeReferenceNode(typeNode) && ts.isIdentifier(typeNode.typeName)) {
+			const propsTypeName = typeNode.typeName.text;
+			ctx.diagnostics.push({
 				kind: 'svelte_prop_failed',
 				file: diagnosticFile,
 				message: `Component "${componentName}" uses $props() with type "${propsTypeName}" but the checker could not resolve it. This may indicate an incompatible svelte2tsx version.`,
@@ -1231,9 +1237,37 @@ const extractPropsViaChecker = (
 				propName: propsTypeName
 			});
 		}
-		return { props: [], acceptsChildren: false };
+		return undefined;
 	}
-	const { type: propsType, node: propsTypeNode } = resolvedProps;
+	return {
+		type,
+		node: typeNode,
+		scriptNames: metadata.destructuredProps,
+		defaults: metadata.propsDefaults,
+		bindable: metadata.bindableProps
+	};
+};
+
+/**
+ * Extract props from svelte2tsx output using the TypeScript checker.
+ *
+ * Reads the props type off `anchor`, which the checker resolved, so imported
+ * types that aren't locally defined are included.
+ */
+const extractPropsViaChecker = (
+	virtualSource: ts.SourceFile,
+	ctx: ExtractContext,
+	componentName: string,
+	diagnosticFile: string,
+	sourceMap: SourceMap | null,
+	anchor: PropsAnchor
+): {
+	props: Array<ComponentPropJsonInput>;
+	externalTypes?: Array<string>;
+	acceptsChildren: boolean;
+} => {
+	const { checker, diagnostics } = ctx;
+	const { type: propsType, node: propsTypeNode } = anchor;
 
 	// Detect `acceptsChildren` via type inference: `children` must resolve to a
 	// `Snippet<...>` type. Checking the symbol name alone would misreport a
@@ -1263,13 +1297,22 @@ const extractPropsViaChecker = (
 	// The rest element names nothing, and a name the props type lacks (a type
 	// error in the component) or matches only through an index signature has
 	// no property to admit, so neither invents a prop.
-	const { properties, admitted, externalTypes } = filterDocumentedProperties(
+	//
+	// A legacy component's `export let` names are admitted by the same rule,
+	// and `isProp` drops what its props type lists beyond the props.
+	const filtered = filterDocumentedProperties(
 		propsType,
 		propsTypeNode,
 		checker,
 		ctx.isExternalFile,
-		new Set(metadata.destructuredProps)
+		new Set(anchor.scriptNames)
 	);
+	const { externalTypes } = filtered;
+	const { isProp } = anchor;
+	const properties = isProp
+		? filtered.properties.filter((p) => isProp(p.name))
+		: filtered.properties;
+	const admitted = isProp ? filtered.admitted.filter((p) => isProp(p.name)) : filtered.admitted;
 
 	// One pick rule for "which declaration represents this prop": the symbol's
 	// declaration in the component's own file when one exists, else the usual
@@ -1315,19 +1358,32 @@ const extractPropsViaChecker = (
 	// component, and sorting by it would group them by how the package path
 	// compares to the component's; the pattern is the only position the
 	// component itself gives them.
-	const destructuredOrder = new Map(metadata.destructuredProps.map((name, i) => [name, i]));
+	const scriptOrder = new Map(anchor.scriptNames.map((name, i) => [name, i]));
 	const admittedInOrder = admitted.sort(
-		(a, b) => destructuredOrder.get(a.name)! - destructuredOrder.get(b.name)!
+		(a, b) => scriptOrder.get(a.name)! - scriptOrder.get(b.name)!
 	);
+	let orderedProperties = [...sortedProperties, ...admittedInOrder];
+	// Legacy components order by the script instead: every `export let` prop in
+	// export order, whichever side declared its type, then the props only a
+	// `$$Props` type declares, in the order above. The exports are the
+	// component's own statement of its props; `$$Props` is a type beside them.
+	if (anchor.scriptNamesFirst) {
+		const inScript = orderedProperties
+			.filter((p) => scriptOrder.has(p.name))
+			.sort((a, b) => scriptOrder.get(a.name)! - scriptOrder.get(b.name)!);
+		orderedProperties = [...inScript, ...orderedProperties.filter((p) => !scriptOrder.has(p.name))];
+	}
 
 	const props: Array<ComponentPropJsonInput> = [];
 
-	for (const prop of [...sortedProperties, ...admittedInOrder]) {
+	for (const prop of orderedProperties) {
 		const propDecl = representativeDeclaration(prop);
 
 		// Check optionality via symbol flags (computed before type resolution
 		// since the type-string path strips the widened `undefined` for optional props)
-		const optional = (prop.flags & ts.SymbolFlags.Optional) !== 0;
+		const optional = anchor.optionalNames
+			? anchor.optionalNames.has(prop.name)
+			: (prop.flags & ts.SymbolFlags.Optional) !== 0;
 
 		// Get type string via checker
 		let typeString = 'any';
@@ -1340,6 +1396,8 @@ const extractPropsViaChecker = (
 			// Strip it to match the declared type (e.g., `number` not `number | undefined`).
 			// Under `exactOptionalPropertyTypes` the checker doesn't widen, so the
 			// strip is gated off and a written `| undefined` survives.
+			// (A legacy JS prop made optional by its initializer strips the same
+			// way, so `optional` carries the `undefined` whichever syntax said it.)
 			const widened = optionalWidened(ctx, optional);
 			typeString = getTypeSignature(propType, checker, widened);
 			// the written annotation (in the svelte2tsx virtual or an imported
@@ -1410,7 +1468,7 @@ const extractPropsViaChecker = (
 				typeInfo,
 				optional,
 				propDecl,
-				metadata,
+				anchor,
 				callableParams,
 				callbackReturn
 			)
@@ -1437,10 +1495,13 @@ const extractPropsViaChecker = (
  * 2. svelte2tsx internals are filtered (`isSvelte2tsxGeneratedExport`) and
  *    exported snippets reclassified to `kind: 'snippet'` (`isSnippetReturnType`);
  *    2b remaps module-level `sourceLine`s to the original `.svelte` source
- * 3. the component declaration is synthesized: props via `extractPropsViaChecker`,
- *    `acceptsChildren` from a `Snippet`-typed `children` prop or, failing that,
- *    template use (`__sveltets_2_ensureSnippet`), plus generics, doc comment, and
- *    source line from the landmarks `findComponentNodes` locates
+ * 3. the component declaration is synthesized: props via `extractPropsViaChecker`
+ *    from the component's `PropsAnchor` (the `$props()` declaration, or for a
+ *    legacy `export let` component the `$$render` return, see
+ *    `svelte-legacy.ts`), `acceptsChildren` from a `Snippet`-typed `children`
+ *    prop, template use (`__sveltets_2_ensureSnippet`) or, failing those, a
+ *    default slot (`hasDefaultSlot`), plus generics, doc comment, and source line
+ *    from the landmarks `findComponentNodes` locates
  * 4. the module comment is read from the original source
  * 5. declarations combine, component first
  * 6. dependencies are extracted
@@ -1633,20 +1694,88 @@ export const analyzeSvelteModule = (
 		? parseScriptContent(instanceScript.content)
 		: undefined;
 
-	// Extract props via checker (resolves imported types)
+	// Locate the svelte2tsx landmarks once — the legacy props anchor, the
+	// default slot, generics, doc comment, and source line all read from them
+	const componentNodes = findComponentNodes(virtualTsSource);
+
+	// Resolve where the props are read from: the `$props()` declaration, or for
+	// a legacy (runes-less) component the `$$render` return. The legacy scan
+	// reads the original instance script, since svelte2tsx rewrites the
+	// `export` modifier away; a component with neither has no props.
 	const propsMetadata = extractPropsMetadata(virtualTsSource);
+	let propsAnchor: PropsAnchor | undefined;
+	if (propsMetadata.propsDeclaration) {
+		propsAnchor = resolveRunesPropsAnchor(
+			propsMetadata,
+			propsMetadata.propsDeclaration,
+			ctx,
+			componentName,
+			diagnosticFile
+		);
+	} else if (instanceScript && instanceScriptSource) {
+		const legacy = scanLegacyExports(instanceScriptSource);
+		if (legacy.props.length > 0) {
+			const legacyAnchor = resolveLegacyPropsAnchor(
+				renderReturnValue(componentNodes, 'props'),
+				checker
+			);
+			if (legacyAnchor === 'unrecognized') {
+				// refuse rather than guess: the exports are known, but with no
+				// recognized props type there's nothing to type them from
+				for (const prop of legacy.props) {
+					diagnostics.push({
+						kind: 'svelte_prop_failed',
+						file: diagnosticFile,
+						line: lineOfOffset(sourceFile.content, instanceScript.start + prop.pos),
+						message: `Failed to extract prop "${prop.name}" in ${componentName}: the svelte2tsx output has no recognized props type for its legacy export let syntax. This may indicate an incompatible svelte2tsx version.`,
+						severity: 'warning',
+						componentName,
+						propName: prop.name
+					});
+				}
+			} else if (legacyAnchor !== 'not_legacy') {
+				const scriptNames = legacy.props.map((p) => p.name);
+				const scriptNameSet = new Set(scriptNames);
+				propsAnchor = {
+					type: legacyAnchor.type,
+					node: legacyAnchor.node,
+					scriptNames,
+					defaults: new Map(
+						legacy.props.flatMap((p) =>
+							p.defaultValue === undefined ? [] : [[p.name, p.defaultValue]]
+						)
+					),
+					// any `export let` can be bound
+					bindable: 'all',
+					scriptNamesFirst: true,
+					isProp: legacyAnchor.authored
+						? (name) => !legacy.accessors.has(name)
+						: (name) => scriptNameSet.has(name),
+					optionalNames: legacyAnchor.typed
+						? undefined
+						: new Set(legacy.props.filter((p) => p.hasInitializer).map((p) => p.name))
+				};
+			}
+			// `'not_legacy'`: svelte2tsx read the component as runes, where an
+			// exported binding is an instance export. No props, nothing to report.
+		}
+	}
+
+	// Extract props via checker (resolves imported types)
 	const {
 		props,
 		externalTypes,
 		acceptsChildren: propsAcceptsChildren
-	} = extractPropsViaChecker(
-		virtualTsSource,
-		ctx,
-		componentName,
-		diagnosticFile,
-		virtualFile.sourceMap,
-		propsMetadata
-	);
+	}: ReturnType<typeof extractPropsViaChecker> = propsAnchor
+		? extractPropsViaChecker(
+				virtualTsSource,
+				ctx,
+				componentName,
+				diagnosticFile,
+				virtualFile.sourceMap,
+				propsAnchor
+			)
+		: { props: [], acceptsChildren: false };
 	if (props.length > 0) {
 		componentDecl.props = props;
 	}
@@ -1655,42 +1784,18 @@ export const analyzeSvelteModule = (
 		componentDecl.externalTypes = externalTypes;
 	}
 
-	// Legacy (runes-less) components declare props with `export let`, which
-	// has no `$props()` anchor — nothing was extracted above. Detect the
-	// syntax in the original instance script so the empty `props` carries a
-	// diagnostic instead of silence.
-	if (!propsMetadata.propsDeclaration && instanceScript && instanceScriptSource) {
-		const legacyProps = detectLegacyProps(instanceScriptSource);
-		if (legacyProps.length > 0) {
-			const propNames = legacyProps.map((p) => p.name);
-			diagnostics.push({
-				kind: 'legacy_props',
-				file: diagnosticFile,
-				// the first legacy export's line in the original source
-				line: lineOfOffset(sourceFile.content, instanceScript.start + legacyProps[0]!.pos),
-				message: `Component "${componentName}" declares props with legacy export let syntax (${propNames.join(', ')}). Legacy props are not extracted — migrate to $props().`,
-				severity: 'warning',
-				componentName,
-				propNames
-			});
-		}
-	}
-
-	// Determine acceptsChildren via two paths:
+	// Determine acceptsChildren via three paths, cheapest first:
 	// Path A: children found in props type (from extractPropsViaChecker, before external-property filtering)
 	// Path B: implicit children usage in template (for components without $props() children declaration)
-	let acceptsChildren = propsAcceptsChildren;
-	if (!acceptsChildren) {
+	// Path C: a default slot, which renders the children of any component, runes or legacy
+	const acceptsChildren =
+		propsAcceptsChildren ||
 		// Path B: scan virtual source for __sveltets_2_ensureSnippet(children pattern
-		acceptsChildren = virtualFile.content.includes('__sveltets_2_ensureSnippet(children');
-	}
+		virtualFile.content.includes('__sveltets_2_ensureSnippet(children') ||
+		hasDefaultSlot(componentNodes, checker);
 	if (acceptsChildren) {
 		componentDecl.acceptsChildren = true;
 	}
-
-	// Locate the svelte2tsx landmarks once — generics, doc comment, and source
-	// line all read from them
-	const componentNodes = findComponentNodes(virtualTsSource);
 
 	// Extract generic params
 	const genericParams = extractGenericParams(componentNodes);

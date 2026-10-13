@@ -398,7 +398,8 @@
 				<li><code>defaultValue</code>: default value as source text, if present</li>
 				<li>
 					<code>bindable</code>: set when the prop is declared with <code>$bindable()</code>, so
-					<code>&lt;Foo bind:value /&gt;</code> works
+					<code>&lt;Foo bind:value /&gt;</code> works. Every prop of a legacy
+					<code>export let</code> component is bindable
 				</li>
 				<li>
 					<code>parameters</code>: structured parameters for snippet-typed props (e.g.,

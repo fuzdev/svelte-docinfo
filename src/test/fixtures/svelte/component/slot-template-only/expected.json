@@ -1,0 +1,12 @@
+{
+	"path": "ComponentSlotTemplateOnly.svelte",
+	"declarations": [
+		{
+			"name": "ComponentSlotTemplateOnly",
+			"kind": "component",
+			"sourceLine": 1,
+			"acceptsChildren": true,
+			"lang": "js"
+		}
+	]
+}

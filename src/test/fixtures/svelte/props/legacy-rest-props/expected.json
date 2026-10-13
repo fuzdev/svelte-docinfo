@@ -1,0 +1,19 @@
+{
+	"path": "PropsLegacyRestProps.svelte",
+	"declarations": [
+		{
+			"name": "PropsLegacyRestProps",
+			"kind": "component",
+			"sourceLine": 3,
+			"props": [
+				{
+					"name": "a",
+					"type": "string",
+					"optional": true,
+					"defaultValue": "'value'",
+					"bindable": true
+				}
+			]
+		}
+	]
+}

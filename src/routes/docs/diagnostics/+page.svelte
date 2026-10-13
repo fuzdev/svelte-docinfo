@@ -155,16 +155,10 @@
 							the whole props type on <code>$props()</code> is unresolvable, <code>props</code> is
 							empty. When the <code>acceptsChildren</code> check itself fails
 							(<code>propName: "children"</code>, no position), the type-based detection reports
-							<code>false</code>, though template use of <code>children</code> can still set it.
-						</td>
-					</tr>
-					<tr>
-						<td><code>legacy_props</code></td>
-						<td>
-							<strong>Trigger:</strong> a component declares props with legacy
-							<code>export let</code> syntax, which is still legal in Svelte 5 but isn't extracted.
-							<code>propNames</code> lists them. <strong>Consequence:</strong> the component has
-							empty <code>props</code>; migrate to <code>$props()</code>.
+							<code>false</code>, though template use of <code>children</code> can still set it. A
+							legacy <code>export let</code> component whose svelte2tsx output has no recognized
+							props type reports each exported prop, at its export's line, and has empty
+							<code>props</code>.
 						</td>
 					</tr>
 					<tr>

@@ -1,0 +1,151 @@
+{
+	"modules": [
+		{
+			"path": "PropsLegacyTypescript/a.ts",
+			"declarations": [
+				{
+					"name": "A",
+					"kind": "interface",
+					"typeSignature": "A",
+					"sourceLine": 1,
+					"members": [
+						{
+							"name": "a",
+							"kind": "variable",
+							"typeSignature": "string"
+						}
+					]
+				},
+				{
+					"name": "B",
+					"kind": "type",
+					"typeSignature": "B",
+					"sourceLine": 5,
+					"typeInfo": {
+						"kind": "union",
+						"alias": "B",
+						"members": [
+							{
+								"kind": "literal",
+								"value": "a",
+								"text": "\"a\""
+							},
+							{
+								"kind": "literal",
+								"value": "b",
+								"text": "\"b\""
+							}
+						]
+					}
+				}
+			],
+			"dependents": [
+				"PropsLegacyTypescript/PropsLegacyTypescript.svelte"
+			]
+		},
+		{
+			"path": "PropsLegacyTypescript/PropsLegacyTypescript.svelte",
+			"declarations": [
+				{
+					"name": "PropsLegacyTypescript",
+					"kind": "component",
+					"sourceLine": 3,
+					"props": [
+						{
+							"name": "a",
+							"type": "string",
+							"description": "Description 1",
+							"bindable": true
+						},
+						{
+							"name": "b",
+							"type": "number",
+							"optional": true,
+							"description": "Description 2",
+							"defaultValue": "1",
+							"bindable": true,
+							"deprecatedMessage": "Description 3",
+							"since": "1.0.0"
+						},
+						{
+							"name": "c",
+							"type": "A",
+							"optional": true,
+							"bindable": true
+						},
+						{
+							"name": "d",
+							"type": "B",
+							"typeInfo": {
+								"kind": "union",
+								"alias": "B",
+								"members": [
+									{
+										"kind": "literal",
+										"value": "a",
+										"text": "\"a\""
+									},
+									{
+										"kind": "literal",
+										"value": "b",
+										"text": "\"b\""
+									}
+								]
+							},
+							"optional": true,
+							"defaultValue": "'a'",
+							"bindable": true
+						},
+						{
+							"name": "e",
+							"type": "A[]",
+							"typeInfo": {
+								"kind": "array",
+								"element": {
+									"kind": "reference",
+									"name": "A"
+								}
+							},
+							"optional": true,
+							"defaultValue": "[]",
+							"bindable": true
+						},
+						{
+							"name": "f",
+							"type": "number | null",
+							"typeInfo": {
+								"kind": "union",
+								"members": [
+									{
+										"kind": "intrinsic",
+										"text": "number"
+									},
+									{
+										"kind": "intrinsic",
+										"text": "null"
+									}
+								]
+							},
+							"bindable": true
+						},
+						{
+							"name": "g",
+							"type": "string",
+							"optional": true,
+							"defaultValue": "'value'",
+							"bindable": true
+						},
+						{
+							"name": "h",
+							"type": "any",
+							"bindable": true
+						}
+					]
+				}
+			],
+			"dependencies": [
+				"PropsLegacyTypescript/a.ts"
+			]
+		}
+	]
+}

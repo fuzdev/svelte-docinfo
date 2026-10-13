@@ -93,7 +93,6 @@ export const DiagnosticKind = v.picklist([
 	'signature_analysis_failed',
 	'class_member_failed',
 	'svelte_prop_failed',
-	'legacy_props',
 	'module_skipped',
 	'module_unreadable',
 	'import_parse_failed',
@@ -218,6 +217,10 @@ export interface SveltePropDiagnosticSchema extends Named<typeof SveltePropDiagn
 /**
  * Svelte prop type resolution failed.
  *
+ * Also emitted once per `export let` prop of a legacy component whose
+ * svelte2tsx output has no recognized props type: those props aren't
+ * extracted, and each failure carries its export's line.
+ *
  * `file` is the original `.svelte` path, so `line`/`column` are present only
  * when the prop's declaration lives in the component's own virtual *and* maps
  * back to the original source — an imported props type or a node svelte2tsx
@@ -227,29 +230,6 @@ export interface SveltePropDiagnosticSchema extends Named<typeof SveltePropDiagn
  */
 export const SveltePropDiagnostic: SveltePropDiagnosticSchema = SveltePropDiagnosticImpl;
 export type SveltePropDiagnostic = v.InferOutput<typeof SveltePropDiagnostic>;
-
-const LegacyPropsDiagnosticImpl = v.strictObject({
-	kind: v.literal('legacy_props'),
-	...baseDiagnosticFields,
-	/** Name of the component. */
-	componentName: v.string(),
-	/** Exported prop names, in source order. */
-	propNames: v.pipe(v.array(v.string()), v.minLength(1))
-});
-/** @nodocs */
-export interface LegacyPropsDiagnosticSchema extends Named<typeof LegacyPropsDiagnosticImpl> {}
-/**
- * Legacy (runes-less) component props detected — not extracted.
- *
- * `export let` components are still-legal Svelte 5 syntax, but prop extraction
- * anchors on the `$props()` declaration, so their props yield no
- * `ComponentPropJson` entries. Emitted once per component, listing the
- * detected prop names — exported `let`/`var` statements plus export-clause
- * renames of mutable bindings (`export {a as b}`) — with `line` pointing at
- * the first legacy prop export in the original `.svelte` source.
- */
-export const LegacyPropsDiagnostic: LegacyPropsDiagnosticSchema = LegacyPropsDiagnosticImpl;
-export type LegacyPropsDiagnostic = v.InferOutput<typeof LegacyPropsDiagnostic>;
 
 const ModuleSkippedDiagnosticImpl = v.strictObject({
 	kind: v.literal('module_skipped'),
@@ -545,7 +525,6 @@ export const Diagnostic: v.VariantSchema<
 		typeof SignatureAnalysisDiagnostic,
 		typeof ClassMemberDiagnostic,
 		typeof SveltePropDiagnostic,
-		typeof LegacyPropsDiagnostic,
 		typeof ModuleSkippedDiagnostic,
 		typeof ModuleUnreadableDiagnostic,
 		typeof ImportParseDiagnostic,
@@ -564,7 +543,6 @@ export const Diagnostic: v.VariantSchema<
 	SignatureAnalysisDiagnostic,
 	ClassMemberDiagnostic,
 	SveltePropDiagnostic,
-	LegacyPropsDiagnostic,
 	ModuleSkippedDiagnostic,
 	ModuleUnreadableDiagnostic,
 	ImportParseDiagnostic,
