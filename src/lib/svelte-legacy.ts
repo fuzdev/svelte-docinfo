@@ -209,29 +209,6 @@ const isAuthoredPropsType = (node: ts.TypeNode): boolean | undefined => {
 };
 
 /**
- * Whether svelte2tsx saw no exports in the instance script: the `props` value
- * it built from them is an empty object literal, under whatever cast types it
- * (`{} as Record<string, never>`, or in JS a JSDoc cast on `({})`).
- *
- * A statement about exports, not about mode. It tests the value, not the
- * type: the value is what svelte2tsx assembles from the exports it found, so
- * empty means none in TS and JS alike, with no reading of a JSDoc cast and no
- * dependence on how the empty type is spelled. A value with any property or
- * spread in it isn't empty, so a non-empty value under an unknown type stays
- * unrecognized.
- *
- * @param propsValue - the `props` value of the object `$$render` returns, when the virtual has one
- * @returns `false` too when there is no value
- */
-export const propsValueHasNoExports = (propsValue: ts.Expression | undefined): boolean => {
-	let value = propsValue;
-	while (value && (ts.isAsExpression(value) || ts.isParenthesizedExpression(value))) {
-		value = value.expression;
-	}
-	return !!value && ts.isObjectLiteralExpression(value) && value.properties.length === 0;
-};
-
-/**
  * Resolve the props anchor of a legacy component from its svelte2tsx virtual.
  *
  * svelte2tsx ends `$$render` with `return {props: …, slots: …, …}`, and the
@@ -249,8 +226,11 @@ export const propsValueHasNoExports = (propsValue: ts.Expression | undefined): b
  * Anything else is `undefined`: an unknown virtual yields no props rather
  * than guessed ones, and the caller reports it.
  *
- * A props value svelte2tsx built from no exports is unrecognized here too;
- * the caller asks `propsValueHasNoExports` first.
+ * A props value svelte2tsx built from no exports is unrecognized here too:
+ * an empty object under a cast (`{} as Record<string, never>`, or in JS a
+ * JSDoc cast on `({})`). The caller asks only when the scan found exports,
+ * so an empty value means svelte2tsx didn't read the script the scan read,
+ * and the exports are reported, not dropped in silence.
  *
  * Whether the component is legacy at all isn't decided here. The caller asks
  * only for a component svelte2tsx read as legacy (`classifyRenderMode` in

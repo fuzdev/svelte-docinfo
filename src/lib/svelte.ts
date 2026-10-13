@@ -84,11 +84,7 @@ import { compareStrings } from './postprocess.ts';
 import { type Diagnostic } from './diagnostics.ts';
 import { toErrorMessage } from './error.ts';
 import { toPosixPath } from './paths.ts';
-import {
-	propsValueHasNoExports,
-	resolveLegacyPropsAnchor,
-	scanLegacyExports
-} from './svelte-legacy.ts';
+import { resolveLegacyPropsAnchor, scanLegacyExports } from './svelte-legacy.ts';
 import { findScriptTags, isModuleScript, type SvelteScriptTag } from './svelte-scripts.ts';
 
 /** Resolved source map type (avoids repeating the verbose `InstanceType<...>` inline). */
@@ -1736,14 +1732,6 @@ export const analyzeSvelteModule = (
 		const propsValue = renderReturnValue(componentNodes, 'props');
 		if (!legacy || legacy.props.length === 0) {
 			// no exports to read as props
-		} else if (renderMode === 'legacy' && propsValueHasNoExports(propsValue)) {
-			// The scan found exports where svelte2tsx found none, and svelte2tsx
-			// wins: no props, nothing to report. The known disagreement is an
-			// instance script closed with whitespace before the `>`
-			// (`</script >`): Svelte's parser and `findScriptTags` take it,
-			// svelte2tsx's own tag matcher doesn't, so its virtual has no script.
-			// There the scan is the one that's right, so this trades a diagnostic
-			// for silence: the component's props go undocumented with no warning.
 		} else {
 			// an unrecognized mode has no anchor either: the exports look like
 			// props, but nothing says the component is legacy
@@ -1772,14 +1760,21 @@ export const analyzeSvelteModule = (
 						: new Set(legacy.props.filter((p) => p.hasInitializer).map((p) => p.name))
 				};
 			} else {
-				// refuse rather than guess: the exports are known, but with no
-				// recognized mode or props type there's nothing to type them from
+				// Refuse rather than guess: the exports are known, but with no
+				// recognized mode or props type there's nothing to type them from.
+				// That includes the empty props value svelte2tsx writes when it
+				// found no exports where the scan did. The known case is an
+				// instance script closed with whitespace before the `>`
+				// (`</script >`): Svelte's parser and `findScriptTags` take it,
+				// svelte2tsx's own tag matcher doesn't, so its virtual has no
+				// script, and the message names that cause beside a version
+				// mismatch.
 				for (const prop of legacy.props) {
 					diagnostics.push({
 						kind: 'svelte_prop_failed',
 						file: diagnosticFile,
 						line: lineOfOffset(sourceFile.content, instanceScript.start + prop.pos),
-						message: `Failed to extract prop "${prop.name}" in ${componentName}: the svelte2tsx output has no recognized props type for its legacy export let syntax. This may indicate an incompatible svelte2tsx version.`,
+						message: `Failed to extract prop "${prop.name}" in ${componentName}: the svelte2tsx output has no recognized props type for its legacy export let syntax. svelte2tsx may not have read the instance script (it skips one closed with whitespace before the ">", as in "</script >"), or its version may be incompatible.`,
 						severity: 'warning',
 						componentName,
 						propName: prop.name

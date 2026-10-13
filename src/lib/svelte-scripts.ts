@@ -291,7 +291,9 @@ const toScriptTag = ({ attributes, content, start }: ScannedScriptTag): SvelteSc
  * tag's blanked content early, and what's left over is parsed as template.
  * And svelte2tsx's own tag matcher is narrower in one spelling: it doesn't
  * take a closing tag with whitespace before the `>` (`</script >`), so there
- * its virtual has no script while this returns one.
+ * its virtual has no script while this returns one. A legacy component
+ * written that way documents no props, with a `svelte_prop_failed` warning
+ * for each `export let`; a runes one documents none, with no warning.
  *
  * @param svelteSource - the full Svelte source code
  * @returns the top-level script tags and how they were decided

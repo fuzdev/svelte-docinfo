@@ -397,12 +397,9 @@ support older ones. The workflow, from the svelte2tsx virtual through props, is 
   - Only a component `classifyRenderMode` reads as legacy takes this path. One svelte2tsx
     reads as runes (a rune in the script) skips the scan: its exported bindings are
     instance exports, so no props and no diagnostic.
-  - When the scan finds exports but svelte2tsx's props value is empty
-    (`propsValueHasNoExports`), svelte2tsx wins: no props, no diagnostic. That absorbs an
-    instance script closed as `</script >`, which Svelte and `findScriptTags` accept and
-    svelte2tsx's tag matcher doesn't.
   - An unrecognized mode or props value yields no props and a `svelte_prop_failed` per
-    export.
+    export. That includes the empty props value svelte2tsx writes when it found no
+    exports where the scan did; the known case is under Not Supported.
   - The in-script doc slot doesn't exist, so `docComment` is the HTML comment only.
 
 ### Incremental Analysis (`createAnalysisSession`)
@@ -663,6 +660,10 @@ Lock-in tests: `src/test/analyze.reexport-{edges,namespace,forward,gated}.test.t
   (`export type {c as d} from`) are all silently dropped.
 - `ParameterJson` deliberately has no doc fields like `examples`/`since`, unlike
   `ComponentPropJson`.
+- An instance script closed with whitespace before the `>` (`</script >`): Svelte and
+  `findScriptTags` accept it, svelte2tsx's tag matcher doesn't, so the virtual has no
+  script. A legacy component written that way documents no props, with a
+  `svelte_prop_failed` warning per `export let`.
 - A runes component that renders its children through `<slot />` reports
   `acceptsChildren: false`; only a legacy component's default slot sets it.
 - Legacy components: named slots, slot props, and events aren't modeled. Two export forms

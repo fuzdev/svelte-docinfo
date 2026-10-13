@@ -794,33 +794,45 @@ describe('legacy render classification', () => {
 	});
 });
 
-describe('legacy empty props value', () => {
+describe('legacy exports svelte2tsx did not read', () => {
 	// The scan reads exports svelte2tsx doesn't: Svelte's parser, and so
 	// `findScriptTags`, take a closing tag with whitespace before its `>`,
 	// while svelte2tsx's own tag matcher skips the whole script and writes an
-	// empty props value.
-	const SOURCE = `<script>
+	// empty props value. Markup above the script so original and virtual lines
+	// can't coincide.
+	const SOURCE = `<div>text1</div>
+
+<script>
 	export let a = 1;
+	/** @type {string} */
+	export let b;
 </script >
-<div>text1</div>
 `;
-	const TS_SOURCE = SOURCE.replace('<script>', '<script lang="ts">');
-	const ID = join(process.cwd(), 'src/lib/LegacyEmptyValueProbe.svelte');
+	const TS_SOURCE = `<div>text1</div>
+
+<script lang="ts">
+	export let a = 1;
+	export let b: string;
+</script >
+`;
+	const ID = join(process.cwd(), 'src/lib/LegacyUnreadProbe.svelte');
 
 	const analyzeProbe = (
-		doctor: (content: string) => string = (content) => content,
-		source = SOURCE
+		source: string,
+		emptyValue: string,
+		doctor: (content: string) => string = (content) => content
 	): { component: ComponentDeclarationJson | undefined; failures: Array<Diagnostic> } => {
 		const sourceFile = { id: ID, content: source };
 		const transformed = transformOrThrow(sourceFile);
-		// the premise: the scan has an export to read
+		// the premise: the scan has exports to read, and svelte2tsx found none
 		assert.include(transformed.scriptTags?.[0]?.content, 'export let a');
+		assert.include(transformed.content, `props: ${emptyValue}`);
 		const virtual = { ...transformed, content: doctor(transformed.content) };
 		const program = createCachedAnalysisProgram(new Map([[virtual.virtualPath, virtual]]));
 		const diagnostics: Array<Diagnostic> = [];
 		const analysis = analyzeSvelteModule(
 			sourceFile,
-			'LegacyEmptyValueProbe.svelte',
+			'LegacyUnreadProbe.svelte',
 			program.getTypeChecker(),
 			createTestSourceOptions(dirname(ID)),
 			diagnostics,
@@ -833,36 +845,64 @@ describe('legacy empty props value', () => {
 		};
 	};
 
-	test('the undoctored probe has an empty props value: no props and no failure', () => {
-		const { component, failures } = analyzeProbe();
-		assert.strictEqual(component?.props, undefined);
-		assert.deepStrictEqual(failures, []);
+	/** Assert no props and one located `svelte_prop_failed` per export of `source`. */
+	const assertRefused = (
+		source: string,
+		{ component, failures }: ReturnType<typeof analyzeProbe>
+	): void => {
+		assert.ok(component);
+		assert.strictEqual(component.props, undefined);
+		const propFailures = byKind(failures, 'svelte_prop_failed');
+		assert.strictEqual(propFailures.length, failures.length);
+		assert.deepStrictEqual(
+			propFailures.map(({ propName, line, file, componentName }) => ({
+				propName,
+				line,
+				file,
+				componentName
+			})),
+			['a', 'b'].map((propName) => ({
+				propName,
+				line: lineOf(source, `export let ${propName}`),
+				file: ID,
+				componentName: 'LegacyUnreadProbe'
+			}))
+		);
+	};
+
+	test('an untyped component yields no props and one failure per export', () => {
+		// the JS form of the empty value: a JSDoc cast on `({})`
+		const result = analyzeProbe(SOURCE, '/** @type {Record<string, never>} */ ({})');
+		assertRefused(SOURCE, result);
+		// the message names the cause a user can act on
+		assert.include(result.failures[0]!.message, '</script >');
 	});
 
-	test('an empty props value under an unrecognized mode is refused, not read as no exports', () => {
-		// with no mode reading nothing says svelte2tsx saw a legacy component,
-		// so its empty props value doesn't overrule the scan
-		const { component, failures } = analyzeProbe((content) => {
+	test('a typed component yields no props and one failure per export', () => {
+		assertRefused(TS_SOURCE, analyzeProbe(TS_SOURCE, '{} as Record<string, never>'));
+	});
+
+	test('an unrecognized mode refuses the same way', () => {
+		const result = analyzeProbe(SOURCE, '/** @type {Record<string, never>} */ ({})', (content) => {
 			const doctored = content.replace('bindings: ""', 'was: ""');
 			assert.notStrictEqual(doctored, content, 'expected the svelte2tsx return to be doctored');
 			return doctored;
 		});
-		assert.strictEqual(component?.props, undefined);
-		assert.deepStrictEqual(
-			byKind(failures, 'svelte_prop_failed').map((d) => d.propName),
-			['a']
-		);
-		assert.strictEqual(failures.length, 1);
+		assertRefused(SOURCE, result);
 	});
 
-	test('the TS form of the empty value has no props and no failure', () => {
-		// `{} as Record<string, never>`, where the JS form is a JSDoc cast
-		const { component, failures } = analyzeProbe((content) => {
-			assert.include(content, '{} as Record<string, never>');
-			return content;
-		}, TS_SOURCE);
-		assert.strictEqual(component?.props, undefined);
-		assert.deepStrictEqual(failures, []);
+	test('a runes component closed the same way has no props and no failure', async () => {
+		// svelte2tsx reads no script, so there's no `$props()` to anchor on, and
+		// the scan finds no `export let` to report
+		const { modules, diagnostics } = await analyzeTestProject({
+			'src/lib/Comp.svelte': `<script lang="ts">
+	let { a }: { a: string } = $props();
+</script >
+<div>{a}</div>
+`
+		});
+		assert.deepStrictEqual(compOf(modules).props, []);
+		assert.deepStrictEqual(diagnostics, []);
 	});
 });
 
