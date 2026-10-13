@@ -6,15 +6,17 @@ import{$ as e,A as t,G as n,J as r,M as i,P as a,X as o,Z as s,dt as c,ft as l,h
 			generation. The plugin keeps a persistent <!>, so
 			dev re-analysis reuses parsed ASTs and svelte2tsx output; use it when the analysis feeds your
 			app bundle. To drive a session yourself (custom bundler, LSP), see the <!> guide.</p>`,1),w=i(`<!> <p>The plugin hooks into these Vite lifecycle stages:</p> <ol><li><strong>configResolved</strong>: validates options, so bad configs (like <code>discovery: 'exports'</code> with <code>include</code>, or a path outside the project
-				root) fail at startup</li> <li><strong>configureServer</strong>: in dev, watches source files and the non-source files they
+				root) fail at startup</li> <li><strong>configureServer</strong>: in dev, watches source files and the other files they
 				import (e.g. <code>internal/</code> modules), debounces re-analysis, and reloads the page
-				only when the output changes. Unchanged files aren't re-parsed.</li> <li><strong>buildStart</strong>: creates a session, discovers and ingests the source files, runs <code>query</code>, and caches the result</li> <li><strong>resolveId / load</strong>: serves the cached result as <code>virtual:svelte-docinfo</code>, exporting <code>modules</code>, <code>diagnostics</code>, and a default <code></code></li> <li><strong>buildEnd</strong>: disposes the session, in dev when the server closes or restarts
+				only when the output changes. Unchanged files aren't re-parsed. Only the files discovery
+				selects emit modules, as in a build: an edit elsewhere refreshes the analysis without adding
+				one, and a newly created file is checked against discovery again.</li> <li><strong>buildStart</strong>: creates a session, discovers and ingests the source files, runs <code>query</code>, and caches the result</li> <li><strong>resolveId / load</strong>: serves the cached result as <code>virtual:svelte-docinfo</code>, exporting <code>modules</code>, <code>diagnostics</code>, and a default <code></code></li> <li><strong>buildEnd</strong>: disposes the session, in dev when the server closes or restarts
 				and in a build once the bundle's modules have loaded</li></ol> <p>Any change to the docs data reloads the page, even one that only shifts a declaration's source
 			line, instead of letting Svelte HMR update components in place. Importers build state from the
 			data (like a layout building a library from <code>modules</code>), so re-running the module
 			alone would leave them stale.</p>`,1),T=i(`<section><p>The <!> is the recommended path for
 			SvelteKit and Vite projects. It runs analysis at build time and serves the result as <!>. In dev it watches your source
-			files, plus non-source files they import like <code>internal/</code> modules, and reloads the
+			files, plus the other files they import like <code>internal/</code> modules, and reloads the
 			page when an edit changes the result.</p></section> <!> <!> <!> <!>`,1);function E(i,E){f(E,!0);let D=p(`vite-plugin`);u(`1v4ku2r`,e=>{n(()=>{r.title=`Vite plugin - svelte-docinfo`})}),y(i,{get tome(){return D},children:(n,r)=>{var i=T(),u=s(i),d=o(u),f=e(o(d));g(f,{module_path:`vite.ts`,children:(e,n)=>{c();var r=a(`Vite plugin`);t(e,r)},$$slots:{default:!0}});var p=e(f,2);_(p,{lang:`ts`,inline:!0,dangerous_raw_html:`<span class="token_string">'virtual:svelte-docinfo'</span>`}),c(3),l(d),l(u);var y=e(u,2);v(y,{children:(n,r)=>{var i=x(),a=s(i);b(a,{text:`Setup`});var u=e(a,4),d=o(u),f=e(o(d),2);_(f,{lang:`ts`,dangerous_raw_html:`<span class="token_special_keyword">import</span> <span class="token_punctuation">{</span>defineConfig<span class="token_punctuation">}</span> <span class="token_special_keyword">from</span> <span class="token_string">'vite'</span><span class="token_punctuation">;</span>
 <span class="token_special_keyword">import</span> <span class="token_punctuation">{</span>sveltekit<span class="token_punctuation">}</span> <span class="token_special_keyword">from</span> <span class="token_string">'@sveltejs/kit/vite'</span><span class="token_punctuation">;</span>
 <span class="token_special_keyword">import</span> svelteDocinfo <span class="token_special_keyword">from</span> <span class="token_string">'svelte-docinfo/vite.js'</span><span class="token_punctuation">;</span>
@@ -67,4 +69,15 @@ import{$ as e,A as t,G as n,J as r,M as i,P as a,X as o,Z as s,dt as c,ft as l,h
   <span class="token_comment">// 'warn'       → also log them</span>
   <span class="token_comment">// 'throw'      → also fail the build</span>
   onDuplicates<span class="token_operator">:</span> <span class="token_keyword">undefined</span><span class="token_punctuation">,</span>
+
+  <span class="token_comment">// tsconfig path relative to projectRoot, or false to analyze without one.</span>
+  <span class="token_comment">// Default: 'tsconfig.json'.</span>
+  tsconfig<span class="token_operator">:</span> <span class="token_string">'tsconfig.json'</span><span class="token_punctuation">,</span>
+
+  <span class="token_comment">// Compiler options merged over the tsconfig's. Default: none.</span>
+  compilerOptions<span class="token_operator">:</span> <span class="token_keyword">undefined</span><span class="token_punctuation">,</span>
+
+  <span class="token_comment">// The program's root files, in place of the tsconfig's: a list, or a</span>
+  <span class="token_comment">// function over the tsconfig's roots. Default: the tsconfig's roots.</span>
+  rootFileNames<span class="token_operator">:</span> <span class="token_keyword">undefined</span><span class="token_punctuation">,</span>
 <span class="token_punctuation">})</span>`});var f=e(d,2),p=e(o(f));h(p,{name:`analyzeFromFiles`}),c(7),l(f),c(2),t(n,i)},$$slots:{default:!0}});var D=e(E,2);v(D,{children:(n,r)=>{var i=C(),a=s(i);b(a,{text:`CLI vs Vite plugin`});var u=e(a,2),d=e(o(u));h(d,{name:`analyzeFromFiles`});var f=e(d,2);h(f,{name:`createAnalysisSession`});var p=e(f,2);m(p,{slug:`session`}),c(),l(u),t(n,i)},$$slots:{default:!0}});var O=e(D,2);v(O,{children:(n,r)=>{var i=w(),a=s(i);b(a,{text:`How it works`});var u=e(a,4),d=e(o(u),6),f=e(o(d),8);f.textContent=`{modules, diagnostics}`,l(d),c(2),l(u),c(2),t(n,i)},$$slots:{default:!0}}),t(n,i)},$$slots:{default:!0}}),d()}export{E as t};
