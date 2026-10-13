@@ -59,11 +59,14 @@ type BindingInfo =
  *
  * Runes-less components declare props by exporting mutable bindings —
  * `export let a` / `export var a` directly, or `let a; export {a as b}` for
- * renames (the reserved-word workaround). Presence of either form is a
- * reliable legacy signal without classifying the component's mode: `export
- * let` is a compile error in runes mode, so no valid component mixes it with
- * `$props()`. `export const` / `export function` / `export class` are
- * accessors, not props, and type-only exports aren't runtime bindings.
+ * renames (the reserved-word workaround). `export const` / `export function` /
+ * `export class` are accessors, not props, and type-only exports aren't
+ * runtime bindings.
+ *
+ * The scan says what the script exports, not what mode the component is in:
+ * a runes component can export a mutable binding too, as an instance export.
+ * The caller scans only a component svelte2tsx didn't read as runes
+ * (`classifyRenderMode` in `svelte.ts`).
  *
  * The scan reads the *original* instance script because svelte2tsx rewrites
  * the `export` modifier away inside `$$render`; a purely syntactic walk over
@@ -71,7 +74,7 @@ type BindingInfo =
  * `defaultValue` is the initializer's source text as the author wrote it.
  *
  * @param scriptSource - parsed instance `<script>` content from the original source
- * @returns props in source order (empty when the component isn't legacy) and accessor names
+ * @returns props in source order (empty when the script exports no mutable binding) and accessor names
  */
 export const scanLegacyExports = (scriptSource: ts.SourceFile): LegacyExports => {
 	// top-level bindings by local name, for the export-clause forms
@@ -162,22 +165,22 @@ export interface LegacyPropsAnchor {
 	 */
 	node: ts.Node;
 	/**
-	 * Whether `node` is a written type whose properties carry their own
-	 * optionality. False for a bare object literal (a JS component, and a TS one
-	 * whose exports are all untyped and uninitialized), where every property
-	 * reads as required and optionality comes from the script instead
-	 * (`LegacyProp.hasInitializer`).
+	 * Which props value shape `node` was read from:
+	 *
+	 * - `'untyped'` — a bare object literal (a JS component, and a TS one whose
+	 *   exports are all untyped and uninitialized). Every property reads as
+	 *   required, so optionality comes from the script instead
+	 *   (`LegacyProp.hasInitializer`). Only the scanned prop names are props.
+	 * - `'generated'` — a type svelte2tsx wrote from the exports, whose
+	 *   properties carry their own optionality. It lists every export,
+	 *   accessors and type-only exports included, so only the scanned prop
+	 *   names are props.
+	 * - `'authored'` — the author's own `$$Props`, whose properties carry their
+	 *   own optionality. It can declare props the script never exports, so all
+	 *   of its properties are props except the accessors, which svelte2tsx
+	 *   intersects in beside it.
 	 */
-	typed: boolean;
-	/**
-	 * Whether the type is the author's own `$$Props` rather than one svelte2tsx
-	 * wrote from the exports. An authored type can declare props the script
-	 * never exports, so all of its properties are props except the accessors,
-	 * which svelte2tsx intersects in beside it. A generated one lists every
-	 * export, accessors and type-only exports included, so only the scanned
-	 * prop names are props.
-	 */
-	authored: boolean;
+	kind: 'untyped' | 'generated' | 'authored';
 }
 
 /** The reserved alias svelte2tsx reads a legacy component's authored props type from. */
@@ -190,20 +193,20 @@ const isPropsAliasReference = (node: ts.TypeNode): boolean =>
 	node.typeName.text === PROPS_ALIAS;
 
 /**
- * Classify the written props type of a legacy component: `false` for the
- * literal svelte2tsx generates from the exports, `true` for an authored
- * `$$Props` (bare, or intersected with the literal that carries the
- * accessors: `{fn?: typeof fn} & $$Props`), `undefined` for anything else.
+ * Classify the written props type of a legacy component: `'generated'` for the
+ * literal svelte2tsx writes from the exports, `'authored'` for a `$$Props`
+ * (bare, or intersected with the literal that carries the accessors:
+ * `{fn?: typeof fn} & $$Props`), `undefined` for a type that is neither.
  */
-const isAuthoredPropsType = (node: ts.TypeNode): boolean | undefined => {
-	if (ts.isTypeLiteralNode(node)) return false;
-	if (isPropsAliasReference(node)) return true;
+const classifyWrittenPropsType = (node: ts.TypeNode): 'generated' | 'authored' | undefined => {
+	if (ts.isTypeLiteralNode(node)) return 'generated';
+	if (isPropsAliasReference(node)) return 'authored';
 	if (
 		ts.isIntersectionTypeNode(node) &&
 		node.types.some(isPropsAliasReference) &&
 		node.types.every((member) => ts.isTypeLiteralNode(member) || isPropsAliasReference(member))
 	) {
-		return true;
+		return 'authored';
 	}
 	return undefined;
 };
@@ -216,12 +219,13 @@ const isAuthoredPropsType = (node: ts.TypeNode): boolean | undefined => {
  *
  * - **Typed** — `<object> as <Type>`. The type is a literal svelte2tsx writes
  *   from the exports, carrying each prop's JSDoc and optionality
- *   (`{a?: typeof a, b: number}`), or the author's reserved `$$Props`, bare or
- *   intersected with a literal of the accessors.
- * - **Untyped** — a bare object literal (`{a: a, b: b}`), what a JS component
- *   gets, and a TS one whose exports are all untyped and uninitialized, with
- *   each binding's JSDoc copied onto its property, so a `@type` there types
- *   the prop.
+ *   (`{a?: typeof a, b: number}`: `'generated'`), or the author's reserved
+ *   `$$Props`, bare or intersected with a literal of the accessors
+ *   (`'authored'`).
+ * - **Untyped** — a bare object literal (`{a: a, b: b}`: `'untyped'`), what a
+ *   JS component gets, and a TS one whose exports are all untyped and
+ *   uninitialized, with each binding's JSDoc copied onto its property, so a
+ *   `@type` there types the prop.
  *
  * Anything else is `undefined`: an unknown virtual yields no props rather
  * than guessed ones, and the caller reports it.
@@ -258,24 +262,21 @@ export const resolveLegacyPropsAnchor = (
 	if (!propsValue) return undefined;
 
 	let node: ts.Node;
-	let typed: boolean;
-	let authored: boolean;
+	let kind: LegacyPropsAnchor['kind'];
 	if (ts.isObjectLiteralExpression(propsValue)) {
 		node = propsValue;
-		typed = false;
-		authored = false;
+		kind = 'untyped';
 	} else if (ts.isAsExpression(propsValue)) {
-		const authoredType = isAuthoredPropsType(propsValue.type);
-		if (authoredType === undefined) return undefined;
+		const written = classifyWrittenPropsType(propsValue.type);
+		if (!written) return undefined;
 		node = propsValue.type;
-		typed = true;
-		authored = authoredType;
+		kind = written;
 	} else {
 		return undefined;
 	}
 
 	try {
-		return { type: checker.getTypeAtLocation(node), node, typed, authored };
+		return { type: checker.getTypeAtLocation(node), node, kind };
 	} catch (_) {
 		return undefined;
 	}

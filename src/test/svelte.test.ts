@@ -26,8 +26,15 @@ import {
 	analyzeSvelteFixtureModules
 } from './fixtures/svelte/svelte-test-helpers.ts';
 import { validateModuleFixture, type ModuleFixture } from './fixtures/module-fixture-helpers.ts';
-import { normalizeJson, FIXTURES_SVELTE_DIR } from './test-helpers.ts';
 import {
+	assertHasProps,
+	findComponent,
+	normalizeJson,
+	FIXTURES_SVELTE_DIR
+} from './test-helpers.ts';
+import {
+	analyzeDoctored,
+	analyzeTestProject,
 	testSourceOptions,
 	createTestSourceOptions,
 	createCachedAnalysisProgram,
@@ -779,6 +786,18 @@ describe('transformSvelteSource script-kind detection', () => {
 		assert.strictEqual(kind, ts.ScriptKind.JS);
 	});
 
+	test('a module script with no lang leaves the decision to the instance script', () => {
+		// the first tag carrying a `lang` decides, not the first tag
+		const kind = scriptKindOf(`<script module>
+	export const a = 1;
+</script>
+<script lang="ts">
+	let {b}: {b: string} = $props();
+</script>
+<div>{b}</div>`);
+		assert.strictEqual(kind, ts.ScriptKind.TS);
+	});
+
 	test('whitespace around the lang = sign is a Svelte parse error', () => {
 		// requiring a literal `lang=` costs nothing — Svelte's parser rejects
 		// the spaced spelling, so svelte2tsx throws before kind could matter
@@ -841,6 +860,32 @@ describe('transformSvelteSource script-kind detection', () => {
 </script>
 <div>hi</div>`);
 		assert.strictEqual(kind, ts.ScriptKind.TS);
+	});
+});
+
+describe('analyzeSvelteModule script tags on the virtual', () => {
+	const SOURCE = `<script lang="ts">
+	export let a: string;
+</script>
+<div>{a}</div>
+`;
+
+	test('analysis reads the tags the virtual carries, without locating them again', () => {
+		// a virtual that says the component has no script: the source's
+		// `export let` is never scanned
+		const { component } = analyzeDoctored('ScriptTagsProbe', SOURCE, {
+			virtual: (virtual) => ({ ...virtual, scriptTags: [] })
+		});
+		assert.ok(component);
+		assert.strictEqual(component.props, undefined);
+	});
+
+	test('a virtual that carries none has them located in the source', () => {
+		const { component } = analyzeDoctored('ScriptTagsProbe', SOURCE, {
+			virtual: ({ scriptTags: _, ...virtual }) => virtual
+		});
+		assert.ok(component);
+		assertHasProps(component, ['a']);
 	});
 });
 
@@ -1959,6 +2004,42 @@ let open = $state(false);
 		assert.ok(declaration.docComment);
 		assert.include(declaration.docComment, 'HTML component description.');
 		assert.strictEqual(hasWarnings(diagnostics), false);
+	});
+});
+
+describe('svelte propless runes component docComment', () => {
+	test('a documented local cannot claim the component doc slot', async () => {
+		const { modules, diagnostics } = await analyzeTestProject({
+			'src/lib/Comp.svelte': `<script lang="ts">
+	/** Description 1 */
+	let a = $state(0);
+</script>
+<div>{a}</div>
+`
+		});
+
+		const component = findComponent(modules);
+		assert.strictEqual(component.docComment, undefined);
+		assert.deepStrictEqual(component.props, []);
+		assert.deepStrictEqual(diagnostics, []);
+	});
+
+	test('the HTML @component comment still documents an anchorless component', async () => {
+		const { modules, diagnostics } = await analyzeTestProject({
+			'src/lib/Comp.svelte': `<!--
+@component
+Description.
+-->
+<script lang="ts">
+	/** Description 1 */
+	let a = $state(0);
+</script>
+<div>{a}</div>
+`
+		});
+
+		assert.strictEqual(findComponent(modules).docComment, 'Description.');
+		assert.deepStrictEqual(diagnostics, []);
 	});
 });
 

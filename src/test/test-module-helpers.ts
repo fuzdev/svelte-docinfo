@@ -9,7 +9,8 @@
  */
 
 import ts from 'typescript';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
+import { assert } from 'vitest';
 
 import {
 	createSourceOptions,
@@ -24,8 +25,10 @@ import {
 } from '#lib/typescript-program.ts';
 import { analyze, type AnalyzeOptions } from '#lib/analyze.ts';
 import type { AnalyzeResultJson } from '#lib/analyze-core.ts';
-import { transformSvelteSource, type SvelteVirtualFile } from '#lib/svelte.ts';
+import { analyzeSvelteModule, transformSvelteSource, type SvelteVirtualFile } from '#lib/svelte.ts';
 import type { SourceFileInfo } from '#lib/source.ts';
+import type { Diagnostic } from '#lib/diagnostics.ts';
+import type { ComponentDeclarationJson } from '#lib/types.ts';
 
 import { withTestProject } from './test-helpers.ts';
 
@@ -67,6 +70,78 @@ export const transformOrThrow = (sourceFile: SourceFileInfo): SvelteVirtualFile 
 		);
 	}
 	return result.virtual;
+};
+
+/** Ways `analyzeDoctored` departs from what a real analysis is handed. */
+export interface DoctoredAnalysisOptions {
+	/**
+	 * Rewrite the virtual's content, standing in for a svelte2tsx whose output
+	 * differs. Asserted to change it, so a doctor that stops matching fails
+	 * loudly instead of testing the undoctored virtual.
+	 */
+	content?: (content: string) => string;
+	/** Replace the virtual file wholesale, after `content` is applied. */
+	virtual?: (virtual: SvelteVirtualFile) => SvelteVirtualFile;
+	/** Wrap the checker `analyzeSvelteModule` is handed. */
+	checker?: (checker: ts.TypeChecker) => ts.TypeChecker;
+}
+
+/** What `analyzeDoctored` returns. */
+export interface DoctoredAnalysis {
+	/** The component declaration, or `undefined` when analysis returned no module. */
+	component: ComponentDeclarationJson | undefined;
+	diagnostics: Array<Diagnostic>;
+	/** The component's absolute id, what a diagnostic's `file` carries. */
+	id: string;
+	/** The virtual as svelte2tsx wrote it, before any doctoring. */
+	transformed: SvelteVirtualFile;
+}
+
+/**
+ * Analyze one component through `analyzeSvelteModule` directly, with its
+ * virtual and checker open to doctoring.
+ *
+ * For what the pipeline can't be made to produce: a svelte2tsx output shape
+ * that changed, a virtual built by hand, a checker that throws. The component
+ * is rooted in the repo (`src/lib/<name>.svelte`) so real packages resolve and
+ * its own props aren't judged external.
+ *
+ * @param name - the component name; nothing needs to exist at its path
+ * @param source - the Svelte source
+ */
+export const analyzeDoctored = (
+	name: string,
+	source: string,
+	doctors: DoctoredAnalysisOptions = {}
+): DoctoredAnalysis => {
+	const id = join(process.cwd(), `src/lib/${name}.svelte`);
+	const sourceFile = { id, content: source };
+	const transformed = transformOrThrow(sourceFile);
+	let virtual = transformed;
+	if (doctors.content) {
+		const content = doctors.content(transformed.content);
+		assert.notStrictEqual(content, transformed.content, 'expected the virtual to be doctored');
+		virtual = { ...virtual, content };
+	}
+	if (doctors.virtual) virtual = doctors.virtual(virtual);
+	const program = createCachedAnalysisProgram(new Map([[virtual.virtualPath, virtual]]));
+	const checker = program.getTypeChecker();
+	const diagnostics: Array<Diagnostic> = [];
+	const analysis = analyzeSvelteModule(
+		sourceFile,
+		`${name}.svelte`,
+		doctors.checker ? doctors.checker(checker) : checker,
+		createTestSourceOptions(dirname(id)),
+		diagnostics,
+		program,
+		virtual
+	);
+	return {
+		component: analysis?.declarations[0]?.declaration as ComponentDeclarationJson | undefined,
+		diagnostics,
+		id,
+		transformed
+	};
 };
 
 /** Default project root for tests. */

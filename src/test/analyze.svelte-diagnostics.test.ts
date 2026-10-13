@@ -22,19 +22,13 @@ import {
 	type SvelteVirtualFile
 } from '#lib/svelte.ts';
 
+import { lineOf } from './test-helpers.ts';
 import {
 	analyzeTestProject,
 	createCachedAnalysisProgram,
 	createTestSourceOptions,
 	transformOrThrow
 } from './test-module-helpers.ts';
-
-/** 1-based line of the first line of `content` containing `needle`. */
-const lineOf = (content: string, needle: string): number => {
-	const index = content.split('\n').findIndex((line) => line.includes(needle));
-	assert.notStrictEqual(index, -1, `expected source to contain ${needle}`);
-	return index + 1;
-};
 
 describe('script-module diagnostics carry original .svelte positions', () => {
 	test('unknown_param remaps to the declaration line below markup', async () => {

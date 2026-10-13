@@ -355,8 +355,8 @@ type RenderMode = 'legacy' | 'runes' | 'unrecognized';
  * call (`bindings: __sveltets_$$bindings('a')`) for a runes one.
  * Template-only components and rune-free scripts read as legacy.
  *
- * The one mode signal: the legacy props path and the default-slot rule both
- * ask it. The runes arm matches the callee by name, not any call, so a
+ * The one mode signal, read once per component: the legacy props path and
+ * the default-slot rule both take it. The runes arm matches the callee by name, not any call, so a
  * svelte2tsx that starts writing something else there is `'unrecognized'`
  * and gets reported, instead of passing for runes and silently dropping a
  * legacy component's props. A missing value is `'unrecognized'` too.
@@ -381,15 +381,14 @@ const classifyRenderMode = (nodes: ComponentNodes): RenderMode => {
  * declared `$$Slots`, with props or without, with a script or template-only.
  * A named slot alone doesn't count.
  *
- * Only a component svelte2tsx reads as legacy (`classifyRenderMode`) is
- * asked: a runes component declares what it accepts through its `children`
- * prop, and a `<slot />` there is ignored. An unrecognized mode isn't read
- * either.
+ * The caller asks only for a component svelte2tsx read as legacy
+ * (`classifyRenderMode`): a runes component declares what it accepts through
+ * its `children` prop, and a `<slot />` there is ignored. An unrecognized
+ * mode isn't read either.
  *
  * @returns `false` too when the virtual has no recognized `slots` value or the checker throws
  */
 const hasDefaultSlot = (nodes: ComponentNodes, checker: ts.TypeChecker): boolean => {
-	if (classifyRenderMode(nodes) !== 'legacy') return false;
 	const slots = renderReturnValue(nodes, 'slots');
 	if (!slots) return false;
 	try {
@@ -1158,8 +1157,9 @@ const detectChildrenSnippet = (
  *
  * Runes components build one from the `$props()` declaration
  * (`resolveRunesPropsAnchor`); legacy `export let` components from the
- * `$$render` return (`resolveLegacyPropsAnchor`). The optional fields are the
- * legacy differences, absent on the runes path.
+ * instance script's exports and the `$$render` return
+ * (`resolveExportLetPropsAnchor`). The optional fields are the legacy
+ * differences, absent on the runes path.
  */
 interface PropsAnchor {
 	/** The props type. */
@@ -1256,6 +1256,87 @@ const resolveRunesPropsAnchor = (
 		scriptNames: metadata.destructuredProps,
 		defaults: metadata.propsDefaults,
 		bindable: metadata.bindableProps
+	};
+};
+
+/**
+ * Resolve the props anchor of a component with no `$props()` declaration: the
+ * `export let` props of one svelte2tsx read as legacy.
+ *
+ * Joins the two legacy readings: the scan of the original instance script
+ * (`scanLegacyExports`: names, order, defaults, accessors), which svelte2tsx
+ * can't supply since it rewrites the `export` modifier away, and the checker
+ * anchor in the `$$render` return (`resolveLegacyPropsAnchor`: the type).
+ *
+ * A component read as runes isn't scanned: it has no props without
+ * `$props()`, and its exported bindings are instance exports.
+ *
+ * Emits a `svelte_prop_failed` per scanned export when there's nothing to
+ * type them from, refusing rather than guessing: the mode is unrecognized
+ * (the exports look like props, but nothing says the component is legacy), or
+ * the props value is. The latter includes the empty value svelte2tsx writes
+ * when it found no exports where the scan did. The known case is an instance
+ * script closed with whitespace before the `>` (`</script >`): Svelte's
+ * parser and `findScriptTags` take it, svelte2tsx's own tag matcher doesn't,
+ * so its virtual has no script, and the message names that cause beside a
+ * version mismatch.
+ *
+ * @param instanceScript - the instance script's tag and parsed content, when the component has one
+ * @param svelteSource - the original Svelte source, for diagnostic lines
+ * @returns the anchor, or `undefined` when the script exports no props or they were refused
+ */
+const resolveExportLetPropsAnchor = (
+	renderMode: RenderMode,
+	nodes: ComponentNodes,
+	instanceScript: { tag: SvelteScriptTag; source: ts.SourceFile } | undefined,
+	svelteSource: string,
+	ctx: ExtractContext,
+	componentName: string,
+	diagnosticFile: string
+): PropsAnchor | undefined => {
+	if (!instanceScript || renderMode === 'runes') return undefined;
+	const { props, accessors } = scanLegacyExports(instanceScript.source);
+	if (props.length === 0) return undefined;
+
+	const legacyAnchor =
+		renderMode === 'legacy'
+			? resolveLegacyPropsAnchor(renderReturnValue(nodes, 'props'), ctx.checker)
+			: undefined;
+	if (!legacyAnchor) {
+		for (const prop of props) {
+			ctx.diagnostics.push({
+				kind: 'svelte_prop_failed',
+				file: diagnosticFile,
+				line: lineOfOffset(svelteSource, instanceScript.tag.start + prop.pos),
+				message: `Failed to extract prop "${prop.name}" in ${componentName}: the svelte2tsx output has no recognized props type for its legacy export let syntax. svelte2tsx may not have read the instance script (it skips one closed with whitespace before the ">", as in "</script >"), or its version may be incompatible.`,
+				severity: 'warning',
+				componentName,
+				propName: prop.name
+			});
+		}
+		return undefined;
+	}
+
+	const scriptNames = props.map((p) => p.name);
+	const scriptNameSet = new Set(scriptNames);
+	return {
+		type: legacyAnchor.type,
+		node: legacyAnchor.node,
+		scriptNames,
+		defaults: new Map(
+			props.flatMap((p) => (p.defaultValue === undefined ? [] : [[p.name, p.defaultValue]]))
+		),
+		// any `export let` can be bound
+		bindable: 'all',
+		scriptNamesFirst: true,
+		isProp:
+			legacyAnchor.kind === 'authored'
+				? (name) => !accessors.has(name)
+				: (name) => scriptNameSet.has(name),
+		optionalNames:
+			legacyAnchor.kind === 'untyped'
+				? new Set(props.filter((p) => p.hasInitializer).map((p) => p.name))
+				: undefined
 	};
 };
 
@@ -1507,12 +1588,12 @@ const extractPropsViaChecker = (
  *    exported snippets reclassified to `kind: 'snippet'` (`isSnippetReturnType`);
  *    2b remaps module-level `sourceLine`s to the original `.svelte` source
  * 3. the component declaration is synthesized: props via `extractPropsViaChecker`
- *    from the component's `PropsAnchor` (the `$props()` declaration, or for a
- *    legacy `export let` component the `$$render` return, see
- *    `svelte-legacy.ts`), `acceptsChildren` from a `Snippet`-typed `children`
+ *    from the component's `PropsAnchor` (`resolveRunesPropsAnchor` for a
+ *    `$props()` declaration, else `resolveExportLetPropsAnchor` for a legacy
+ *    component's exports), `acceptsChildren` from a `Snippet`-typed `children`
  *    prop, template use (`__sveltets_2_ensureSnippet`) or, failing those, a
- *    legacy component's default slot (`hasDefaultSlot`), plus generics, doc comment, and source line
- *    from the landmarks `findComponentNodes` locates
+ *    legacy component's default slot (`hasDefaultSlot`), plus generics, doc
+ *    comment, and source line from the landmarks `findComponentNodes` locates
  * 4. the module comment is read from the original source
  * 5. declarations combine, component first
  * 6. dependencies are extracted
@@ -1710,79 +1791,32 @@ export const analyzeSvelteModule = (
 	// default slot, generics, doc comment, and source line all read from them
 	const componentNodes = findComponentNodes(virtualTsSource);
 
-	// Resolve where the props are read from: the `$props()` declaration, or for
-	// a component svelte2tsx read as legacy the `$$render` return. One it read
-	// as runes without `$props()` has no props, and its exported bindings are
-	// instance exports, so the legacy scan is skipped. The scan reads the
-	// original instance script, since svelte2tsx rewrites the `export` modifier
-	// away.
+	// svelte2tsx's legacy-or-runes reading, taken once for the props anchor and
+	// the default-slot rule
+	const renderMode = classifyRenderMode(componentNodes);
+
+	// Resolve where the props are read from: the `$props()` declaration, or
+	// without one a legacy component's `export let` exports
 	const propsMetadata = extractPropsMetadata(virtualTsSource);
-	let propsAnchor: PropsAnchor | undefined;
-	if (propsMetadata.propsDeclaration) {
-		propsAnchor = resolveRunesPropsAnchor(
-			propsMetadata,
-			propsMetadata.propsDeclaration,
-			ctx,
-			componentName,
-			diagnosticFile
-		);
-	} else if (instanceScript && instanceScriptSource) {
-		const renderMode = classifyRenderMode(componentNodes);
-		const legacy = renderMode === 'runes' ? undefined : scanLegacyExports(instanceScriptSource);
-		const propsValue = renderReturnValue(componentNodes, 'props');
-		if (!legacy || legacy.props.length === 0) {
-			// no exports to read as props
-		} else {
-			// an unrecognized mode has no anchor either: the exports look like
-			// props, but nothing says the component is legacy
-			const legacyAnchor =
-				renderMode === 'legacy' ? resolveLegacyPropsAnchor(propsValue, checker) : undefined;
-			if (legacyAnchor) {
-				const scriptNames = legacy.props.map((p) => p.name);
-				const scriptNameSet = new Set(scriptNames);
-				propsAnchor = {
-					type: legacyAnchor.type,
-					node: legacyAnchor.node,
-					scriptNames,
-					defaults: new Map(
-						legacy.props.flatMap((p) =>
-							p.defaultValue === undefined ? [] : [[p.name, p.defaultValue]]
-						)
-					),
-					// any `export let` can be bound
-					bindable: 'all',
-					scriptNamesFirst: true,
-					isProp: legacyAnchor.authored
-						? (name) => !legacy.accessors.has(name)
-						: (name) => scriptNameSet.has(name),
-					optionalNames: legacyAnchor.typed
-						? undefined
-						: new Set(legacy.props.filter((p) => p.hasInitializer).map((p) => p.name))
-				};
-			} else {
-				// Refuse rather than guess: the exports are known, but with no
-				// recognized mode or props type there's nothing to type them from.
-				// That includes the empty props value svelte2tsx writes when it
-				// found no exports where the scan did. The known case is an
-				// instance script closed with whitespace before the `>`
-				// (`</script >`): Svelte's parser and `findScriptTags` take it,
-				// svelte2tsx's own tag matcher doesn't, so its virtual has no
-				// script, and the message names that cause beside a version
-				// mismatch.
-				for (const prop of legacy.props) {
-					diagnostics.push({
-						kind: 'svelte_prop_failed',
-						file: diagnosticFile,
-						line: lineOfOffset(sourceFile.content, instanceScript.start + prop.pos),
-						message: `Failed to extract prop "${prop.name}" in ${componentName}: the svelte2tsx output has no recognized props type for its legacy export let syntax. svelte2tsx may not have read the instance script (it skips one closed with whitespace before the ">", as in "</script >"), or its version may be incompatible.`,
-						severity: 'warning',
-						componentName,
-						propName: prop.name
-					});
-				}
-			}
-		}
-	}
+	const propsAnchor = propsMetadata.propsDeclaration
+		? resolveRunesPropsAnchor(
+				propsMetadata,
+				propsMetadata.propsDeclaration,
+				ctx,
+				componentName,
+				diagnosticFile
+			)
+		: resolveExportLetPropsAnchor(
+				renderMode,
+				componentNodes,
+				instanceScript && instanceScriptSource
+					? { tag: instanceScript, source: instanceScriptSource }
+					: undefined,
+				sourceFile.content,
+				ctx,
+				componentName,
+				diagnosticFile
+			);
 
 	// Extract props via checker (resolves imported types)
 	const {
@@ -1815,7 +1849,7 @@ export const analyzeSvelteModule = (
 		propsAcceptsChildren ||
 		// Path B: scan virtual source for __sveltets_2_ensureSnippet(children pattern
 		virtualFile.content.includes('__sveltets_2_ensureSnippet(children') ||
-		hasDefaultSlot(componentNodes, checker);
+		(renderMode === 'legacy' && hasDefaultSlot(componentNodes, checker));
 	if (acceptsChildren) {
 		componentDecl.acceptsChildren = true;
 	}

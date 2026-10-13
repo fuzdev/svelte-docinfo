@@ -1,44 +1,32 @@
 /**
  * Tests for legacy (runes-less) components, which declare props with
- * `export let` instead of `$props()`.
+ * `export let` instead of `$props()`, through the `analyze` pipeline.
  *
  * The `legacy-*` svelte fixtures lock the extractor's output per shape. These
  * tests cover what a fixture can't pin or states less directly:
  *
- * 1. the syntactic scan (`scanLegacyExports`) — which exports are props, which
- *    are accessors, and what each prop's default is
- * 2. the pipeline's edges — the forms the scan counts, accessors and
- *    module-script exports staying out, the interface form of `$$Props`
- * 3. the refusal — a `$$render` return the anchor doesn't recognize yields no
- *    props and a `svelte_prop_failed` per export, never a guess
- * 4. the doc-walk gate — with no `$props()` anchor the in-script doc slot
- *    doesn't exist, so a documented `export let` (or a documented local in a
- *    propless runes component) can't leak into the component `docComment`;
- *    the HTML `@component` comment is the only source.
+ * 1. which exports are props — the forms the scan counts, accessors and
+ *    module-script exports staying out, scripts nested in the template, the
+ *    interface form of `$$Props`
+ * 2. the component doc — with no `$props()` anchor the in-script doc slot
+ *    doesn't exist, so a documented `export let` can't leak into the component
+ *    `docComment`; the HTML `@component` comment is the only source
+ * 3. the mode — a component svelte2tsx reads as runes has no legacy props
+ * 4. a legacy component reached through a re-export and through disk discovery
+ *
+ * The scan on its own is in `svelte-legacy.test.ts`, the refusals in
+ * `analyze.legacy-refusal.test.ts`, and session edits in
+ * `analyze.svelte-session.test.ts`.
  */
 
 import { test, assert, describe } from 'vitest';
-import ts from 'typescript';
-import { dirname, join } from 'node:path';
+import { join } from 'node:path';
 
-import type { ComponentDeclarationJson, ModuleJson } from '#lib/types.ts';
-import { analyze } from '#lib/analyze.ts';
-import { byKind, type Diagnostic } from '#lib/diagnostics.ts';
-import { analyzeSvelteModule, type SvelteVirtualFile } from '#lib/svelte.ts';
-import { scanLegacyExports } from '#lib/svelte-legacy.ts';
+import type { ComponentDeclarationJson } from '#lib/types.ts';
+import { analyze, analyzeFromFiles } from '#lib/analyze.ts';
 
-import { assertHasComponentDeclaration, assertHasProps, findModule } from './test-helpers.ts';
-import {
-	analyzeTestProject,
-	createCachedAnalysisProgram,
-	createTestSourceOptions,
-	testSourceOptions,
-	transformOrThrow
-} from './test-module-helpers.ts';
-
-/** The `Comp.svelte` component declaration from an analyze result. */
-const compOf = (modules: Array<ModuleJson>): ComponentDeclarationJson =>
-	assertHasComponentDeclaration(findModule(modules, 'Comp.svelte'), 'Comp');
+import { assertHasProps, findComponent, findModule, withTestProject } from './test-helpers.ts';
+import { analyzeTestProject, testSourceOptions } from './test-module-helpers.ts';
 
 /** Assert a component's prop names, in order, and return the props. */
 const propsOf = (
@@ -48,76 +36,6 @@ const propsOf = (
 	assertHasProps(component, names);
 	return component.props;
 };
-
-/** Parse instance-script content the way `analyzeSvelteModule` does. */
-const scan = (script: string) =>
-	scanLegacyExports(
-		ts.createSourceFile('script.ts', script, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS)
-	);
-
-/** 1-based line of the first occurrence of `needle` in `source`. */
-const lineOf = (source: string, needle: string): number => {
-	const index = source.indexOf(needle);
-	assert.notStrictEqual(index, -1, `"${needle}" not found`);
-	return source.slice(0, index).split('\n').length;
-};
-
-describe('scanLegacyExports', () => {
-	test('reads props in export order with their defaults', () => {
-		const { props, accessors } = scan(`
-			export let a: string;
-			export let b = 1;
-			export let c = undefined;
-			export var d = { a: 1 };
-		`);
-		assert.deepStrictEqual(
-			props.map(({ name, hasInitializer, defaultValue }) => ({
-				name,
-				hasInitializer,
-				defaultValue
-			})),
-			[
-				{ name: 'a', hasInitializer: false, defaultValue: undefined },
-				{ name: 'b', hasInitializer: true, defaultValue: '1' },
-				// an explicit `undefined` is an initializer, but not a default
-				{ name: 'c', hasInitializer: true, defaultValue: undefined },
-				{ name: 'd', hasInitializer: true, defaultValue: '{ a: 1 }' }
-			]
-		);
-		assert.strictEqual(accessors.size, 0);
-	});
-
-	test('an export clause names the prop and carries the binding default', () => {
-		const { props } = scan(`
-			export { a as class, b };
-			let a = 'value';
-			let b: number;
-		`);
-		assert.deepStrictEqual(
-			props.map(({ name, defaultValue }) => ({ name, defaultValue })),
-			[
-				{ name: 'class', defaultValue: "'value'" },
-				{ name: 'b', defaultValue: undefined }
-			]
-		);
-	});
-
-	test('const, function, and class exports are accessors; type-only exports are neither', () => {
-		const { props, accessors } = scan(`
-			type T = number;
-			interface I {}
-			export const a = 1;
-			export function fn() {}
-			export class C {}
-			const b = 2;
-			function fn2() {}
-			export { b, fn2 as fn3, I };
-			export type { T };
-		`);
-		assert.deepStrictEqual(props, []);
-		assert.deepStrictEqual([...accessors].sort(), ['C', 'a', 'b', 'fn', 'fn3']);
-	});
-});
 
 describe('legacy export let components', () => {
 	test('extracts props with no diagnostic, and keeps them out of the component doc', async () => {
@@ -131,7 +49,7 @@ describe('legacy export let components', () => {
 `
 		});
 
-		const component = compOf(modules);
+		const component = findComponent(modules);
 		assert.deepStrictEqual(
 			component.props.map(({ name, type, optional, bindable, description, defaultValue }) => ({
 				name,
@@ -179,7 +97,7 @@ Description.
 `
 		});
 
-		const component = compOf(modules);
+		const component = findComponent(modules);
 		assert.strictEqual(component.docComment, 'Description.');
 		assert.strictEqual(component.lang, 'js');
 		const [prop] = propsOf(component, ['prop1']);
@@ -202,7 +120,7 @@ Description.
 		});
 
 		// exported name, not the local binding; `b` (const) and `T` excluded
-		const [prop] = propsOf(compOf(modules), ['prop1']);
+		const [prop] = propsOf(findComponent(modules), ['prop1']);
 		assert.strictEqual(prop!.type, 'boolean');
 		assert.strictEqual(prop!.defaultValue, 'true');
 		assert.deepStrictEqual(diagnostics, []);
@@ -220,7 +138,7 @@ Description.
 		});
 
 		// source order of the exports, not of the bindings
-		const [prop2, prop1] = propsOf(compOf(modules), ['prop2', 'prop1']);
+		const [prop2, prop1] = propsOf(findComponent(modules), ['prop2', 'prop1']);
 		assert.strictEqual(prop2!.type, 'string');
 		assert.isFalse(prop2!.optional);
 		assert.strictEqual(prop1!.type, 'number');
@@ -238,7 +156,7 @@ Description.
 `
 		});
 
-		const [prop] = propsOf(compOf(modules), ['prop1']);
+		const [prop] = propsOf(findComponent(modules), ['prop1']);
 		assert.strictEqual(prop!.type, 'string');
 		assert.deepStrictEqual(diagnostics, []);
 	});
@@ -256,7 +174,7 @@ Description.
 `
 		});
 
-		const component = compOf(modules);
+		const component = findComponent(modules);
 		assert.deepStrictEqual(component.props, []);
 		// no $props() → no in-script doc slot for the documented accessor either
 		assert.strictEqual(component.docComment, undefined);
@@ -274,7 +192,7 @@ Description.
 `
 		});
 
-		assertHasProps(compOf(modules), ['prop1']);
+		assertHasProps(findComponent(modules), ['prop1']);
 		assert.deepStrictEqual(diagnostics, []);
 	});
 
@@ -297,7 +215,7 @@ Description.
 `
 		});
 
-		propsOf(compOf(modules), ['prop1', 'prop2']);
+		propsOf(findComponent(modules), ['prop1', 'prop2']);
 		assert.deepStrictEqual(diagnostics, []);
 	});
 
@@ -313,7 +231,7 @@ Description.
 `
 		});
 
-		propsOf(compOf(modules), ['prop1']);
+		propsOf(findComponent(modules), ['prop1']);
 		assert.deepStrictEqual(diagnostics, []);
 	});
 
@@ -337,12 +255,10 @@ Description.
 `
 		});
 
-		const [ts_b] = propsOf(compOf(modules), ['b']);
+		const [ts_b] = propsOf(findComponent(modules), ['b']);
 		assert.strictEqual(ts_b!.type, 'number');
 		assert.isTrue(ts_b!.optional);
-		const [js_b] = propsOf(assertHasComponentDeclaration(findModule(modules, 'Js.svelte'), 'Js'), [
-			'b'
-		]);
+		const [js_b] = propsOf(findComponent(modules, 'Js'), ['b']);
 		assert.strictEqual(js_b!.type, 'number');
 		assert.isFalse(js_b!.optional);
 		assert.deepStrictEqual(diagnostics, []);
@@ -368,7 +284,7 @@ Description.
 `
 		});
 
-		const [prop1, prop2] = propsOf(compOf(modules), ['prop1', 'prop2']);
+		const [prop1, prop2] = propsOf(findComponent(modules), ['prop1', 'prop2']);
 		assert.strictEqual(prop1!.type, 'string');
 		assert.strictEqual(prop1!.defaultValue, "'value'");
 		// svelte2tsx copies no JSDoc onto a property whose clause it met first
@@ -398,11 +314,48 @@ Description.
 		});
 
 		for (const name of ['Head', 'Nested']) {
-			assert.deepStrictEqual(
-				assertHasComponentDeclaration(findModule(modules, `${name}.svelte`), name).props,
-				[]
-			);
+			assert.deepStrictEqual(findComponent(modules, name).props, []);
 		}
+		assert.deepStrictEqual(diagnostics, []);
+	});
+
+	test('a nested script ahead of the instance script does not hide its props', async () => {
+		const { modules, diagnostics } = await analyzeTestProject({
+			'src/lib/Comp.svelte': `<svelte:head>
+	<script>
+		export let nested = 1;
+	</script>
+</svelte:head>
+<script lang="ts">
+	export let a: string;
+</script>
+<div>{a}</div>
+`
+		});
+		propsOf(findComponent(modules), ['a']);
+		assert.deepStrictEqual(diagnostics, []);
+	});
+
+	test('an accessor under an authored $$Props stays out with a nested script first', async () => {
+		// the accessors are read from the instance script; read from the nested
+		// one instead, `fn` would pass for a prop `$$Props` declares
+		const { modules, diagnostics } = await analyzeTestProject({
+			'src/lib/Comp.svelte': `<svelte:head>
+	<script>
+		export let nested = 1;
+	</script>
+</svelte:head>
+<script lang="ts">
+	interface $$Props {
+		a: string;
+	}
+	export let a: string;
+	export const fn = (): string => a;
+</script>
+<div>{a}</div>
+`
+		});
+		propsOf(findComponent(modules), ['a']);
 		assert.deepStrictEqual(diagnostics, []);
 	});
 
@@ -433,12 +386,9 @@ Description.
 `
 		});
 
-		assert.deepStrictEqual(compOf(modules).props, []);
+		assert.deepStrictEqual(findComponent(modules).props, []);
 		for (const name of ['Mixed', 'Js']) {
-			assert.deepStrictEqual(
-				assertHasComponentDeclaration(findModule(modules, `${name}.svelte`), name).props,
-				[]
-			);
+			assert.deepStrictEqual(findComponent(modules, name).props, []);
 		}
 		assert.deepStrictEqual(diagnostics, []);
 	});
@@ -457,10 +407,8 @@ Description.
 			'src/lib/Named.svelte': component('b: { a: number };')
 		});
 
-		assert.isTrue(compOf(modules).acceptsChildren);
-		assert.isFalse(
-			assertHasComponentDeclaration(findModule(modules, 'Named.svelte'), 'Named').acceptsChildren
-		);
+		assert.isTrue(findComponent(modules).acceptsChildren);
+		assert.isFalse(findComponent(modules, 'Named').acceptsChildren);
 		assert.deepStrictEqual(diagnostics, []);
 	});
 
@@ -476,7 +424,7 @@ Description.
 `
 		});
 
-		const [prop] = propsOf(compOf(modules), ['prop1']);
+		const [prop] = propsOf(findComponent(modules), ['prop1']);
 		// a `$props()` prop is bindable only through `$bindable()`
 		assert.isFalse(prop!.bindable);
 		assert.deepStrictEqual(diagnostics, []);
@@ -509,7 +457,7 @@ Description.
 			sourceOptions: testSourceOptions()
 		});
 
-		const component = compOf(modules);
+		const component = findComponent(modules);
 		// exports first in export order, the external one admitted by name; then
 		// what only `$$Props` declares. The rest of the bag and the index
 		// signature stay out, summarized by `externalTypes`.
@@ -525,391 +473,48 @@ Description.
 	});
 });
 
-describe('legacy props anchor failures', () => {
-	// Markup above the script so original and virtual lines can't coincide.
-	const SOURCE = `<div>text</div>
-
-<script lang="ts">
+describe('a re-exported legacy component', () => {
+	test('a renamed re-export takes the legacy canonical props and default slot', async () => {
+		const { modules, diagnostics } = await analyzeTestProject({
+			'src/lib/Comp.svelte': `<script lang="ts">
+	/** Description 1 */
 	export let a: string;
 	export let b = 1;
 </script>
-`;
-	// rooted in the repo so the component's own props aren't judged external
-	const ID = join(process.cwd(), 'src/lib/LegacyProbe.svelte');
-
-	/** Analyze `SOURCE` through `analyzeSvelteModule`, with the virtual and checker open to doctoring. */
-	const analyzeProbe = (
-		doctor: (content: string) => string = (content) => content,
-		wrapChecker: (checker: ts.TypeChecker) => ts.TypeChecker = (checker) => checker
-	): { component: ComponentDeclarationJson | undefined; failures: Array<Diagnostic> } => {
-		const sourceFile = { id: ID, content: SOURCE };
-		const transformed = transformOrThrow(sourceFile);
-		const virtual = { ...transformed, content: doctor(transformed.content) };
-		const program = createCachedAnalysisProgram(new Map([[virtual.virtualPath, virtual]]));
-		const diagnostics: Array<Diagnostic> = [];
-		const analysis = analyzeSvelteModule(
-			sourceFile,
-			'LegacyProbe.svelte',
-			wrapChecker(program.getTypeChecker()),
-			createTestSourceOptions(dirname(ID)),
-			diagnostics,
-			program,
-			virtual
-		);
-		return {
-			component: analysis?.declarations[0]?.declaration as ComponentDeclarationJson | undefined,
-			failures: diagnostics
-		};
-	};
-
-	test('the undoctored probe extracts both props', () => {
-		const { component, failures } = analyzeProbe();
-		assert.deepStrictEqual(
-			component?.props.map((p) => p.name),
-			['a', 'b']
-		);
-		assert.deepStrictEqual(failures, []);
-	});
-
-	test('an unrecognized $$render return yields no props and one failure per export', () => {
-		// stand-in for a svelte2tsx whose return shape changed: the props value
-		// is neither `<object> as <Type>` nor a bare object literal
-		const { component, failures } = analyzeProbe((content) => {
-			const doctored = content.replace('return { props: ', 'return { props: undefined, was: ');
-			assert.notStrictEqual(doctored, content, 'expected the svelte2tsx return to be doctored');
-			return doctored;
+<div>{a}{b}<slot /></div>
+`,
+			'src/lib/barrel.ts': `export { default as Renamed } from './Comp.svelte';\n`
 		});
-		assert.strictEqual(component?.props, undefined);
-		const propFailures = byKind(failures, 'svelte_prop_failed');
-		assert.strictEqual(propFailures.length, failures.length);
+		assert.deepStrictEqual(diagnostics, []);
+		const canonical = findComponent(modules);
+		const alias = findModule(modules, 'barrel.ts').declarations.find((d) => d.name === 'Renamed');
+		assert.ok(alias);
+		assert.strictEqual(alias.kind, 'component');
+		if (alias.kind !== 'component') throw new Error('not a component');
+		assert.deepStrictEqual(alias.aliasOf, { module: 'Comp.svelte', name: 'Comp' });
+		assert.deepStrictEqual(alias.props, canonical.props);
 		assert.deepStrictEqual(
-			propFailures.map(({ propName, line, file, componentName }) => ({
-				propName,
-				line,
-				file,
-				componentName
-			})),
+			alias.props.map(({ name, bindable }) => ({ name, bindable })),
 			[
-				{
-					propName: 'a',
-					line: lineOf(SOURCE, 'export let a'),
-					file: ID,
-					componentName: 'LegacyProbe'
-				},
-				{
-					propName: 'b',
-					line: lineOf(SOURCE, 'export let b'),
-					file: ID,
-					componentName: 'LegacyProbe'
-				}
+				{ name: 'a', bindable: true },
+				{ name: 'b', bindable: true }
 			]
 		);
-	});
-
-	test.each([
-		['a missing bindings value', 'was: ""'],
-		['a bindings value that is neither a string nor a call', 'bindings: 0'],
-		['a bindings call to some other function', "bindings: __sveltets_2_any('')"]
-	])('%s is no mode reading: no props and one failure per export', (_, replacement) => {
-		// stand-ins for a svelte2tsx that stops recording its legacy-or-runes
-		// reading the known way: the exports aren't taken for props, and
-		// aren't dropped silently as a runes component's would be
-		const { component, failures } = analyzeProbe((content) => {
-			const doctored = content.replace('bindings: ""', replacement);
-			assert.notStrictEqual(doctored, content, 'expected the svelte2tsx return to be doctored');
-			return doctored;
-		});
-		assert.strictEqual(component?.props, undefined);
-		assert.deepStrictEqual(
-			byKind(failures, 'svelte_prop_failed').map(({ propName, line }) => ({ propName, line })),
-			[
-				{ propName: 'a', line: lineOf(SOURCE, 'export let a') },
-				{ propName: 'b', line: lineOf(SOURCE, 'export let b') }
-			]
-		);
-		assert.strictEqual(failures.length, 2);
-	});
-
-	test('a runes bindings call over export let means no props and no failure', () => {
-		// the runes arm on its own, with the props value left legacy-shaped:
-		// the mode reading decides, not the props type
-		const { component, failures } = analyzeProbe((content) => {
-			const doctored = content.replace(
-				'bindings: ""',
-				// a function, since `$$` in a replacement string is an escape
-				() => "bindings: __sveltets_$$bindings('')"
-			);
-			assert.notStrictEqual(doctored, content, 'expected the svelte2tsx return to be doctored');
-			return doctored;
-		});
-		assert.strictEqual(component?.props, undefined);
-		assert.deepStrictEqual(failures, []);
-	});
-
-	test('a return with no props value is refused, not read as no exports', () => {
-		// an empty props value means svelte2tsx saw no exports; an absent one
-		// says nothing, so the scanned exports are reported
-		const { component, failures } = analyzeProbe((content) => {
-			const doctored = content.replace('return { props: ', 'return { was: ');
-			assert.notStrictEqual(doctored, content, 'expected the svelte2tsx return to be doctored');
-			return doctored;
-		});
-		assert.strictEqual(component?.props, undefined);
-		assert.deepStrictEqual(
-			byKind(failures, 'svelte_prop_failed').map((d) => d.propName),
-			['a', 'b']
-		);
-		assert.strictEqual(failures.length, 2);
-	});
-
-	test('a written props type that is neither generated nor $$Props is refused', () => {
-		// stand-in for a svelte2tsx that names the props type some other way:
-		// only a type literal or the reserved `$$Props` is read, so an unknown
-		// reference is never taken for an authored type
-		const { component, failures } = analyzeProbe((content) => {
-			const doctored = content.replace(
-				/(return \{ props: \{[^}]*\} as )\{[^}]*\}/,
-				'$1Partial<{a: string, b: number}>'
-			);
-			assert.notStrictEqual(doctored, content, 'expected the svelte2tsx return to be doctored');
-			return doctored;
-		});
-		assert.strictEqual(component?.props, undefined);
-		assert.deepStrictEqual(
-			byKind(failures, 'svelte_prop_failed').map((d) => d.propName),
-			['a', 'b']
-		);
-		assert.strictEqual(failures.length, 2);
-	});
-
-	test('a prop whose type throws falls back to any with no position', () => {
-		// the props type literal is text svelte2tsx appends, which maps to
-		// nothing in the original source: absence over a virtual line
-		const { component, failures } = analyzeProbe(
-			undefined,
-			(checker) =>
-				new Proxy(checker, {
-					get(target, key, receiver) {
-						if (key === 'getTypeOfSymbolAtLocation') {
-							return (symbol: ts.Symbol, node: ts.Node) => {
-								if (symbol.name === 'a') throw new Error('synthetic resolution failure');
-								return target.getTypeOfSymbolAtLocation(symbol, node);
-							};
-						}
-						const value = Reflect.get(target, key, receiver);
-						return typeof value === 'function' ? value.bind(target) : value;
-					}
-				})
-		);
-		assert.deepStrictEqual(
-			component?.props.map(({ name, type }) => ({ name, type })),
-			[
-				{ name: 'a', type: 'any' },
-				{ name: 'b', type: 'number' }
-			]
-		);
-		const propFailures = byKind(failures, 'svelte_prop_failed');
-		assert.strictEqual(propFailures.length, 1);
-		assert.strictEqual(propFailures[0]!.propName, 'a');
-		assert.strictEqual(propFailures[0]!.line, undefined);
-		assert.strictEqual(propFailures[0]!.column, undefined);
+		assert.isTrue(alias.acceptsChildren);
 	});
 });
 
-describe('propless runes components', () => {
-	test('a documented local cannot claim the component doc slot', async () => {
-		const { modules, diagnostics } = await analyzeTestProject({
-			'src/lib/Comp.svelte': `<script lang="ts">
-	/** Description 1 */
-	let a = $state(0);
+describe('analyzeFromFiles over legacy and nested-script components', { timeout: 30_000 }, () => {
+	test('discovery from disk documents both', async () => {
+		await withTestProject(
+			{
+				'src/lib/Legacy.svelte': `<script lang="ts">
+	export let a: string;
+	export let b = 1;
 </script>
-<div>{a}</div>
-`
-		});
-
-		const component = compOf(modules);
-		assert.strictEqual(component.docComment, undefined);
-		assert.deepStrictEqual(component.props, []);
-		assert.deepStrictEqual(diagnostics, []);
-	});
-
-	test('the HTML @component comment still documents an anchorless component', async () => {
-		const { modules, diagnostics } = await analyzeTestProject({
-			'src/lib/Comp.svelte': `<!--
-@component
-Description.
--->
-<script lang="ts">
-	/** Description 1 */
-	let a = $state(0);
-</script>
-<div>{a}</div>
-`
-		});
-
-		assert.strictEqual(compOf(modules).docComment, 'Description.');
-		assert.deepStrictEqual(diagnostics, []);
-	});
-});
-
-describe('legacy render classification', () => {
-	const SOURCE = `<div><slot /></div>\n`;
-	const ID = join(process.cwd(), 'src/lib/LegacyRenderProbe.svelte');
-
-	const analyzeProbe = (
-		doctor: (content: string) => string = (content) => content
-	): ComponentDeclarationJson | undefined => {
-		const sourceFile = { id: ID, content: SOURCE };
-		const transformed = transformOrThrow(sourceFile);
-		const virtual = { ...transformed, content: doctor(transformed.content) };
-		const program = createCachedAnalysisProgram(new Map([[virtual.virtualPath, virtual]]));
-		const diagnostics: Array<Diagnostic> = [];
-		const analysis = analyzeSvelteModule(
-			sourceFile,
-			'LegacyRenderProbe.svelte',
-			program.getTypeChecker(),
-			createTestSourceOptions(dirname(ID)),
-			diagnostics,
-			program,
-			virtual
-		);
-		assert.deepStrictEqual(diagnostics, []);
-		return analysis?.declarations[0]?.declaration as ComponentDeclarationJson | undefined;
-	};
-
-	test('the undoctored probe reads its default slot', () => {
-		assert.isTrue(analyzeProbe()?.acceptsChildren);
-	});
-
-	test('a return with no bindings value is not read as legacy', () => {
-		// stand-in for a svelte2tsx that stops writing `bindings`: with no
-		// legacy-or-runes reading the slot is ignored rather than guessed at
-		const component = analyzeProbe((content) => {
-			const doctored = content.replace('bindings: ""', 'was: ""');
-			assert.notStrictEqual(doctored, content, 'expected the svelte2tsx return to be doctored');
-			return doctored;
-		});
-		assert.ok(component);
-		assert.isNotTrue(component.acceptsChildren);
-	});
-});
-
-describe('legacy exports svelte2tsx did not read', () => {
-	// The scan reads exports svelte2tsx doesn't: Svelte's parser, and so
-	// `findScriptTags`, take a closing tag with whitespace before its `>`,
-	// while svelte2tsx's own tag matcher skips the whole script and writes an
-	// empty props value. Markup above the script so original and virtual lines
-	// can't coincide.
-	const SOURCE = `<div>text1</div>
-
-<script>
-	export let a = 1;
-	/** @type {string} */
-	export let b;
-</script >
-`;
-	const TS_SOURCE = `<div>text1</div>
-
-<script lang="ts">
-	export let a = 1;
-	export let b: string;
-</script >
-`;
-	const ID = join(process.cwd(), 'src/lib/LegacyUnreadProbe.svelte');
-
-	const analyzeProbe = (
-		source: string,
-		emptyValue: string,
-		doctor: (content: string) => string = (content) => content
-	): { component: ComponentDeclarationJson | undefined; failures: Array<Diagnostic> } => {
-		const sourceFile = { id: ID, content: source };
-		const transformed = transformOrThrow(sourceFile);
-		// the premise: the scan has exports to read, and svelte2tsx found none
-		assert.include(transformed.scriptTags?.[0]?.content, 'export let a');
-		assert.include(transformed.content, `props: ${emptyValue}`);
-		const virtual = { ...transformed, content: doctor(transformed.content) };
-		const program = createCachedAnalysisProgram(new Map([[virtual.virtualPath, virtual]]));
-		const diagnostics: Array<Diagnostic> = [];
-		const analysis = analyzeSvelteModule(
-			sourceFile,
-			'LegacyUnreadProbe.svelte',
-			program.getTypeChecker(),
-			createTestSourceOptions(dirname(ID)),
-			diagnostics,
-			program,
-			virtual
-		);
-		return {
-			component: analysis?.declarations[0]?.declaration as ComponentDeclarationJson | undefined,
-			failures: diagnostics
-		};
-	};
-
-	/** Assert no props and one located `svelte_prop_failed` per export of `source`. */
-	const assertRefused = (
-		source: string,
-		{ component, failures }: ReturnType<typeof analyzeProbe>
-	): void => {
-		assert.ok(component);
-		assert.strictEqual(component.props, undefined);
-		const propFailures = byKind(failures, 'svelte_prop_failed');
-		assert.strictEqual(propFailures.length, failures.length);
-		assert.deepStrictEqual(
-			propFailures.map(({ propName, line, file, componentName }) => ({
-				propName,
-				line,
-				file,
-				componentName
-			})),
-			['a', 'b'].map((propName) => ({
-				propName,
-				line: lineOf(source, `export let ${propName}`),
-				file: ID,
-				componentName: 'LegacyUnreadProbe'
-			}))
-		);
-	};
-
-	test('an untyped component yields no props and one failure per export', () => {
-		// the JS form of the empty value: a JSDoc cast on `({})`
-		const result = analyzeProbe(SOURCE, '/** @type {Record<string, never>} */ ({})');
-		assertRefused(SOURCE, result);
-		// the message names the cause a user can act on
-		assert.include(result.failures[0]!.message, '</script >');
-	});
-
-	test('a typed component yields no props and one failure per export', () => {
-		assertRefused(TS_SOURCE, analyzeProbe(TS_SOURCE, '{} as Record<string, never>'));
-	});
-
-	test('an unrecognized mode refuses the same way', () => {
-		const result = analyzeProbe(SOURCE, '/** @type {Record<string, never>} */ ({})', (content) => {
-			const doctored = content.replace('bindings: ""', 'was: ""');
-			assert.notStrictEqual(doctored, content, 'expected the svelte2tsx return to be doctored');
-			return doctored;
-		});
-		assertRefused(SOURCE, result);
-	});
-
-	test('a runes component closed the same way has no props and no failure', async () => {
-		// svelte2tsx reads no script, so there's no `$props()` to anchor on, and
-		// the scan finds no `export let` to report
-		const { modules, diagnostics } = await analyzeTestProject({
-			'src/lib/Comp.svelte': `<script lang="ts">
-	let { a }: { a: string } = $props();
-</script >
-<div>{a}</div>
-`
-		});
-		assert.deepStrictEqual(compOf(modules).props, []);
-		assert.deepStrictEqual(diagnostics, []);
-	});
-});
-
-describe('legacy props beside a nested script', () => {
-	test('a nested script ahead of the instance script does not hide its props', async () => {
-		const { modules, diagnostics } = await analyzeTestProject({
-			'src/lib/Comp.svelte': `<svelte:head>
+<div>{a}{b}</div>
+`,
+				'src/lib/Nested.svelte': `<svelte:head>
 	<script>
 		export let nested = 1;
 	</script>
@@ -919,73 +524,13 @@ describe('legacy props beside a nested script', () => {
 </script>
 <div>{a}</div>
 `
-		});
-		propsOf(compOf(modules), ['a']);
-		assert.deepStrictEqual(diagnostics, []);
-	});
-
-	test('an accessor under an authored $$Props stays out with a nested script first', async () => {
-		// the accessors are read from the instance script; read from the nested
-		// one instead, `fn` would pass for a prop `$$Props` declares
-		const { modules, diagnostics } = await analyzeTestProject({
-			'src/lib/Comp.svelte': `<svelte:head>
-	<script>
-		export let nested = 1;
-	</script>
-</svelte:head>
-<script lang="ts">
-	interface $$Props {
-		a: string;
-	}
-	export let a: string;
-	export const fn = (): string => a;
-</script>
-<div>{a}</div>
-`
-		});
-		propsOf(compOf(modules), ['a']);
-		assert.deepStrictEqual(diagnostics, []);
-	});
-});
-
-describe('script tags on the virtual', () => {
-	const SOURCE = `<script lang="ts">
-	export let a: string;
-</script>
-<div>{a}</div>
-`;
-	const ID = join(process.cwd(), 'src/lib/LegacyScriptTagsProbe.svelte');
-
-	const analyzeProbe = (
-		doctor: (virtual: SvelteVirtualFile) => SvelteVirtualFile
-	): ComponentDeclarationJson | undefined => {
-		const sourceFile = { id: ID, content: SOURCE };
-		const virtual = doctor(transformOrThrow(sourceFile));
-		const program = createCachedAnalysisProgram(new Map([[virtual.virtualPath, virtual]]));
-		const analysis = analyzeSvelteModule(
-			sourceFile,
-			'LegacyScriptTagsProbe.svelte',
-			program.getTypeChecker(),
-			createTestSourceOptions(dirname(ID)),
-			[],
-			program,
-			virtual
+			},
+			async (projectRoot) => {
+				const { modules, diagnostics } = await analyzeFromFiles({ projectRoot });
+				assert.deepStrictEqual(diagnostics, []);
+				assertHasProps(findComponent(modules, 'Legacy'), ['a', 'b']);
+				assertHasProps(findComponent(modules, 'Nested'), ['a']);
+			}
 		);
-		return analysis?.declarations[0]?.declaration as ComponentDeclarationJson | undefined;
-	};
-
-	test('analysis reads the tags the virtual carries, without locating them again', () => {
-		// a virtual that says the component has no script: the source's
-		// `export let` is never scanned
-		assert.strictEqual(
-			analyzeProbe((virtual) => ({ ...virtual, scriptTags: [] }))?.props,
-			undefined
-		);
-	});
-
-	test('a virtual that carries none has them located in the source', () => {
-		const component = analyzeProbe(({ scriptTags: _, ...virtual }) => virtual);
-		assert.ok(component);
-		propsOf(component, ['a']);
 	});
 });

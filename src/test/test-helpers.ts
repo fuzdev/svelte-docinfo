@@ -395,6 +395,32 @@ export const findModule = (modules: Array<ModuleJson>, path: string): ModuleJson
 };
 
 /**
+ * Find a component's declaration in an analyze result, by the name its
+ * `<Name>.svelte` module carries.
+ *
+ * @param modules - Array of modules to search
+ * @param name - The component name, `Comp` for the usual single-component project
+ * @returns The found component declaration
+ */
+export const findComponent = (
+	modules: Array<ModuleJson>,
+	name = 'Comp'
+): ComponentDeclarationJson =>
+	assertHasComponentDeclaration(findModule(modules, `${name}.svelte`), name);
+
+/**
+ * The 1-based line of the first occurrence of `needle` in `source`, for
+ * asserting a diagnostic or `sourceLine` against the text it should point at.
+ *
+ * @throws If `needle` isn't in `source`
+ */
+export const lineOf = (source: string, needle: string): number => {
+	const index = source.indexOf(needle);
+	assert.notStrictEqual(index, -1, `expected source to contain "${needle}"`);
+	return source.slice(0, index).split('\n').length;
+};
+
+/**
  * A sibling source file loaded from a multi-file fixture directory.
  *
  * `path` is fixture-dir-relative POSIX form (`dep.ts`, `internal/helper.ts`,

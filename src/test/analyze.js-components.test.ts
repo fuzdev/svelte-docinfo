@@ -23,14 +23,10 @@ import { join } from 'node:path';
 
 import { createAnalysisSession } from '#lib/session.ts';
 import { createSourceOptions } from '#lib/source-config.ts';
-import type { ComponentDeclarationJson, ModuleJson } from '#lib/types.ts';
+import type { ComponentDeclarationJson } from '#lib/types.ts';
 
-import { assertHasComponentDeclaration, findModule, withTestProject } from './test-helpers.ts';
+import { findComponent, findModule, withTestProject } from './test-helpers.ts';
 import { analyzeTestProject } from './test-module-helpers.ts';
-
-/** The `Comp.svelte` component declaration from an analyze result. */
-const compOf = (modules: Array<ModuleJson>): ComponentDeclarationJson =>
-	assertHasComponentDeclaration(findModule(modules, 'Comp.svelte'), 'Comp');
 
 /** Comparison projection over props: the fields these tests assert. */
 const propShapes = (
@@ -58,7 +54,7 @@ describe('JS component props via JSDoc @type', () => {
 		});
 
 		assert.deepStrictEqual(diagnostics, []);
-		const component = compOf(modules);
+		const component = findComponent(modules);
 		assert.strictEqual(component.lang, 'js');
 		assert.deepStrictEqual(
 			component.props.map((p) => ({
@@ -104,7 +100,7 @@ describe('JS component props via JSDoc @type', () => {
 		});
 
 		assert.deepStrictEqual(diagnostics, []);
-		const component = compOf(modules);
+		const component = findComponent(modules);
 		assert.strictEqual(component.lang, 'js');
 		assert.deepStrictEqual(propShapes(component), [
 			// svelte2tsx infers `boolean` from the default and marks it optional
@@ -130,7 +126,7 @@ describe('JS component props via JSDoc @type', () => {
 		});
 
 		assert.deepStrictEqual(diagnostics, []);
-		const component = compOf(modules);
+		const component = findComponent(modules);
 		assert.strictEqual(component.lang, undefined);
 		assert.deepStrictEqual(propShapes(component), [
 			{ name: 'prop1', type: 'any', optional: false }
@@ -151,7 +147,7 @@ describe('JS component props via JSDoc @type', () => {
 `
 		});
 
-		const component = compOf(modules);
+		const component = findComponent(modules);
 		assert.strictEqual(component.lang, 'js');
 		assert.deepStrictEqual(component.props, []);
 	});
@@ -177,7 +173,7 @@ Description.
 `
 		});
 
-		const component = compOf(modules);
+		const component = findComponent(modules);
 		assert.strictEqual(component.docComment, 'Description.');
 		// type machinery claiming nothing means no script-vs-html duplicate either
 		assert.deepStrictEqual(diagnostics, []);
@@ -205,7 +201,7 @@ Description 2.
 `
 		});
 
-		const component = compOf(modules);
+		const component = findComponent(modules);
 		assert.strictEqual(component.docComment, 'Description 1.');
 		assert.strictEqual(diagnostics.length, 1);
 		assert.strictEqual(diagnostics[0]!.kind, 'duplicate_comment');
@@ -233,7 +229,7 @@ Description 2.
 `
 		});
 
-		const component = compOf(modules);
+		const component = findComponent(modules);
 		assert.strictEqual(component.docComment, 'Description 2.');
 		assert.deepStrictEqual(diagnostics, []);
 		// the rewritten typedef still types the props
@@ -294,7 +290,7 @@ describe('script lang detection', () => {
 		// a whole-file text scan would flip this component to ScriptKind.TS,
 		// silently discarding the JSDoc prop type
 		assert.deepStrictEqual(diagnostics, []);
-		const component = compOf(modules);
+		const component = findComponent(modules);
 		assert.strictEqual(component.lang, 'js');
 		assert.deepStrictEqual(propShapes(component), [
 			{ name: 'label', type: 'string', optional: false }
@@ -313,7 +309,7 @@ describe('script lang detection', () => {
 		});
 
 		assert.deepStrictEqual(diagnostics, []);
-		const component = compOf(modules);
+		const component = findComponent(modules);
 		assert.strictEqual(component.lang, 'js');
 		assert.deepStrictEqual(propShapes(component), [
 			{ name: 'label', type: 'string', optional: false }
@@ -349,7 +345,7 @@ describe('session script-kind handling', () => {
 			});
 			try {
 				await session.setFiles([{ id, content: TS_VERSION }]);
-				const first = compOf(session.query().modules);
+				const first = findComponent(session.query().modules);
 				assert.strictEqual(first.lang, undefined);
 				assert.deepStrictEqual(propShapes(first), [
 					{ name: 'prop1', type: 'string', optional: false }
@@ -358,7 +354,7 @@ describe('session script-kind handling', () => {
 				// ts → js: same virtual path, new script kind — the LS must reparse
 				// so the JSDoc type participates in checking
 				await session.setFile({ id, content: JS_VERSION });
-				const second = compOf(session.query().modules);
+				const second = findComponent(session.query().modules);
 				assert.strictEqual(second.lang, 'js');
 				assert.deepStrictEqual(propShapes(second), [
 					{ name: 'prop1', type: 'number', optional: true }
@@ -366,7 +362,7 @@ describe('session script-kind handling', () => {
 
 				// js → ts: back again
 				await session.setFile({ id, content: TS_VERSION });
-				const third = compOf(session.query().modules);
+				const third = findComponent(session.query().modules);
 				assert.strictEqual(third.lang, undefined);
 				assert.deepStrictEqual(propShapes(third), [
 					{ name: 'prop1', type: 'string', optional: false }

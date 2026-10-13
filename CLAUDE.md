@@ -160,12 +160,15 @@ points to the TSDoc that owns its policy; read it before changing behavior. User
   - Script and module-comment extraction, always from the *original* source, never the
     virtual. The component's script tags are located once, at transform, and ride the
     virtual (`SvelteVirtualFile.scriptTags`).
+  - The render mode (`classifyRenderMode`) and the props anchors
+    (`resolveRunesPropsAnchor`, `resolveExportLetPropsAnchor`).
   - Snippet helpers.
 - `svelte-scripts.ts` — `@internal`, imported directly (not in the barrel):
   `findScriptTags`, which locates a component's top-level `<script>` tags (see Svelte
   Component Analysis), `scanScriptTags`, and `isModuleScript`.
 - `svelte-legacy.ts` — `@internal`, imported directly (not in the barrel): the legacy
-  `export let` scan (`scanLegacyExports`) and props anchor (`resolveLegacyPropsAnchor`).
+  `export let` scan (`scanLegacyExports`) and the checker anchor for the props type
+  (`resolveLegacyPropsAnchor`).
 - `source.ts` — `SourceFileInfo`, file-type predicates, virtual-path helpers
   (`stripVirtualSuffix`, `SVELTE_VIRTUAL_SUFFIX`), the svelte2tsx generated-name filter
   (`isSvelte2tsxGeneratedExport`), and `getDefaultAnalyzer`.
@@ -347,14 +350,24 @@ support older ones. The workflow, from the svelte2tsx virtual through props, is 
 - **`<script module>` exports** analyze through the virtual; svelte2tsx internals are
   filtered (`isSvelte2tsxGeneratedExport`), and positions are remapped to the original
   source.
-- **Props** come from `extractPropsViaChecker`, anchored on the `$props()` declaration's
-  type:
+- **Render mode** — legacy or runes is svelte2tsx's reading, since analysis never sees the
+  compiler's `runes` option. `classifyRenderMode` takes it from the `$$render` return's
+  `bindings` value: a string literal is legacy (template-only components and rune-free
+  scripts included), a `__sveltets_$$bindings` call is runes, and anything else is
+  unrecognized, which is treated as neither. It's read once per component, for the legacy
+  props and the default slot.
+- **Props** come from `extractPropsViaChecker`, which projects them from a `PropsAnchor`:
+  the props type, plus what the script says of each prop. `resolveRunesPropsAnchor` builds
+  one from the `$props()` declaration; without that declaration,
+  `resolveExportLetPropsAnchor` builds one for a legacy component (see Legacy
+  `export let`).
   - Local props are emitted in source order. `representativeDeclaration` picks the component-file
     declaration when a prop is redeclared over an external bag.
-  - External-origin props are filtered (see `externalTypes`), except the names the
-    `$props()` destructuring binds: those are admitted with the external type and JSDoc
-    and follow the other props in destructuring order. The rest element, a name the type
-    lacks, and an index-signature-only name admit nothing.
+  - External-origin props are filtered (see `externalTypes`), except the names the script
+    binds (the `$props()` destructuring's, or the `export let` names): those are admitted
+    with the external type and JSDoc and follow the other props in destructuring order.
+    The rest element, a name the type lacks, and an index-signature-only name admit
+    nothing.
   - `defaultValue` is verbatim source text, keyed by prop name (`class: c = 'a'` → `class`).
 - **Callback props** — a prop whose type has a call signature this project declared
   carries `returnType`/`returnTypeInfo` and, when it has any, `parameters`. `returnType`
@@ -365,23 +378,19 @@ support older ones. The workflow, from the svelte2tsx virtual through props, is 
   out and picks the own signature from `MouseEventHandler<…> & (() => void)`. The
   `returnType` field doc in `types.ts` is the full statement.
 - **`acceptsChildren`** — true when a `Snippet`-typed `children` prop resolves, when the
-  template uses children, or when a legacy component has a default slot (a template
-  `<slot />` or a declared `$$Slots`, read off the `$$render` return's `slots` value by
-  `hasDefaultSlot`). Legacy here is svelte2tsx's reading (`classifyRenderMode`: the
-  return's `bindings` value is a string literal, a `__sveltets_$$bindings` call when it
-  reads runes, anything else unrecognized), since analysis never sees the compiler's
-  `runes` option. It's the one mode signal, shared with the legacy props path. It covers
-  propless and template-only components. A runes component's `<slot />` is ignored, and a
-  named slot alone doesn't count.
+  template uses children, or when a legacy component (see Render mode) has a default slot:
+  a template `<slot />` or a declared `$$Slots`, read off the `$$render` return's `slots`
+  value by `hasDefaultSlot`. The slot rule covers propless and template-only components.
+  A runes component's `<slot />` is ignored, and a named slot alone doesn't count.
 - **`docComment` precedence** — in-script JSDoc at or above `$props()` wins over the HTML
   `@component` comment, and `duplicate_comment` warns when both exist.
   - Type-only blocks (`@type`/`@typedef`) don't count (`hasDocContent`).
   - A component with no `$props()` gets only the HTML comment.
   - `@nodocs` is read from whichever source wins.
-- **Legacy `export let`** — a component with no `$props()` whose instance script exports
-  mutable bindings gets its props from the `$$render` return's `props` value instead
-  (`svelte-legacy.ts`, one call site), through the same `extractPropsViaChecker` via a
-  `PropsAnchor`.
+- **Legacy `export let`** — a legacy component (see Render mode) with no `$props()` gets
+  its `PropsAnchor` from two readings, both in `svelte-legacy.ts`: `scanLegacyExports` over
+  the original instance script (names, order, defaults, accessors) and
+  `resolveLegacyPropsAnchor` over the `$$render` return's `props` value (the type).
   - Every prop is `bindable`. `defaultValue` is the initializer's text from the original
     script, the `export {a as b}` rename form included.
   - TS components read a type, and optionality is that type's: the literal svelte2tsx
@@ -394,9 +403,8 @@ support older ones. The workflow, from the svelte2tsx virtual through props, is 
   - Accessors (`export const`, `export function`, `export class`) and type-only exports
     aren't props.
   - Slots and events aren't modeled, beyond the default slot setting `acceptsChildren`.
-  - Only a component `classifyRenderMode` reads as legacy takes this path. One svelte2tsx
-    reads as runes (a rune in the script) skips the scan: its exported bindings are
-    instance exports, so no props and no diagnostic.
+  - A component read as runes isn't scanned: its exported bindings are instance exports,
+    so no props and no diagnostic.
   - An unrecognized mode or props value yields no props and a `svelte_prop_failed` per
     export. That includes the empty props value svelte2tsx writes when it found no
     exports where the scan did; the known case is under Not Supported.
