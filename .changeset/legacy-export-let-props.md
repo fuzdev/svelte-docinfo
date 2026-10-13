@@ -6,7 +6,7 @@ feat: document the props of legacy `export let` components
 
 A component that declares its props with `export let` instead of `$props()` now has them in `props`, with types, optionality, defaults, JSDoc, and callback or snippet signatures like any other component. Before, it had none.
 
-A default slot now sets `acceptsChildren` on any component, legacy or runes, with props or without: a `<slot />` in the template or a declared `$$Slots`. A named slot alone doesn't. Before, only a `children` snippet prop or `{@render children()}` set it, so a component that renders its children through `<slot />` reported `false`.
+A default slot now sets `acceptsChildren` on a legacy component, with or without props: a `<slot />` in the template or a declared `$$Slots`. A named slot alone doesn't, and a runes component's `<slot />` is ignored, so it still needs a `children` snippet prop or `{@render children()}`. Legacy means what svelte2tsx reads as runes-less: no rune in the script and no `<svelte:options runes />`, template-only components included.
 
 **Breaking:** the `legacy_props` diagnostic kind is removed, along with its `LegacyPropsDiagnostic` schema and type. If you match on that kind, drop the branch; there's no replacement, since the props are extracted now.
 

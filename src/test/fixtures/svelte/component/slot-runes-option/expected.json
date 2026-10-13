@@ -1,0 +1,10 @@
+{
+	"path": "ComponentSlotRunesOption.svelte",
+	"declarations": [
+		{
+			"name": "ComponentSlotRunesOption",
+			"kind": "component",
+			"sourceLine": 3
+		}
+	]
+}

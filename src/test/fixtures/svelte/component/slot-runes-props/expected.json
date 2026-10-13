@@ -10,8 +10,7 @@
 					"name": "a",
 					"type": "string"
 				}
-			],
-			"acceptsChildren": true
+			]
 		}
 	]
 }

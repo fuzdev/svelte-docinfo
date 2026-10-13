@@ -4,8 +4,7 @@
 		{
 			"name": "ComponentSlotRunesExportedBinding",
 			"kind": "component",
-			"sourceLine": 1,
-			"acceptsChildren": true
+			"sourceLine": 1
 		}
 	]
 }

@@ -12,7 +12,8 @@
  *
  * What a legacy component documents: its props, all of them bindable (any
  * `export let` can be bound). Slots and events aren't modeled here; a default
- * slot sets `acceptsChildren` for every component, in `svelte.ts`.
+ * slot sets `acceptsChildren` in `svelte.ts`, which covers legacy components
+ * with no props too.
  *
  * @internal
  *

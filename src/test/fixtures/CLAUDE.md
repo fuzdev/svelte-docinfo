@@ -179,9 +179,10 @@ Where each behavior is locked. Unit and behavior-level mechanics live in
   the filter, TS and JS (`props/destructured-external*`)
 - Component: JSDoc/`@component`, docComment precedence (`doccomment-*`), module
   comments (`module-comment*`), no props, template-only, generics,
-  `acceptsChildren` (`children-*`, `no-children`; a default slot in a
-  template-only, propless legacy, `$props()`, and rune-using exported-binding
-  component, and a named slot alone not setting it: `slot-*`), exported snippets
+  `acceptsChildren` (`children-*`, `no-children`; a default slot setting it on
+  a template-only and a propless legacy component, and not on a runes one —
+  `$props()`, a rune-using exported binding, `<svelte:options runes />` over a
+  rune-free script — nor a named slot alone: `slot-*`), exported snippets
   (`exported-snippet*`), merged valibot schema, JS components (`javascript`,
   `props/jsdoc-type`)
 - Legacy `export let` (`*/legacy-*`): props with the HTML fallback doc

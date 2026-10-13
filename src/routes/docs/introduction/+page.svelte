@@ -128,8 +128,9 @@ const {modules} = await analyze({
 			<p>
 				Legacy <code>export let</code> components document their props like any other, every one of
 				them <code>bindable</code>. A default <code>&lt;slot /&gt;</code> sets
-				<code>acceptsChildren</code> on any component; named slots, slot props, and events aren't
-				modeled. Svelte context usage isn't captured either.
+				<code>acceptsChildren</code> on a legacy component, with or without props, and is ignored on
+				a runes one; named slots, slot props, and events aren't modeled. Svelte context usage isn't
+				captured either.
 			</p>
 		</TomeSection>
 		<TomeSection>

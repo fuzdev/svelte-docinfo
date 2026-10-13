@@ -667,3 +667,45 @@ Description.
 		assert.deepStrictEqual(diagnostics, []);
 	});
 });
+
+describe('legacy render classification', () => {
+	const SOURCE = `<div><slot /></div>\n`;
+	const ID = join(process.cwd(), 'src/lib/LegacyRenderProbe.svelte');
+
+	const analyzeProbe = (
+		doctor: (content: string) => string = (content) => content
+	): ComponentDeclarationJson | undefined => {
+		const sourceFile = { id: ID, content: SOURCE };
+		const transformed = transformOrThrow(sourceFile);
+		const virtual = { ...transformed, content: doctor(transformed.content) };
+		const program = createCachedAnalysisProgram(new Map([[virtual.virtualPath, virtual]]));
+		const diagnostics: Array<Diagnostic> = [];
+		const analysis = analyzeSvelteModule(
+			sourceFile,
+			'LegacyRenderProbe.svelte',
+			program.getTypeChecker(),
+			createTestSourceOptions(dirname(ID)),
+			diagnostics,
+			program,
+			virtual
+		);
+		assert.deepStrictEqual(diagnostics, []);
+		return analysis?.declarations[0]?.declaration as ComponentDeclarationJson | undefined;
+	};
+
+	test('the undoctored probe reads its default slot', () => {
+		assert.isTrue(analyzeProbe()?.acceptsChildren);
+	});
+
+	test('a return with no bindings value is not read as legacy', () => {
+		// stand-in for a svelte2tsx that stops writing `bindings`: with no
+		// legacy-or-runes reading the slot is ignored rather than guessed at
+		const component = analyzeProbe((content) => {
+			const doctored = content.replace('bindings: ""', 'was: ""');
+			assert.notStrictEqual(doctored, content, 'expected the svelte2tsx return to be doctored');
+			return doctored;
+		});
+		assert.ok(component);
+		assert.isNotTrue(component.acceptsChildren);
+	});
+});

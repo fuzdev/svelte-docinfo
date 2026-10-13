@@ -347,10 +347,12 @@ support older ones. The workflow, from the svelte2tsx virtual through props, is 
   out and picks the own signature from `MouseEventHandler<…> & (() => void)`. The
   `returnType` field doc in `types.ts` is the full statement.
 - **`acceptsChildren`** — true when a `Snippet`-typed `children` prop resolves, when the
-  template uses children, or when the component has a default slot (a template `<slot />`
-  or a declared `$$Slots`, read off the `$$render` return's `slots` value by
-  `hasDefaultSlot`). The slot rule holds for every component: runes or legacy, with props
-  or without, template-only included. A named slot alone doesn't count.
+  template uses children, or when a legacy component has a default slot (a template
+  `<slot />` or a declared `$$Slots`, read off the `$$render` return's `slots` value by
+  `hasDefaultSlot`). Legacy here is svelte2tsx's reading (`isLegacyRender`: the return's
+  `bindings` value is a string literal, a call when it reads runes), since analysis never
+  sees the compiler's `runes` option. It covers propless and template-only components. A
+  runes component's `<slot />` is ignored, and a named slot alone doesn't count.
 - **`docComment` precedence** — in-script JSDoc at or above `$props()` wins over the HTML
   `@component` comment, and `duplicate_comment` warns when both exist.
   - Type-only blocks (`@type`/`@typedef`) don't count (`hasDocContent`).
@@ -371,8 +373,7 @@ support older ones. The workflow, from the svelte2tsx virtual through props, is 
   - Order is the exports' source order, then props only `$$Props` declares.
   - Accessors (`export const`, `export function`, `export class`) and type-only exports
     aren't props.
-  - Slots and events aren't modeled, beyond the default slot setting `acceptsChildren` as
-    it does for any component.
+  - Slots and events aren't modeled, beyond the default slot setting `acceptsChildren`.
   - A component svelte2tsx reads as runes (a rune in the script) gets an empty props type:
     its exported bindings are instance exports, so no props and no diagnostic.
   - An unrecognized return shape yields no props and a `svelte_prop_failed` per export.
@@ -636,6 +637,8 @@ Lock-in tests: `src/test/analyze.reexport-{edges,namespace,forward,gated}.test.t
   (`export type {c as d} from`) are all silently dropped.
 - `ParameterJson` deliberately has no doc fields like `examples`/`since`, unlike
   `ComponentPropJson`.
+- A runes component that renders its children through `<slot />` reports
+  `acceptsChildren: false`; only a legacy component's default slot sets it.
 - Legacy components: named slots, slot props, and events aren't modeled. Two export forms
   follow svelte2tsx's props value where it departs from Svelte. A binding exported both
   directly and through a renaming clause (`export let a; export {a as b}`) keeps only `b`,

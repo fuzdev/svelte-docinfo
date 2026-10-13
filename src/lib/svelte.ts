@@ -263,8 +263,9 @@ interface ComponentNodes {
 	/** `function $$render()`, whose body is the instance `<script>`. */
 	renderFunction?: ts.FunctionDeclaration;
 	/**
-	 * The object `$$render` returns (`{props: …, slots: …, …}`): where the
-	 * default slot is read, and a legacy component's props.
+	 * The object `$$render` returns (`{props: …, slots: …, bindings: …, …}`):
+	 * where svelte2tsx's legacy-or-runes reading, a legacy component's default
+	 * slot, and its props are read.
 	 */
 	renderReturn?: ts.ObjectLiteralExpression;
 	/** `class __sveltets_Render`, emitted for generic components. */
@@ -316,14 +317,37 @@ const renderReturnValue = (nodes: ComponentNodes, name: string): ts.Expression |
 };
 
 /**
- * Whether a component has a default slot, read off the type of the `slots`
- * value `$$render` returns. That covers a template `<slot />` and a declared
- * `$$Slots`, in any component: legacy or runes, with props or without, with a
- * script or template-only. A named slot alone doesn't count.
+ * Whether svelte2tsx read the component as legacy (runes-less).
+ *
+ * This is svelte2tsx's classification, not the compiler's: analysis never
+ * sees the compiler's `runes` option, and svelte2tsx decides from the source
+ * alone (a rune in the script, or `<svelte:options runes />`). It records the
+ * decision in the `bindings` value `$$render` returns, a string literal
+ * (`bindings: ""`) for a legacy component and a call
+ * (`bindings: __sveltets_$$bindings('a')`) for a runes one. Template-only
+ * components and rune-free scripts read as legacy.
+ *
+ * @returns `false` too when the virtual has no `bindings` value or it's neither form
+ */
+const isLegacyRender = (nodes: ComponentNodes): boolean => {
+	const bindings = renderReturnValue(nodes, 'bindings');
+	return bindings !== undefined && ts.isStringLiteral(bindings);
+};
+
+/**
+ * Whether a legacy component has a default slot, read off the type of the
+ * `slots` value `$$render` returns. That covers a template `<slot />` and a
+ * declared `$$Slots`, with props or without, with a script or template-only.
+ * A named slot alone doesn't count.
+ *
+ * Only a component svelte2tsx reads as legacy (`isLegacyRender`) is asked:
+ * a runes component declares what it accepts through its `children` prop, and
+ * a `<slot />` there is ignored.
  *
  * @returns `false` too when the virtual has no recognized `slots` value or the checker throws
  */
 const hasDefaultSlot = (nodes: ComponentNodes, checker: ts.TypeChecker): boolean => {
+	if (!isLegacyRender(nodes)) return false;
 	const slots = renderReturnValue(nodes, 'slots');
 	if (!slots) return false;
 	try {
@@ -1500,7 +1524,7 @@ const extractPropsViaChecker = (
  *    legacy `export let` component the `$$render` return, see
  *    `svelte-legacy.ts`), `acceptsChildren` from a `Snippet`-typed `children`
  *    prop, template use (`__sveltets_2_ensureSnippet`) or, failing those, a
- *    default slot (`hasDefaultSlot`), plus generics, doc comment, and source line
+ *    legacy component's default slot (`hasDefaultSlot`), plus generics, doc comment, and source line
  *    from the landmarks `findComponentNodes` locates
  * 4. the module comment is read from the original source
  * 5. declarations combine, component first
@@ -1787,7 +1811,7 @@ export const analyzeSvelteModule = (
 	// Determine acceptsChildren via three paths, cheapest first:
 	// Path A: children found in props type (from extractPropsViaChecker, before external-property filtering)
 	// Path B: implicit children usage in template (for components without $props() children declaration)
-	// Path C: a default slot, which renders the children of any component, runes or legacy
+	// Path C: a legacy component's default slot (a runes component's `<slot />` is ignored)
 	const acceptsChildren =
 		propsAcceptsChildren ||
 		// Path B: scan virtual source for __sveltets_2_ensureSnippet(children pattern

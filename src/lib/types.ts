@@ -1239,8 +1239,9 @@ const ComponentDeclarationJsonImpl = v.strictObject({
 	/**
 	 * Whether the component accepts children: an explicit or inherited
 	 * `Snippet`-typed `children` prop, implicit template usage, or a default
-	 * slot (`<slot />` or a declared `$$Slots`) in any component. A named slot
-	 * alone doesn't set it.
+	 * slot (`<slot />` or a declared `$$Slots`) in a legacy component, one
+	 * svelte2tsx reads as runes-less. A runes component's `<slot />` doesn't
+	 * set it, and neither does a named slot alone.
 	 */
 	acceptsChildren: v.optional(v.boolean(), false),
 	/** Script language. `undefined` means TypeScript (default), `'js'` for JavaScript-only components. */
