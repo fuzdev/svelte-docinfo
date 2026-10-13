@@ -1,5 +1,82 @@
 # svelte-docinfo
 
+## 0.12.0
+
+### Minor Changes
+
+- feat: describe callback props with `parameters` and `returnType` ([1164b09](https://github.com/fuzdev/svelte-docinfo/commit/1164b09))
+
+  A component prop typed as a function, like `onpick?: (value: string) => void` or a project type alias for one, now carries `returnType` (with `returnTypeInfo` when the flat string isn't the whole story) and `parameters`. `returnType` is what marks a prop as a callback: it's there for a callback with no parameters, where `parameters` stays absent, and never on a snippet prop.
+
+  If you render every prop's `parameters` as snippet parameters, check `returnType` first, since callbacks have them now too.
+
+  Details:
+
+  - `null` and an optional prop's `undefined` are ignored, so `(() => void) | null` is a callback. A union of several function types isn't; `typeInfo` lists its members.
+  - Only call signatures your project declares count. A prop typed wholly by a package, like `MouseEventHandler<HTMLButtonElement>` or a `Component`, gets neither field.
+  - When a prop redeclares an attribute from an external type, giving `MouseEventHandler<HTMLElement> & (() => void)`, the fields describe your signature.
+  - An overloaded callback describes its first signature, and a generic one doesn't record its own type parameters.
+  - `@param` and `@returns` in the prop's JSDoc aren't read, so the parameters have no descriptions.
+
+- feat: give a session's files an explicit role, input or context ([942efdf](https://github.com/fuzdev/svelte-docinfo/commit/942efdf))
+
+  `setFile` and `setFiles` take `context: true` to ingest files as context: they feed the type checker and never emit a module, even when they're in the source scope. Without it the files are inputs, as before. The role is set on every call, so passing a file the session read on its own as context makes it an input, and passing an input with `context: true` removes its module. A change of role alone reports `changed`.
+
+  Use it when forwarding edits to files you don't mean to document, such as a watcher refreshing a dependency.
+
+  The Vite plugin does this now. In dev, only the files discovery selected emit modules: an edit to any other file refreshes it without adding a module, and when a file is created the plugin runs discovery again to decide whether it's one. Before, editing a source file that `package.json` `exports` didn't cover added it to the output until the server restarted, so dev and build could disagree.
+
+- feat: analyze without a tsconfig, choose one, and narrow the program's roots ([1164b09](https://github.com/fuzdev/svelte-docinfo/commit/1164b09))
+
+  `tsconfig`, `compilerOptions`, and a new `rootFileNames` are accepted by `analyze()`, `analyzeFromFiles()`, and the Vite plugin, where before only `createAnalysisSession` took the first two. The CLI gains `--tsconfig <path>` and `--no-tsconfig`.
+
+  - `tsconfig: false` analyzes a project that has no `tsconfig.json`. The compiler options are `DEFAULT_COMPILER_OPTIONS`, exported from `svelte-docinfo/typescript-program.js` (strict, bundler resolution, `allowJs` and `checkJs`) with your `compilerOptions` merged on top. It's opt-in: a missing config still throws otherwise.
+  - `rootFileNames` replaces the program's root files, which default to everything the tsconfig includes. Pass a list, or a function that filters the tsconfig's roots. Analyzing a few files of a large project no longer has to load all of it. Files you analyze and everything they import are always loaded. The one thing narrowing can change is an ambient type (`declare global`, a module augmentation) declared in a file nothing imports: drop that root and the type resolves to `any`. `declarationFileRoots`, exported beside it, is a ready-made filter that keeps the declaration files, the usual home of those.
+
+  Defaults are unchanged, so existing output is too.
+
+- feat: replace zod with valibot for the output schemas, and add parse helpers ([#45](https://github.com/fuzdev/svelte-docinfo/pull/45))
+
+  **Breaking.** The exported schemas are now [valibot](https://valibot.dev/) schemas. `zod` is no longer a peer, and `valibot` is a regular dependency, so there's nothing to install. Analysis output is unchanged: the same JSON, TypeScript types, and defaults.
+
+  Three new helpers validate output and restore the defaults the compact wire form omits, without your code touching the schema library: `parseAnalyzeResult` for a whole result, `parseModuleJson` for one module, and `parseDiagnostics` for an array of diagnostics.
+
+  To migrate:
+
+  - `AnalyzeResultJson.parse(x)` → `parseAnalyzeResult(x)`, `ModuleJson.parse(x)` → `parseModuleJson(x)`, and `z.array(Diagnostic).parse(x)` → `parseDiagnostics(x)`.
+  - Any other schema: `Schema.parse(x)` → `v.parse(Schema, x)` and `.safeParse(x)` → `v.safeParse(Schema, x)`. That needs `valibot` in your own dependencies, as does composing a schema into one of yours, since zod and valibot schemas don't mix.
+  - Types: `z.infer<typeof ModuleJson>` → the `ModuleJson` type, and `z.input<…>` → `ModuleJsonInput` from `svelte-docinfo/types.js`. The type names are unchanged.
+  - `AnalyzeResultJson` has no `.entries`, because an array guard is piped ahead of the object. Build on `ModuleJson` and `Diagnostic` instead.
+
+  A parse helper that fails throws valibot's `ValiError` in place of a `ZodError`, with the structured list on `.issues`. Catch it with `error instanceof Error`, or `v.isValiError(error)` if you depend on valibot. Its `message` has one line per issue, as `path: message`:
+
+  ```
+  modules.0.declarations.0.typeInfo: Invalid key: Expected never but received "typeInfo"
+  modules.1.path: Invalid type: Expected string but received 1
+  ```
+
+  An object with several unknown keys reports only the first, where zod named them all. `v.parse` called directly throws valibot's own message instead: the first issue, with no path. The wording is valibot's, so don't match on it.
+
+### Patch Changes
+
+- fix: analyze non-finite number literal types instead of throwing ([#45](https://github.com/fuzdev/svelte-docinfo/pull/45))
+
+  A literal type with no finite value (`1e999`, or an enum member initialized to `1 / 0` or `0 / 0`) failed output validation and aborted the whole analysis. Its `TypeJson` literal node now carries `value` as a string (`"Infinity"`, `"-Infinity"`, or `"NaN"`), as a bigint literal already does. `text` is unchanged.
+
+- fix: resolve types through a Svelte component the analysis wasn't given ([1164b09](https://github.com/fuzdev/svelte-docinfo/commit/1164b09))
+
+  A component that imports another component could have types drawn from it, like `ComponentProps<typeof Button>['variant']`, come out as `any` with no diagnostic. It happened whenever the imported component was a source file that wasn't part of the analyzed set: a sibling left out of `package.json` `exports` under exports discovery, or the rest of the project when a session was handed one component. The session now reads the source files your files import from disk, through TS barrels too, and gives the type checker each component's transformed form, as it already did for `internal/` files. These files still emit no module unless you supply them, and a session reports them from `has()` and `list()`.
+
+  Named re-exports of a file outside the analyzed set are documented in the module that re-exports them, as they already were for a file under `internal/`. Before, a same-name re-export of an unanalyzed TS module left only a `reExports` entry pointing at a module the output didn't contain, and the name was documented nowhere; now `export {foo} from './unexported.js'` is a declaration with `aliasOf`. For a component: `export {default as Button} from './Button.svelte'` is a `component` with its props, and a re-exported `<script module>` function, type, or variable keeps its own kind and signature. Before, each was a bare `variable`. A re-exported snippet stays a `snippet`.
+
+  `export * from` such a file follows the same rule, and so does a star over an excluded file such as one under `internal/`: the file is no longer listed in `starExports`, and each name it projects is documented in the re-exporting module, as a declaration with `aliasOf` or, when the name's own module is in the output, a `reExports` entry. Before, the star named a module the output didn't contain and its names appeared nowhere. `starExports` now lists only modules that are in the output. ES rules apply: `default` doesn't project, a local export of the same name wins, and a name two stars disagree on is left out. One kind of name is still not recorded: a binding the starred file itself re-exports from a package.
+
+  If such a component fails to transform, the result now carries a `transform_failed` error for it, where before the failure was silent, and a re-export of it is a `component` marked `partial`.
+
+  Also fixed: a renamed re-export of a `<script module>` export, like `export {helper as renamed} from './Button.svelte'`, was documented as a `component` with the component's props. It's now the function, type, or variable it names.
+
+  `analyze()` is unchanged: it reads nothing you don't pass, so pass every component the checker needs.
+
 ## 0.11.0
 
 ### Minor Changes
