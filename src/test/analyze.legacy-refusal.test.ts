@@ -283,3 +283,58 @@ describe('legacy exports svelte2tsx did not read', () => {
 		assert.deepStrictEqual(diagnostics, []);
 	});
 });
+
+describe('legacy accessor exclusion on an admitted name', () => {
+	// A name exported as both a prop and an accessor is in both of the scan's
+	// sets. svelte2tsx lists accessors in a literal it intersects with
+	// `$$Props`, which makes the name a local property, so `isProp` drops it
+	// from `properties`. Without that literal the name is external-origin and
+	// admitted by the script, and only the `isProp` filter on `admitted` keeps
+	// the accessor out.
+	const SOURCE = `<script lang="ts">
+	import type { HTMLButtonAttributes } from 'svelte/elements';
+	type $$Props = HTMLButtonAttributes;
+	export let disabled: boolean = false;
+	const a = 1;
+	export { a as disabled };
+</script>
+<button {disabled}>text1</button>
+`;
+
+	test('the undoctored virtual keeps the accessor out', () => {
+		const { component, diagnostics } = analyzeDoctored('LegacyDualExportProbe', SOURCE);
+		assert.ok(component);
+		assert.strictEqual(component.props, undefined);
+		assert.deepStrictEqual(diagnostics, []);
+	});
+
+	test('an accessor the props type lists only through an external bag stays out', () => {
+		// stand-in for a svelte2tsx that stops intersecting the accessors in
+		const { component, diagnostics } = analyzeDoctored('LegacyDualExportProbe', SOURCE, {
+			// a function, since `$$` in a replacement string is an escape
+			content: (content) =>
+				content.replace('as {disabled?: typeof a} & $$Props', () => 'as $$Props')
+		});
+		assert.ok(component);
+		assert.strictEqual(component.props, undefined);
+		assert.deepStrictEqual(diagnostics, []);
+	});
+});
+
+describe('legacy refusal diagnostic fields', () => {
+	const SOURCE = `<div>text1</div>
+
+<script lang="ts">
+	export let a: string;
+</script >
+`;
+
+	test('the refusal is a warning whose message names the prop and the component', () => {
+		const { diagnostics } = analyzeDoctored('LegacyRefusalFieldsProbe', SOURCE);
+		const [failure] = byKind(diagnostics, 'svelte_prop_failed');
+		assert.ok(failure);
+		assert.strictEqual(diagnostics.length, 1);
+		assert.strictEqual(failure.severity, 'warning');
+		assert.include(failure.message, 'Failed to extract prop "a" in LegacyRefusalFieldsProbe:');
+	});
+});

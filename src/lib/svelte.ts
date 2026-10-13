@@ -1275,11 +1275,11 @@ const resolveRunesPropsAnchor = (
  * type them from, refusing rather than guessing: the mode is unrecognized
  * (the exports look like props, but nothing says the component is legacy), or
  * the props value is. The latter includes the empty value svelte2tsx writes
- * when it found no exports where the scan did. The known case is an instance
- * script closed with whitespace before the `>` (`</script >`): Svelte's
- * parser and `findScriptTags` take it, svelte2tsx's own tag matcher doesn't,
- * so its virtual has no script, and the message names that cause beside a
- * version mismatch.
+ * when it found no exports where the scan did. The known case is a script
+ * closed with whitespace before the `>` (`</script >`): Svelte's parser and
+ * `findScriptTags` take it, svelte2tsx's own tag matcher doesn't, so its
+ * virtual doesn't have the instance script as written, and the message names
+ * that cause beside a version mismatch.
  *
  * @param instanceScript - the instance script's tag and parsed content, when the component has one
  * @param svelteSource - the original Svelte source, for diagnostic lines
@@ -1308,7 +1308,7 @@ const resolveExportLetPropsAnchor = (
 				kind: 'svelte_prop_failed',
 				file: diagnosticFile,
 				line: lineOfOffset(svelteSource, instanceScript.tag.start + prop.pos),
-				message: `Failed to extract prop "${prop.name}" in ${componentName}: the svelte2tsx output has no recognized props type for its legacy export let syntax. svelte2tsx may not have read the instance script (it skips one closed with whitespace before the ">", as in "</script >"), or its version may be incompatible.`,
+				message: `Failed to extract prop "${prop.name}" in ${componentName}: the svelte2tsx output has no recognized props type for its legacy export let syntax. svelte2tsx may not have read the instance script (a closing tag with whitespace before the ">", as in "</script >", on either script makes it skip or misread it), or its version may be incompatible.`,
 				severity: 'warning',
 				componentName,
 				propName: prop.name

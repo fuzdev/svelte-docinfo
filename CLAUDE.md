@@ -365,9 +365,10 @@ support older ones. The workflow, from the svelte2tsx virtual through props, is 
     declaration when a prop is redeclared over an external bag.
   - External-origin props are filtered (see `externalTypes`), except the names the script
     binds (the `$props()` destructuring's, or the `export let` names): those are admitted
-    with the external type and JSDoc and follow the other props in destructuring order.
-    The rest element, a name the type lacks, and an index-signature-only name admit
-    nothing.
+    with the external type and JSDoc. On a runes component they follow the other props
+    in destructuring order; a legacy component orders by its exports (see Legacy
+    `export let`). The rest element, a name the type lacks, and an index-signature-only
+    name admit nothing.
   - `defaultValue` is verbatim source text, keyed by prop name (`class: c = 'a'` → `class`).
 - **Callback props** — a prop whose type has a call signature this project declared
   carries `returnType`/`returnTypeInfo` and, when it has any, `parameters`. `returnType`
@@ -397,8 +398,9 @@ support older ones. The workflow, from the svelte2tsx virtual through props, is 
     writes from the exports, or the author's reserved `$$Props`, which filters like a runes
     props type, with the `export let` names as the admitted ones. An `export let` name
     `$$Props` doesn't declare is dropped, since a typed consumer can't pass it. JS
-    components have only an object literal, so the type comes from each binding's JSDoc
-    `@type` and a prop is optional when it has an initializer.
+    components, and TS ones whose exports are all untyped and uninitialized, have only an
+    object literal, so the type comes from each binding's JSDoc `@type` and a prop is
+    optional when it has an initializer.
   - Order is the exports' source order, then props only `$$Props` declares.
   - Accessors (`export const`, `export function`, `export class`) and type-only exports
     aren't props.
@@ -668,10 +670,10 @@ Lock-in tests: `src/test/analyze.reexport-{edges,namespace,forward,gated}.test.t
   (`export type {c as d} from`) are all silently dropped.
 - `ParameterJson` deliberately has no doc fields like `examples`/`since`, unlike
   `ComponentPropJson`.
-- An instance script closed with whitespace before the `>` (`</script >`): Svelte and
-  `findScriptTags` accept it, svelte2tsx's tag matcher doesn't, so the virtual has no
-  script. A legacy component written that way documents no props, with a
-  `svelte_prop_failed` warning per `export let`.
+- A script closed with whitespace before the `>` (`</script >`): Svelte and
+  `findScriptTags` accept it, svelte2tsx's tag matcher doesn't, so the virtual doesn't
+  have the instance script as written. A legacy component written that way documents no
+  props, with a `svelte_prop_failed` warning per `export let`.
 - A runes component that renders its children through `<slot />` reports
   `acceptsChildren: false`; only a legacy component's default slot sets it.
 - Legacy components: named slots, slot props, and events aren't modeled. Two export forms
