@@ -408,4 +408,4 @@ see [package.json](package.json) for full dependencies.
 
 ## License
 
-[MIT](LICENSE)
+[0BSD](LICENSE)

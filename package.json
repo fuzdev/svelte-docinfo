@@ -5,7 +5,7 @@
   "glyph": "📜",
   "logo": "logo.svg",
   "logo_alt": "a cyan scroll with curling ends",
-  "license": "MIT",
+  "license": "0BSD",
   "homepage": "https://svelte-docinfo.fuz.dev/",
   "repository": {
     "type": "git",
