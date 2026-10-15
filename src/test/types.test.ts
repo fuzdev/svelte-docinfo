@@ -275,8 +275,8 @@ test('numeric fields reject ±Infinity', () => {
 	}
 });
 
-// `zod` isn't a dependency of this package, but it still resolves here as a peer of a
-// dev dependency, so an import would work locally and break for consumers
+// `zod` isn't a dependency of this package and doesn't resolve here; this guards
+// against reintroducing an import that would break for consumers
 test('nothing under src imports zod', () => {
 	const srcDir = new URL('../', import.meta.url);
 	const files = globSync('**/*.{ts,js,svelte}', { cwd: fileURLToPath(srcDir) });

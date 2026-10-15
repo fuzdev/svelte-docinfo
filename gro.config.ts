@@ -11,7 +11,7 @@ const config: CreateGroConfig = (base_config) => {
 	base_config.map_package_json = (package_json) => {
 		if (!package_json.exports || typeof package_json.exports !== 'object') return package_json;
 		// Insert after the `.` root entry so the order reads top-down.
-		const next: Record<string, unknown> = {};
+		const next: Exclude<typeof package_json.exports, string | null | undefined> = {};
 		for (const [key, value] of Object.entries(package_json.exports)) {
 			next[key] = value;
 			if (key === '.') {
