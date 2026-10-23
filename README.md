@@ -18,8 +18,8 @@ in the [npm package](https://www.npmjs.com/package/svelte-docinfo).
 npm i -D svelte-docinfo
 ```
 
-Peer dependencies: `svelte` 5+, `svelte2tsx`, and `typescript` 5.9+ or 6 (npm 7+
-installs them automatically), plus an optional `vite` 6+ for the Vite plugin.
+Peer dependencies: `svelte` 5+, `svelte2tsx`, and `typescript` 5.9+ or 6,
+plus an optional `vite` 6+ for the Vite plugin.
 
 - [Quick start](#quick-start)
 - [Vite plugin](#vite-plugin)
