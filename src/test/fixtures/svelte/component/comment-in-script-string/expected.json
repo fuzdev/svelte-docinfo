@@ -1,0 +1,16 @@
+{
+	"path": "ComponentCommentInScriptString.svelte",
+	"declarations": [
+		{
+			"name": "ComponentCommentInScriptString",
+			"kind": "component",
+			"sourceLine": 1,
+			"props": [
+				{
+					"name": "prop1",
+					"type": "string"
+				}
+			]
+		}
+	]
+}

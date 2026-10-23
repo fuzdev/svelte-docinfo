@@ -46,6 +46,7 @@ import {
 	applyToDeclaration,
 	hasDocContent,
 	hasModuleTag,
+	parseCommentText,
 	parseModuleComment,
 	toModuleDocFields,
 	type TsdocParsedComment
@@ -80,7 +81,6 @@ import {
 	type SourceFileInfo,
 	getComponentName,
 	isSvelte2tsxGeneratedExport,
-	SVELTE_COMPONENT_ALIAS_SUFFIX,
 	SVELTE_VIRTUAL_SUFFIX
 } from './source.ts';
 import { type ModuleSourceOptions, extractDependencies } from './source-config.ts';
@@ -89,7 +89,13 @@ import { type Diagnostic } from './diagnostics.ts';
 import { toErrorMessage } from './error.ts';
 import { toPosixPath } from './paths.ts';
 import { resolveLegacyPropsAnchor, scanLegacyExports } from './svelte-legacy.ts';
-import { findScriptTags, isModuleScript, type SvelteScriptTag } from './svelte-scripts.ts';
+import {
+	findHtmlComments,
+	findScriptTags,
+	isModuleScript,
+	type HtmlComment,
+	type SvelteScriptTag
+} from './svelte-scripts.ts';
 
 /** Resolved source map type (avoids repeating the verbose `InstanceType<...>` inline). */
 type SourceMap = InstanceType<typeof TraceMap>;
@@ -246,9 +252,7 @@ const SVELTE2TSX_IDENTIFIERS = {
 	/** Identifier for `$props()` rune. */
 	PROPS_RUNE: '$props',
 	/** Identifier for `$bindable()` rune. */
-	BINDABLE_RUNE: '$bindable',
-	/** Suffix on the synthesized component const/type alias (shared constant — `isSvelte2tsxInternal` in `source.ts` filters on it too). */
-	COMPONENT_ALIAS_SUFFIX: SVELTE_COMPONENT_ALIAS_SUFFIX
+	BINDABLE_RUNE: '$bindable'
 } as const;
 
 /**
@@ -291,8 +295,6 @@ interface ComponentNodes {
 	renderReturn?: ts.ObjectLiteralExpression;
 	/** `class __sveltets_Render`, emitted for generic components. */
 	renderClass?: ts.ClassDeclaration;
-	/** `const <Name>__SvelteComponent_`, which carries the HTML `@component` JSDoc. */
-	componentAlias?: ts.VariableStatement;
 }
 
 /** Locate the svelte2tsx landmarks in a transformed source. */
@@ -309,15 +311,6 @@ const findComponentNodes = (virtualSource: ts.SourceFile): ComponentNodes => {
 			if (statement.name?.text === SVELTE2TSX_IDENTIFIERS.RENDER_CLASS) {
 				nodes.renderClass = statement;
 			}
-		} else if (
-			ts.isVariableStatement(statement) &&
-			statement.declarationList.declarations.some(
-				(declaration) =>
-					ts.isIdentifier(declaration.name) &&
-					declaration.name.text.endsWith(SVELTE2TSX_IDENTIFIERS.COMPONENT_ALIAS_SUFFIX)
-			)
-		) {
-			nodes.componentAlias = statement;
 		}
 	}
 	return nodes;
@@ -520,17 +513,6 @@ export const extractScriptContent = (svelteSource: string): string | undefined =
 export const extractModuleScriptContent = (svelteSource: string): string | undefined =>
 	findScriptTags(svelteSource).tags.find((tag) => isModuleScript(tag.attributes))?.content;
 
-/** Collect the raw content of each HTML comment (`<!-- ... -->`) in source order. */
-const findHtmlComments = (svelteSource: string): Array<string> => {
-	const commentRegex = /<!--([^]*?)-->/g;
-	const contents: Array<string> = [];
-	let match;
-	while ((match = commentRegex.exec(svelteSource)) !== null) {
-		contents.push(match[1]!);
-	}
-	return contents;
-};
-
 /**
  * Parse script-tag content as standalone TypeScript for syntactic scans.
  *
@@ -598,8 +580,8 @@ const dedentHtmlComment = (rawContent: string): string => {
  *   comment is found or it holds nothing but `@module`
  */
 export const extractHtmlModuleComment = (svelteSource: string): TsdocParsedComment | undefined => {
-	for (const rawContent of findHtmlComments(svelteSource)) {
-		const cleaned = dedentHtmlComment(rawContent);
+	for (const { content } of findHtmlComments(svelteSource)) {
+		const cleaned = dedentHtmlComment(content);
 		if (cleaned && hasModuleTag(cleaned)) return parseModuleComment(cleaned);
 	}
 	return undefined;
@@ -619,14 +601,46 @@ export const extractHtmlModuleComment = (svelteSource: string): TsdocParsedComme
 export const extractSvelteModuleComment = (scriptContent: string): TsdocParsedComment | undefined =>
 	extractModuleComment(parseScriptContent(scriptContent));
 
+/** A line that starts with the `@component` tag, as opposed to a mention in prose. */
+const COMPONENT_TAG_LINE = /^(\s*)@component\b[ \t]*/;
+
 /**
- * Check if the original Svelte source contains an HTML `@component` comment.
+ * The HTML component comment: the first HTML comment with a line starting
+ * `@component`, the rule `@module` follows. A backticked or mid-prose mention
+ * doesn't count.
  *
- * Only checks HTML comments (`<!-- @component ... -->`), not JSDoc in `<script>`.
- * Used for duplicate `docComment` detection.
+ * svelte2tsx, and so editor hover, picks differently: the *last* HTML comment
+ * containing `@component` anywhere (`svelte2tsxComponentComment`), which
+ * `analyzeSvelteModule` warns about as `component_comment_mismatch` when the
+ * two disagree.
  */
-const hasHtmlComponentComment = (svelteSource: string): boolean =>
-	findHtmlComments(svelteSource).some((content) => /(?:^|\n)\s*@component\b/.test(content));
+const findHtmlComponentComment = (comments: ReadonlyArray<HtmlComment>): HtmlComment | undefined =>
+	comments.find(({ content }) =>
+		dedentHtmlComment(content)
+			.split('\n')
+			.some((line) => COMPONENT_TAG_LINE.test(line))
+	);
+
+/** The comment svelte2tsx documents the component with: the last one containing `@component`. */
+const svelte2tsxComponentComment = (
+	comments: ReadonlyArray<HtmlComment>
+): HtmlComment | undefined => comments.findLast(({ content }) => content.includes('@component'));
+
+/**
+ * Parse an HTML component comment with `parseCommentText`, after removing the
+ * `@component` tag from each line it starts. Text after the tag on its line
+ * stays prose (`<!-- @component A button. -->`), and the lines' common
+ * indentation is stripped (`dedentHtmlComment`), as for an HTML module comment.
+ */
+const parseHtmlComponentComment = (comment: HtmlComment): TsdocParsedComment | undefined => {
+	const text = dedentHtmlComment(comment.content)
+		.split('\n')
+		.map((line) => line.replace(COMPONENT_TAG_LINE, '$1'))
+		.join('\n')
+		.trim();
+	const parsed = parseCommentText(text);
+	return parsed && hasDocContent(parsed) ? parsed : undefined;
+};
 
 /** A component `docComment` plus the authoring form it came from. */
 interface ComponentTsdoc {
@@ -636,31 +650,33 @@ interface ComponentTsdoc {
 }
 
 /**
- * Extract component-level TSDoc comment from svelte2tsx transformed output.
+ * Extract the component-level TSDoc comment.
  *
  * Two authoring forms reach here, searched in precedence order:
  *
- * 1. in-script JSDoc — the instance `<script>` becomes the body of the
- *    `$$render()` function, so the comment rides the props destructuring (or an
- *    earlier statement in that body)
- * 2. the HTML `@component` comment — re-emitted as JSDoc on the synthesized
- *    `<Name>__SvelteComponent_` const at the end of the virtual source
+ * 1. in-script JSDoc, read from the svelte2tsx output — the instance
+ *    `<script>` becomes the body of the `$$render()` function, so the comment
+ *    rides the props destructuring (or an earlier statement in that body)
+ * 2. the HTML `@component` comment, read from the original source
+ *    (`findHtmlComponentComment`), not from the JSDoc svelte2tsx re-emits for
+ *    it, since svelte2tsx picks the comment by a looser rule
  *
- * Scoping the search to those two regions is what keeps `<script module>` out:
- * its declarations hoist above `$$render`, and a whole-file walk would take the
- * first one's JSDoc — which documents that export, not the component.
+ * Scoping the in-script search to `$$render` is what keeps `<script module>`
+ * out: its declarations hoist above `$$render`, and a whole-file walk would
+ * take the first one's JSDoc — which documents that export, not the component.
  */
 const extractComponentTsdoc = (
 	nodes: ComponentNodes,
-	sourceFile: ts.SourceFile
+	sourceFile: ts.SourceFile,
+	htmlComponentComment: HtmlComment | undefined
 ): ComponentTsdoc | undefined => {
 	const renderBody = nodes.renderFunction?.body;
 	if (renderBody) {
 		const tsdoc = findInstanceTsdoc(renderBody, sourceFile);
 		if (tsdoc) return { tsdoc, source: 'script' };
 	}
-	if (nodes.componentAlias) {
-		const tsdoc = findComponentTsdoc(nodes.componentAlias, sourceFile);
+	if (htmlComponentComment) {
+		const tsdoc = parseHtmlComponentComment(htmlComponentComment);
 		if (tsdoc) return { tsdoc, source: 'html' };
 	}
 	return undefined;
@@ -1887,8 +1903,15 @@ export const analyzeSvelteModule = (
 		componentDecl.genericParams = genericParams;
 	}
 
-	// Extract component-level TSDoc from virtual source
-	const componentTsdoc = extractComponentTsdoc(componentNodes, virtualTsSource);
+	// Extract component-level TSDoc: in-script JSDoc from the virtual source,
+	// else the HTML `@component` comment from the original
+	const htmlComments = findHtmlComments(sourceFile.content);
+	const htmlComponentComment = findHtmlComponentComment(htmlComments);
+	const componentTsdoc = extractComponentTsdoc(
+		componentNodes,
+		virtualTsSource,
+		htmlComponentComment
+	);
 	applyToDeclaration(componentDecl, componentTsdoc?.tsdoc);
 
 	// Extract source line via source map (maps $$render back to <script> tag)
@@ -1898,12 +1921,25 @@ export const analyzeSvelteModule = (
 		virtualFile.sourceMap
 	);
 
+	// Warn when svelte2tsx (and so editor hover) would document the component
+	// with a different HTML comment than the one read here; moot when in-script
+	// JSDoc supplies the doc
+	const svelte2tsxComment = svelte2tsxComponentComment(htmlComments);
+	if (componentTsdoc?.source !== 'script' && svelte2tsxComment !== htmlComponentComment) {
+		const svelte2tsxLine = lineOfOffset(sourceFile.content, svelte2tsxComment!.start);
+		diagnostics.push({
+			kind: 'component_comment_mismatch',
+			file: diagnosticFile,
+			line: svelte2tsxLine,
+			message: htmlComponentComment
+				? `svelte2tsx and editor hover document the component with the HTML comment at line ${svelte2tsxLine}, the last one containing @component; using the one at line ${lineOfOffset(sourceFile.content, htmlComponentComment.start)}, the first with @component at a line start.`
+				: `The HTML comment at line ${svelte2tsxLine} mentions @component, so svelte2tsx and editor hover use it as the component's docs; no line starts with @component, so the component has none here.`,
+			severity: 'warning'
+		});
+	}
+
 	// Warn if both HTML @component and script JSDoc provide docComment
-	if (
-		componentDecl.docComment &&
-		componentTsdoc?.source === 'script' &&
-		hasHtmlComponentComment(sourceFile.content)
-	) {
+	if (componentDecl.docComment && componentTsdoc?.source === 'script' && htmlComponentComment) {
 		diagnostics.push({
 			kind: 'duplicate_comment',
 			commentType: 'doc_comment',

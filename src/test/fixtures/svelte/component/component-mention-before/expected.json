@@ -1,0 +1,17 @@
+{
+	"path": "ComponentComponentMentionBefore.svelte",
+	"declarations": [
+		{
+			"name": "ComponentComponentMentionBefore",
+			"kind": "component",
+			"docComment": "Description 2.",
+			"sourceLine": 8,
+			"props": [
+				{
+					"name": "prop1",
+					"type": "string"
+				}
+			]
+		}
+	]
+}

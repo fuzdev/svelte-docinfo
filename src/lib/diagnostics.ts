@@ -97,6 +97,7 @@ export const DiagnosticKind = v.picklist([
 	'module_unreadable',
 	'import_parse_failed',
 	'duplicate_comment',
+	'component_comment_mismatch',
 	'misplaced_tag',
 	'unknown_param',
 	'source_map_failed',
@@ -308,6 +309,31 @@ export interface DuplicateCommentDiagnosticSchema extends Named<
 export const DuplicateCommentDiagnostic: DuplicateCommentDiagnosticSchema =
 	DuplicateCommentDiagnosticImpl;
 export type DuplicateCommentDiagnostic = v.InferOutput<typeof DuplicateCommentDiagnostic>;
+
+const ComponentCommentMismatchDiagnosticImpl = v.strictObject({
+	kind: v.literal('component_comment_mismatch'),
+	...baseDiagnosticFields
+});
+/** @nodocs */
+export interface ComponentCommentMismatchDiagnosticSchema extends Named<
+	typeof ComponentCommentMismatchDiagnosticImpl
+> {}
+/**
+ * svelte2tsx, and so editor hover, documents a component with a different
+ * HTML comment than the analyzer does.
+ *
+ * The analyzer reads the first HTML comment with a line starting
+ * `@component`; svelte2tsx takes the last one containing `@component`
+ * anywhere, so a second component comment or a mid-prose mention (a
+ * backticked `@component` in a module comment) takes its slot. `line` is the
+ * comment svelte2tsx picks; reword its `@component` to agree. Not emitted
+ * when in-script JSDoc supplies the component's doc.
+ */
+export const ComponentCommentMismatchDiagnostic: ComponentCommentMismatchDiagnosticSchema =
+	ComponentCommentMismatchDiagnosticImpl;
+export type ComponentCommentMismatchDiagnostic = v.InferOutput<
+	typeof ComponentCommentMismatchDiagnostic
+>;
 
 const MisplacedTagDiagnosticImpl = v.strictObject({
 	kind: v.literal('misplaced_tag'),
@@ -537,6 +563,7 @@ export const Diagnostic: v.VariantSchema<
 		typeof ModuleUnreadableDiagnostic,
 		typeof ImportParseDiagnostic,
 		typeof DuplicateCommentDiagnostic,
+		typeof ComponentCommentMismatchDiagnostic,
 		typeof MisplacedTagDiagnostic,
 		typeof UnknownParamDiagnostic,
 		typeof SourceMapFailedDiagnostic,
@@ -555,6 +582,7 @@ export const Diagnostic: v.VariantSchema<
 	ModuleUnreadableDiagnostic,
 	ImportParseDiagnostic,
 	DuplicateCommentDiagnostic,
+	ComponentCommentMismatchDiagnostic,
 	MisplacedTagDiagnostic,
 	UnknownParamDiagnostic,
 	SourceMapFailedDiagnostic,

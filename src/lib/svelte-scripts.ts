@@ -56,6 +56,38 @@ const STYLE_TAG_MATCHER =
 	/<!--[^]*?-->|<style(?:\s+[^=>'"/\s]+=(?:"[^"]*"|'[^']*'|[^>\s]+)|\s+[^=>'"/\s]+)*\s*>([^]*?)<\/style\s*>/dg;
 
 /**
+ * Matches, left to right, an HTML comment (its content captured), a script
+ * tag, or a style tag. The tag alternatives are `SCRIPT_TAG_MATCHER`'s and
+ * `STYLE_TAG_MATCHER`'s, uncaptured: they consume the tags' raw text, where
+ * a `<!--` doesn't start a comment.
+ */
+const HTML_COMMENT_MATCHER =
+	/<!--([^]*?)-->|<script(?:\s+[^=>'"/\s]+=(?:"[^"]*"|'[^']*'|[^>\s]+)|\s+[^=>'"/\s]+)*\s*(?:\/>|>[^]*?<\/script\s*>)|<style(?:\s+[^=>'"/\s]+=(?:"[^"]*"|'[^']*'|[^>\s]+)|\s+[^=>'"/\s]+)*\s*>[^]*?<\/style\s*>/g;
+
+/** An HTML comment's raw content (between `<!--` and `-->`) and where the comment starts. */
+export interface HtmlComment {
+	content: string;
+	/** Offset of the `<!--` in the Svelte source. */
+	start: number;
+}
+
+/**
+ * Collect the HTML comments (`<!-- ... -->`) in Svelte source, in source
+ * order, skipping script and style text, as Svelte's parser and svelte2tsx do:
+ * a `<!--` in a script's string literal isn't a comment.
+ */
+export const findHtmlComments = (svelteSource: string): Array<HtmlComment> => {
+	const comments: Array<HtmlComment> = [];
+	HTML_COMMENT_MATCHER.lastIndex = 0;
+	let match;
+	while ((match = HTML_COMMENT_MATCHER.exec(svelteSource)) !== null) {
+		const content = match[1];
+		if (content !== undefined) comments.push({ content, start: match.index });
+	}
+	return comments;
+};
+
+/**
  * The attribute spellings the scan's proof accepts: names of word characters,
  * values double-quoted, single-quoted, or bare word characters, whitespace
  * between attributes. Narrower than `SCRIPT_TAG_MATCHER`'s attribute branch

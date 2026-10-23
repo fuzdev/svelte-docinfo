@@ -1,0 +1,25 @@
+{
+	"path": "ComponentComponentMentionOnly.svelte",
+	"declarations": [
+		{
+			"name": "ComponentComponentMentionOnly",
+			"kind": "component",
+			"sourceLine": 3,
+			"props": [
+				{
+					"name": "prop1",
+					"type": "string"
+				}
+			]
+		}
+	],
+	"diagnostics": [
+		{
+			"kind": "component_comment_mismatch",
+			"file": "src/lib/ComponentComponentMentionOnly.svelte",
+			"line": 1,
+			"message": "The HTML comment at line 1 mentions @component, so svelte2tsx and editor hover use it as the component's docs; no line starts with @component, so the component has none here.",
+			"severity": "warning"
+		}
+	]
+}

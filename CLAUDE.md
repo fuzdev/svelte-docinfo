@@ -148,7 +148,7 @@ are the tomes in `src/routes/docs/`. Examples: `examples/vite/`, `examples/api/`
   (`resolveRunesPropsAnchor`, `resolveExportLetPropsAnchor`); snippet helpers;
   `remapVirtualDiagnosticPositions`.
 - `svelte-scripts.ts` (`@internal`, not in the barrel) — `findScriptTags`,
-  `scanScriptTags`, `isModuleScript`.
+  `scanScriptTags`, `isModuleScript`, `findHtmlComments` (skips script and style text).
 - `svelte-legacy.ts` (`@internal`, not in the barrel) — `scanLegacyExports`,
   `resolveLegacyPropsAnchor`.
 - `source.ts` — `SourceFileInfo`, file-type predicates, virtual-path helpers
@@ -311,6 +311,11 @@ The workflow is in the `analyzeSvelteModule` TSDoc; the policies:
 - **`docComment`** — in-script JSDoc at or above `$props()` beats the HTML `@component`
   comment (`duplicate_comment` warns when both exist); type-only blocks don't count
   (`hasDocContent`), and `@nodocs` is read from the winner.
+- **HTML `@component` comment** — read from the original source, not svelte2tsx's re-emitted
+  JSDoc: the first HTML comment with a line starting `@component`, parsed like an HTML
+  module comment (`parseHtmlComponentComment`). svelte2tsx, and so editor hover, takes the
+  last comment containing `@component` anywhere; when the two picks differ and in-script
+  JSDoc doesn't supply the doc, `component_comment_mismatch` warns.
 - **Legacy `export let`** (`svelte-legacy.ts` TSDoc) — every prop is `bindable`; type and
   optionality come from svelte2tsx's props literal or the author's `$$Props` (an
   `export let` it doesn't declare is dropped), else (JS, or TS whose exports are all untyped
@@ -531,9 +536,6 @@ instead of guessing. Lock-in tests:
 - `</script >` (whitespace before `>`): Svelte and `findScriptTags` accept it, svelte2tsx
   doesn't, so a legacy component written that way documents no props and warns
   `svelte_prop_failed` per `export let`.
-- The HTML component comment is svelte2tsx's pick: the last HTML comment containing
-  `@component` anywhere, even mid-line or in backticks. A later comment that merely mentions
-  it takes the slot, and if that's the `@module` comment the component gets no `docComment`.
 - A runes component's `<slot />` doesn't set `acceptsChildren`.
 - Legacy components: named slots, slot props, and events aren't modeled. Two export forms
   follow svelte2tsx where it departs from Svelte: `export let a; export {a as b}` keeps

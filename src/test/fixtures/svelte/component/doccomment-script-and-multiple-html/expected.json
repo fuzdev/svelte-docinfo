@@ -1,0 +1,26 @@
+{
+	"path": "ComponentDoccommentScriptAndMultipleHtml.svelte",
+	"declarations": [
+		{
+			"name": "ComponentDoccommentScriptAndMultipleHtml",
+			"kind": "component",
+			"docComment": "Description 3.",
+			"sourceLine": 11,
+			"props": [
+				{
+					"name": "prop1",
+					"type": "string"
+				}
+			]
+		}
+	],
+	"diagnostics": [
+		{
+			"kind": "duplicate_comment",
+			"commentType": "doc_comment",
+			"file": "src/lib/ComponentDoccommentScriptAndMultipleHtml.svelte",
+			"message": "Both HTML @component comment and JSDoc in <script> provide component documentation. Using JSDoc.",
+			"severity": "warning"
+		}
+	]
+}

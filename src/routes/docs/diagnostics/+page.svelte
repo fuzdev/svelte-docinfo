@@ -196,6 +196,18 @@
 						</td>
 					</tr>
 					<tr>
+						<td><code>component_comment_mismatch</code></td>
+						<td>
+							<strong>Trigger:</strong> svelte2tsx, and so editor hover, would document a component
+							with a different HTML comment than the analyzer: it takes the last comment containing
+							<code>@component</code> anywhere, the analyzer the first with <code>@component</code>
+							at a line start. A second component comment or a passing mention (a backticked
+							<code>@component</code> in a module comment) causes it. <strong>Consequence:</strong>
+							the analyzer's pick documents the component, and <code>line</code> points at
+							svelte2tsx's; reword that comment's <code>@component</code> so the two agree.
+						</td>
+					</tr>
+					<tr>
 						<td><code>misplaced_tag</code></td>
 						<td>
 							<strong>Trigger:</strong> a symbol-scope tag (<code>@example</code>,

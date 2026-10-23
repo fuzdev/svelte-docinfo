@@ -721,6 +721,7 @@ describe('diagnostic type discrimination', () => {
 				case 'module_unreadable':
 				case 'import_parse_failed':
 				case 'duplicate_comment':
+				case 'component_comment_mismatch':
 				case 'source_map_failed':
 				case 'duplicate_declaration':
 				case 'transform_failed':

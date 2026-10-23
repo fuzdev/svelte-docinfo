@@ -27,8 +27,10 @@
 				examples/api corpus
 			</a>, which covers Svelte components with snippet, callback, and generic props, classes,
 			enums, overloads, runes, re-export forms, and one intentional doc mistake, shown as a
-			diagnostic. See also the
-			<a href="{resolve('/docs/output-format')}#Examples">output format examples</a>.
+			diagnostic.
+		</p>
+		<p>
+			Also see the <a href="{resolve('/docs/output-format')}#Examples">output format examples</a>.
 		</p>
 	</div>
 	<footer class="mt_xl4">

@@ -1,0 +1,17 @@
+{
+	"path": "ComponentComponentHtmlSingleLine.svelte",
+	"declarations": [
+		{
+			"name": "ComponentComponentHtmlSingleLine",
+			"kind": "component",
+			"docComment": "Description 1, with an @ mid-line kept as prose.",
+			"sourceLine": 3,
+			"props": [
+				{
+					"name": "prop1",
+					"type": "string"
+				}
+			]
+		}
+	]
+}

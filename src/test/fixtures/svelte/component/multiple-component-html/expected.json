@@ -4,7 +4,7 @@
 		{
 			"name": "ComponentMultipleComponentHtml",
 			"kind": "component",
-			"docComment": "Second description.",
+			"docComment": "First description.",
 			"sourceLine": 11,
 			"props": [
 				{
@@ -12,6 +12,15 @@
 					"type": "string"
 				}
 			]
+		}
+	],
+	"diagnostics": [
+		{
+			"kind": "component_comment_mismatch",
+			"file": "src/lib/ComponentMultipleComponentHtml.svelte",
+			"line": 6,
+			"message": "svelte2tsx and editor hover document the component with the HTML comment at line 6, the last one containing @component; using the one at line 1, the first with @component at a line start.",
+			"severity": "warning"
 		}
 	]
 }

@@ -320,7 +320,11 @@ export function add_days(d: Date, n: number): Date { /* ... */ }`}
 				removed, so its tags and examples work the same way. A comment that's only
 				<code>@module</code> isn't a source. Likewise, an HTML <code>@component</code> comment plus
 				in-script component JSDoc emits it with <code>commentType: "doc_comment"</code>, and the
-				JSDoc wins.
+				JSDoc wins. The HTML <code>@component</code> comment follows the <code>@module</code> rule:
+				the first comment with <code>@component</code> at a line start, parsed the same way, so a
+				passing mention doesn't count. svelte2tsx, which editor hover uses, takes the last comment
+				containing <code>@component</code> anywhere instead, and
+				<code>component_comment_mismatch</code> warns when the two disagree.
 			</p>
 		</TomeSection>
 
