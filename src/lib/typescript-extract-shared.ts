@@ -31,7 +31,12 @@ import type { DeclarationJsonBuild, MemberJsonBuild } from './declaration-build.
 import { type Diagnostic, type MisplacedTagDiagnostic } from './diagnostics.ts';
 import { toErrorMessage } from './error.ts';
 import { SVELTE_VIRTUAL_SUFFIX, stripVirtualSuffix } from './source.ts';
-import { applyToDeclaration, parseComment, type TsdocParsedComment } from './tsdoc.ts';
+import {
+	applyToDeclaration,
+	jsdocParamTagDefault,
+	parseComment,
+	type TsdocParsedComment
+} from './tsdoc.ts';
 import {
 	specifierExportedName,
 	optionalWideningTarget,
@@ -449,11 +454,21 @@ export const extractSignatureParameters = (
 	const { checker, aliasRegistry } = ctx;
 	return sig.parameters.map((param) => {
 		const paramDecl = param.valueDeclaration;
-		const optional = !!(paramDecl && ts.isParameter(paramDecl) && paramDecl.questionToken);
+		const rest = !!(paramDecl && ts.isParameter(paramDecl) && paramDecl.dotDotDotToken);
+		// whether a caller may omit the argument, the checker's own reading: a `?`,
+		// an initializer with no required parameter after it, and in JS a
+		// bracketed `@param {T} [b]` or `@param {T=} b`; never a rest parameter,
+		// which the checker reads as optional under a bracketed `@param [rest]`
+		const optional =
+			!rest && !!(paramDecl && ts.isParameter(paramDecl) && checker.isOptionalParameter(paramDecl));
 
 		// Get type - use declaration location if available, otherwise get declared type.
 		// An optional parameter is widened to include `undefined` like an optional
 		// property, and is stripped the same way so `optional` carries it alone.
+		// An initializer isn't widened, so there the strip removes only an
+		// `undefined` the type already holds (written `b: T | undefined = x`, or
+		// inferred, `b = this.maybe`): passing it and omitting the argument both
+		// run the default.
 		// `exactOptionalPropertyTypes` governs properties only, so it never applies here.
 		let typeString = 'unknown';
 		let typeInfo: TypeJson | undefined;
@@ -475,27 +490,38 @@ export const extractSignatureParameters = (
 
 		// Collect dotted `@param obj.prop` descriptions for object/destructured
 		// parameters, keyed by the sub-path relative to this parameter
-		// (`obj.prop` → `prop`, `obj.a.b` → `a.b`).
+		// (`obj.prop` → `prop`, `obj.a.b` → `a.b`, an array element's
+		// `arr[].prop` → `[].prop`).
 		let propertyDescriptions: Record<string, string> | undefined;
 		if (tsdocParams) {
-			const prefix = param.name + '.';
 			for (const [key, value] of Object.entries(tsdocParams)) {
-				if (key.startsWith(prefix)) {
+				if (paramKeyRoot(key) === param.name && key !== param.name) {
 					// Null-prototype map: the sliced sub-path is source-derived and is
 					// emitted as `propertyDescriptions`; a `@param obj.__proto__` key on a
 					// plain object would pollute the prototype on write.
-					(propertyDescriptions ??= Object.create(null))[key.slice(prefix.length)] = value;
+					const subPath = key.slice(param.name.length).replace(/^\./, '');
+					(propertyDescriptions ??= Object.create(null))[subPath] = value;
 				}
 			}
 		}
 
-		// Extract default value from AST
+		// the initializer's text, else the default a bracketed `@param [b=0]` writes
+		// when the parameter is omittable (a bracket on a required one is ignored).
+		// Only identifier-named tags count: TS matches a binding-pattern parameter's
+		// tags by position, counting unbraced dotted tags (`@param [opts.z=3]`) as
+		// positions, so a dotted tag's default would land on the wrong parameter.
 		let defaultValue: string | undefined;
-		if (paramDecl && ts.isParameter(paramDecl) && paramDecl.initializer) {
-			defaultValue = paramDecl.initializer.getText();
+		if (paramDecl && ts.isParameter(paramDecl)) {
+			if (paramDecl.initializer) {
+				defaultValue = paramDecl.initializer.getText();
+			} else if (optional) {
+				defaultValue = ts
+					.getJSDocParameterTags(paramDecl)
+					.filter((tag) => ts.isIdentifier(tag.name))
+					.map((tag) => jsdocParamTagDefault(tag))
+					.find((value) => value !== undefined);
+			}
 		}
-
-		const rest = !!(paramDecl && ts.isParameter(paramDecl) && paramDecl.dotDotDotToken);
 
 		const parameter: ParameterJson = {
 			name: param.name,
@@ -509,6 +535,15 @@ export const extractSignatureParameters = (
 		if (typeInfo) parameter.typeInfo = typeInfo;
 		return parameter;
 	});
+};
+
+/**
+ * The parameter a `@param` key documents: the segment before the first `.`
+ * or `[` (`obj.a.b` → `obj`, `arr[].prop` → `arr`), else the whole key.
+ */
+const paramKeyRoot = (key: string): string => {
+	const end = key.search(/[.[]/);
+	return end === -1 ? key : key.slice(0, end);
 };
 
 /**
@@ -531,10 +566,10 @@ const validateParamKeys = (
 	if (!tsdocParams) return;
 	const known = new Set(parameters.map((p) => p.name));
 	for (const key of Object.keys(tsdocParams)) {
-		// Dotted keys (`@param obj.prop`) document a property of an object/destructured
-		// parameter — valid JSDoc/TSDoc. Treat as known when the root segment is a real param.
-		const root = key.includes('.') ? key.slice(0, key.indexOf('.')) : key;
-		if (!known.has(key) && !known.has(root)) {
+		// Dotted keys (`@param obj.prop`, `arr[].prop`) document a property of an
+		// object/destructured parameter — valid JSDoc/TSDoc. Treat as known when
+		// the root segment is a real param.
+		if (!known.has(key) && !known.has(paramKeyRoot(key))) {
 			const loc = getNodeLocation(declNode);
 			diagnostics.push({
 				kind: 'unknown_param',

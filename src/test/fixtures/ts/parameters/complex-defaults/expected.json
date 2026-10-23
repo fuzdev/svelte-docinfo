@@ -11,18 +11,21 @@
 				{
 					"name": "a",
 					"type": "{ b: string; c: number; }",
+					"optional": true,
 					"description": "Description 1",
 					"defaultValue": "{ b: 'value', c: 1 }"
 				},
 				{
 					"name": "b",
 					"type": "Array<number>",
+					"optional": true,
 					"description": "Description 2",
 					"defaultValue": "[1, 2, 3]"
 				},
 				{
 					"name": "c",
 					"type": "string",
+					"optional": true,
 					"description": "Description 3",
 					"defaultValue": "`template`"
 				}

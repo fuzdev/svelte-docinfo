@@ -1,0 +1,55 @@
+{
+	"path": "ComponentJavascriptModuleParams.svelte",
+	"declarations": [
+		{
+			"name": "ComponentJavascriptModuleParams",
+			"kind": "component",
+			"sourceLine": 15,
+			"lang": "js"
+		},
+		{
+			"name": "fn",
+			"kind": "function",
+			"docComment": "A JS module function with JSDoc parameters.",
+			"typeSignature": "(a: { b: string; }, c?: number | undefined, d?: number | undefined, e?: number | undefined, f?: string | undefined): void",
+			"sourceLine": 12,
+			"parameters": [
+				{
+					"name": "a",
+					"type": "{ b: string; }",
+					"description": "Description 1",
+					"propertyDescriptions": {
+						"b": "Description 2"
+					}
+				},
+				{
+					"name": "c",
+					"type": "number",
+					"optional": true,
+					"description": "Description 3"
+				},
+				{
+					"name": "d",
+					"type": "number",
+					"optional": true,
+					"description": "Description 4"
+				},
+				{
+					"name": "e",
+					"type": "number",
+					"optional": true,
+					"description": "Description 5",
+					"defaultValue": "0"
+				},
+				{
+					"name": "f",
+					"type": "string",
+					"optional": true,
+					"description": "Description 6",
+					"defaultValue": "'value'"
+				}
+			],
+			"returnType": "void"
+		}
+	]
+}

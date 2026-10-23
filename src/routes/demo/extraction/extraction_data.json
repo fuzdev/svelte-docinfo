@@ -202,6 +202,7 @@
 								{
 									"name": "amount",
 									"type": "number",
+									"optional": true,
 									"description": "how much to add",
 									"defaultValue": "1"
 								}
@@ -901,6 +902,7 @@
 						{
 							"name": "options",
 							"type": "{ precision?: number | undefined; label?: string | undefined; }",
+							"optional": true,
 							"description": "formatting options",
 							"defaultValue": "{}",
 							"propertyDescriptions": {

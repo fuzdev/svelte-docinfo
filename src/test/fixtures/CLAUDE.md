@@ -58,7 +58,8 @@ descriptive name only when it explains an edge case (`errors/untyped` uses
 - **ts** — `input.ts`, analyzed at a synthetic
   `/home/user/project/src/lib/input.ts` (`analyzeFixtureModule` in
   `ts/ts-test-helpers.ts`), so `path` is `input.ts` and diagnostic `file`
-  reads `src/lib/input.ts`.
+  reads `src/lib/input.ts`. An `input.js` (single-file only) analyzes as JS
+  the same way, at `src/lib/input.js`, for the JSDoc paths.
 - **svelte** — `input.svelte`; `path` is `<Name>.svelte`, where `<Name>` is
   the PascalCased fixture path (`props/basic` → `PropsBasic`). `declarations`
   lists the component first, then `<script module>` exports. `sourceLine` is
@@ -187,7 +188,8 @@ Where each behavior is locked. Unit and behavior-level mechanics live in
   `$props()`, a rune-using exported binding, `<svelte:options runes />` over a
   rune-free script — nor a named slot alone: `slot-*`), exported snippets
   (`exported-snippet*`), merged valibot schema, JS components (`javascript`,
-  `props/jsdoc-type`)
+  `props/jsdoc-type`), JSDoc parameters on a JS `<script module>` function
+  (`component/javascript-module-params`)
 - Script tags: a `<script>` nested in the template is not the component's
   (`component/nested-script-*`): ahead of a legacy instance script (`-legacy`)
   and a runes one (`-runes`), with `lang="ts"` in a JS component (`-lang`),
@@ -250,9 +252,11 @@ Where each behavior is locked. Unit and behavior-level mechanics live in
 
 - Declarations of every kind, generics, members (visibility, static,
   readonly, accessors, external callables), parameters (optional, defaults,
-  rest, dotted `@param` docs), module comments (`module/comment/*`: tags to
-  module fields, tag-only, bare tags, multi-line `@see`, unknown tags, and
-  declaration-only tags warning `misplaced_tag`)
+  rest, dotted `@param` docs; JS `@param {T} [b]`/`{T=}`/`[b=0]` and
+  `@param {object}`-nested docs with TS twins: `parameters/jsdoc-*`), module
+  comments (`module/comment/*`: tags to module fields, tag-only, bare tags,
+  multi-line `@see`, unknown tags, and declaration-only tags warning
+  `misplaced_tag`)
 - Structured types and name recovery: `types/type-info*`,
   `declarations/*/type-info-recovery`, `declarations/*/alias-lost-*`; merged
   value+type symbols: `declarations/*/merged-value-*`; union members in

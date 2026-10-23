@@ -300,10 +300,16 @@
 					<code>typeInfo</code>: structured <DeclarationLink name="TypeJson" /> tree, when it adds
 					structure
 				</li>
-				<li><code>optional</code>: whether the parameter has a <code>?</code> token</li>
+				<li>
+					<code>optional</code>: whether a caller may omit the argument (a <code>?</code>, a
+					default, or in JS a bracketed <code>@param {'{T}'} [b]</code>)
+				</li>
 				<li><code>rest</code>: whether the parameter uses rest syntax (<code>...args</code>)</li>
 				<li><code>description</code>: from <code>@param</code></li>
-				<li><code>defaultValue</code>: default value expression from the source, if present</li>
+				<li>
+					<code>defaultValue</code>: default value expression from the source, if present, else from
+					a bracketed <code>@param {'{T}'} [b=0]</code>
+				</li>
 				<li>
 					<code>propertyDescriptions</code>: sub-path to description, from dotted
 					<code>@param obj.prop</code> tags on a named object parameter (destructured parameters

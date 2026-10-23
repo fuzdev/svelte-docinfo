@@ -22,6 +22,7 @@
 				{
 					"name": "c",
 					"type": "boolean",
+					"optional": true,
 					"description": "Description 3",
 					"defaultValue": "true"
 				}

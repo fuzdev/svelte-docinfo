@@ -1,0 +1,51 @@
+{
+	"path": "input.ts",
+	"declarations": [
+		{
+			"name": "fn",
+			"kind": "function",
+			"docComment": "The TypeScript twin of `jsdoc-property-docs`: braced parents in a `.ts` file,\nplus the unbraced form, which checkJs rejects in a `.js` file.",
+			"typeSignature": "(a: { b: string; c: { d: number; }; e?: string | undefined; }, b: { c: string; }, c: Array<{ d: string; }>, d: { e: string; f: { g: boolean; }; }): void",
+			"sourceLine": 18,
+			"parameters": [
+				{
+					"name": "a",
+					"type": "{ b: string; c: { d: number; }; e?: string | undefined; }",
+					"description": "Description 1",
+					"propertyDescriptions": {
+						"b": "Description 2",
+						"c": "Description 3",
+						"c.d": "Description 4",
+						"e": "Description 5"
+					}
+				},
+				{
+					"name": "b",
+					"type": "{ c: string; }",
+					"description": "Description 6",
+					"propertyDescriptions": {
+						"c": "Description 7"
+					}
+				},
+				{
+					"name": "c",
+					"type": "Array<{ d: string; }>",
+					"description": "Description 8",
+					"propertyDescriptions": {
+						"[].d": "Description 9"
+					}
+				},
+				{
+					"name": "d",
+					"type": "{ e: string; f: { g: boolean; }; }",
+					"description": "Description 10",
+					"propertyDescriptions": {
+						"e": "Description 11",
+						"f.g": "Description 12"
+					}
+				}
+			],
+			"returnType": "void"
+		}
+	]
+}

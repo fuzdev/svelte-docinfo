@@ -14,6 +14,7 @@ import ts from 'typescript';
 
 import {
 	cleanComment,
+	jsdocParamTagDefault,
 	parseComment,
 	parseCommentText,
 	parseModuleComment,
@@ -216,6 +217,71 @@ describe('parseComment tag spelling synonyms', () => {
 		);
 		assert.ok(result);
 		assert.strictEqual(result.returns, 'the answer');
+	});
+});
+
+describe('jsdocParamTagDefault', () => {
+	/** The bracket default of `tagText`, the one `@param` tag on a JS function's JSDoc. */
+	const defaultOf = (tagText: string): string | undefined => {
+		const sourceFile = ts.createSourceFile(
+			'mod.js',
+			`/**\n * ${tagText}\n */\nexport function fn(a) {}\n`,
+			ts.ScriptTarget.Latest,
+			true,
+			ts.ScriptKind.JS
+		);
+		const tag = ts.getJSDocTags(sourceFile.statements[0]!).find(ts.isJSDocParameterTag);
+		assert.ok(tag, `expected a @param tag in ${tagText}`);
+		return jsdocParamTagDefault(tag, sourceFile);
+	};
+
+	test('slices the written default verbatim', () => {
+		assert.strictEqual(defaultOf('@param {number} [a=0] - d'), '0');
+		assert.strictEqual(defaultOf('@param {string} [a = "b c"] - d'), '"b c"');
+		assert.strictEqual(defaultOf('@param [a=0] {number} d'), '0');
+	});
+
+	test('skips brackets and quoted brackets inside the default', () => {
+		assert.strictEqual(defaultOf('@param [a=[1, [2]]] - d'), '[1, [2]]');
+		assert.strictEqual(defaultOf("@param [a='b]'] - d"), "'b]'");
+		assert.strictEqual(defaultOf("@param [a='b\\'] ]'] - d"), "'b\\'] ]'");
+		assert.strictEqual(defaultOf('@param [a={ b: () => 1 }] - d'), '{ b: () => 1 }');
+	});
+
+	test('drops the JSDoc margin from a multi-line default', () => {
+		assert.strictEqual(defaultOf('@param [a={\n *   x: 1\n * }] - d'), '{\n  x: 1\n}');
+	});
+
+	test('reads a regex literal containing `]` short (a named limit)', () => {
+		assert.strictEqual(defaultOf('@param [a=/]/] - d'), '/');
+	});
+
+	test('returns undefined without a written default', () => {
+		assert.strictEqual(defaultOf('@param {number} [a] - d'), undefined);
+		assert.strictEqual(defaultOf('@param {number} a - d'), undefined);
+		assert.strictEqual(defaultOf('@param {number} [a=] - d'), undefined);
+	});
+});
+
+describe('parseComment nested @param tags', () => {
+	test('property tags under a braced `{object}` parent key by their full name', () => {
+		const result = parseFirstStatement(
+			[
+				'/**',
+				' * @param {object} a - d1',
+				' * @param {object} a.b - d2',
+				' * @param {string} a.b.c - d3',
+				' * @param {object[]} d - d4',
+				' * @param {string} d[].e - d5',
+				' */',
+				'export function fn(a: unknown, d: unknown): void {}'
+			].join('\n')
+		);
+		assert.ok(result);
+		assert.deepEqual(
+			{ ...result.params },
+			{ a: 'd1', 'a.b': 'd2', 'a.b.c': 'd3', d: 'd4', 'd[].e': 'd5' }
+		);
 	});
 });
 

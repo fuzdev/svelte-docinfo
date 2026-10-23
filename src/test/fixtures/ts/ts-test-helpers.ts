@@ -30,11 +30,20 @@ import {
 } from '../module-fixture-helpers.ts';
 
 /**
- * Synthetic file id for fixture analysis — `path` extracts to `input.ts` and
- * diagnostic paths normalize to `src/lib/input.ts` deterministically on every
- * machine. See `fixtureFileId` for the `src/lib` invariant.
+ * The input languages the ts set takes: a fixture's `input.ts` or `input.js`.
+ * A JS input exercises the JSDoc paths (`@param {T} [b]`, nested
+ * `@param {object}` tags) as a JS project sees them; it is single-file only.
  */
-const FIXTURE_FILE_ID = fixtureFileId(TEST_PROJECT_ROOT, 'input.ts');
+export const TS_FIXTURE_INPUT_EXTENSIONS = ['.ts', '.js'];
+
+/**
+ * Synthetic file id for fixture analysis — `path` extracts to `input.ts` (or
+ * `input.js`) and diagnostic paths normalize to `src/lib/input.ts`
+ * (`src/lib/input.js`) deterministically on every machine. See
+ * `fixtureFileId` for the `src/lib` invariant.
+ */
+const fixtureInputFileId = (inputExtension: string): string =>
+	fixtureFileId(TEST_PROJECT_ROOT, `input${inputExtension}`);
 
 /**
  * Reserved fixture subdirectory whose files map into the synthetic project's
@@ -106,16 +115,17 @@ const TEST_HOST_BASE = {
  * @param options - `currentDirectory` is the host's, consulted only when a
  *   root name is relative (`ts.createProgram` normalizes root names against
  *   it); `noResolve` skips module resolution outright, for single-file
- *   programs that have nothing to resolve against
+ *   programs that have nothing to resolve against; `allowJs` admits a JS
+ *   input
  */
 const createProgramOverSources = (
 	sourceFiles: ReadonlyMap<string, ts.SourceFile>,
-	options: { currentDirectory: string; noResolve?: boolean }
+	options: { currentDirectory: string; noResolve?: boolean; allowJs?: boolean }
 ): ts.Program => {
 	const fileIds = new Set(sourceFiles.keys());
 	return ts.createProgram(
 		[...fileIds],
-		{ ...TEST_COMPILER_OPTIONS, noResolve: options.noResolve },
+		{ ...TEST_COMPILER_OPTIONS, noResolve: options.noResolve, allowJs: options.allowJs },
 		{
 			...TEST_HOST_BASE,
 			getSourceFile: (fileName) => sourceFiles.get(fileName),
@@ -152,7 +162,9 @@ const createSingleFileProgram = (sourceFile: ts.SourceFile, filePath: string): t
 		// root names normalize against the current directory — a non-empty one
 		// would re-key them past the map and yield an empty program
 		currentDirectory: '',
-		noResolve: true
+		noResolve: true,
+		// a JS root is dropped from the program without it
+		allowJs: filePath.endsWith('.js')
 	});
 
 /**
@@ -223,20 +235,17 @@ export const createMultiFileProgram = (
  * `captureModuleFixture`). Used by both `typescript.test.ts` and the update
  * task so the two can't diverge.
  */
-export const analyzeFixtureModule = (input: string): ModuleFixtureJson => {
+export const analyzeFixtureModule = (input: string, inputExtension = '.ts'): ModuleFixtureJson => {
+	const id = fixtureInputFileId(inputExtension);
 	const sourceFile = ts.createSourceFile(
-		FIXTURE_FILE_ID,
+		id,
 		input,
 		ts.ScriptTarget.Latest,
 		true,
-		ts.ScriptKind.TS
+		inputExtension === '.js' ? ts.ScriptKind.JS : ts.ScriptKind.TS
 	);
-	const program = createSingleFileProgram(sourceFile, FIXTURE_FILE_ID);
-	return captureModuleFixture(
-		{ id: FIXTURE_FILE_ID, content: input },
-		program,
-		createTestSourceOptions()
-	);
+	const program = createSingleFileProgram(sourceFile, id);
+	return captureModuleFixture({ id, content: input }, program, createTestSourceOptions());
 };
 
 /**
@@ -297,9 +306,15 @@ export const analyzeFixtureProject = async (
  */
 export const analyzeTsFixture = async (
 	input: string,
-	extraFiles?: ReadonlyArray<FixtureExtraFile>
-): Promise<ModuleFixtureJson | AnalyzeResultJson> =>
-	extraFiles?.length ? analyzeFixtureProject(input, extraFiles) : analyzeFixtureModule(input);
+	extraFiles?: ReadonlyArray<FixtureExtraFile>,
+	inputExtension = '.ts'
+): Promise<ModuleFixtureJson | AnalyzeResultJson> => {
+	if (!extraFiles?.length) return analyzeFixtureModule(input, inputExtension);
+	if (inputExtension !== '.ts') {
+		throw new Error(`multi-file ts fixtures take an input.ts entry, not input${inputExtension}`);
+	}
+	return analyzeFixtureProject(input, extraFiles);
+};
 
 // Node lookup
 
@@ -355,6 +370,6 @@ export const findTypeAlias = (
 export const loadFixtures = async (): Promise<Array<ModuleFixture>> =>
 	loadFixturesGeneric<ModuleFixtureJsonInput>({
 		fixturesDir: import.meta.dirname,
-		inputExtension: '.ts',
+		inputExtension: TS_FIXTURE_INPUT_EXTENSIONS,
 		loadExtraFiles: true
 	});

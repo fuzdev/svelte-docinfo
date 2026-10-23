@@ -510,7 +510,15 @@ const ParameterJsonImpl = v.strictObject({
 	type: v.string(),
 	/** Structured type; absent when `type` is the whole story (see `TypeJson`). */
 	typeInfo: v.optional(TypeJson),
-	/** Whether the parameter has a `?` token. */
+	/**
+	 * Whether a caller may omit the argument, by the checker's
+	 * `isOptionalParameter`: a `?` token, an initializer with no required
+	 * parameter after it (`b = 0`), and in JS a bracketed `@param {T} [b]` or
+	 * `@param {T=} b`. When set, `type` and `typeInfo` drop a top-level
+	 * `undefined` (the optional widening, or one an initialized parameter's
+	 * type already holds), so `optional` carries it alone. A rest parameter is
+	 * never `optional`.
+	 */
 	optional: v.optional(v.boolean(), false),
 	/** Whether the parameter uses rest syntax (`...args`). */
 	rest: v.optional(v.boolean(), false),
@@ -519,15 +527,18 @@ const ParameterJsonImpl = v.strictObject({
 	/**
 	 * The initializer's source text, verbatim (e.g., `"'hello'"`, `42`,
 	 * `() => 10`) — quotes included, no normalization; consumers render it as
-	 * highlighted TS.
+	 * highlighted TS. Without an initializer, the default a bracketed
+	 * `@param {T} [b=0]` writes, verbatim the same way.
 	 */
 	defaultValue: v.optional(v.string()),
 	/**
 	 * Descriptions for properties of a named object parameter, from dotted
-	 * `@param` tags (`@param obj.prop - ...`).
+	 * `@param` tags (`@param obj.prop - ...`), the ones TypeScript nests under
+	 * a braced `@param {object} obj` included.
 	 *
 	 * Keyed by the sub-path relative to this parameter — `@param obj.prop`
-	 * becomes `{prop: '...'}`, `@param obj.a.b` becomes `{'a.b': '...'}`.
+	 * becomes `{prop: '...'}`, `@param obj.a.b` becomes `{'a.b': '...'}`, and
+	 * an array element's `@param arr[].prop` becomes `{'[].prop': '...'}`.
 	 * Keys are unvalidated against the parameter's actual type (matching the
 	 * `@mutates` philosophy); absent when no dotted `@param` tags reference
 	 * this parameter. Only populated for function/method/constructor

@@ -69,7 +69,11 @@ are the tomes in `src/routes/docs/`. Examples: `examples/vite/`, `examples/api/`
     In a module comment only a line-leading `@` starts a tag (`parseCommentText`);
     declarations follow TS. A block is a module comment only by a `@module` line.
   - `@mutates` splits target from description at ` - `. Dotted `@param obj.prop` fills
-    `ParameterJson.propertyDescriptions`.
+    `ParameterJson.propertyDescriptions`, including the tags TS nests under a braced
+    `@param {object} obj` (`collectParamTag`).
+  - A parameter is `optional` whenever a caller may omit it (`checker.isOptionalParameter`:
+    `?`, an initializer, JS `@param {T} [b]` or `{T=}`), in TS and JS alike. A bracketed
+    `[b=0]` supplies `defaultValue` when there's no initializer (`jsdocParamTagDefault`).
   - `@default` lands on variables, component props, and function/variable members, never
     on top-level functions, overloads, or constructors.
   - Text is kept raw (inline `{@link}` survives); rendering is the consumer's concern.
@@ -404,7 +408,8 @@ shared doc fields (`docFields` in `types.ts`); `ParameterJson` carries none of `
   `optional: true` carries it alone. `null` and an `undefined`-only annotation are kept.
   Flat strings strip only at top level; trees strip at every optional position. Under
   `exactOptionalPropertyTypes`, property sites don't strip (`optionalWidened`); parameters
-  and tuple elements always do.
+  and tuple elements always do. An omittable parameter's top-level `undefined` goes whether
+  widened, written, or inferred (`b: T | undefined = x` → `T`).
 - **`externalTypes`** (`typescript-extract-shared.ts`) — contributions from external
   packages are dropped by *declaration origin* at every granularity (named properties,
   index signatures, call/construct signatures, through intersections and utility
@@ -423,7 +428,8 @@ shared doc fields (`docFields` in `types.ts`); `ParameterJson` carries none of `
 - **Class visibility** — public and protected in, `private` and `#` out, by one rule
   (`isPrivateMemberDeclaration`) for the class and any structural alias over it. Getters
   and setters merge by name.
-- **`defaultValue`** — verbatim author text (initializer or `@default`), quotes included.
+- **`defaultValue`** — verbatim author text (initializer, `@default`, or a parameter's
+  `@param [b=0]`), quotes included.
 - **`sourceLine`** — synthesized aliases carry the local export specifier's line; Svelte
   `<script module>` lines are remapped to the original source.
 - **Default slot** — `export default …`, `export {x as default}`, and

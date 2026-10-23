@@ -29,7 +29,11 @@ describe('TypeScript helpers (fixture-based)', () => {
 		for (const fixture of fixtures) {
 			// Analyze through the production pipeline — single-module capture,
 			// or the whole-envelope capture for multi-file fixtures
-			const result = await analyzeTsFixture(fixture.input, fixture.extraFiles);
+			const result = await analyzeTsFixture(
+				fixture.input,
+				fixture.extraFiles,
+				fixture.inputExtension
+			);
 
 			// Compare with expected (normalize to match JSON serialization)
 			assert.deepEqual(

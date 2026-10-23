@@ -201,7 +201,7 @@ const hasNullMember = (type: ts.Type): boolean =>
  * structural queries can't drift. Owns the `optional` gate too — a
  * non-`optional` position passes through, so call sites hand over the flag
  * rather than branching around the call. For a type at an `optional`-flagged
- * position (a `?`-marked declaration or tuple element):
+ * position (a `?`-marked or otherwise omittable declaration, or a tuple element):
  *
  * - a non-union carries no separate widening member to strip, so it passes
  *   through. Three shapes land here: `x?: undefined` (the written type and the

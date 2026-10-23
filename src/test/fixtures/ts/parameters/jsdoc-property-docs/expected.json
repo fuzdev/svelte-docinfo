@@ -1,0 +1,42 @@
+{
+	"path": "input.js",
+	"declarations": [
+		{
+			"name": "fn",
+			"kind": "function",
+			"docComment": "Object-parameter properties nested under braced `{object}` parents.",
+			"typeSignature": "(a: { b: string; c: { d: number; }; e?: string | undefined; }, b: { c: string; }, c: {}): void",
+			"sourceLine": 14,
+			"parameters": [
+				{
+					"name": "a",
+					"type": "{ b: string; c: { d: number; }; e?: string | undefined; }",
+					"description": "Description 1",
+					"propertyDescriptions": {
+						"b": "Description 2",
+						"c": "Description 3",
+						"c.d": "Description 4",
+						"e": "Description 5"
+					}
+				},
+				{
+					"name": "b",
+					"type": "{ c: string; }",
+					"description": "Description 6",
+					"propertyDescriptions": {
+						"c": "Description 7"
+					}
+				},
+				{
+					"name": "c",
+					"type": "{}",
+					"description": "Description 8",
+					"propertyDescriptions": {
+						"[].d": "Description 9"
+					}
+				}
+			],
+			"returnType": "void"
+		}
+	]
+}

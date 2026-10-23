@@ -211,6 +211,88 @@ const belongsToModuleBlock = (node: ts.JSDoc | ts.JSDocTag): boolean =>
 		: ts.isJSDoc(node.parent) && isModuleJsdocBlock(node.parent);
 
 /**
+ * Record a `@param` tag's description under its written name, then recurse
+ * into the property tags TypeScript nested beneath it.
+ *
+ * A parent typed `{object}`, `{Object}`, or an array of either
+ * (`@param {object} opts`) makes the parser fold the contiguous dotted tags
+ * that follow (`@param {string} opts.name`) into the parent's
+ * `JSDocTypeLiteral` (`jsDocPropertyTags`, recursively for `opts.a.b` under a
+ * braced `opts.a`), where `getJSDocTags` never reaches them. The nested tags
+ * keep their full written name (`opts.a.b`, `arr[].name`), so they key
+ * exactly as the unbraced, unnested form does. In `.ts` files too: the
+ * nesting is the JSDoc parser's, independent of the language.
+ *
+ * @mutates params - adds one key per described tag, nested ones included
+ */
+const collectParamTag = (
+	tag: ts.JSDocPropertyLikeTag,
+	params: Record<string, string>,
+	sourceFile: ts.SourceFile
+): void => {
+	const paramName = ts.isIdentifier(tag.name) ? tag.name.text : tag.name.getText(sourceFile);
+	const tagText = jsdocCommentText(tag.comment, sourceFile);
+	if (paramName && tagText) {
+		params[paramName] = cleanTagDescription(tagText);
+	}
+	const typeNode = tag.typeExpression?.type;
+	if (typeNode && ts.isJSDocTypeLiteral(typeNode)) {
+		for (const nested of typeNode.jsDocPropertyTags ?? []) {
+			collectParamTag(nested, params, sourceFile);
+		}
+	}
+};
+
+/**
+ * The default a bracketed `@param` tag writes (`@param {number} [b=0]` →
+ * `0`), verbatim source text with quotes kept, matching an initializer's
+ * `defaultValue`. TypeScript's JSDoc parser reads the `= …` expression and
+ * discards it, so the text is sliced from the source: from the `=` after the
+ * name to the bracket that closes the name, skipping brackets and quoted
+ * strings inside the default (`[b=[1, 2]]`, `[b='a]']`). A multi-line
+ * default drops each continuation line's `*` margin. A regex literal
+ * containing `]` isn't recognized (`[c=/]/]` reads as `/`). Callers use it
+ * only for an omittable parameter: a bracket on a non-omittable one (a TS
+ * `b: number` with no `?`) is ignored.
+ *
+ * @returns the default's text, or `undefined` when the tag writes none
+ */
+export const jsdocParamTagDefault = (
+	tag: ts.JSDocParameterTag,
+	sourceFile: ts.SourceFile = tag.getSourceFile()
+): string | undefined => {
+	if (!tag.isBracketed) return undefined;
+	const text = sourceFile.text;
+	let i = tag.name.end;
+	while (i < tag.end && /\s/.test(text[i]!)) i++;
+	if (text[i] !== '=') return undefined;
+	const start = i + 1;
+	let depth = 0;
+	let quote: string | undefined;
+	for (i = start; i < tag.end; i++) {
+		const char = text[i]!;
+		if (quote) {
+			if (char === '\\') i++;
+			else if (char === quote) quote = undefined;
+		} else if (char === "'" || char === '"' || char === '`') {
+			quote = char;
+		} else if (char === '[' || char === '{' || char === '(') {
+			depth++;
+		} else if (char === ']' || char === '}' || char === ')') {
+			if (depth === 0) break;
+			depth--;
+		}
+	}
+	// an unclosed bracket leaves `i` at the tag's end — no recoverable default
+	if (text[i] !== ']') return undefined;
+	const value = text
+		.slice(start, i)
+		.replace(/\n[ \t]*\*[ \t]?/g, '\n')
+		.trim();
+	return value || undefined;
+};
+
+/**
  * Parse JSDoc comment from a TypeScript node.
  *
  * Extracts and parses all JSDoc tags including:
@@ -300,11 +382,7 @@ export const parseComment = (
 		const tagName = tag.tagName.text;
 
 		if (tagName === 'param' && ts.isJSDocParameterTag(tag)) {
-			// Extract parameter name and description
-			const paramName = ts.isIdentifier(tag.name) ? tag.name.text : tag.name.getText();
-			if (paramName && tagText) {
-				params[paramName] = cleanTagDescription(tagText);
-			}
+			collectParamTag(tag, params, sourceFile);
 		} else if ((tagName === 'returns' || tagName === 'return') && tagText) {
 			returns = tagText.trim();
 		} else if (tagName === 'throws') {

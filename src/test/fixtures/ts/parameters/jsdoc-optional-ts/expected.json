@@ -1,0 +1,183 @@
+{
+	"path": "input.ts",
+	"declarations": [
+		{
+			"name": "fn1",
+			"kind": "function",
+			"docComment": "The TypeScript twin of `jsdoc-optional`: `?` and initializers.",
+			"typeSignature": "(a: string, b?: number | undefined, c?: number | undefined, d?: number, e?: string, f?: { b: number; }, g?: number | undefined, ...h: Array<boolean>): void",
+			"sourceLine": 13,
+			"parameters": [
+				{
+					"name": "a",
+					"type": "string",
+					"description": "Description 1"
+				},
+				{
+					"name": "b",
+					"type": "number",
+					"optional": true,
+					"description": "Description 2"
+				},
+				{
+					"name": "c",
+					"type": "number",
+					"optional": true,
+					"description": "Description 3"
+				},
+				{
+					"name": "d",
+					"type": "number",
+					"optional": true,
+					"description": "Description 4",
+					"defaultValue": "0"
+				},
+				{
+					"name": "e",
+					"type": "string",
+					"optional": true,
+					"description": "Description 5",
+					"defaultValue": "'a]'"
+				},
+				{
+					"name": "f",
+					"type": "{ b: number; }",
+					"optional": true,
+					"description": "Description 6",
+					"defaultValue": "{ b: 1 }"
+				},
+				{
+					"name": "g",
+					"type": "number",
+					"optional": true,
+					"description": "Description 7",
+					"defaultValue": "1"
+				},
+				{
+					"name": "h",
+					"type": "Array<boolean>",
+					"rest": true,
+					"description": "Description 8"
+				}
+			],
+			"returnType": "void"
+		},
+		{
+			"name": "fn2",
+			"kind": "function",
+			"docComment": "An initializer followed by a required parameter.",
+			"typeSignature": "(a: number | undefined, b: string): void",
+			"sourceLine": 32,
+			"parameters": [
+				{
+					"name": "a",
+					"type": "number",
+					"description": "Description 1",
+					"defaultValue": "1"
+				},
+				{
+					"name": "b",
+					"type": "string",
+					"description": "Description 2"
+				}
+			],
+			"returnType": "void"
+		},
+		{
+			"name": "fn4",
+			"kind": "function",
+			"docComment": "A bracket default on a parameter a caller can't omit is ignored.",
+			"typeSignature": "(b: number): number",
+			"sourceLine": 48,
+			"parameters": [
+				{
+					"name": "b",
+					"type": "number",
+					"description": "Description 1"
+				}
+			],
+			"returnType": "number"
+		},
+		{
+			"name": "fn5",
+			"kind": "function",
+			"docComment": "A dotted tag's bracket default never lands on a later destructured parameter.",
+			"typeSignature": "({ x }: { x: number; }, { y }?: { y?: number | undefined; } | undefined): void",
+			"sourceLine": 59,
+			"parameters": [
+				{
+					"name": "__0",
+					"type": "{ x: number; }"
+				},
+				{
+					"name": "__1",
+					"type": "{ y?: number | undefined; }",
+					"optional": true
+				}
+			],
+			"returnType": "void"
+		},
+		{
+			"name": "fn3",
+			"kind": "function",
+			"docComment": "A JSDoc bracket default on a parameter with no initializer.",
+			"typeSignature": "(a?: number | undefined): number | undefined",
+			"sourceLine": 41,
+			"parameters": [
+				{
+					"name": "a",
+					"type": "number",
+					"optional": true,
+					"description": "Description 1",
+					"defaultValue": "1"
+				}
+			],
+			"returnType": "number | undefined",
+			"returnTypeInfo": {
+				"kind": "union",
+				"members": [
+					{
+						"kind": "intrinsic",
+						"text": "number"
+					},
+					{
+						"kind": "intrinsic",
+						"text": "undefined"
+					}
+				]
+			}
+		}
+	],
+	"diagnostics": [
+		{
+			"kind": "unknown_param",
+			"file": "src/lib/input.ts",
+			"line": 59,
+			"column": 1,
+			"message": "@param \"first\" on \"fn5\" doesn't match any parameter (typo or stale doc?)",
+			"severity": "warning",
+			"paramName": "first",
+			"functionName": "fn5"
+		},
+		{
+			"kind": "unknown_param",
+			"file": "src/lib/input.ts",
+			"line": 59,
+			"column": 1,
+			"message": "@param \"first.z\" on \"fn5\" doesn't match any parameter (typo or stale doc?)",
+			"severity": "warning",
+			"paramName": "first.z",
+			"functionName": "fn5"
+		},
+		{
+			"kind": "unknown_param",
+			"file": "src/lib/input.ts",
+			"line": 59,
+			"column": 1,
+			"message": "@param \"second\" on \"fn5\" doesn't match any parameter (typo or stale doc?)",
+			"severity": "warning",
+			"paramName": "second",
+			"functionName": "fn5"
+		}
+	]
+}

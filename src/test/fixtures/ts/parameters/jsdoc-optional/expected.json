@@ -1,0 +1,147 @@
+{
+	"path": "input.js",
+	"declarations": [
+		{
+			"name": "fn1",
+			"kind": "function",
+			"docComment": "A function with JSDoc-optional and defaulted parameters.",
+			"typeSignature": "(a: string, b?: number | undefined, c?: number | undefined, d?: number | undefined, e?: string | undefined, f?: { b: number; } | undefined, g?: number | undefined): void",
+			"sourceLine": 12,
+			"parameters": [
+				{
+					"name": "a",
+					"type": "string",
+					"description": "Description 1"
+				},
+				{
+					"name": "b",
+					"type": "number",
+					"optional": true,
+					"description": "Description 2"
+				},
+				{
+					"name": "c",
+					"type": "number",
+					"optional": true,
+					"description": "Description 3"
+				},
+				{
+					"name": "d",
+					"type": "number",
+					"optional": true,
+					"description": "Description 4",
+					"defaultValue": "0"
+				},
+				{
+					"name": "e",
+					"type": "string",
+					"optional": true,
+					"description": "Description 5",
+					"defaultValue": "'a]'"
+				},
+				{
+					"name": "f",
+					"type": "{ b: number; }",
+					"optional": true,
+					"description": "Description 6",
+					"defaultValue": "{ b: 1 }"
+				},
+				{
+					"name": "g",
+					"type": "number",
+					"optional": true,
+					"description": "Description 7",
+					"defaultValue": "1"
+				}
+			],
+			"returnType": "void"
+		},
+		{
+			"name": "fn2",
+			"kind": "function",
+			"docComment": "An initializer followed by a required parameter.",
+			"typeSignature": "(a: number | undefined, b: string): void",
+			"sourceLine": 22,
+			"parameters": [
+				{
+					"name": "a",
+					"type": "number",
+					"description": "Description 1",
+					"defaultValue": "1"
+				},
+				{
+					"name": "b",
+					"type": "string",
+					"description": "Description 2"
+				}
+			],
+			"returnType": "void"
+		},
+		{
+			"name": "fn4",
+			"kind": "function",
+			"docComment": "A bracketed rest parameter stays non-optional.",
+			"typeSignature": "(...rest?: {} | undefined): void",
+			"sourceLine": 38,
+			"parameters": [
+				{
+					"name": "rest",
+					"type": "{} | undefined",
+					"typeInfo": {
+						"kind": "union",
+						"members": [
+							{
+								"kind": "object",
+								"text": "{}"
+							},
+							{
+								"kind": "intrinsic",
+								"text": "undefined"
+							}
+						]
+					},
+					"rest": true,
+					"description": "Description 1"
+				}
+			],
+			"returnType": "void"
+		},
+		{
+			"name": "fn5",
+			"kind": "function",
+			"docComment": "A braced, bracketed object parameter keeps its default beside nested docs.",
+			"typeSignature": "(opts?: { name?: string | undefined; } | undefined): void",
+			"sourceLine": 51,
+			"parameters": [
+				{
+					"name": "opts",
+					"type": "{ name?: string | undefined; }",
+					"optional": true,
+					"description": "Description 1",
+					"defaultValue": "{}",
+					"propertyDescriptions": {
+						"name": "Description 2"
+					}
+				}
+			],
+			"returnType": "void"
+		},
+		{
+			"name": "fn3",
+			"kind": "function",
+			"docComment": "An arrow function with an initializer and no JSDoc type.",
+			"typeSignature": "(a?: number | undefined): number",
+			"sourceLine": 31,
+			"parameters": [
+				{
+					"name": "a",
+					"type": "number",
+					"optional": true,
+					"description": "Description 1",
+					"defaultValue": "1"
+				}
+			],
+			"returnType": "number"
+		}
+	]
+}
