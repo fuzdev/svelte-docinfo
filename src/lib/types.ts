@@ -267,6 +267,18 @@ export type GenericParamJson = v.InferOutput<typeof GenericParamJson>;
  * name, while a recovered one stands against the anonymous expansion, so the
  * name exists only in the tree. Both recovery channels still fire at the depth
  * cap, so a capped alias-lost type emits its reference instead of elided text.
+ * A lost union written as one member of a larger union (`LostUnion | null`,
+ * `'z' | LostUnion`) recovers as one `reference` member at its written
+ * position, though the checker flattens its members into the outer union: the
+ * written reference is the only trace left, so this needs a written union
+ * (at the site, or an alias right-hand side like `type Opt = LostUnion | null`,
+ * which then recovers at every use). It falls back to the expanded members
+ * when they don't all survive as distinct members — `string` absorbing a
+ * literal member (`LostUnion | string`), or a member written earlier
+ * overlapping one (`'a' | LostUnion`) — and for a lost union that includes
+ * `undefined` at an optional position, whose `undefined` the widening strip
+ * removed, since the member-set match can't tell that strip from a type
+ * operator removing `undefined` (`Exclude<LostUnion, undefined>`).
  *
  * **Registry recovery**: behind the written channel, unannotated positions
  * recover through the analyzed set's alias registry — any exported,
@@ -286,7 +298,8 @@ export type GenericParamJson = v.InferOutput<typeof GenericParamJson>;
  * inferred ones included), else the annotation at the site. `null`/`undefined`
  * still sink last, and a member written as a named sub-union survives as its
  * own alias-carrying `union` node (`ColorScheme` stays nested, not flattened
- * literals) when the checker kept it grouped. Elsewhere — inferred unions,
+ * literals) when the checker kept it grouped, and a written lost union as its
+ * recovered `reference` (see written-name recovery). Elsewhere — inferred unions,
  * `keyof`, mapped and conditional results, generic alias instantiations —
  * members follow the checker's internal order, which depends on
  * type-creation history and can shift with unrelated edits. Flat strings
@@ -294,10 +307,10 @@ export type GenericParamJson = v.InferOutput<typeof GenericParamJson>;
  * same members in different orders (written `ColorScheme | number` prints
  * `number | ColorScheme`); the tree is the one to read for author intent, such
  * as control options. One edge: the site lookup matches by member set, so a
- * union takes the order of the first union written over the same members
- * anywhere in that annotation — two written unions in different orders
- * (`['a' | 'b', 'b' | 'a']`) both read `"a" | "b"`, and an unwritten one there
- * (`Exclude<…>`) borrows a written one's order.
+ * union takes the order (and lost-union grouping) of the first union written
+ * over the same members anywhere in that annotation — two written unions in
+ * different orders (`['a' | 'b', 'b' | 'a']`) both read `"a" | "b"`, and an
+ * unwritten one there (`Exclude<…>`) borrows a written one's order.
  */
 export type TypeJson =
 	/** A built-in type: `string`, `number`, `boolean`, `null`, `undefined`, `void`, `any`, `unknown`, `never`, `symbol`, `bigint`, `object`. */

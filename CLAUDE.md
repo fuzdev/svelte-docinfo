@@ -30,12 +30,14 @@ are the tomes in `src/routes/docs/`. Examples: `examples/vite/`, `examples/api/`
     is just the alias name, and at recovered roots.
   - **Shape** — union/intersection members keep alias names. Union members take the written
     order (the alias right-hand side, else the site annotation, falling back to the
-    checker's order), nullish last. `true | false` collapses to `boolean`; the
-    optional-widening `undefined` is dropped. Literal `value`s JSON can't carry (bigint,
-    non-finite) are strings. Named generic instantiations are `reference` nodes with
-    `typeArgs`; other callables are `function`. Object literals and functions stay terminal
-    `text`, untruncated up to 1000 chars, then the checker's shortened rendering. Depth caps
-    at 5, degrading to `{kind: 'other'}`.
+    checker's order), nullish last. A lost union written as one member (`Lost | null`, at
+    the site or in an alias right-hand side) stays one `reference` member at its written
+    position. `true | false` collapses to `boolean`; the optional-widening `undefined` is
+    dropped. Literal `value`s JSON can't carry (bigint, non-finite) are strings. Named
+    generic instantiations are `reference` nodes with `typeArgs`; other callables are
+    `function`. Object literals and functions stay terminal `text`, untruncated up to 1000
+    chars, then the checker's shortened rendering. Depth caps at 5, degrading to
+    `{kind: 'other'}`.
   - **Name recovery** — TypeScript drops the alias of a type over an indexed access or
     conditional (`z.infer<typeof S>`). svelte2tsx-generated aliases count as none
     (`linkableAliasSymbol`). Two channels recover `{kind: 'reference', name}`: the

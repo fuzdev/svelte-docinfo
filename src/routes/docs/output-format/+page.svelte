@@ -423,9 +423,10 @@
 				none, from two sources: the type annotation written at that position, and a registry of the
 				analyzed set's exported lost aliases. The registry also covers unannotated positions:
 				inferred returns and variables, nested positions, and an optional <code>x?: T</code> where
-				<code>T</code> is a lost union that includes <code>null</code>. Members added to a lost
-				union at the use site (<code>T | null</code> where <code>T</code> is itself a union) defeat
-				recovery, and the expansion shows instead.
+				<code>T</code> is a lost union that includes <code>null</code>. A lost union written as part
+				of a larger union (<code>T | null</code>) recovers as one member at its written position. At
+				an unannotated position, members added to a lost union (an inferred <code>T | null</code>)
+				defeat recovery, and the expansion shows instead.
 			</p>
 			<p>
 				A registry-recovered reference also carries <code>module</code>, the declaring module's

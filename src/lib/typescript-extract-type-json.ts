@@ -28,7 +28,9 @@
  * ambiguity a reference to its twin; nested self-hits stay live and terminate
  * recursive types with a name). The same annotation node orders union
  * members as written (`writtenUnionMemberTypes`), behind an aliased union's
- * own declaration. Expansion, alias, ordering, and normalization policy live
+ * own declaration, and those written unions name a lost union written as one
+ * of their members, which the checker flattens past identity match
+ * (`orderByWrittenUnion`). Expansion, alias, ordering, and normalization policy live
  * on the `TypeJson` schema doc in `types.ts`.
  *
  * svelte2tsx-generated aliases (`$$ComponentProps`,
@@ -435,6 +437,27 @@ const referenceNodeName = (
 };
 
 /**
+ * The name a written type reference contributes to written-name recovery, or
+ * `undefined` when it names nothing recoverable — the eligibility rule
+ * `buildWrittenNameMap` documents, shared with the lost-union grouping in
+ * `orderByWrittenUnion`. `type` is the checker's reading of `node`.
+ */
+const writtenReferenceName = (
+	node: ts.TypeNode,
+	type: ts.Type,
+	checker: ts.TypeChecker
+): string | undefined => {
+	if (!ts.isTypeReferenceNode(node) || node.typeArguments?.length) return undefined;
+	if (type.flags & (INTRINSIC_FLAGS | ts.TypeFlags.Literal | ts.TypeFlags.TypeParameter)) {
+		return undefined;
+	}
+	const name = referenceNodeName(node, checker);
+	// a written generated alias (svelte2tsx's own annotations) names nothing
+	if (hasGeneratedAlias(type) && name === type.aliasSymbol?.name) return undefined;
+	return name;
+};
+
+/**
  * Map each bare type reference in a written annotation to its resolved name,
  * keyed by checker type identity. Identity holds at arbitrary depth and is
  * order-independent, so no positional correspondence between written and
@@ -456,16 +479,13 @@ const referenceNodeName = (
  */
 const buildWrittenNameMap = (node: ts.TypeNode, checker: ts.TypeChecker): Map<ts.Type, string> => {
 	const map = new Map<ts.Type, string>();
-	const excluded = INTRINSIC_FLAGS | ts.TypeFlags.Literal | ts.TypeFlags.TypeParameter;
 	const walk = (n: ts.Node): void => {
 		if (ts.isTypeReferenceNode(n) && !n.typeArguments?.length) {
 			try {
 				const type = checker.getTypeFromTypeNode(n);
-				if (!(type.flags & excluded) && !map.has(type)) {
-					const name = referenceNodeName(n, checker);
-					// a written generated alias (svelte2tsx's own annotations) names nothing
-					const generated = hasGeneratedAlias(type) && name === type.aliasSymbol?.name;
-					if (name !== undefined && !generated) map.set(type, name);
+				if (!map.has(type)) {
+					const name = writtenReferenceName(n, type, checker);
+					if (name !== undefined) map.set(type, name);
 				}
 			} catch {
 				// a malformed or unresolved annotation contributes no entry
@@ -520,7 +540,9 @@ type WrittenUnionLookup = (type: ts.UnionType) => ts.UnionTypeNode | undefined;
  * optional-widening `undefined` (filtered from the key) and
  * `getNonNullableType`, which builds a new union over the same members. The
  * cost is that two written unions over one member set share the first one
- * written, so a later one in another order takes the first one's order.
+ * written, so a later one takes the first one's order and its lost-union
+ * grouping (`[Lost | null, 'a' | 'b' | null]` names both positions `Lost`), the
+ * same identity borrow `buildWrittenNameMap` has.
  */
 const buildWrittenUnionMap = (
 	node: ts.TypeNode,
@@ -794,6 +816,17 @@ const aliasUnionNode = (type: ts.Type): ts.UnionTypeNode | undefined => {
 };
 
 /**
+ * A union's members in written order (`writtenUnionMemberTypes`). A member
+ * keyed in `groupNames` is an alias-lost union written whole at that position
+ * (see `orderByWrittenUnion`): it stands for its leaves, and `buildUnion`
+ * emits it as `{kind: 'reference', name}` with the mapped name.
+ */
+interface WrittenUnionOrder {
+	members: ReadonlyArray<ts.Type>;
+	groupNames: ReadonlyMap<ts.Type, string>;
+}
+
+/**
  * Reorder `slots` (`unionMemberTypes`) by a written union node, or
  * `undefined` when the written node doesn't account for every slot.
  *
@@ -801,11 +834,25 @@ const aliasUnionNode = (type: ts.Type): ts.UnionTypeNode | undefined => {
  * every leaf maps to the slot that holds it. The walk visits the written
  * members in order and places a member's slot at its first appearance, so a
  * duplicate written member places once. A written member that isn't its own
- * slot — a sub-union the checker flattened, like `boolean` or an alias the
- * slots lost — places its leaves in its own written order (its alias
- * declaration's, recursively), then any leaves left in the checker's order. A
- * written member matching no slot (one subtype reduction absorbed, like `'a'`
- * beside `string`, or `never`) is skipped.
+ * slot is a sub-union the checker flattened:
+ *
+ * - a reference to an alias-lost union (`LostUnion | null`, where `LostUnion`
+ *   is over an indexed access) places as one group at its written position,
+ *   named as written-name recovery would name it (`writtenReferenceName`, so
+ *   through import renames) — the checker keeps no trace of the nameless
+ *   sub-union, so the written reference is the only signal left. It groups
+ *   only when it covers whole slots none of which is placed yet; a leaf
+ *   subtype reduction absorbed (`LostUnion | string`) or one an earlier member
+ *   placed (`'a' | LostUnion`) falls back to the next case, as does an
+ *   `undefined` leaf the optional-widening strip removed (`x?: LostU | 'z'`
+ *   where `LostU` includes `undefined`) — the member-set match can't tell that
+ *   strip from a type operator removing `undefined` (`Exclude<LostU, undefined>`)
+ * - anything else (`boolean`, an alias the slots lost, a lost union that can't
+ *   group) places its leaves in its own written order (its alias
+ *   declaration's, recursively), then any leaves left in the checker's order
+ *
+ * A written member matching no slot (one subtype reduction absorbed, like
+ * `'a'` beside `string`, or `never`) is skipped.
  *
  * Validation: every slot except `undefined` must be placed, else the caller
  * falls back to the checker's order. An unplaced `undefined` is the optional
@@ -816,7 +863,7 @@ const orderByWrittenUnion = (
 	unionNode: ts.UnionTypeNode,
 	slots: ReadonlyArray<ts.Type>,
 	checker: ts.TypeChecker
-): ReadonlyArray<ts.Type> | undefined => {
+): WrittenUnionOrder | undefined => {
 	const slotOf = new Map<ts.Type, ts.Type>();
 	for (const slot of slots) {
 		slotOf.set(slot, slot);
@@ -828,6 +875,7 @@ const orderByWrittenUnion = (
 	}
 	const ordered: Array<ts.Type> = [];
 	const placed = new Set<ts.Type>();
+	const groupNames = new Map<ts.Type, string>();
 	const place = (type: ts.Type): boolean => {
 		const slot = slotOf.get(type);
 		if (slot === undefined) return false;
@@ -835,6 +883,31 @@ const orderByWrittenUnion = (
 			placed.add(slot);
 			ordered.push(slot);
 		}
+		return true;
+	};
+	// places a written alias-lost union as one named group, or declines
+	const placeGroup = (node: ts.TypeNode, type: ts.UnionType): boolean => {
+		if (unionAlias(type) !== undefined) return false;
+		const name = writtenReferenceName(node, type, checker);
+		if (name === undefined) return false;
+		const leaves: Array<ts.Type> = [];
+		flattenUnionMembers(type.types, leaves);
+		const covered = new Set<ts.Type>();
+		for (const leaf of leaves) {
+			const slot = slotOf.get(leaf);
+			if (slot === undefined || placed.has(slot)) return false;
+			covered.add(slot);
+		}
+		// a named sub-union slot must lie wholly inside the group (a leaf maps to
+		// one slot only — overlapping named slots fail `unionMemberTypes`'s origin
+		// validation)
+		const leafSet = new Set(leaves);
+		for (const slot of covered) {
+			if (slot.isUnion() && !slot.types.every((t) => leafSet.has(t))) return false;
+		}
+		for (const slot of covered) placed.add(slot);
+		ordered.push(type);
+		groupNames.set(type, name);
 		return true;
 	};
 	// guards a recursive alias against revisiting its own declaration
@@ -851,7 +924,7 @@ const orderByWrittenUnion = (
 		} catch {
 			return;
 		}
-		if (place(type) || !type.isUnion()) return;
+		if (place(type) || !type.isUnion() || placeGroup(node, type)) return;
 		const aliasNode = aliasUnionNode(type);
 		if (aliasNode !== undefined && !visitedAliasNodes.has(aliasNode)) {
 			visitedAliasNodes.add(aliasNode);
@@ -867,7 +940,7 @@ const orderByWrittenUnion = (
 		if (!(slot.flags & ts.TypeFlags.Undefined)) return undefined;
 		ordered.push(slot);
 	}
-	return ordered;
+	return { members: ordered, groupNames };
 };
 
 /**
@@ -881,14 +954,15 @@ const orderByWrittenUnion = (
  * 2. the union written in the annotation at this site (`WrittenUnionLookup`),
  *    matched by member set
  *
- * A source that fails validation (`orderByWrittenUnion`) falls through to the
- * next.
+ * Either source can group a written alias-lost union into one named member
+ * (`orderByWrittenUnion`), so an aliased union recovers its lost members at
+ * every use too. A source that fails validation falls through to the next.
  */
 const writtenUnionMemberTypes = (
 	type: ts.UnionType,
 	checker: ts.TypeChecker,
 	recovery: NameRecovery
-): ReadonlyArray<ts.Type> | undefined => {
+): WrittenUnionOrder | undefined => {
 	const aliasNode = aliasUnionNode(type);
 	if (aliasNode !== undefined) {
 		const ordered = orderByWrittenUnion(aliasNode, unionMemberTypes(type), checker);
@@ -946,8 +1020,9 @@ const buildUnion = (
 	dropUndefined: boolean,
 	recovery: NameRecovery
 ): TypeJson => {
+	const written = writtenUnionMemberTypes(type, checker, recovery);
 	let memberTypes: ReadonlyArray<ts.Type> = sinkNullishLast(
-		writtenUnionMemberTypes(type, checker, recovery) ?? unionMemberTypes(type)
+		written?.members ?? unionMemberTypes(type)
 	);
 	if (dropUndefined) {
 		memberTypes = memberTypes.filter((t) => !(t.flags & ts.TypeFlags.Undefined));
@@ -973,7 +1048,14 @@ const buildUnion = (
 			}
 			continue;
 		}
-		members.push(buildTypeJson(memberType, checker, depth + 1, recovery));
+		// a written alias-lost union, recovered as written (so no `module`, like
+		// every written-channel hit)
+		const groupName = written?.groupNames.get(memberType);
+		members.push(
+			groupName === undefined
+				? buildTypeJson(memberType, checker, depth + 1, recovery)
+				: { kind: 'reference', name: groupName }
+		);
 	}
 
 	if (members.length === 0) return { kind: 'other', text: printType(type, checker) };

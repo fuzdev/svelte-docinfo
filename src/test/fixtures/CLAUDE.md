@@ -253,7 +253,9 @@ Where each behavior is locked. Unit and behavior-level mechanics live in
   value+type symbols: `declarations/*/merged-value-*`; union members in
   written order against a sibling that created the literals in reverse first
   (`types/union-written-order`; mechanics in
-  `analyze.type-info-union-order.test.ts`)
+  `analyze.type-info-union-order.test.ts`); alias-lost unions written as
+  union members, grouping and the fallbacks to expansion
+  (`types/union-lost-alias-written`)
 - TSDoc placement on declarations and members (`ts/tsdoc/*`), including
   `@default` (`declarations/*/jsdoc-default*`)
 - Type aliases: object literals, intersections, mapped, unions, tuples,

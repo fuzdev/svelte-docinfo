@@ -1,0 +1,730 @@
+{
+	"modules": [
+		{
+			"path": "dep.ts",
+			"declarations": [
+				{
+					"name": "LostD",
+					"kind": "type",
+					"typeSignature": "\"g\" | \"h\"",
+					"sourceLine": 5,
+					"typeInfo": {
+						"kind": "union",
+						"members": [
+							{
+								"kind": "literal",
+								"value": "g",
+								"text": "\"g\""
+							},
+							{
+								"kind": "literal",
+								"value": "h",
+								"text": "\"h\""
+							}
+						]
+					}
+				}
+			],
+			"dependents": [
+				"input.ts"
+			]
+		},
+		{
+			"path": "input.ts",
+			"declarations": [
+				{
+					"name": "A",
+					"kind": "type",
+					"typeSignature": "A",
+					"sourceLine": 9,
+					"typeInfo": {
+						"kind": "union",
+						"alias": "A",
+						"members": [
+							{
+								"kind": "literal",
+								"value": "s",
+								"text": "\"s\""
+							},
+							{
+								"kind": "literal",
+								"value": "m",
+								"text": "\"m\""
+							}
+						]
+					}
+				},
+				{
+					"name": "LostA",
+					"kind": "type",
+					"typeSignature": "\"a\" | \"b\" | { x: number; }",
+					"sourceLine": 18,
+					"typeInfo": {
+						"kind": "union",
+						"members": [
+							{
+								"kind": "literal",
+								"value": "a",
+								"text": "\"a\""
+							},
+							{
+								"kind": "literal",
+								"value": "b",
+								"text": "\"b\""
+							},
+							{
+								"kind": "object",
+								"text": "{ x: number; }"
+							}
+						]
+					}
+				},
+				{
+					"name": "LostB",
+					"kind": "type",
+					"typeSignature": "\"c\" | \"d\"",
+					"sourceLine": 20,
+					"typeInfo": {
+						"kind": "union",
+						"members": [
+							{
+								"kind": "literal",
+								"value": "c",
+								"text": "\"c\""
+							},
+							{
+								"kind": "literal",
+								"value": "d",
+								"text": "\"d\""
+							}
+						]
+					}
+				},
+				{
+					"name": "LostC",
+					"kind": "type",
+					"typeSignature": "A | \"e\"",
+					"sourceLine": 23,
+					"typeInfo": {
+						"kind": "union",
+						"members": [
+							{
+								"kind": "union",
+								"alias": "A",
+								"members": [
+									{
+										"kind": "literal",
+										"value": "s",
+										"text": "\"s\""
+									},
+									{
+										"kind": "literal",
+										"value": "m",
+										"text": "\"m\""
+									}
+								]
+							},
+							{
+								"kind": "literal",
+								"value": "e",
+								"text": "\"e\""
+							}
+						]
+					}
+				},
+				{
+					"name": "LostU",
+					"kind": "type",
+					"typeSignature": "\"u\" | \"v\" | undefined",
+					"sourceLine": 25,
+					"typeInfo": {
+						"kind": "union",
+						"members": [
+							{
+								"kind": "literal",
+								"value": "u",
+								"text": "\"u\""
+							},
+							{
+								"kind": "literal",
+								"value": "v",
+								"text": "\"v\""
+							},
+							{
+								"kind": "intrinsic",
+								"text": "undefined"
+							}
+						]
+					}
+				},
+				{
+					"name": "B",
+					"kind": "interface",
+					"typeSignature": "B",
+					"sourceLine": 35,
+					"members": [
+						{
+							"name": "a",
+							"kind": "variable",
+							"typeSignature": "\"a\" | \"b\" | { x: number; } | null",
+							"typeInfo": {
+								"kind": "union",
+								"members": [
+									{
+										"kind": "reference",
+										"name": "LostA"
+									},
+									{
+										"kind": "intrinsic",
+										"text": "null"
+									}
+								]
+							}
+						},
+						{
+							"name": "b",
+							"kind": "variable",
+							"typeSignature": "\"a\" | \"b\" | { x: number; } | null",
+							"optional": true,
+							"typeInfo": {
+								"kind": "union",
+								"members": [
+									{
+										"kind": "reference",
+										"name": "LostA"
+									},
+									{
+										"kind": "intrinsic",
+										"text": "null"
+									}
+								]
+							}
+						},
+						{
+							"name": "c",
+							"kind": "variable",
+							"typeSignature": "\"a\" | \"b\" | { x: number; } | \"z\"",
+							"typeInfo": {
+								"kind": "union",
+								"members": [
+									{
+										"kind": "reference",
+										"name": "LostA"
+									},
+									{
+										"kind": "literal",
+										"value": "z",
+										"text": "\"z\""
+									}
+								]
+							}
+						},
+						{
+							"name": "d",
+							"kind": "variable",
+							"typeSignature": "\"a\" | \"b\" | { x: number; } | \"z\"",
+							"typeInfo": {
+								"kind": "union",
+								"members": [
+									{
+										"kind": "literal",
+										"value": "z",
+										"text": "\"z\""
+									},
+									{
+										"kind": "reference",
+										"name": "LostA"
+									}
+								]
+							}
+						},
+						{
+							"name": "e",
+							"kind": "variable",
+							"typeSignature": "\"a\" | \"b\" | { x: number; } | \"c\" | \"d\" | null",
+							"typeInfo": {
+								"kind": "union",
+								"members": [
+									{
+										"kind": "reference",
+										"name": "LostA"
+									},
+									{
+										"kind": "reference",
+										"name": "LostB"
+									},
+									{
+										"kind": "intrinsic",
+										"text": "null"
+									}
+								]
+							}
+						},
+						{
+							"name": "f",
+							"kind": "variable",
+							"typeSignature": "\"g\" | \"h\" | null",
+							"typeInfo": {
+								"kind": "union",
+								"members": [
+									{
+										"kind": "reference",
+										"name": "LostD"
+									},
+									{
+										"kind": "intrinsic",
+										"text": "null"
+									}
+								]
+							}
+						},
+						{
+							"name": "g",
+							"kind": "variable",
+							"typeSignature": "M<\"a\" | \"b\" | { x: number; } | null>",
+							"typeInfo": {
+								"kind": "reference",
+								"name": "M",
+								"typeArgs": [
+									{
+										"kind": "union",
+										"members": [
+											{
+												"kind": "reference",
+												"name": "LostA"
+											},
+											{
+												"kind": "intrinsic",
+												"text": "null"
+											}
+										]
+									}
+								]
+							}
+						},
+						{
+							"name": "h",
+							"kind": "variable",
+							"typeSignature": "[\"a\" | \"b\" | { x: number; } | null, number]",
+							"typeInfo": {
+								"kind": "tuple",
+								"elements": [
+									{
+										"type": {
+											"kind": "union",
+											"members": [
+												{
+													"kind": "reference",
+													"name": "LostA"
+												},
+												{
+													"kind": "intrinsic",
+													"text": "null"
+												}
+											]
+										}
+									},
+									{
+										"type": {
+											"kind": "intrinsic",
+											"text": "number"
+										}
+									}
+								]
+							}
+						},
+						{
+							"name": "i",
+							"kind": "variable",
+							"typeSignature": "A | \"e\" | null",
+							"typeInfo": {
+								"kind": "union",
+								"members": [
+									{
+										"kind": "reference",
+										"name": "LostC"
+									},
+									{
+										"kind": "intrinsic",
+										"text": "null"
+									}
+								]
+							}
+						},
+						{
+							"name": "j",
+							"kind": "variable",
+							"typeSignature": "\"c\" | \"d\" | \"z\"",
+							"typeInfo": {
+								"kind": "union",
+								"members": [
+									{
+										"kind": "reference",
+										"name": "LostB"
+									},
+									{
+										"kind": "literal",
+										"value": "z",
+										"text": "\"z\""
+									}
+								]
+							}
+						},
+						{
+							"name": "k",
+							"kind": "variable",
+							"typeSignature": "\"c\" | \"d\" | \"z\"",
+							"typeInfo": {
+								"kind": "union",
+								"members": [
+									{
+										"kind": "literal",
+										"value": "c",
+										"text": "\"c\""
+									},
+									{
+										"kind": "literal",
+										"value": "d",
+										"text": "\"d\""
+									},
+									{
+										"kind": "literal",
+										"value": "z",
+										"text": "\"z\""
+									}
+								]
+							}
+						},
+						{
+							"name": "l",
+							"kind": "variable",
+							"typeSignature": "string | { x: number; }",
+							"typeInfo": {
+								"kind": "union",
+								"members": [
+									{
+										"kind": "object",
+										"text": "{ x: number; }"
+									},
+									{
+										"kind": "intrinsic",
+										"text": "string"
+									}
+								]
+							}
+						},
+						{
+							"name": "m",
+							"kind": "variable",
+							"typeSignature": "\"a\" | \"b\" | { x: number; } | B",
+							"typeInfo": {
+								"kind": "union",
+								"members": [
+									{
+										"kind": "reference",
+										"name": "LostA"
+									},
+									{
+										"kind": "reference",
+										"name": "B"
+									}
+								]
+							}
+						},
+						{
+							"name": "n",
+							"kind": "variable",
+							"typeSignature": "[\"c\" | \"d\" | null, \"c\" | \"d\" | null]",
+							"typeInfo": {
+								"kind": "tuple",
+								"elements": [
+									{
+										"type": {
+											"kind": "union",
+											"members": [
+												{
+													"kind": "reference",
+													"name": "LostB"
+												},
+												{
+													"kind": "intrinsic",
+													"text": "null"
+												}
+											]
+										}
+									},
+									{
+										"type": {
+											"kind": "union",
+											"members": [
+												{
+													"kind": "reference",
+													"name": "LostB"
+												},
+												{
+													"kind": "intrinsic",
+													"text": "null"
+												}
+											]
+										}
+									}
+								]
+							}
+						},
+						{
+							"name": "o",
+							"kind": "variable",
+							"typeSignature": "\"u\" | \"v\" | \"z\"",
+							"optional": true,
+							"typeInfo": {
+								"kind": "union",
+								"members": [
+									{
+										"kind": "literal",
+										"value": "u",
+										"text": "\"u\""
+									},
+									{
+										"kind": "literal",
+										"value": "v",
+										"text": "\"v\""
+									},
+									{
+										"kind": "literal",
+										"value": "z",
+										"text": "\"z\""
+									}
+								]
+							}
+						},
+						{
+							"name": "p",
+							"kind": "variable",
+							"typeSignature": "\"u\" | \"v\" | \"z\" | undefined",
+							"typeInfo": {
+								"kind": "union",
+								"members": [
+									{
+										"kind": "reference",
+										"name": "LostU"
+									},
+									{
+										"kind": "literal",
+										"value": "z",
+										"text": "\"z\""
+									}
+								]
+							}
+						},
+						{
+							"name": "q",
+							"kind": "variable",
+							"typeSignature": "\"u\" | \"v\" | \"z\"",
+							"typeInfo": {
+								"kind": "union",
+								"members": [
+									{
+										"kind": "literal",
+										"value": "u",
+										"text": "\"u\""
+									},
+									{
+										"kind": "literal",
+										"value": "v",
+										"text": "\"v\""
+									},
+									{
+										"kind": "literal",
+										"value": "z",
+										"text": "\"z\""
+									}
+								]
+							}
+						},
+						{
+							"name": "r",
+							"kind": "variable",
+							"typeSignature": "Y<\"u\" | \"v\" | \"z\" | undefined>",
+							"typeInfo": {
+								"kind": "union",
+								"alias": "Y",
+								"members": [
+									{
+										"kind": "literal",
+										"value": "u",
+										"text": "\"u\""
+									},
+									{
+										"kind": "literal",
+										"value": "v",
+										"text": "\"v\""
+									},
+									{
+										"kind": "literal",
+										"value": "z",
+										"text": "\"z\""
+									}
+								]
+							}
+						}
+					]
+				},
+				{
+					"name": "C",
+					"kind": "type",
+					"typeSignature": "C",
+					"sourceLine": 63,
+					"typeInfo": {
+						"kind": "union",
+						"alias": "C",
+						"members": [
+							{
+								"kind": "reference",
+								"name": "LostA"
+							},
+							{
+								"kind": "intrinsic",
+								"text": "null"
+							}
+						]
+					}
+				},
+				{
+					"name": "E",
+					"kind": "interface",
+					"typeSignature": "E",
+					"sourceLine": 65,
+					"members": [
+						{
+							"name": "a",
+							"kind": "variable",
+							"typeSignature": "C",
+							"typeInfo": {
+								"kind": "union",
+								"alias": "C",
+								"members": [
+									{
+										"kind": "reference",
+										"name": "LostA"
+									},
+									{
+										"kind": "intrinsic",
+										"text": "null"
+									}
+								]
+							}
+						},
+						{
+							"name": "b",
+							"kind": "variable",
+							"typeSignature": "M<C>",
+							"typeInfo": {
+								"kind": "reference",
+								"name": "M",
+								"typeArgs": [
+									{
+										"kind": "union",
+										"alias": "C",
+										"members": [
+											{
+												"kind": "reference",
+												"name": "LostA"
+											},
+											{
+												"kind": "intrinsic",
+												"text": "null"
+											}
+										]
+									}
+								]
+							}
+						}
+					]
+				},
+				{
+					"name": "fn",
+					"kind": "function",
+					"typeSignature": "(a: \"a\" | \"b\" | { x: number; } | null): \"c\" | \"d\" | \"z\"",
+					"sourceLine": 70,
+					"parameters": [
+						{
+							"name": "a",
+							"type": "\"a\" | \"b\" | { x: number; } | null",
+							"typeInfo": {
+								"kind": "union",
+								"members": [
+									{
+										"kind": "reference",
+										"name": "LostA"
+									},
+									{
+										"kind": "intrinsic",
+										"text": "null"
+									}
+								]
+							}
+						}
+					],
+					"returnType": "\"c\" | \"d\" | \"z\"",
+					"returnTypeInfo": {
+						"kind": "union",
+						"members": [
+							{
+								"kind": "reference",
+								"name": "LostB"
+							},
+							{
+								"kind": "literal",
+								"value": "z",
+								"text": "\"z\""
+							}
+						]
+					}
+				},
+				{
+					"name": "inferred",
+					"kind": "variable",
+					"typeSignature": "\"a\" | \"b\" | { x: number; } | null",
+					"sourceLine": 76,
+					"typeInfo": {
+						"kind": "union",
+						"members": [
+							{
+								"kind": "literal",
+								"value": "a",
+								"text": "\"a\""
+							},
+							{
+								"kind": "literal",
+								"value": "b",
+								"text": "\"b\""
+							},
+							{
+								"kind": "object",
+								"text": "{ x: number; }"
+							},
+							{
+								"kind": "intrinsic",
+								"text": "null"
+							}
+						]
+					}
+				}
+			],
+			"dependencies": [
+				"dep.ts"
+			]
+		}
+	],
+	"diagnostics": [
+		{
+			"kind": "alias_lost",
+			"file": "src/lib/input.ts",
+			"line": 25,
+			"column": 1,
+			"message": "Type alias \"LostU\" loses its name at use sites — the right-hand side resolves to a type the checker has no name for, so unannotated positions document its structure instead of the alias.",
+			"severity": "warning",
+			"aliasName": "LostU"
+		}
+	]
+}
