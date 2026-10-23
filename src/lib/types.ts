@@ -607,6 +607,12 @@ const docFields = {
 	mutates: v.optional(StringRecord)
 } as const;
 
+/**
+ * The `docFields` a module comment carries — all but `throws` and `mutates`,
+ * which describe a declaration's behavior. Spread into `ModuleJson`.
+ */
+const { throws: _throws, mutates: _mutates, ...moduleDocFields } = docFields;
+
 const ComponentPropJsonImpl = v.strictObject({
 	/**
 	 * Prop name as declared in the component's `$props()` type — the prop's own
@@ -1462,8 +1468,22 @@ const ModuleJsonImpl = v.strictObject({
 	path: v.string(),
 	/** Exported declarations from this module. */
 	declarations: v.optional(v.array(DeclarationJson), () => []),
-	/** File-level JSDoc comment (from `@module` tag). */
+	/**
+	 * The prose of the file-level comment, the one carrying a `@module` tag:
+	 * its main text, with every tag line removed. Absent when the comment has
+	 * no prose (a tag-only comment, or none at all).
+	 *
+	 * The comment's tags parse as a declaration's do, into the fields below
+	 * (`examples`, `deprecatedMessage`, `seeAlso`, `since`, `internalMessage`).
+	 * Tags that only describe a declaration (`@param`, `@returns`,
+	 * `@mutates`, `@throws`, `@default`, `@nodocs`) are dropped with a
+	 * `misplaced_tag` warning, and unknown tags drop silently. For a Svelte
+	 * file it comes from the instance `<script>`, the `<script module>`, or an
+	 * HTML comment with a `@module` line, the first in that order whose
+	 * comment populates any of these fields.
+	 */
 	moduleComment: v.optional(v.string()),
+	...moduleDocFields,
 	/** Modules this imports (paths relative to `sourceRoot`). */
 	dependencies: v.optional(v.array(v.string()), () => []),
 	/** Modules that import this (paths relative to `sourceRoot`). */

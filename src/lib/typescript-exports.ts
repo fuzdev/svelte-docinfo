@@ -22,8 +22,16 @@ import type {
 	DeclarationJsonBuild
 } from './declaration-build.ts';
 import type { ReExportJsonInput, ExternalReExportJsonInput } from './types.ts';
-import type { Diagnostic } from './diagnostics.ts';
-import { parseComment, applyToDeclaration, cleanComment, hasDocContent } from './tsdoc.ts';
+import type { Diagnostic, MisplacedTagDiagnostic } from './diagnostics.ts';
+import {
+	parseComment,
+	applyToDeclaration,
+	cleanComment,
+	hasDocContent,
+	hasModuleTag,
+	parseModuleComment,
+	type TsdocParsedComment
+} from './tsdoc.ts';
 import {
 	type SourceFileInfo,
 	isSvelte2tsxGeneratedExport,
@@ -75,7 +83,7 @@ export const analyzeTypescriptModule = (
 ): ModuleAnalysis => {
 	// Use the mid-level helper for core analysis
 	const {
-		moduleComment,
+		moduleDoc,
 		declarations,
 		reExports,
 		starExports,
@@ -88,7 +96,7 @@ export const analyzeTypescriptModule = (
 
 	return {
 		path: modulePath,
-		moduleComment,
+		moduleDoc,
 		declarations,
 		dependencies,
 		dependents,
@@ -678,11 +686,11 @@ export const analyzeExports = (
 	// Extract module-level comment — skipped for svelte2tsx virtuals, where
 	// hoisted instance-script comments would read as module comments;
 	// `analyzeSvelteModule` extracts the `<script module>` comment from the
-	// original source instead (and owns its `@nodocs` warning)
+	// original source instead (and owns its `misplaced_tag` warnings)
 	const isVirtual = currentFileName !== sourceFile.fileName;
-	const moduleComment = isVirtual ? undefined : extractModuleComment(sourceFile);
+	const moduleDoc = isVirtual ? undefined : extractModuleComment(sourceFile);
 
-	warnModuleCommentNodocs(moduleComment, currentFileName, diagnostics);
+	warnModuleCommentTags(moduleDoc, currentFileName, diagnostics);
 
 	// 1-based line of a node in this file. Virtual coordinates for Svelte
 	// `<script module>` sources — remapped in `analyzeSvelteModule`.
@@ -1137,7 +1145,7 @@ export const analyzeExports = (
 	}
 
 	return {
-		moduleComment,
+		moduleDoc,
 		declarations,
 		reExports,
 		starExports,
@@ -1312,20 +1320,25 @@ const warnAliasLost = (node: ts.TypeAliasDeclaration, name: string, ctx: Extract
 };
 
 /**
- * Extract module-level comment.
+ * Extract and parse the module-level comment.
  *
  * @internal Used by `analyzeTypescriptModule` and `analyzeSvelteModule`'s
- * `<script module>` handling. Exposed via the `svelte-docinfo/typescript-exports.js`
+ * script handling. Exposed via the `svelte-docinfo/typescript-exports.js`
  * subpath so the Svelte analyzer can reuse it without circular imports, but
  * **not part of the stable barrel export**.
  *
- * Requires `@module` tag to identify module comments. The tag line is stripped
- * from the output. Supports optional module renaming: `@module custom-name`.
+ * The module comment is the first `/**` comment with a line starting with
+ * `@module`; later ones are ignored. It parses through `parseModuleComment`,
+ * so its tags read as a declaration's do and `@module` lines (with any
+ * `@module custom-name` rename) are dropped. `toModuleDocFields` projects the
+ * result onto `ModuleJson`, and `warnModuleCommentTags` reports the tags it
+ * drops.
  *
- * @returns cleaned module comment text (with `@module` line removed), or `undefined` if no `@module` comment found
+ * @returns the parsed comment, or `undefined` if no `@module` comment is found
+ *   or it holds nothing but `@module`
  * @see {@link https://typedoc.org/documents/Tags._module.html|TypeDoc @module documentation}
  */
-export const extractModuleComment = (sourceFile: ts.SourceFile): string | undefined => {
+export const extractModuleComment = (sourceFile: ts.SourceFile): TsdocParsedComment | undefined => {
 	const fullText = sourceFile.getFullText();
 
 	// Collect all JSDoc comments in the file
@@ -1350,69 +1363,72 @@ export const extractModuleComment = (sourceFile: ts.SourceFile): string | undefi
 		const commentText = fullText.substring(comment.pos, comment.end);
 		if (!commentText.trimStart().startsWith('/**')) continue;
 
-		// Clean the comment first, then check for tag at start of line
+		// Clean the comment first, then check for the tag at the start of a line
 		const cleaned = cleanComment(commentText);
-		if (!cleaned) continue;
-
-		// Check for `@module` as a proper tag (at start of line, not mentioned in prose)
-		if (/(?:^|\n)@module\b/.test(cleaned)) {
-			const stripped = stripModuleTag(cleaned);
-			return stripped || undefined;
-		}
+		if (cleaned && hasModuleTag(cleaned)) return parseModuleComment(cleaned);
 	}
 
 	return undefined;
 };
 
 /**
- * Warn when a module comment carries `@nodocs`.
+ * Warn `misplaced_tag` for each tag a module comment carries that only
+ * describes a declaration: `@param`, `@returns`, `@mutates`, `@throws`,
+ * `@default`, and `@nodocs`. `toModuleDocFields` drops them, so in a module
+ * comment they do nothing. `@nodocs` applies to declarations and export
+ * statements; to omit a module, use exclude patterns.
  *
- * The tag has no module-level meaning — it applies to declarations and export
- * statements — so its presence in a `@module` comment is always author
- * confusion: it does nothing except remain verbatim in `moduleComment` text.
- * Same line-start detection as `extractModuleComment`'s `@module` test, so a
- * backticked or mid-prose mention doesn't trigger.
+ * Reads the parsed comment, so a tag counts when `parseComment` extracted it:
+ * a bare `@returns` or `@throws` with no text is dropped without a warning, as
+ * on an overload. Unknown tags drop silently, as on declarations.
  *
+ * @param moduleDoc - the module comment as `extractModuleComment` (or a Svelte
+ *   extractor) returns it
  * @param diagnosticFile - absolute source id, the form
  *   `normalizeDiagnosticPaths` rewrites to the project-root-relative
  *   `Diagnostic.file` contract. Not a module path — those are relative to
  *   `sourceRoot`, and normalization passes an already-relative path through
  *   untouched, so a module path here ships as a second base for the same file.
+ * @mutates diagnostics - appends one `misplaced_tag` per misplaced tag name
  *
  * @internal Split by source, not by file type: `analyzeExports` covers TS
- * files only — it passes `undefined` for a svelte2tsx virtual, where hoisted
- * instance-script comments would read as module comments — so
- * `analyzeSvelteModule` owns all three Svelte sources (instance script,
- * `<script module>`, HTML comment), reading each from the original file.
+ * files only — it skips a svelte2tsx virtual, where hoisted instance-script
+ * comments would read as module comments — so `analyzeSvelteModule` owns all
+ * three Svelte sources (instance script, `<script module>`, HTML comment),
+ * reading each from the original file.
  */
-export const warnModuleCommentNodocs = (
-	moduleComment: string | undefined,
+export const warnModuleCommentTags = (
+	moduleDoc: TsdocParsedComment | undefined,
 	diagnosticFile: string,
 	diagnostics: Array<Diagnostic>
 ): void => {
-	if (!moduleComment || !/(?:^|\n)@nodocs\b/.test(moduleComment)) return;
-	diagnostics.push({
-		kind: 'misplaced_tag',
-		file: diagnosticFile,
-		message:
-			'@nodocs in a module comment has no effect — it applies to declarations and export statements; to omit a module from analysis, use exclude patterns',
-		severity: 'warning',
-		tagName: 'nodocs'
-	});
+	if (!moduleDoc) return;
+	for (const tagName of collectDeclarationOnlyTags(moduleDoc)) {
+		diagnostics.push({
+			kind: 'misplaced_tag',
+			file: diagnosticFile,
+			message:
+				tagName === 'nodocs'
+					? '@nodocs in a module comment has no effect — it applies to declarations and export statements; to omit a module from analysis, use exclude patterns'
+					: `@${tagName} in a module comment has no effect — it documents a declaration, not a module`,
+			severity: 'warning',
+			tagName
+		});
+	}
 };
 
-/**
- * Strip `@module` tag line from comment text.
- *
- * Handles formats:
- * - `@module` (standalone)
- * - `@module module-name` (with rename)
- */
-const stripModuleTag = (text: string): string => {
-	// Remove lines that START with `@module` (not mentioned in prose)
-	const lines = text.split('\n');
-	const filtered = lines.filter((line) => !/^\s*@module\b/.test(line));
-	return filtered.join('\n').trim();
+/** The declaration-only tags a parsed module comment carries, in tag order. */
+const collectDeclarationOnlyTags = (
+	tsdoc: TsdocParsedComment
+): Array<MisplacedTagDiagnostic['tagName']> => {
+	const found: Array<MisplacedTagDiagnostic['tagName']> = [];
+	if (Object.keys(tsdoc.params).length > 0) found.push('param');
+	if (tsdoc.returns !== undefined) found.push('returns');
+	if (tsdoc.mutates && Object.keys(tsdoc.mutates).length > 0) found.push('mutates');
+	if (tsdoc.throws?.length) found.push('throws');
+	if (tsdoc.defaultValue !== undefined) found.push('default');
+	if (tsdoc.nodocs) found.push('nodocs');
+	return found;
 };
 
 /**

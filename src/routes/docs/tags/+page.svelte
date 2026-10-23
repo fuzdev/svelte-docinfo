@@ -127,15 +127,17 @@
 						<td>
 							Excludes the declaration from output and from the opt-in duplicate-name check (see
 							<a href="#nodocs">@nodocs</a>). Applies to declarations and export statements only: in
-							a <code>@module</code> comment it warns and does nothing, and on a member or component
-							prop it silently does nothing
+							a <code>@module</code> comment it warns <code>misplaced_tag</code> and is dropped, and
+							on a member or component prop it silently does nothing
 						</td>
 					</tr>
 					<tr>
 						<td><code>@module</code></td>
 						<td>
-							Makes the comment <DeclarationLink name="ModuleJson" />.<code>moduleComment</code>
-							instead of a declaration's doc
+							Makes the comment document the file: its prose becomes
+							<DeclarationLink name="ModuleJson" />.<code>moduleComment</code> and its tags the
+							module's own fields, instead of a declaration's doc (see
+							<a href="#module">@module</a>)
 						</td>
 					</tr>
 				</tbody>
@@ -281,15 +283,27 @@ export function double(n: number | bigint): number | bigint {
 		<TomeSection>
 			<TomeSectionHeader text="@module" />
 			<p>
-				A comment tagged <code>@module</code> documents the file, not the next declaration. The text
-				lands on <code>ModuleJson.moduleComment</code> and never in a declaration's
-				<code>docComment</code>.
+				A comment tagged <code>@module</code> documents the file, not the next declaration. Its
+				prose lands on <code>ModuleJson.moduleComment</code> and never in a declaration's
+				<code>docComment</code>. Its tags parse as a declaration's do, into the module's fields of
+				the same names: <code>examples</code>, <code>deprecatedMessage</code>, <code>seeAlso</code>,
+				<code>since</code>, and <code>internalMessage</code>. Tags that only describe a declaration
+				(<code>@param</code>, <code>@returns</code>, <code>@mutates</code>, <code>@throws</code>,
+				<code>@default</code>, <code>@nodocs</code>) warn <code>misplaced_tag</code> and are
+				dropped, and unknown tags drop silently. A comment of tags alone has no
+				<code>moduleComment</code>. In a module comment only an <code>@</code> that starts a line
+				starts a tag, so a mid-line <code>@</code> stays in the text. The comment counts as a module
+				comment only when a line starts with <code>@module</code> (a one-line
+				<code>/** @module */</code> counts); in <code>/** Text @module */</code> the text documents
+				the next declaration instead.
 			</p>
 			<Code
 				lang="ts"
 				content={`/**
  * Date math utilities.
  *
+ * @see https://tc39.es/proposal-temporal/
+ * @since 0.2.0
  * @module
  */
 
@@ -300,9 +314,13 @@ export function add_days(d: Date, n: number): Date { /* ... */ }`}
 				<code>@module</code> in the instance <code>&lt;script&gt;</code>, one in
 				<code>&lt;script module&gt;</code>, and the first HTML <code>&lt;!-- --&gt;</code> comment
 				with <code>@module</code> at a line start. The highest-priority source wins, and more than
-				one emits <code>duplicate_comment</code> (<code>commentType: "module_comment"</code>).
-				Likewise, an HTML <code>@component</code> comment plus in-script component JSDoc emits it
-				with <code>commentType: "doc_comment"</code>, and the JSDoc wins.
+				one emits <code>duplicate_comment</code> (<code>commentType: "module_comment"</code>). A
+				source whose comment holds only dropped tags yields to a lower one that documents the
+				module. An HTML comment's lines parse like a script comment's, with their common indentation
+				removed, so its tags and examples work the same way. A comment that's only
+				<code>@module</code> isn't a source. Likewise, an HTML <code>@component</code> comment plus
+				in-script component JSDoc emits it with <code>commentType: "doc_comment"</code>, and the
+				JSDoc wins.
 			</p>
 		</TomeSection>
 

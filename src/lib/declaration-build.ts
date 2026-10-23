@@ -26,6 +26,7 @@ import type {
 	ExternalReExportJsonInput,
 	TypeJson
 } from './types.ts';
+import type { TsdocParsedComment } from './tsdoc.ts';
 
 /**
  * Permissive type for constructing members incrementally before schema validation.
@@ -139,11 +140,12 @@ export interface DeclarationAnalysis {
  */
 export interface ModuleExportsAnalysis {
 	/**
-	 * Module-level documentation comment. Always `undefined` for svelte2tsx
-	 * virtual files — `analyzeSvelteModule` extracts Svelte module comments
-	 * from the original source instead.
+	 * The parsed module-level comment, projected onto `ModuleJson` by
+	 * `toModuleDocFields`. Always `undefined` for svelte2tsx virtual files —
+	 * `analyzeSvelteModule` extracts Svelte module comments from the original
+	 * source instead.
 	 */
-	moduleComment?: string;
+	moduleDoc?: TsdocParsedComment;
 	/** All exported declarations with `@nodocs` flags — consumer filters based on policy. */
 	declarations: Array<DeclarationAnalysis>;
 	/**

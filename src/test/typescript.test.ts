@@ -370,7 +370,7 @@ export type Baz = { value: number };
 		const result = analyzeExports(sourceFile, mockExtractContext(checker), testSourceOptions());
 
 		// Should have module comment
-		assert.strictEqual(result.moduleComment, 'Test module with exports.');
+		assert.strictEqual(result.moduleDoc?.text, 'Test module with exports.');
 
 		// Should have 3 identifiers
 		assert.strictEqual(result.declarations.length, 3);
@@ -417,6 +417,53 @@ export const foo = 42;
 		assert.isUndefined(misplaced[0]!.functionName);
 	});
 
+	test('declaration-only tags in a module comment warn under their canonical names', () => {
+		const sourceCode = `/**
+ * Module docs.
+ *
+ * @return a
+ * @defaultValue 1
+ * @throws
+ * @module
+ */
+
+export const foo = 42;
+`;
+
+		const { sourceFile, checker } = createSourceAndChecker(sourceCode, 'synonyms.ts');
+
+		const diagnostics: Array<Diagnostic> = [];
+		const result = analyzeExports(
+			sourceFile,
+			mockExtractContext(checker, { diagnostics }),
+			testSourceOptions()
+		);
+
+		assert.strictEqual(result.moduleDoc?.text, 'Module docs.');
+		// a bare `@throws` parses to nothing, so it drops without a warning
+		assert.deepStrictEqual(
+			diagnostics.filter((d) => d.kind === 'misplaced_tag').map((d) => d.tagName),
+			['returns', 'default']
+		);
+	});
+
+	test('a mid-line `@module` mention is neither a module comment nor lost from its declaration', () => {
+		const sourceCode = `/**
+ * Reads an HTML \`<!-- @module -->\` comment.
+ */
+export const foo = 42;
+`;
+
+		const { sourceFile, checker } = createSourceAndChecker(sourceCode, 'mention.ts');
+
+		const result = analyzeExports(sourceFile, mockExtractContext(checker), testSourceOptions());
+
+		assert.isUndefined(result.moduleDoc);
+		const foo = result.declarations.find((d) => d.declaration.name === 'foo');
+		// truncated at the mid-line `@` as TypeScript reads it, but not lost
+		assert.strictEqual(foo?.declaration.docComment, 'Reads an HTML `<!--');
+	});
+
 	test('module comment without @nodocs emits no misplaced_tag warning', () => {
 		const sourceCode = `/**
  * Module docs mentioning \`@nodocs\` in prose.
@@ -453,7 +500,7 @@ const internal = 'not exported';
 
 		const result = analyzeExports(sourceFile, mockExtractContext(checker), testSourceOptions());
 
-		assert.strictEqual(result.moduleComment, 'Module with no exports.');
+		assert.strictEqual(result.moduleDoc?.text, 'Module with no exports.');
 		assert.strictEqual(result.declarations.length, 0);
 	});
 
@@ -467,7 +514,7 @@ export const bar = 123;
 
 		const result = analyzeExports(sourceFile, mockExtractContext(checker), testSourceOptions());
 
-		assert.isUndefined(result.moduleComment);
+		assert.isUndefined(result.moduleDoc?.text);
 		assert.strictEqual(result.declarations.length, 2);
 	});
 

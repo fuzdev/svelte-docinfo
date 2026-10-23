@@ -1,0 +1,28 @@
+{
+	"path": "ComponentModuleCommentScriptModuleTags.svelte",
+	"declarations": [
+		{
+			"name": "ComponentModuleCommentScriptModuleTags",
+			"kind": "component",
+			"sourceLine": 14,
+			"props": [
+				{
+					"name": "prop1",
+					"type": "string"
+				}
+			]
+		},
+		{
+			"name": "a",
+			"kind": "variable",
+			"typeSignature": "\"value\"",
+			"sourceLine": 11
+		}
+	],
+	"moduleComment": "Description 1",
+	"seeAlso": [
+		"{@link a}"
+	],
+	"since": "1.0.0",
+	"internalMessage": "Description 2"
+}

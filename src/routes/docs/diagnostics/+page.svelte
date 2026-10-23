@@ -192,7 +192,7 @@
 							a Svelte file (<code>"module_comment"</code>). <strong>Consequence:</strong> the
 							higher-priority source wins: script JSDoc for doc comments; instance
 							<code>&lt;script&gt;</code>, then <code>&lt;script module&gt;</code>, then HTML for
-							module comments.
+							module comments, skipping one that holds only dropped tags.
 						</td>
 					</tr>
 					<tr>
@@ -201,11 +201,13 @@
 							<strong>Trigger:</strong> a symbol-scope tag (<code>@example</code>,
 							<code>@deprecated</code>, <code>@internal</code>, <code>@since</code>,
 							<code>@see</code>, <code>@throws</code>, <code>@mutates</code>, <code>@default</code>,
-							<code>@nodocs</code>) on a non-primary overload signature, or <code>@nodocs</code> in
-							a <code>@module</code> comment (then <code>functionName</code> is absent).
-							<strong>Consequence:</strong> the tag has no effect. On an overload it's dropped; move
-							it to the primary signature. In a module comment it stays in the
-							<code>moduleComment</code> text; to omit a module, use <code>exclude</code> patterns.
+							<code>@nodocs</code>) on a non-primary overload signature, or a tag that only
+							describes a declaration (<code>@param</code>, <code>@returns</code>,
+							<code>@mutates</code>, <code>@throws</code>, <code>@default</code>,
+							<code>@nodocs</code>) in a <code>@module</code> comment (then
+							<code>functionName</code> is absent). <strong>Consequence:</strong> the tag is
+							dropped. On an overload, move it to the primary signature. To omit a module, use
+							<code>exclude</code> patterns rather than <code>@nodocs</code>.
 						</td>
 					</tr>
 					<tr>

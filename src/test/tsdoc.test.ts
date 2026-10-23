@@ -12,7 +12,13 @@
 import { test, assert, describe, beforeAll } from 'vitest';
 import ts from 'typescript';
 
-import { cleanComment, parseComment } from '#lib/tsdoc.ts';
+import {
+	cleanComment,
+	parseComment,
+	parseCommentText,
+	parseModuleComment,
+	toModuleDocFields
+} from '#lib/tsdoc.ts';
 
 import {
 	loadFixtures,
@@ -134,6 +140,35 @@ describe('parseComment module-comment filtering', () => {
 		assert.isUndefined(result);
 	});
 
+	test('a mid-line `@module` mention leaves the block a declaration doc', () => {
+		const result = parseFirstStatement(
+			'/**\n * Reads an HTML `<!-- @module -->` comment.\n *\n * @since 1.0.0\n */\nexport const d = 1;\n'
+		);
+		assert.ok(result);
+		// a declaration's JSDoc follows TypeScript, whose tag starts at the
+		// mid-line `@`, so the text stops there; the block stays the declaration's
+		assert.strictEqual(result.text, 'Reads an HTML `<!--');
+		assert.strictEqual(result.since, '1.0.0');
+	});
+
+	test('a `@module` after a second `*` margin is not line-leading, as in `cleanComment`', () => {
+		for (const block of ['/**\n * Docs.\n * * @module\n */', '/**\n * Docs.\n ** @module\n */']) {
+			const result = parseFirstStatement(`${block}\nexport const d = 1;\n`);
+			// the declaration keeps its doc; the text ends where TypeScript starts the tag
+			assert.ok(result?.text.startsWith('Docs.'), block);
+		}
+	});
+
+	test('a line-leading `@module` makes a module block, indented or on the opener line', () => {
+		for (const block of [
+			'/** @module */',
+			'/**\n * Docs.\n *   @module\n */',
+			'/**\n@module\n*/'
+		]) {
+			assert.isUndefined(parseFirstStatement(`${block}\nexport const d = 1;\n`), block);
+		}
+	});
+
 	test('own JSDoc below a module comment still applies', () => {
 		const result = parseFirstStatement(
 			'/**\n * Module docs.\n *\n * @module\n * @nodocs\n */\n\n/** Own docs. */\nexport const foo = 1;\n'
@@ -141,6 +176,26 @@ describe('parseComment module-comment filtering', () => {
 		assert.ok(result);
 		assert.strictEqual(result.text, 'Own docs.');
 		assert.notOk(result.nodocs);
+	});
+});
+
+describe('parseComment inline links', () => {
+	test('keeps each `{@link}` as written, targets that are not entity names included', () => {
+		const result = parseFirstStatement(
+			'/**\n * a {@link ./b.ts} c {@link} d {@link E} f {@link https://fuz.dev g}\n *\n * @see {@link ./h.ts}\n * @since {@link ./i.ts}\n */\nexport const a = (): number => 1;\n'
+		);
+		assert.ok(result);
+		assert.strictEqual(
+			result.text,
+			'a {@link ./b.ts} c {@link} d {@link E} f {@link https://fuz.dev g}'
+		);
+		assert.deepStrictEqual(result.seeAlso, ['{@link ./h.ts}']);
+		assert.strictEqual(result.since, '{@link ./i.ts}');
+	});
+
+	test('joins a link that spans lines onto one', () => {
+		const result = parseFirstStatement('/**\n * a {@link B\n * c} d\n */\nexport const a = 1;\n');
+		assert.strictEqual(result?.text, 'a {@link B c} d');
 	});
 });
 
@@ -161,5 +216,93 @@ describe('parseComment tag spelling synonyms', () => {
 		);
 		assert.ok(result);
 		assert.strictEqual(result.returns, 'the answer');
+	});
+});
+
+describe('parseCommentText', () => {
+	test('parses the same as the JSDoc block the text came from', () => {
+		const block = [
+			'/**',
+			' * Docs with {@link a} and a list:',
+			' *',
+			' * - a',
+			' *   - b',
+			' *',
+			' * @example',
+			' * ```ts',
+			' * fn({',
+			' * \ta: 1',
+			' * });',
+			' * ```',
+			' * @see https://fuz.dev/a',
+			' *   continued',
+			' * @see {@link b}',
+			' * @throws {Error} when it fails',
+			' * @mutates a - Description 1',
+			' * @internal',
+			' * @since 1.0.0',
+			' */'
+		].join('\n');
+		const fromNode = parseFirstStatement(`${block}\nexport const a = 1;\n`);
+		const fromText = parseCommentText(cleanComment(block)!);
+		assert.ok(fromNode);
+		assert.deepStrictEqual(fromText, fromNode);
+		assert.deepStrictEqual(fromText?.seeAlso, ['https://fuz.dev/a continued', '{@link b}']);
+	});
+
+	test('restores a `*/` in the text, in prose and tags alike', () => {
+		const result = parseCommentText('a */ b\n\n@see c */ d\n@example\n/* e */');
+		assert.ok(result);
+		assert.strictEqual(result.text, 'a */ b');
+		assert.deepStrictEqual(result.seeAlso, ['c */ d']);
+		assert.deepStrictEqual(result.examples, ['/* e */']);
+	});
+
+	test('a mid-line `@` stays text, where TypeScript would start a tag', () => {
+		const result = parseCommentText('a `// @b c` d\ne @> f\n\n@see g @h {@link i}');
+		assert.ok(result);
+		assert.strictEqual(result.text, 'a `// @b c` d\ne @> f');
+		assert.deepStrictEqual(result.seeAlso, ['g @h {@link i}']);
+	});
+
+	test('escape placeholders never collide with private-use characters in the text', () => {
+		const text = `a ${String.fromCharCode(0xe000)} ${String.fromCharCode(0xe001)} b @ c */ d`;
+		const result = parseModuleComment(`${text}\n@module`);
+		assert.strictEqual(result?.text, text);
+	});
+
+	test('text with a `@module` line parses to undefined, like a module block on a node', () => {
+		assert.isUndefined(parseCommentText('Docs.\n@module'));
+	});
+});
+
+describe('parseModuleComment', () => {
+	test('drops `@module` lines, renames included, keeping prose after them', () => {
+		const result = parseModuleComment('@module custom-name\nDocs.\n\n@since 1.0.0');
+		assert.ok(result);
+		assert.strictEqual(result.text, 'Docs.');
+		assert.strictEqual(result.since, '1.0.0');
+	});
+
+	test('a bare `@module` parses to undefined', () => {
+		assert.isUndefined(parseModuleComment('@module'));
+	});
+
+	test('a tag-only comment parses, with empty prose', () => {
+		const result = parseModuleComment('@see https://fuz.dev\n@module');
+		assert.ok(result);
+		assert.strictEqual(result.text, '');
+		assert.deepStrictEqual(toModuleDocFields(result), { seeAlso: ['https://fuz.dev'] });
+	});
+
+	test('toModuleDocFields keeps only the tags a module carries', () => {
+		const result = parseModuleComment(
+			'Docs.\n\n@param a - b\n@returns c\n@throws {Error} d\n@mutates e - f\n@default 1\n@nodocs\n@deprecated\n@module'
+		);
+		assert.ok(result);
+		assert.deepStrictEqual(toModuleDocFields(result), {
+			moduleComment: 'Docs.',
+			deprecatedMessage: ''
+		});
 	});
 });

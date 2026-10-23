@@ -312,7 +312,11 @@ export type DuplicateCommentDiagnostic = v.InferOutput<typeof DuplicateCommentDi
 const MisplacedTagDiagnosticImpl = v.strictObject({
 	kind: v.literal('misplaced_tag'),
 	...baseDiagnosticFields,
-	/** The tag name without the `@` prefix (e.g., `'example'`, `'deprecated'`). */
+	/**
+	 * The tag name without the `@` prefix (e.g., `'example'`, `'deprecated'`).
+	 * A synonym reports its canonical name: `@return` as `'returns'`,
+	 * `@defaultValue` as `'default'`.
+	 */
 	tagName: v.picklist([
 		'example',
 		'deprecated',
@@ -322,7 +326,9 @@ const MisplacedTagDiagnosticImpl = v.strictObject({
 		'throws',
 		'mutates',
 		'default',
-		'nodocs'
+		'nodocs',
+		'param',
+		'returns'
 	]),
 	/**
 	 * Name of the enclosing symbol: the function or method whose overload
@@ -348,10 +354,12 @@ export interface MisplacedTagDiagnosticSchema extends Named<typeof MisplacedTagD
  *   the primary signature. `@default` and `@nodocs` are included even though
  *   overloads never carry a `defaultValue` or per-overload exclusion: their
  *   presence on a non-primary signature is always a misplacement.
- * - **Module comment** — `@nodocs` has no module-level meaning (it applies to
- *   declarations and export statements); in a `@module` comment the tag does
- *   nothing except remain verbatim in `moduleComment` text. To omit a module
- *   from analysis, use `exclude` patterns instead.
+ * - **Module comment** — tags that only describe a declaration (`@param`,
+ *   `@returns`, `@mutates`, `@throws`, `@default`, `@nodocs`) have no
+ *   module-level meaning, so a `@module` comment's are dropped, one warning
+ *   per tag name per comment. `@nodocs` applies to declarations and export
+ *   statements; to omit a module from analysis, use `exclude` patterns
+ *   instead. `@param` and `@returns` occur only here.
  */
 export const MisplacedTagDiagnostic: MisplacedTagDiagnosticSchema = MisplacedTagDiagnosticImpl;
 export type MisplacedTagDiagnostic = v.InferOutput<typeof MisplacedTagDiagnostic>;

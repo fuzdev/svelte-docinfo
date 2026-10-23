@@ -1,0 +1,26 @@
+{
+	"path": "ComponentModuleCommentHtmlTags.svelte",
+	"declarations": [
+		{
+			"name": "ComponentModuleCommentHtmlTags",
+			"kind": "component",
+			"sourceLine": 16,
+			"props": [
+				{
+					"name": "prop1",
+					"type": "string"
+				}
+			]
+		}
+	],
+	"moduleComment": "Description 1 with a `*/` in it.",
+	"examples": [
+		"```svelte\n<ComponentModuleCommentHtmlTags prop1=\"a\" />\n```"
+	],
+	"deprecatedMessage": "Description 2",
+	"seeAlso": [
+		"https://fuz.dev",
+		"https://fuz.dev/a continued on Description 3"
+	],
+	"internalMessage": ""
+}

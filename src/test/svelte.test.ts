@@ -904,7 +904,7 @@ import {something} from './somewhere.js';
 const foo = 'bar';
 `;
 
-		const result = extractSvelteModuleComment(scriptContent);
+		const result = extractSvelteModuleComment(scriptContent)?.text;
 		assert.ok(result);
 		assert.include(result, 'This is a module-level comment');
 		assert.include(result, 'It describes the entire module');
@@ -923,7 +923,7 @@ import {something} from './somewhere.js';
 const foo = 'bar';
 `;
 
-		const result = extractSvelteModuleComment(scriptContent);
+		const result = extractSvelteModuleComment(scriptContent)?.text;
 		assert.ok(result);
 		assert.include(result, 'Module comment after imports');
 	});
@@ -938,7 +938,7 @@ const foo = 'bar';
 const foo = 'bar';
 `;
 
-		const result = extractSvelteModuleComment(scriptContent);
+		const result = extractSvelteModuleComment(scriptContent)?.text;
 		assert.isUndefined(result);
 	});
 
@@ -948,7 +948,7 @@ const foo = 'bar';
 const foo = 'bar';
 `;
 
-		const result = extractSvelteModuleComment(scriptContent);
+		const result = extractSvelteModuleComment(scriptContent)?.text;
 		assert.isUndefined(result);
 	});
 
@@ -964,7 +964,7 @@ import {a} from './a.js';
 import {b} from './b.js';
 `;
 
-		const result = extractSvelteModuleComment(scriptContent);
+		const result = extractSvelteModuleComment(scriptContent)?.text;
 		assert.ok(result);
 		assert.include(result, 'Module with only imports');
 	});
@@ -976,7 +976,7 @@ import {b} from './b.js';
 const foo = 'bar';
 `;
 
-		const result = extractSvelteModuleComment(scriptContent);
+		const result = extractSvelteModuleComment(scriptContent)?.text;
 		assert.isUndefined(result);
 	});
 
@@ -1005,7 +1005,7 @@ const foo = 'bar';
 const foo = 'bar';
 `;
 
-		const result = extractSvelteModuleComment(scriptContent);
+		const result = extractSvelteModuleComment(scriptContent)?.text;
 		assert.ok(result);
 		assert.include(result, 'First module comment');
 		assert.notInclude(result, 'Second comment');
@@ -1024,9 +1024,9 @@ const foo = 'bar';
 
 		const result = extractSvelteModuleComment(scriptContent);
 		assert.ok(result);
-		assert.include(result, '@see https://fuz.dev');
-		// @module tag should be stripped from output
-		assert.notInclude(result, '@module');
+		// tags parse into fields, leaving no prose; the @module line is dropped
+		assert.strictEqual(result.text, '');
+		assert.deepStrictEqual(result.seeAlso, ['https://fuz.dev']);
 	});
 });
 
@@ -1054,8 +1054,8 @@ let {name}: {name: string} = $props();
 
 		assert.ok(componentDecl);
 		assert.strictEqual(componentDecl.declaration.name, 'Greeting');
-		assert.ok(result.moduleComment);
-		assert.include(result.moduleComment, 'This component displays a greeting message');
+		assert.ok(result.moduleDoc?.text);
+		assert.include(result.moduleDoc?.text, 'This component displays a greeting message');
 	});
 
 	test('returns undefined moduleComment when not present', () => {
@@ -1070,7 +1070,7 @@ let {name}: {name: string} = $props();
 			[] as Array<Diagnostic>
 		);
 
-		assert.isUndefined(result.moduleComment);
+		assert.isUndefined(result.moduleDoc?.text);
 	});
 
 	test('distinguishes module comment from component comment', () => {
@@ -1095,9 +1095,9 @@ let {name}: {name: string} = $props();
 			(d) => d.declaration.kind === 'component'
 		)!.declaration;
 
-		assert.ok(result.moduleComment);
-		assert.include(result.moduleComment, 'Module-level documentation');
-		assert.notInclude(result.moduleComment, 'Component documentation');
+		assert.ok(result.moduleDoc?.text);
+		assert.include(result.moduleDoc?.text, 'Module-level documentation');
+		assert.notInclude(result.moduleDoc?.text, 'Component documentation');
 
 		// Component doc should be separate
 		assert.ok(declaration.docComment);
@@ -1127,8 +1127,8 @@ void tick;
 			diagnostics
 		);
 
-		assert.ok(result.moduleComment);
-		assert.include(result.moduleComment, 'Module docs attached to the import');
+		assert.ok(result.moduleDoc?.text);
+		assert.include(result.moduleDoc?.text, 'Module docs attached to the import');
 		const duplicates = diagnostics.filter((d) => d.kind === 'duplicate_comment');
 		assert.strictEqual(duplicates.length, 0);
 	});
@@ -1150,8 +1150,8 @@ export const shared = 1;
 			diagnostics
 		);
 
-		assert.ok(result.moduleComment);
-		assert.include(result.moduleComment, 'Module docs from the module script');
+		assert.ok(result.moduleDoc?.text);
+		assert.include(result.moduleDoc?.text, 'Module docs from the module script');
 		assert.strictEqual(diagnostics.filter((d) => d.kind === 'duplicate_comment').length, 0);
 	});
 
@@ -1181,8 +1181,8 @@ let {name}: {name: string} = $props();
 		);
 
 		// Instance comment wins per the documented priority
-		assert.ok(result.moduleComment);
-		assert.include(result.moduleComment, 'From the instance script');
+		assert.ok(result.moduleDoc?.text);
+		assert.include(result.moduleDoc?.text, 'From the instance script');
 
 		const duplicates = diagnostics.filter(
 			(d) => d.kind === 'duplicate_comment' && d.commentType === 'module_comment'
@@ -1233,6 +1233,43 @@ Module docs.
 		const fromHtml = htmlDiagnostics.filter((d) => d.kind === 'misplaced_tag');
 		assert.strictEqual(fromHtml.length, 1);
 		assert.strictEqual(fromHtml[0]!.tagName, 'nodocs');
+	});
+
+	test('a losing module comment still warns its misplaced tags; the winner supplies the fields', () => {
+		const svelteContent = `<!--
+@module
+HTML docs.
+
+@returns a
+@see https://fuz.dev/html
+-->
+<script lang="ts">
+/**
+ * Script docs.
+ *
+ * @param a - b
+ * @since 1.0.0
+ * @module
+ */
+let {x}: {x: string} = $props();
+</script>
+<p>{x}</p>`;
+
+		const diagnostics: Array<Diagnostic> = [];
+		const result = analyzeSvelteTestIntegration(
+			{ id: '/fake/path/Test.svelte', content: svelteContent },
+			'Test.svelte',
+			diagnostics
+		);
+		assert.ok(result.moduleDoc);
+		assert.strictEqual(result.moduleDoc.text, 'Script docs.');
+		assert.strictEqual(result.moduleDoc.since, '1.0.0');
+		assert.isUndefined(result.moduleDoc.seeAlso);
+		assert.deepStrictEqual(
+			diagnostics.filter((d) => d.kind === 'misplaced_tag').map((d) => d.tagName),
+			['param', 'returns']
+		);
+		assert.strictEqual(diagnostics.filter((d) => d.kind === 'duplicate_comment').length, 1);
 	});
 });
 
@@ -1292,7 +1329,7 @@ let {name, count}: {name: string; count: number} = $props();
 		assert.strictEqual(componentDecl.name, 'NoScript');
 		assert.strictEqual(componentDecl.kind, 'component');
 		// No script means no module comment
-		assert.isUndefined(result.moduleComment);
+		assert.isUndefined(result.moduleDoc);
 	});
 
 	test('handles component with module context only', () => {
@@ -1645,7 +1682,7 @@ describe('extractHtmlModuleComment', () => {
 -->
 <div>content</div>`;
 
-		const result = extractHtmlModuleComment(source);
+		const result = extractHtmlModuleComment(source)?.text;
 		assert.ok(result);
 		assert.include(result, 'Module docs from HTML.');
 		assert.include(result, 'Additional details.');
@@ -1679,7 +1716,7 @@ describe('extractHtmlModuleComment', () => {
 -->
 <div>content</div>`;
 
-		const result = extractHtmlModuleComment(source);
+		const result = extractHtmlModuleComment(source)?.text;
 		assert.ok(result);
 		assert.include(result, 'Second comment module docs.');
 	});
@@ -1695,7 +1732,7 @@ describe('extractHtmlModuleComment', () => {
 -->
 <div>content</div>`;
 
-		const result = extractHtmlModuleComment(source);
+		const result = extractHtmlModuleComment(source)?.text;
 		assert.ok(result);
 		assert.include(result, 'Module description.');
 		assert.notInclude(result, 'Component description.');
@@ -1708,7 +1745,7 @@ describe('extractHtmlModuleComment', () => {
 -->
 <div>Static content</div>`;
 
-		const result = extractHtmlModuleComment(source);
+		const result = extractHtmlModuleComment(source)?.text;
 		assert.ok(result);
 		assert.include(result, 'A template-only component.');
 	});
@@ -1736,8 +1773,8 @@ let {x}: {x: string} = $props();
 			[] as Array<Diagnostic>
 		);
 
-		assert.ok(result.moduleComment);
-		assert.include(result.moduleComment, 'Module docs from HTML.');
+		assert.ok(result.moduleDoc?.text);
+		assert.include(result.moduleDoc?.text, 'Module docs from HTML.');
 	});
 
 	test('JSDoc @module in <script> takes priority over HTML @module', () => {
@@ -1762,9 +1799,9 @@ let {x}: {x: string} = $props();
 			diagnostics
 		);
 
-		assert.ok(result.moduleComment);
-		assert.include(result.moduleComment, 'JSDoc module docs.');
-		assert.notInclude(result.moduleComment, 'HTML module docs.');
+		assert.ok(result.moduleDoc?.text);
+		assert.include(result.moduleDoc?.text, 'JSDoc module docs.');
+		assert.notInclude(result.moduleDoc?.text, 'HTML module docs.');
 
 		// Should emit duplicate warning
 		assert.ok(hasWarnings(diagnostics));
@@ -1785,8 +1822,8 @@ let {x}: {x: string} = $props();
 			[] as Array<Diagnostic>
 		);
 
-		assert.ok(result.moduleComment);
-		assert.include(result.moduleComment, 'A template-only component.');
+		assert.ok(result.moduleDoc?.text);
+		assert.include(result.moduleDoc?.text, 'A template-only component.');
 	});
 
 	test('both @component and @module as HTML comments', () => {
@@ -1815,8 +1852,8 @@ let {x}: {x: string} = $props();
 
 		assert.ok(declaration.docComment);
 		assert.include(declaration.docComment, 'Component description from HTML.');
-		assert.ok(result.moduleComment);
-		assert.include(result.moduleComment, 'Module description from HTML.');
+		assert.ok(result.moduleDoc?.text);
+		assert.include(result.moduleDoc?.text, 'Module description from HTML.');
 		// No duplicate warnings — different comment types
 		assert.strictEqual(hasWarnings(diagnostics), false);
 	});
@@ -1841,8 +1878,8 @@ let {prop1}: {prop1: string} = $props();
 			(d) => d.declaration.kind === 'component'
 		)!.declaration;
 
-		assert.ok(result.moduleComment);
-		assert.include(result.moduleComment, 'Module description.');
+		assert.ok(result.moduleDoc?.text);
+		assert.include(result.moduleDoc?.text, 'Module description.');
 		// @module JSDoc should NOT leak into component docComment
 		assert.isUndefined(declaration.docComment);
 	});

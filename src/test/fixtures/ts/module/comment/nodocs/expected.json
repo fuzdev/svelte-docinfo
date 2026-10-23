@@ -1,0 +1,21 @@
+{
+	"path": "input.ts",
+	"declarations": [
+		{
+			"name": "a",
+			"kind": "variable",
+			"typeSignature": "1",
+			"sourceLine": 8
+		}
+	],
+	"moduleComment": "Description 1",
+	"diagnostics": [
+		{
+			"kind": "misplaced_tag",
+			"file": "src/lib/input.ts",
+			"message": "@nodocs in a module comment has no effect — it applies to declarations and export statements; to omit a module from analysis, use exclude patterns",
+			"severity": "warning",
+			"tagName": "nodocs"
+		}
+	]
+}

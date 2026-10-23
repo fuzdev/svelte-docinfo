@@ -59,8 +59,15 @@ are the tomes in `src/routes/docs/`. Examples: `examples/vite/`, `examples/api/`
   `@default`.
   - `@internal` is a marker (`internalMessage`), not an exclusion. `@nodocs` removes a
     declaration from docs and duplicate checking; it applies to declarations and export
-    statements only, and in a module comment warns `misplaced_tag`
-    (`warnModuleCommentNodocs`).
+    statements only.
+  - Module comments parse through the same `parseComment` (`parseModuleComment` rewraps
+    the text, `@module` lines dropped, for TS, Svelte script, and HTML comments alike):
+    prose is `moduleComment`, and `@example`/`@deprecated`/`@see`/`@since`/`@internal`
+    land on the module's same-named fields (`toModuleDocFields`). Declaration-only tags
+    (`@param`, `@returns`, `@mutates`, `@throws`, `@default`, `@nodocs`) warn
+    `misplaced_tag` and drop (`warnModuleCommentTags`); unknown tags drop silently.
+    In a module comment only a line-leading `@` starts a tag (`parseCommentText`);
+    declarations follow TS. A block is a module comment only by a `@module` line.
   - `@mutates` splits target from description at ` - `. Dotted `@param obj.prop` fills
     `ParameterJson.propertyDescriptions`.
   - `@default` lands on variables, component props, and function/variable members, never
@@ -127,7 +134,8 @@ are the tomes in `src/routes/docs/`. Examples: `examples/vite/`, `examples/api/`
 - `typescript-exports.ts` — `analyzeTypescriptModule`, `analyzeExports`,
   `analyzeDeclaration`, `extractModuleComment`: alias chains, namespace classification,
   re-export JSDoc routing, merged symbols, `alias_lost`.
-- `tsdoc.ts` — `parseComment`, `applyToDeclaration`, `cleanComment`, `hasDocContent`.
+- `tsdoc.ts` — `parseComment`, `applyToDeclaration`, `cleanComment`, `hasDocContent`,
+  and the text-level `parseCommentText`/`parseModuleComment`/`toModuleDocFields`.
 - `diagnostics.ts` — `Diagnostic` (a union on `kind`), `DiagnosticKind`,
   `DiagnosticSeverity`, `parseDiagnostics`, read helpers (`hasErrors`, `errorsOf`,
   `byKind`, `formatDiagnostic`, …).
@@ -344,9 +352,11 @@ plugin, a future LSP); `analyze()`/`analyzeFromFiles()` wrap single-use sessions
 
 `ModuleJson[]` → `DeclarationJson[]` → `MemberJson[]`; members never nest.
 
-**ModuleJson** — `path` (relative to `sourceRoot`), `declarations`, `moduleComment`,
-`dependencies`, `dependents`, `starExports`, `reExports`, `externalReExports`,
-`externalStarExports`, `partial` (a placeholder for a Svelte file whose transform threw).
+**ModuleJson** — `path` (relative to `sourceRoot`), `declarations`, `moduleComment` (the
+module comment's prose), its tag fields `examples`, `deprecatedMessage`, `seeAlso`,
+`since`, `internalMessage` (as on declarations), `dependencies`, `dependents`,
+`starExports`, `reExports`, `externalReExports`, `externalStarExports`, `partial` (a
+placeholder for a Svelte file whose transform threw).
 
 **DeclarationJson** — `v.variant('kind', …)` over strict variants, narrowed with
 `isKind(decl, 'function')`. `DeclarationKind`: `'type' | 'function' | 'variable' | 'class' |

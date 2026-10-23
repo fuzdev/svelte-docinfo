@@ -58,7 +58,15 @@
 					<code>path</code>: file path relative to the source root (e.g., <code>"math.ts"</code>)
 				</li>
 				<li><code>declarations</code>: exported items from this module</li>
-				<li><code>moduleComment</code>: file-level JSDoc comment, if present</li>
+				<li>
+					<code>moduleComment</code>: the prose of the file-level <code>@module</code> comment, if
+					it has any
+				</li>
+				<li>
+					<code>examples</code>, <code>deprecatedMessage</code>, <code>seeAlso</code>,
+					<code>since</code>, <code>internalMessage</code>: that comment's tags, as on a declaration
+					(see <TomeLink slug="tags" hash="module">@module</TomeLink>)
+				</li>
 				<li><code>dependencies</code>: paths of modules this file imports</li>
 				<li><code>dependents</code>: paths of modules that import this file</li>
 				<li><code>starExports</code>: <code>export * from './module'</code> targets</li>

@@ -1,0 +1,21 @@
+{
+	"path": "ComponentModuleCommentHtmlIndentedExample.svelte",
+	"declarations": [
+		{
+			"name": "ComponentModuleCommentHtmlIndentedExample",
+			"kind": "component",
+			"sourceLine": 12,
+			"props": [
+				{
+					"name": "children",
+					"type": "Snippet<[]>"
+				}
+			],
+			"acceptsChildren": true
+		}
+	],
+	"moduleComment": "Description 1",
+	"examples": [
+		"```svelte\n<ComponentModuleCommentHtmlIndentedExample>\n\t<div>text1</div>\n</ComponentModuleCommentHtmlIndentedExample>\n```"
+	]
+}

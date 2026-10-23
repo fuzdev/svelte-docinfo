@@ -1,0 +1,62 @@
+{
+	"path": "input.ts",
+	"declarations": [
+		{
+			"name": "a",
+			"kind": "function",
+			"docComment": "Description 6",
+			"typeSignature": "(b: number): number",
+			"sourceLine": 19,
+			"parameters": [
+				{
+					"name": "b",
+					"type": "number",
+					"description": "Description 7"
+				}
+			],
+			"returnType": "number",
+			"returnDescription": "Description 8"
+		}
+	],
+	"moduleComment": "Description 1",
+	"seeAlso": [
+		"https://fuz.dev"
+	],
+	"diagnostics": [
+		{
+			"kind": "misplaced_tag",
+			"file": "src/lib/input.ts",
+			"message": "@param in a module comment has no effect — it documents a declaration, not a module",
+			"severity": "warning",
+			"tagName": "param"
+		},
+		{
+			"kind": "misplaced_tag",
+			"file": "src/lib/input.ts",
+			"message": "@returns in a module comment has no effect — it documents a declaration, not a module",
+			"severity": "warning",
+			"tagName": "returns"
+		},
+		{
+			"kind": "misplaced_tag",
+			"file": "src/lib/input.ts",
+			"message": "@mutates in a module comment has no effect — it documents a declaration, not a module",
+			"severity": "warning",
+			"tagName": "mutates"
+		},
+		{
+			"kind": "misplaced_tag",
+			"file": "src/lib/input.ts",
+			"message": "@throws in a module comment has no effect — it documents a declaration, not a module",
+			"severity": "warning",
+			"tagName": "throws"
+		},
+		{
+			"kind": "misplaced_tag",
+			"file": "src/lib/input.ts",
+			"message": "@default in a module comment has no effect — it documents a declaration, not a module",
+			"severity": "warning",
+			"tagName": "default"
+		}
+	]
+}

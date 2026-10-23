@@ -178,7 +178,10 @@ Where each behavior is locked. Unit and behavior-level mechanics live in
   (`props/source-order-redeclared`), destructured external props admitted past
   the filter, TS and JS (`props/destructured-external*`)
 - Component: JSDoc/`@component`, docComment precedence (`doccomment-*`), module
-  comments (`module-comment*`), no props, template-only, generics,
+  comments (`module-comment*`: tags from each source, a `*/` and an indented
+  example in an HTML comment, misplaced tags, a tag-only script comment
+  outranking an HTML one, and one of only misplaced tags yielding), no props,
+  template-only, generics,
   `acceptsChildren` (`children-*`, `no-children`; a default slot setting it on
   a template-only and a propless legacy component, and not on a runes one —
   `$props()`, a rune-using exported binding, `<svelte:options runes />` over a
@@ -247,7 +250,9 @@ Where each behavior is locked. Unit and behavior-level mechanics live in
 
 - Declarations of every kind, generics, members (visibility, static,
   readonly, accessors, external callables), parameters (optional, defaults,
-  rest, dotted `@param` docs), module comments
+  rest, dotted `@param` docs), module comments (`module/comment/*`: tags to
+  module fields, tag-only, bare tags, multi-line `@see`, unknown tags, and
+  declaration-only tags warning `misplaced_tag`)
 - Structured types and name recovery: `types/type-info*`,
   `declarations/*/type-info-recovery`, `declarations/*/alias-lost-*`; merged
   value+type symbols: `declarations/*/merged-value-*`; union members in
@@ -275,7 +280,8 @@ Where each behavior is locked. Unit and behavior-level mechanics live in
 `@deprecated`, `@internal` (prose and bare), `@see` (URL, `{@link}`, text,
 mixed), `@since`, `@mutates` (compound path, multi-word, backtick, bare,
 continuation, list), `@nodocs`, inline `{@link}` in descriptions, empty
-comments, and a comprehensive all-tags case.
+comments, a comprehensive all-tags case, and a `@module` block's tags never
+reaching the declaration below it (`module-block-*`).
 
 ## See also
 

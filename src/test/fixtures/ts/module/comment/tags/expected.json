@@ -1,0 +1,29 @@
+{
+	"path": "input.ts",
+	"declarations": [
+		{
+			"name": "a",
+			"kind": "function",
+			"typeSignature": "(_b: { b: number; }): void",
+			"sourceLine": 19,
+			"parameters": [
+				{
+					"name": "_b",
+					"type": "{ b: number; }"
+				}
+			],
+			"returnType": "void"
+		}
+	],
+	"moduleComment": "Description 1 with {@link a}.",
+	"examples": [
+		"```ts\na({\n\tb: 1\n});\n```"
+	],
+	"deprecatedMessage": "Description 2",
+	"seeAlso": [
+		"https://fuz.dev",
+		"{@link a}"
+	],
+	"since": "1.0.0",
+	"internalMessage": "Description 3"
+}

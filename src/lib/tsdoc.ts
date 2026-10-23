@@ -38,7 +38,10 @@
  *
  * ## Behavioral notes
  *
- * `@module` blocks are excluded from `parseComment` (see there).
+ * `@module` blocks are excluded from `parseComment` (see there). Module
+ * comments go through the same parser by text: `parseModuleComment` rewraps a
+ * module comment, from TS or either Svelte form, as a JSDoc block without its
+ * `@module` line, and `toModuleDocFields` keeps the tags a module can carry.
  *
  * `JSDocPropertyLikeTag` nodes (`@property`/`@param` declaring a symbol in a
  * typedef or callback) parse to their own tag description — the only doc such
@@ -59,6 +62,7 @@
 import ts from 'typescript';
 
 import type { DeclarationJsonBuild, MemberJsonBuild } from './declaration-build.ts';
+import type { ModuleJsonInput } from './types.ts';
 
 /**
  * Parsed JSDoc/TSDoc comment with structured metadata.
@@ -144,10 +148,53 @@ const parseMutatesTag = (text: string): { target: string; description: string } 
 };
 
 /**
- * Whether a JSDoc block is a module-level comment (carries a `@module` tag).
+ * The text of a JSDoc comment or tag comment, inline `{@link}` tags included
+ * as written. `ts.getTextOfJSDocComment` reprints each link instead, and its
+ * reprint of a link whose target isn't an entity name (`{@link ./x.ts}`, a bare
+ * `{@link}`) adds a space (`{@link  ./x.ts}`); the source text is the author's.
+ * A link that spans lines is joined onto one.
  */
-const isModuleJsdocBlock = (jsdoc: ts.JSDoc): boolean =>
-	jsdoc.tags?.some((tag) => tag.tagName.text === 'module') ?? false;
+const jsdocCommentText = (
+	comment: string | ts.NodeArray<ts.JSDocComment> | undefined,
+	sourceFile: ts.SourceFile
+): string | undefined => {
+	if (typeof comment !== 'object') return comment;
+	return comment
+		.map((part) =>
+			// a kind check: `ts.isJSDocText` is typed but not exported at runtime
+			part.kind === ts.SyntaxKind.JSDocText
+				? part.text
+				: part.getText(sourceFile).replace(/\s*\n\s*\*?\s*/g, ' ')
+		)
+		.join('');
+};
+
+/**
+ * Whether a JSDoc block is a module-level comment: it has a `@module` line,
+ * the rule `hasModuleTag` applies to cleaned text. TypeScript parses a tag at
+ * any `@` after whitespace, so a mid-line mention (`` `<!-- @module -->` ``)
+ * is a `module` tag to it; counting that would make the block neither a
+ * module comment nor its declaration's doc.
+ */
+const isModuleJsdocBlock = (jsdoc: ts.JSDoc): boolean => {
+	const tags = jsdoc.tags?.filter((tag) => tag.tagName.text === 'module');
+	if (!tags?.length) return false;
+	const text = jsdoc.getSourceFile().text;
+	// the block's first content position, past its `/**`
+	const contentStart = jsdoc.getStart() + 3;
+	return tags.some((tag) => {
+		// only whitespace around one `*` margin may sit between the line start
+		// and the tag, as `cleanComment` strips one `*` per line
+		let i = tag.getStart() - 1;
+		const skipWhitespace = (): void => {
+			while (i >= contentStart && (text[i] === ' ' || text[i] === '\t')) i--;
+		};
+		skipWhitespace();
+		if (i >= contentStart && text[i] === '*') i--;
+		skipWhitespace();
+		return i < contentStart || text[i] === '\n' || text[i] === '\r';
+	});
+};
 
 /**
  * Whether a JSDoc node or tag belongs to a module-level (`@module`) block.
@@ -156,7 +203,7 @@ const isModuleJsdocBlock = (jsdoc: ts.JSDoc): boolean =>
  * attaches it to that statement's JSDoc — without this filter the module
  * comment (including tags like `@nodocs`) would read as the statement's own
  * docs. Per-block, so a statement's own JSDoc below a module comment still
- * applies. `extractModuleComment` owns module-comment extraction.
+ * applies. Module comments parse separately, through `parseModuleComment`.
  */
 const belongsToModuleBlock = (node: ts.JSDoc | ts.JSDocTag): boolean =>
 	ts.isJSDoc(node)
@@ -182,8 +229,8 @@ const belongsToModuleBlock = (node: ts.JSDoc | ts.JSDocTag): boolean =>
  *
  * JSDoc blocks tagged `@module` are excluded entirely (text and tags): a module
  * comment attaches to the file's first statement in the AST, and without the
- * filter it would read as that statement's own docs. `extractModuleComment`
- * (`typescript-exports.ts`) owns module comments.
+ * filter it would read as that statement's own docs. Module comments parse
+ * through `parseModuleComment`, which hands this function the comment's text.
  *
  * @param node - the TypeScript node to extract JSDoc from
  * @param sourceFile - source file for full-text tag reads (`@see`); defaults to the node's own
@@ -206,7 +253,7 @@ export const parseComment = (
 	// callbacks); their description rides the tag, not an attached block —
 	// `getJSDocCommentsAndTags` on the tag finds nothing
 	if (ts.isJSDocPropertyLikeTag(node)) {
-		const text = ts.getTextOfJSDocComment(node.comment);
+		const text = jsdocCommentText(node.comment, sourceFile);
 		const cleaned = text && cleanTagDescription(text);
 		if (!cleaned) return undefined;
 		const params: Record<string, string> = Object.create(null);
@@ -234,12 +281,12 @@ export const parseComment = (
 	let mutates: Record<string, string> | undefined;
 	let nodocs: boolean | undefined;
 
-	// Extract main comment text. `getTextOfJSDocComment` keeps inline `{@link}`
+	// Extract main comment text. `jsdocCommentText` keeps inline `{@link}`
 	// tags — a link node carries its target in `name`, not `text`, so a manual
 	// `.map((c) => c.text)` join would silently drop it.
 	for (const comment of tsdocComments) {
 		if (ts.isJSDoc(comment) && comment.comment) {
-			const text = ts.getTextOfJSDocComment(comment.comment);
+			const text = jsdocCommentText(comment.comment, sourceFile);
 			if (text) {
 				fullText += text + '\n';
 			}
@@ -249,7 +296,7 @@ export const parseComment = (
 	// Extract tags (module-block tags filtered like their text above)
 	const tags = ts.getJSDocTags(node).filter((tag) => !belongsToModuleBlock(tag));
 	for (const tag of tags) {
-		const tagText = ts.getTextOfJSDocComment(tag.comment);
+		const tagText = jsdocCommentText(tag.comment, sourceFile);
 		const tagName = tag.tagName.text;
 
 		if (tagName === 'param' && ts.isJSDocParameterTag(tag)) {
@@ -410,6 +457,159 @@ export const applyToDeclaration = (
 	) {
 		declaration.defaultValue = tsdoc.defaultValue;
 	}
+};
+
+/** Placeholders for the text `parseCommentText` can't hand TypeScript as written. */
+interface CommentTextEscapes {
+	/**
+	 * Stands in for the `/` of a `*\/`, which would end the rewrapped block
+	 * early.
+	 */
+	close: string;
+	/**
+	 * Stands in for an `@` that starts neither a line nor an inline `{@link}`.
+	 * TypeScript starts a block tag at any `@` after whitespace, so a mid-line
+	 * mention (`` `// @foo` ``, `metadata @> x`) would cut the prose or tag
+	 * text short there.
+	 */
+	at: string;
+}
+
+/**
+ * Pick two private-use code points the text doesn't hold, so restoring them
+ * can't touch author text. Built from char codes, since the formatter would
+ * print an escape as the invisible character.
+ */
+const pickCommentTextEscapes = (text: string): CommentTextEscapes => {
+	const picked: Array<string> = [];
+	for (let code = 0xe000; picked.length < 2; code++) {
+		const char = String.fromCharCode(code);
+		if (!text.includes(char)) picked.push(char);
+	}
+	return { close: picked[0]!, at: picked[1]! };
+};
+
+/** Escape `*\/` and every `@` but a line-leading tag's or an inline tag's. */
+const escapeCommentText = (text: string, escapes: CommentTextEscapes): string =>
+	text
+		.replaceAll('*/', `*${escapes.close}`)
+		.split('\n')
+		.map((line) => {
+			const tagStart = /^\s*@/.exec(line)?.[0].length ?? 0;
+			return line.slice(0, tagStart) + line.slice(tagStart).replace(/(?<!\{)@/g, escapes.at);
+		})
+		.join('\n');
+
+/** Restore every escape in a parsed comment's strings, keeping each object's prototype. */
+const restoreCommentText = (value: unknown, escapes: CommentTextEscapes): unknown => {
+	if (typeof value === 'string') {
+		return value.replaceAll(`*${escapes.close}`, '*/').replaceAll(escapes.at, '@');
+	}
+	if (Array.isArray(value)) return value.map((entry) => restoreCommentText(entry, escapes));
+	if (value !== null && typeof value === 'object') {
+		const restored = Object.create(Object.getPrototypeOf(value));
+		for (const [key, entry] of Object.entries(value)) {
+			restored[key] = restoreCommentText(entry, escapes);
+		}
+		return restored;
+	}
+	return value;
+};
+
+/**
+ * Parse comment text that has no node of its own with `parseComment`, so it
+ * reads every tag exactly as a declaration's JSDoc does.
+ *
+ * The text is rewrapped as a JSDoc block on a throwaway statement and parsed
+ * there. A `*\/` in it (an HTML comment can hold one) is escaped for the parse
+ * with a placeholder the text doesn't hold, and restored in the result, and so
+ * is an `@` in the middle of a line: only a line-leading `@` starts a tag
+ * here, where a declaration's JSDoc, read by TypeScript in place, starts one
+ * at any `@` after whitespace. A `@module`
+ * line makes the block a module block, which `parseComment` skips, so
+ * `parseModuleComment` strips it first.
+ *
+ * @param text - comment text without comment markers, as `cleanComment` returns it
+ * @returns the parsed comment; its `text` is empty when the comment holds only tags
+ */
+export const parseCommentText = (text: string): TsdocParsedComment | undefined => {
+	const escapes = pickCommentTextEscapes(text);
+	const escaped = escapeCommentText(text, escapes);
+	const lines = escaped.split('\n').map((line) => (line ? ` * ${line}` : ' *'));
+	const source = `/**\n${lines.join('\n')}\n */\n0;\n`;
+	const sourceFile = ts.createSourceFile(
+		'comment.ts',
+		source,
+		ts.ScriptTarget.Latest,
+		true,
+		ts.ScriptKind.TS
+	);
+	const parsed = parseComment(sourceFile.statements[0]!, sourceFile);
+	return parsed && escaped !== text
+		? (restoreCommentText(parsed, escapes) as TsdocParsedComment)
+		: parsed;
+};
+
+/** A line that starts with the `@module` tag, as opposed to a mention in prose. */
+const MODULE_TAG_LINE = /^\s*@module\b/;
+
+/**
+ * Whether cleaned comment text is a module comment: a line starts with
+ * `@module`. A backticked or mid-prose mention doesn't count.
+ */
+export const hasModuleTag = (text: string): boolean =>
+	text.split('\n').some((line) => MODULE_TAG_LINE.test(line));
+
+/**
+ * Parse a module comment's cleaned text with `parseCommentText`, after
+ * dropping each `@module` line (an optional `@module name` rename is ignored).
+ *
+ * Shared by every module-comment source — a TS module comment, a Svelte
+ * script's, and a Svelte HTML comment with a `@module` line — so they parse
+ * their tags as one. Prose after the `@module` line stays prose; prose after
+ * any other tag belongs to that tag, as in a declaration's JSDoc.
+ *
+ * @param text - the comment's text without comment markers
+ * @returns the parsed comment, or undefined when it holds neither prose nor a
+ *   parsed tag (a bare `@module`)
+ */
+export const parseModuleComment = (text: string): TsdocParsedComment | undefined => {
+	const parsed = parseCommentText(
+		text
+			.split('\n')
+			.filter((line) => !MODULE_TAG_LINE.test(line))
+			.join('\n')
+	);
+	return parsed && hasDocContent(parsed) ? parsed : undefined;
+};
+
+/** The `ModuleJson` fields a module comment populates. */
+export type ModuleDocFields = Partial<
+	Pick<
+		ModuleJsonInput,
+		'moduleComment' | 'examples' | 'deprecatedMessage' | 'seeAlso' | 'since' | 'internalMessage'
+	>
+>;
+
+/**
+ * Project a parsed module comment onto its `ModuleJson` fields: the prose as
+ * `moduleComment` (absent when empty) plus the tags a module can carry. Tags
+ * that only describe a declaration (`@param`, `@returns`, `@throws`,
+ * `@mutates`, `@default`, `@nodocs`) are dropped; the analyzers warn
+ * `misplaced_tag` for each.
+ *
+ * @param tsdoc - the module comment as `parseModuleComment` returns it
+ */
+export const toModuleDocFields = (tsdoc: TsdocParsedComment | undefined): ModuleDocFields => {
+	const fields: ModuleDocFields = {};
+	if (!tsdoc) return fields;
+	if (tsdoc.text) fields.moduleComment = tsdoc.text;
+	if (tsdoc.examples?.length) fields.examples = tsdoc.examples;
+	if (tsdoc.deprecatedMessage !== undefined) fields.deprecatedMessage = tsdoc.deprecatedMessage;
+	if (tsdoc.seeAlso?.length) fields.seeAlso = tsdoc.seeAlso;
+	if (tsdoc.since) fields.since = tsdoc.since;
+	if (tsdoc.internalMessage !== undefined) fields.internalMessage = tsdoc.internalMessage;
+	return fields;
 };
 
 /**

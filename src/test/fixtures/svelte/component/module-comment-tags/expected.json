@@ -1,0 +1,24 @@
+{
+	"path": "ComponentModuleCommentTags.svelte",
+	"declarations": [
+		{
+			"name": "ComponentModuleCommentTags",
+			"kind": "component",
+			"sourceLine": 1,
+			"props": [
+				{
+					"name": "prop1",
+					"type": "string"
+				}
+			]
+		}
+	],
+	"moduleComment": "Description 1",
+	"examples": [
+		"```svelte\n<ComponentModuleCommentTags prop1=\"a\" />\n```"
+	],
+	"seeAlso": [
+		"https://fuz.dev"
+	],
+	"since": "1.0.0"
+}

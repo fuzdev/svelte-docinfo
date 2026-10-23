@@ -19,7 +19,7 @@
 			"kind": "duplicate_comment",
 			"commentType": "module_comment",
 			"file": "src/lib/ComponentModuleCommentHtmlAndJsdoc.svelte",
-			"message": "Multiple @module comments found (JSDoc in <script>, HTML comment). Using first found.",
+			"message": "Multiple @module comments found (JSDoc in <script>, HTML comment). Using JSDoc in <script>.",
 			"severity": "warning"
 		}
 	]

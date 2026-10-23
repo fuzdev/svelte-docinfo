@@ -45,6 +45,9 @@ import {
 	parseComment,
 	applyToDeclaration,
 	hasDocContent,
+	hasModuleTag,
+	parseModuleComment,
+	toModuleDocFields,
 	type TsdocParsedComment
 } from './tsdoc.ts';
 import {
@@ -71,7 +74,7 @@ import {
 import {
 	extractModuleComment,
 	analyzeExports,
-	warnModuleCommentNodocs
+	warnModuleCommentTags
 } from './typescript-exports.ts';
 import {
 	type SourceFileInfo,
@@ -550,35 +553,54 @@ const lineOfOffset = (text: string, offset: number): number => {
 };
 
 /**
- * Extract `@module` comment from HTML comments in Svelte source.
+ * Clean an HTML comment's content: normalize CRLF, strip the indentation its
+ * lines share, and trim. Only the common indentation goes, so an indented
+ * code block in an `@example` keeps its shape. The first line, which sits on
+ * the `<!--` opener, is trimmed alone and doesn't count toward the common
+ * indentation; blank lines don't count either. Lines indented with tabs and
+ * lines indented with spaces share no common prefix, so mixed indentation
+ * keeps its relative indentation.
+ */
+const dedentHtmlComment = (rawContent: string): string => {
+	const [first = '', ...rest] = rawContent.replace(/\r\n?/g, '\n').split('\n');
+	let indent: string | undefined;
+	for (const line of rest) {
+		if (!line.trim()) continue;
+		const lineIndent = /^[ \t]*/.exec(line)![0];
+		if (indent === undefined) {
+			indent = lineIndent;
+			continue;
+		}
+		let i = 0;
+		while (i < indent.length && i < lineIndent.length && indent[i] === lineIndent[i]) i++;
+		indent = indent.slice(0, i);
+	}
+	const dedented = rest.map((line) =>
+		(indent && line.startsWith(indent) ? line.slice(indent.length) : line).trimEnd()
+	);
+	return [first.trim(), ...dedented].join('\n').trim();
+};
+
+/**
+ * Extract and parse the `@module` comment from HTML comments in Svelte source.
  *
  * Scans all `<!-- ... -->` comments for one containing `@module` at the
  * start of a line. This allows `@component` and `@module` to coexist as
  * separate HTML comments. Works for template-only components.
  *
+ * The lines' common indentation is stripped (`dedentHtmlComment`), then the
+ * text parses through `parseModuleComment`, the parser a script's module
+ * comment uses, so tags read the same in either form (a `*\/` in the HTML
+ * text survives intact).
+ *
  * @param svelteSource - the full Svelte source code
- * @returns the cleaned module comment text, or undefined if no `@module` HTML comment found
+ * @returns the parsed module comment, or undefined if no `@module` HTML
+ *   comment is found or it holds nothing but `@module`
  */
-export const extractHtmlModuleComment = (svelteSource: string): string | undefined => {
+export const extractHtmlModuleComment = (svelteSource: string): TsdocParsedComment | undefined => {
 	for (const rawContent of findHtmlComments(svelteSource)) {
-		// Clean: normalize CRLF, strip leading/trailing whitespace per line, trim
-		const cleaned = rawContent
-			.replace(/\r\n/g, '\n')
-			.split('\n')
-			.map((line) => line.trim())
-			.join('\n')
-			.trim();
-
-		if (!cleaned) continue;
-
-		// Check for `@module` as a proper tag (at start of line, not mentioned in prose)
-		if (!/(?:^|\n)@module\b/.test(cleaned)) continue;
-
-		// Strip the `@module` tag line and return
-		const lines = cleaned.split('\n');
-		const filtered = lines.filter((line) => !/^\s*@module\b/.test(line));
-		const result = filtered.join('\n').trim();
-		return result || undefined;
+		const cleaned = dedentHtmlComment(rawContent);
+		if (cleaned && hasModuleTag(cleaned)) return parseModuleComment(cleaned);
 	}
 	return undefined;
 };
@@ -592,9 +614,9 @@ export const extractHtmlModuleComment = (svelteSource: string): string | undefin
  * `extractScriptContent`/`extractModuleScriptContent`).
  *
  * @param scriptContent - the content of a `<script>` or `<script module>` tag
- * @returns the cleaned module comment text, or undefined if none found
+ * @returns the parsed module comment, or undefined if none is found
  */
-export const extractSvelteModuleComment = (scriptContent: string): string | undefined =>
+export const extractSvelteModuleComment = (scriptContent: string): TsdocParsedComment | undefined =>
 	extractModuleComment(parseScriptContent(scriptContent));
 
 /**
@@ -1661,7 +1683,7 @@ export const analyzeSvelteModule = (
 	);
 
 	// 1. Use analyzeExports for full checker-backed analysis (same as .ts files).
-	// Its `moduleComment` is undefined for virtuals — the `<script module>`
+	// Its `moduleDoc` is undefined for virtuals — the `<script module>`
 	// comment is extracted from the original source in step 4, because svelte2tsx
 	// hoists instance-script imports (with their leading JSDoc) to the virtual's
 	// top level, where an instance `@module` comment would masquerade as a
@@ -1892,8 +1914,10 @@ export const analyzeSvelteModule = (
 		});
 	}
 
-	// 4. Extract module comment from original Svelte source (not virtual)
-	// Priority: instance <script> @module > <script module> @module > HTML <!-- @module -->
+	// 4. Extract module comment from original Svelte source (not virtual).
+	// Priority: instance <script> @module > <script module> @module > HTML
+	// <!-- @module -->, but a comment that projects to no module field (only
+	// declaration-only tags, like `@nodocs`) yields to one that does
 	const instanceModuleComment = instanceScriptSource
 		? extractModuleComment(instanceScriptSource)
 		: undefined;
@@ -1902,25 +1926,30 @@ export const analyzeSvelteModule = (
 		? extractSvelteModuleComment(moduleScript.content)
 		: undefined;
 	const htmlModuleComment = extractHtmlModuleComment(sourceFile.content);
-	const moduleComment = instanceModuleComment ?? scriptModuleComment ?? htmlModuleComment;
-
-	// @nodocs has no module-level meaning — warn per misplaced comment
-	warnModuleCommentNodocs(instanceModuleComment, diagnosticFile, diagnostics);
-	warnModuleCommentNodocs(scriptModuleComment, diagnosticFile, diagnostics);
-	warnModuleCommentNodocs(htmlModuleComment, diagnosticFile, diagnostics);
-
-	// Warn if multiple @module sources exist
 	const moduleCommentSources = [
-		instanceModuleComment,
-		scriptModuleComment,
-		htmlModuleComment
-	].filter(Boolean);
+		{ doc: instanceModuleComment, label: 'JSDoc in <script>' },
+		{ doc: scriptModuleComment, label: 'JSDoc in <script module>' },
+		{ doc: htmlModuleComment, label: 'HTML comment' }
+	].filter((source): source is { doc: TsdocParsedComment; label: string } => !!source.doc);
+	const moduleCommentWinner =
+		moduleCommentSources.find(({ doc }) => Object.keys(toModuleDocFields(doc)).length > 0) ??
+		moduleCommentSources[0];
+	const moduleDoc = moduleCommentWinner?.doc;
+
+	// declaration-only tags (`@param`, `@nodocs`, …) do nothing in a module
+	// comment — warn per comment, the losers' included
+	warnModuleCommentTags(instanceModuleComment, diagnosticFile, diagnostics);
+	warnModuleCommentTags(scriptModuleComment, diagnosticFile, diagnostics);
+	warnModuleCommentTags(htmlModuleComment, diagnosticFile, diagnostics);
+
+	// Warn if multiple @module sources exist. A source counts when it parsed to
+	// anything (prose or a tag, even a tag-only comment); a bare `@module` doesn't
 	if (moduleCommentSources.length > 1) {
 		diagnostics.push({
 			kind: 'duplicate_comment',
 			commentType: 'module_comment',
 			file: diagnosticFile,
-			message: `Multiple @module comments found (${[instanceModuleComment && 'JSDoc in <script>', scriptModuleComment && 'JSDoc in <script module>', htmlModuleComment && 'HTML comment'].filter(Boolean).join(', ')}). Using first found.`,
+			message: `Multiple @module comments found (${moduleCommentSources.map(({ label }) => label).join(', ')}). Using ${moduleCommentWinner!.label}.`,
 			severity: 'warning'
 		});
 	}
@@ -1939,7 +1968,7 @@ export const analyzeSvelteModule = (
 
 	return {
 		path: modulePath,
-		moduleComment,
+		moduleDoc,
 		declarations: allDeclarations,
 		dependencies,
 		dependents,

@@ -44,6 +44,7 @@ import type { ModuleAnalysis } from './declaration-build.ts';
 import { Diagnostic } from './diagnostics.ts';
 import type { AnalysisLog } from './log.ts';
 import { analyzeTypescriptModule } from './typescript-exports.ts';
+import { toModuleDocFields } from './tsdoc.ts';
 import {
 	analyzeSvelteModule,
 	reclassifySnippetDeclaration,
@@ -305,7 +306,7 @@ const toModuleJson = (raw: ModuleAnalysis): ModuleJson => {
 		reExports,
 		externalReExports,
 		externalStarExports: raw.externalStarExports,
-		...(raw.moduleComment ? { moduleComment: raw.moduleComment } : {})
+		...toModuleDocFields(raw.moduleDoc)
 	});
 };
 
