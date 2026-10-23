@@ -15,19 +15,15 @@ const counterPath = join(dir, 'src/lib/counter.svelte.ts');
 const issuesPath = join(dir, 'src/lib/has-issues.ts');
 const componentPath = join(dir, 'src/lib/Calculator.svelte');
 const cardPath = join(dir, 'src/lib/Card.svelte');
+const listPath = join(dir, 'src/lib/List.svelte');
 const indexPath = join(dir, 'src/lib/index.ts');
 
 // A session owns a TypeScript LanguageService, a content-keyed source cache,
 // and a svelte2tsx virtual cache. Subsequent setFile/query cycles reuse
 // parsed ASTs and skip transforms when content is unchanged.
 //
-// Build-tool integrations that already maintain a dependency graph (Gro's
-// filer, Vite's module graph) can opt in to a pre-resolved fast path by
-// supplying `SourceFileInfo.dependencies`. The session skips its own
-// lex+resolve pass and uses those paths as-is. Cache key for pre-resolved
-// entries is `(content, dependencies element-wise equality)` — a fresh array
-// with identical contents still cache-hits, which means producing the deps
-// array via `[...filer.dependencies.keys()]` per call works cleanly.
+// The files below supply pre-resolved `dependencies`, as in
+// analyze-build-tool.js, so the session skips its own lex+resolve pass.
 const session = createAnalysisSession({
 	sourceOptions: createSourceOptions(dir)
 });
@@ -44,10 +40,11 @@ const buildFiles = async () => [
 		dependencies: [mathPath]
 	},
 	{ id: cardPath, content: await readFile(cardPath, 'utf-8'), dependencies: [] },
+	{ id: listPath, content: await readFile(listPath, 'utf-8'), dependencies: [] },
 	{
 		id: indexPath,
 		content: await readFile(indexPath, 'utf-8'),
-		dependencies: [componentPath, cardPath, counterPath, mathPath, shapesPath]
+		dependencies: [componentPath, cardPath, listPath, counterPath, mathPath, shapesPath]
 	}
 ];
 

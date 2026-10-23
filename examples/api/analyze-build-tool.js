@@ -13,6 +13,7 @@ const dir = dirname(fileURLToPath(import.meta.url));
 // `SourceFileInfo.dependencies` to skip svelte-docinfo's own lex+resolve pass
 // for those files — the session uses the supplied paths as-is (after filtering
 // node_modules and tests via `isSource`).
+
 // Helper mimicking what a build tool does per file: id + content + the
 // file's resolved source-set dependencies (external imports like 'svelte'
 // are not source files and don't belong in the array).
@@ -30,9 +31,11 @@ const sourceFiles = await Promise.all([
 	loadSource('src/lib/has-issues.ts'),
 	loadSource('src/lib/Calculator.svelte', ['src/lib/math.ts']),
 	loadSource('src/lib/Card.svelte'),
+	loadSource('src/lib/List.svelte'),
 	loadSource('src/lib/index.ts', [
 		'src/lib/Calculator.svelte',
 		'src/lib/Card.svelte',
+		'src/lib/List.svelte',
 		'src/lib/counter.svelte.ts',
 		'src/lib/math.ts',
 		'src/lib/shapes.ts'

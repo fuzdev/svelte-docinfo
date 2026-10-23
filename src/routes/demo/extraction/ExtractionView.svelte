@@ -20,6 +20,19 @@
 		/>
 	</div>
 	<div class="extraction-pane" data-pane="data">
+		{#if extraction.selected_diagnostics.length}
+			<!-- the envelope's `diagnostics` for this module's file, which the
+			     module JSON below doesn't carry -->
+			<ul class="extraction-diagnostics unstyled px_md py_sm">
+				{#each extraction.selected_diagnostics as d (d)}
+					<li>
+						<strong>{d.severity}</strong> <code>{d.kind}</code>
+						{#if d.line !== undefined}line {d.line}:{/if}
+						{d.message}
+					</li>
+				{/each}
+			</ul>
+		{/if}
 		<Code content={extraction.selected_data} lang="json" nomargin style={CODE_STYLE} />
 	</div>
 {:else}
@@ -32,5 +45,8 @@
 	.extraction-pane {
 		overflow: auto;
 		border-left: var(--border_width) var(--border_style) var(--border_color_50);
+	}
+	.extraction-diagnostics {
+		border-bottom: var(--border_width) var(--border_style) var(--border_color_50);
 	}
 </style>

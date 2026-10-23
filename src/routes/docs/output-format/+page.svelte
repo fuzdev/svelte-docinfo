@@ -611,8 +611,9 @@ if (declaration.typeInfo) typeJsonToTokens(declaration.typeInfo);
 			<Code
 				lang="ts"
 				content={`/** Clamp a number to a range. */
-export const clamp = (value: number, min: number, max: number): number =>
-	Math.min(Math.max(value, min), max);`}
+export function clamp(value: number, min: number, max: number): number {
+	return Math.min(Math.max(value, min), max);
+}`}
 			/>
 			<Code
 				lang="json"

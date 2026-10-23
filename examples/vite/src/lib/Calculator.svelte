@@ -22,12 +22,12 @@
 		disabled?: boolean;
 	} = $props();
 
-	let input_value = $state(0);
+	let inputValue = $state(0);
 
 	const calculate = () => {
 		if (disabled) return;
 		const op = mode === 'add' ? add : multiply;
-		let value = op(result, input_value);
+		let value = op(result, inputValue);
 		if (config?.round) {
 			const factor = 10 ** config.precision;
 			value = Math.round(value * factor) / factor;
@@ -38,7 +38,7 @@
 
 <div class="calculator">
 	<output>{result}</output>
-	<input type="number" bind:value={input_value} {disabled} />
+	<input type="number" bind:value={inputValue} {disabled} />
 	<button onclick={calculate} {disabled}>
 		{mode === 'add' ? 'Add' : 'Multiply'}
 	</button>

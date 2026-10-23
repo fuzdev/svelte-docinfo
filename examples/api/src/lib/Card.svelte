@@ -1,4 +1,4 @@
-<script lang="ts">
+<script lang="ts" module>
 	/**
 	 * Module docs via the in-script JSDoc form — the `@module` tag marks this
 	 * block as the `moduleComment` rather than docs for the statement below.
@@ -6,36 +6,47 @@
 	 * @module
 	 */
 
+	// a template snippet exported from the module script documents as `kind: 'snippet'`
+	export { cardFooter };
+</script>
+
+<script lang="ts">
 	import type { Snippet } from 'svelte';
+	import type { HTMLAttributes } from 'svelte/elements';
+
+	// component docs via the in-script JSDoc form: attached to `$props()`, it needs
+	// no `@component` tag (see `Calculator.svelte` for the HTML comment form);
+	// the inherited `HTMLAttributes` props are filtered out and listed in `externalTypes`
 
 	/**
-	 * Card layout demonstrating `children` and snippet props —
-	 * `acceptsChildren` and structured snippet parameters in the output.
-	 * Component docs via the in-script JSDoc form — attached to the `$props()`
-	 * declaration, this block becomes the component's `docComment`, with no
-	 * `@component` tag required (only the HTML form needs that tag). See
-	 * `Calculator.svelte` for the HTML comment form.
+	 * A card with a heading or custom header above its body content. Extra
+	 * attributes pass through to the root element.
 	 */
-	let {
-		title,
+	const {
+		heading,
 		header,
-		children
-	}: {
-		/** Title rendered when no `header` snippet is provided. */
-		title?: string;
-		/** Custom header content, receives the resolved title. */
-		header?: Snippet<[title: string]>;
+		children,
+		...rest
+	}: HTMLAttributes<HTMLDivElement> & {
+		/** Heading rendered when no `header` snippet is provided. */
+		heading?: string;
+		/** Custom header content, receives the resolved heading. */
+		header?: Snippet<[heading: string]>;
 		/** Card body content. */
 		children: Snippet;
 	} = $props();
 </script>
 
-<div class="card">
+{#snippet cardFooter(text: string)}
+	<small class="card-footer">{text}</small>
+{/snippet}
+
+<div {...rest} class={['card', rest.class]}>
 	<div class="card-header">
 		{#if header}
-			{@render header(title ?? 'untitled')}
+			{@render header(heading ?? 'untitled')}
 		{:else}
-			<h3>{title ?? 'untitled'}</h3>
+			<h3>{heading ?? 'untitled'}</h3>
 		{/if}
 	</div>
 	<div class="card-body">
@@ -57,5 +68,10 @@
 	}
 	.card-body {
 		padding: 1rem;
+	}
+	.card-footer {
+		display: block;
+		padding: 0.5rem 1rem;
+		border-top: 1px solid #ccc;
 	}
 </style>

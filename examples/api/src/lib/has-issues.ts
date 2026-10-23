@@ -12,4 +12,6 @@
  * @param missing - this name doesn't match any real parameter
  * @returns the input doubled
  */
-export const demonstrate_typo = (value: number): number => value * 2;
+export function demonstrateTypo(value: number): number {
+	return value * 2;
+}

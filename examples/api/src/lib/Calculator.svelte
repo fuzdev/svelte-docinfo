@@ -1,26 +1,25 @@
 <!--
 	@component
-	Calculator component for demonstrating Svelte analysis. A component
-	comment documents the component itself and becomes the declaration's
-	`docComment`; the separate `@module` comment below documents the file
-	and becomes the module's `moduleComment`. Both use the HTML comment
-	form here — see `Card.svelte` for the in-script JSDoc form of each.
+	A calculator that applies `mode` to `result` and the entered number,
+	optionally rounding to the configured precision.
 -->
 
 <!--
 	@module
-	Module docs via the HTML comment form — coexists with the component
-	doc comment above. See `Card.svelte` for the in-script JSDoc form.
+	Module docs via the HTML comment form, alongside the component comment
+	above, which documents the component itself. See `Card.svelte` for the
+	in-script JSDoc form of each.
 -->
 
 <script lang="ts">
-	import { add, multiply, type MathConfig } from './math.js';
+	import { add, multiply, roundTo, type MathConfig } from './math.js';
 
 	let {
 		result = $bindable(0),
 		config,
 		mode = 'add',
-		disabled = false
+		disabled = false,
+		onresult
 	}: {
 		/** Current result (bindable). */
 		result?: number;
@@ -30,25 +29,24 @@
 		mode?: 'add' | 'multiply';
 		/** Disable the calculator. */
 		disabled?: boolean;
+		/** Called with each new result. */
+		onresult?: (value: number) => void;
 	} = $props();
 
-	let input_value = $state(0);
+	let inputValue = $state(0);
 
 	const calculate = () => {
 		if (disabled) return;
 		const op = mode === 'add' ? add : multiply;
-		let value = op(result, input_value);
-		if (config?.round) {
-			const factor = 10 ** config.precision;
-			value = Math.round(value * factor) / factor;
-		}
-		result = value;
+		const value = op(result, inputValue);
+		result = config?.round ? roundTo(value, config.precision) : value;
+		onresult?.(result);
 	};
 </script>
 
 <div class="calculator">
 	<output>{result}</output>
-	<input type="number" bind:value={input_value} {disabled} />
+	<input type="number" bind:value={inputValue} {disabled} />
 	<button onclick={calculate} {disabled}>
 		{mode === 'add' ? 'Add' : 'Multiply'}
 	</button>

@@ -1,7 +1,7 @@
 import { page } from '$app/state';
 import { create_context } from '@fuzdev/fuz_ui/context_helpers.ts';
 import type { AnalyzeResultJsonWire } from '#lib/index.ts';
-import { isCss, isJson, isSvelte } from '#lib/source.ts';
+import { isSvelte } from '#lib/source.ts';
 
 /**
  * Shape of the committed `extraction_data.json` artifact — analysis of the
@@ -12,8 +12,18 @@ import { isCss, isJson, isSvelte } from '#lib/source.ts';
 export interface ExtractionData {
 	modules: AnalyzeResultJsonWire['modules'];
 	diagnostics?: AnalyzeResultJsonWire['diagnostics'];
+	/**
+	 * The corpus's source root, relative to its project root. Joins a
+	 * `ModuleJson.path` to the project-root-relative `Diagnostic.file`.
+	 */
+	source_dir: string;
+	/**
+	 * Raw source content keyed by module path, matching `ModuleJson.path`.
+	 */
 	sources: Record<string, string>;
 }
+
+export type ExtractionDiagnostic = NonNullable<ExtractionData['diagnostics']>[number];
 
 /**
  * Which of the three regions is visible in the narrow single-pane layout.
@@ -21,24 +31,17 @@ export interface ExtractionData {
  */
 export type ExtractionView = 'modules' | 'source' | 'data';
 
-export interface ExtractionStateOptions {
-	modules: AnalyzeResultJsonWire['modules'];
-	/**
-	 * Raw source content keyed by module path, matching `ModuleJson.path`.
-	 */
-	sources: Record<string, string>;
-}
-
 /**
- * Data for the extraction demo, set by its layout and read by sub-pages.
+ * Data for the extraction demo, set by its layout and read by its page.
  * Selection derives from the route's `module_path` param,
- * falling back to the first module at the bare `/demo/extraction` root.
+ * falling back to the barrel or first module at the bare `/demo/extraction` root.
  */
 export class ExtractionState {
 	// defaults are immediately overwritten in the constructor; they exist so
 	// the lazily-evaluated `$derived` initializers below satisfy use-before-init
-	readonly modules: AnalyzeResultJsonWire['modules'] = [];
-	readonly sources: Record<string, string> = {};
+	readonly modules: ExtractionData['modules'] = [];
+	readonly sources: ExtractionData['sources'] = {};
+	readonly diagnostics_by_path: ReadonlyMap<string, Array<ExtractionDiagnostic>> = new Map();
 
 	// tab selection for the narrow single-pane layout; ignored on wide screens
 	active_view: ExtractionView = $state('modules');
@@ -47,25 +50,31 @@ export class ExtractionState {
 	readonly default_path: string = $derived(
 		this.modules.find((m) => m.path === 'index.ts')?.path ?? this.modules[0]?.path ?? ''
 	);
-	readonly selected_path: string = $derived(page.params.module_path ?? this.default_path);
+	// `||` not `??`: the rest param is `''` at the bare root
+	readonly selected_path: string = $derived(page.params.module_path || this.default_path);
 	readonly selected_module = $derived(this.modules.find((m) => m.path === this.selected_path));
 	readonly selected_source: string = $derived(this.sources[this.selected_path] ?? '');
-	readonly selected_lang: string = $derived.by(() => {
-		if (isSvelte(this.selected_path)) return 'svelte';
-		if (isCss(this.selected_path)) return 'css';
-		if (isJson(this.selected_path)) return 'json';
-		return 'ts';
-	});
-	// `modules` is already the compact wire form (the gen file serializes
-	// through `compactReplacer`), so pretty-printing it directly shows exactly
-	// what consumers get.
+	readonly selected_lang: string = $derived(isSvelte(this.selected_path) ? 'svelte' : 'ts');
+	readonly selected_diagnostics: Array<ExtractionDiagnostic> = $derived(
+		this.diagnostics_by_path.get(this.selected_path) ?? []
+	);
 	readonly selected_data: string = $derived(
 		this.selected_module ? JSON.stringify(this.selected_module, null, '\t') : ''
 	);
 
-	constructor(options: ExtractionStateOptions) {
-		this.modules = options.modules;
-		this.sources = options.sources;
+	constructor(data: ExtractionData) {
+		this.modules = data.modules;
+		this.sources = data.sources;
+		const prefix = data.source_dir + '/';
+		const diagnostics_by_path: Map<string, Array<ExtractionDiagnostic>> = new Map();
+		for (const d of data.diagnostics ?? []) {
+			if (!d.file.startsWith(prefix)) continue;
+			const path = d.file.slice(prefix.length);
+			let list = diagnostics_by_path.get(path);
+			if (!list) diagnostics_by_path.set(path, (list = []));
+			list.push(d);
+		}
+		this.diagnostics_by_path = diagnostics_by_path;
 	}
 }
 

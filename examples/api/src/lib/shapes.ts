@@ -1,6 +1,7 @@
 /**
- * Geometric shapes demonstrating classes, interfaces, enums, function
- * overloads, const assertions, and richer JSDoc tags.
+ * Geometric shapes demonstrating classes, interfaces, enums, a union type
+ * alias, function overloads, const assertions, and richer JSDoc tags
+ * (`@deprecated` among them).
  * @module
  */
 
@@ -24,6 +25,9 @@ export interface HasArea {
 	readonly area: number;
 }
 
+/** What `shapeArea` measures: a shape, or a circle's radius. */
+export type ShapeInput = HasArea | number;
+
 /** Options for drawing a shape outline. */
 export interface DrawOptions {
 	/**
@@ -38,7 +42,7 @@ export interface DrawOptions {
 /**
  * An axis-aligned rectangle.
  * @since 0.6.0
- * @see `shape_area`
+ * @see `shapeArea`
  */
 export class Rectangle implements HasArea {
 	/** Shared kind tag for all rectangles. */
@@ -50,7 +54,7 @@ export class Rectangle implements HasArea {
 	height: number;
 
 	// private state is excluded from extraction
-	#draw_count = 0;
+	#drawCount = 0;
 
 	/**
 	 * @param width - initial width
@@ -88,8 +92,8 @@ export class Rectangle implements HasArea {
 	}
 
 	/** Number of times this rectangle has been drawn, for subclasses. */
-	protected count_draw(): number {
-		return ++this.#draw_count;
+	protected countDraw(): number {
+		return ++this.#drawCount;
 	}
 }
 
@@ -99,21 +103,21 @@ export class Rectangle implements HasArea {
  * @returns the shape's area
  * @example
  * ```ts
- * shape_area(new Rectangle(2, 3)) // 6
- * shape_area(1) // Math.PI
+ * shapeArea(new Rectangle(2, 3)) // 6
+ * shapeArea(1) // Math.PI
  * ```
  */
-export function shape_area(shape: HasArea): number;
+export function shapeArea(shape: HasArea): number;
 /**
  * Compute the area of a circle from its radius.
  * @param radius - circle radius in units
  * @returns the circle's area
  */
-export function shape_area(radius: number): number;
-export function shape_area(shape_or_radius: HasArea | number): number {
-	return typeof shape_or_radius === 'number'
-		? Math.PI * shape_or_radius ** 2
-		: shape_or_radius.area;
+export function shapeArea(radius: number): number;
+export function shapeArea(shapeOrRadius: ShapeInput): number {
+	return typeof shapeOrRadius === 'number'
+		? Math.PI * shapeOrRadius ** 2
+		: shapeOrRadius.area;
 }
 
 /**
@@ -124,10 +128,23 @@ export function shape_area(shape_or_radius: HasArea | number): number {
  * @param options.label - prefix for the description
  * @returns a human-readable description
  */
-export const describe_shape = (
+export function describeShape(
 	shape: HasArea,
 	options: { precision?: number; label?: string } = {}
-): string => `${options.label ?? 'shape'}: area ${shape.area.toFixed(options.precision ?? 2)}`;
+): string {
+	return `${options.label ?? 'shape'}: area ${shape.area.toFixed(options.precision ?? 2)}`;
+}
+
+/**
+ * Compute a rectangle's area from its dimensions.
+ * @param width - rectangle width
+ * @param height - rectangle height
+ * @returns the area
+ * @deprecated use `shapeArea(new Rectangle(width, height))`
+ */
+export function rectangleArea(width: number, height: number): number {
+	return width * height;
+}
 
 /** Unit square corners as a readonly tuple (const assertion). */
 export const UNIT_SQUARE = [

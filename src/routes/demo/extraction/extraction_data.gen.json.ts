@@ -8,12 +8,13 @@ import { compactReplacer } from '#lib/declaration-helpers.ts';
  * Analyzes the ../../../../examples/api corpus for the extraction demo, pairing
  * each module's analysis output with its raw source in one artifact so the two
  * can never drift apart. Imports the analyzer from `#lib` source, so `gro gen`
- * always runs the current code — the built `dist/` matters only for the Vite
- * plugin the site consumes (see `vite.config.ts`).
+ * always runs the current code.
  */
 export const gen: Gen = async ({ origin_id, log }) => {
 	const here = dirname(origin_id);
 	const project_root = join(here, '..', '..', '..', '..', 'examples', 'api');
+	// the corpus's SvelteKit-default source root, which `ModuleJson.path` is relative to
+	const source_dir = 'src/lib';
 
 	const { modules, diagnostics } = await analyzeFromFiles({ projectRoot: project_root, log });
 
@@ -26,12 +27,14 @@ export const gen: Gen = async ({ origin_id, log }) => {
 		await Promise.all(
 			modules.map(
 				async (m) =>
-					[m.path, await readFile(join(project_root, 'src/lib', m.path), 'utf-8')] as const
+					[m.path, await readFile(join(project_root, source_dir, m.path), 'utf-8')] as const
 			)
 		)
 	);
 
 	// `compactReplacer` keeps `modules` in the same compact wire form the Vite
 	// plugin publishes, so the demo shows exactly what consumers get
-	return JSON.stringify({ modules, diagnostics, sources }, compactReplacer, '\t') + '\n';
+	return (
+		JSON.stringify({ modules, diagnostics, source_dir, sources }, compactReplacer, '\t') + '\n'
+	);
 };

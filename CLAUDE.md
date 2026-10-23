@@ -531,6 +531,9 @@ instead of guessing. Lock-in tests:
 - `</script >` (whitespace before `>`): Svelte and `findScriptTags` accept it, svelte2tsx
   doesn't, so a legacy component written that way documents no props and warns
   `svelte_prop_failed` per `export let`.
+- The HTML component comment is svelte2tsx's pick: the last HTML comment containing
+  `@component` anywhere, even mid-line or in backticks. A later comment that merely mentions
+  it takes the slot, and if that's the `@module` comment the component gets no `docComment`.
 - A runes component's `<slot />` doesn't set `acceptsChildren`.
 - Legacy components: named slots, slot props, and events aren't modeled. Two export forms
   follow svelte2tsx where it departs from Svelte: `export let a; export {a as b}` keeps

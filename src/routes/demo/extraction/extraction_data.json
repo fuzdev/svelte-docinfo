@@ -6,8 +6,8 @@
 				{
 					"name": "Calculator",
 					"kind": "component",
-					"docComment": "Calculator component for demonstrating Svelte analysis. A component\ncomment documents the component itself and becomes the declaration's\n`docComment`; the separate `@module` comment below documents the file\nand becomes the module's `moduleComment`. Both use the HTML comment\nform here — see `Card.svelte` for the in-script JSDoc form of each.",
-					"sourceLine": 16,
+					"docComment": "A calculator that applies `mode` to `result` and the entered number,\noptionally rounding to the configured precision.",
+					"sourceLine": 14,
 					"props": [
 						{
 							"name": "result",
@@ -51,11 +51,24 @@
 							"optional": true,
 							"description": "Disable the calculator.",
 							"defaultValue": "false"
+						},
+						{
+							"name": "onresult",
+							"type": "(value: number) => void",
+							"optional": true,
+							"description": "Called with each new result.",
+							"parameters": [
+								{
+									"name": "value",
+									"type": "number"
+								}
+							],
+							"returnType": "void"
 						}
 					]
 				}
 			],
-			"moduleComment": "Module docs via the HTML comment form — coexists with the component\ndoc comment above. See `Card.svelte` for the in-script JSDoc form.",
+			"moduleComment": "Module docs via the HTML comment form, alongside the component comment\nabove, which documents the component itself. See `Card.svelte` for the\nin-script JSDoc form of each.",
 			"dependencies": [
 				"math.ts"
 			],
@@ -69,18 +82,21 @@
 				{
 					"name": "Card",
 					"kind": "component",
-					"docComment": "Card layout demonstrating `children` and snippet props —\n`acceptsChildren` and structured snippet parameters in the output.\nComponent docs via the in-script JSDoc form — attached to the `$props()`\ndeclaration, this block becomes the component's `docComment`, with no\n`@component` tag required (only the HTML form needs that tag). See\n`Calculator.svelte` for the HTML comment form.",
-					"sourceLine": 1,
+					"docComment": "A card with a heading or custom header above its body content. Extra\nattributes pass through to the root element.",
+					"sourceLine": 13,
+					"externalTypes": [
+						"HTMLAttributes<HTMLDivElement>"
+					],
 					"props": [
 						{
-							"name": "title",
+							"name": "heading",
 							"type": "string",
 							"optional": true,
-							"description": "Title rendered when no `header` snippet is provided."
+							"description": "Heading rendered when no `header` snippet is provided."
 						},
 						{
 							"name": "header",
-							"type": "Snippet<[title: string]>",
+							"type": "Snippet<[heading: string]>",
 							"typeInfo": {
 								"kind": "reference",
 								"name": "Snippet",
@@ -89,7 +105,7 @@
 										"kind": "tuple",
 										"elements": [
 											{
-												"name": "title",
+												"name": "heading",
 												"type": {
 													"kind": "intrinsic",
 													"text": "string"
@@ -100,10 +116,10 @@
 								]
 							},
 							"optional": true,
-							"description": "Custom header content, receives the resolved title.",
+							"description": "Custom header content, receives the resolved heading.",
 							"parameters": [
 								{
-									"name": "title",
+									"name": "heading",
 									"type": "string"
 								}
 							]
@@ -115,6 +131,18 @@
 						}
 					],
 					"acceptsChildren": true
+				},
+				{
+					"name": "cardFooter",
+					"kind": "snippet",
+					"typeSignature": "Snippet<[text: string]>",
+					"sourceLine": 40,
+					"parameters": [
+						{
+							"name": "text",
+							"type": "string"
+						}
+					]
 				}
 			],
 			"moduleComment": "Module docs via the in-script JSDoc form — the `@module` tag marks this\nblock as the `moduleComment` rather than docs for the statement below.\nSee `Calculator.svelte` for the HTML comment form.",
@@ -192,7 +220,7 @@
 			"path": "has-issues.ts",
 			"declarations": [
 				{
-					"name": "demonstrate_typo",
+					"name": "demonstrateTypo",
 					"kind": "function",
 					"docComment": "Demonstrates a documentation mistake the analyzer catches.",
 					"typeSignature": "(value: number): number",
@@ -263,9 +291,22 @@
 							"optional": true,
 							"description": "Disable the calculator.",
 							"defaultValue": "false"
+						},
+						{
+							"name": "onresult",
+							"type": "(value: number) => void",
+							"optional": true,
+							"description": "Called with each new result.",
+							"parameters": [
+								{
+									"name": "value",
+									"type": "number"
+								}
+							],
+							"returnType": "void"
 						}
 					],
-					"docComment": "Calculator component for demonstrating Svelte analysis. A component\ncomment documents the component itself and becomes the declaration's\n`docComment`; the separate `@module` comment below documents the file\nand becomes the module's `moduleComment`. Both use the HTML comment\nform here — see `Card.svelte` for the in-script JSDoc form of each."
+					"docComment": "A calculator that applies `mode` to `result` and the entered number,\noptionally rounding to the configured precision."
 				},
 				{
 					"name": "Card",
@@ -275,16 +316,19 @@
 						"module": "Card.svelte",
 						"name": "Card"
 					},
+					"externalTypes": [
+						"HTMLAttributes<HTMLDivElement>"
+					],
 					"props": [
 						{
-							"name": "title",
+							"name": "heading",
 							"type": "string",
 							"optional": true,
-							"description": "Title rendered when no `header` snippet is provided."
+							"description": "Heading rendered when no `header` snippet is provided."
 						},
 						{
 							"name": "header",
-							"type": "Snippet<[title: string]>",
+							"type": "Snippet<[heading: string]>",
 							"typeInfo": {
 								"kind": "reference",
 								"name": "Snippet",
@@ -293,7 +337,7 @@
 										"kind": "tuple",
 										"elements": [
 											{
-												"name": "title",
+												"name": "heading",
 												"type": {
 													"kind": "intrinsic",
 													"text": "string"
@@ -304,10 +348,10 @@
 								]
 							},
 							"optional": true,
-							"description": "Custom header content, receives the resolved title.",
+							"description": "Custom header content, receives the resolved heading.",
 							"parameters": [
 								{
-									"name": "title",
+									"name": "heading",
 									"type": "string"
 								}
 							]
@@ -319,20 +363,88 @@
 						}
 					],
 					"acceptsChildren": true,
-					"docComment": "Card layout demonstrating `children` and snippet props —\n`acceptsChildren` and structured snippet parameters in the output.\nComponent docs via the in-script JSDoc form — attached to the `$props()`\ndeclaration, this block becomes the component's `docComment`, with no\n`@component` tag required (only the HTML form needs that tag). See\n`Calculator.svelte` for the HTML comment form."
+					"docComment": "A card with a heading or custom header above its body content. Extra\nattributes pass through to the root element."
 				},
 				{
-					"name": "vector_add",
+					"name": "List",
+					"kind": "component",
+					"sourceLine": 12,
+					"genericParams": [
+						{
+							"name": "T"
+						}
+					],
+					"aliasOf": {
+						"module": "List.svelte",
+						"name": "List"
+					},
+					"props": [
+						{
+							"name": "items",
+							"type": "readonly T[]",
+							"description": "Items to render, in order."
+						},
+						{
+							"name": "item",
+							"type": "Snippet<[item: T, index: number]>",
+							"typeInfo": {
+								"kind": "reference",
+								"name": "Snippet",
+								"typeArgs": [
+									{
+										"kind": "tuple",
+										"elements": [
+											{
+												"name": "item",
+												"type": {
+													"kind": "other",
+													"text": "T"
+												}
+											},
+											{
+												"name": "index",
+												"type": {
+													"kind": "intrinsic",
+													"text": "number"
+												}
+											}
+										]
+									}
+								]
+							},
+							"description": "Renders one item, receiving it and its index.",
+							"parameters": [
+								{
+									"name": "item",
+									"type": "T"
+								},
+								{
+									"name": "index",
+									"type": "number"
+								}
+							]
+						},
+						{
+							"name": "empty",
+							"type": "Snippet<[]>",
+							"optional": true,
+							"description": "Rendered in place of the list when `items` is empty."
+						}
+					],
+					"docComment": "Renders `items` as a list, each through the `item` snippet, with an\noptional fallback when the list is empty."
+				},
+				{
+					"name": "vectorAdd",
 					"kind": "function",
-					"docComment": "Add vectors in place.",
+					"docComment": "Add one vector into another.",
 					"typeSignature": "(target: Vector2, source: Vector2): void",
-					"sourceLine": 14,
+					"sourceLine": 15,
 					"mutates": {
-						"target": "modifies x and y fields"
+						"target": "adds into its `x` and `y` fields rather than returning a new vector"
 					},
 					"aliasOf": {
 						"module": "math.ts",
-						"name": "add_vector"
+						"name": "addVector"
 					},
 					"parameters": [
 						{
@@ -351,7 +463,7 @@
 				{
 					"name": "shapes",
 					"kind": "namespace",
-					"sourceLine": 17,
+					"sourceLine": 18,
 					"module": "shapes.ts"
 				}
 			],
@@ -360,6 +472,7 @@
 				"Calculator.svelte",
 				"Card.svelte",
 				"counter.svelte.ts",
+				"List.svelte",
 				"math.ts",
 				"shapes.ts"
 			],
@@ -384,6 +497,11 @@
 					"name": "multiply",
 					"module": "math.ts",
 					"sourceLine": 8
+				},
+				{
+					"name": "sumBy",
+					"module": "math.ts",
+					"sourceLine": 8
 				}
 			],
 			"externalReExports": [
@@ -391,8 +509,80 @@
 					"name": "Snippet",
 					"specifier": "svelte",
 					"typeOnly": true,
-					"sourceLine": 20
+					"sourceLine": 21
 				}
+			]
+		},
+		{
+			"path": "List.svelte",
+			"declarations": [
+				{
+					"name": "List",
+					"kind": "component",
+					"docComment": "Renders `items` as a list, each through the `item` snippet, with an\noptional fallback when the list is empty.",
+					"sourceLine": 7,
+					"genericParams": [
+						{
+							"name": "T"
+						}
+					],
+					"props": [
+						{
+							"name": "items",
+							"type": "readonly T[]",
+							"description": "Items to render, in order."
+						},
+						{
+							"name": "item",
+							"type": "Snippet<[item: T, index: number]>",
+							"typeInfo": {
+								"kind": "reference",
+								"name": "Snippet",
+								"typeArgs": [
+									{
+										"kind": "tuple",
+										"elements": [
+											{
+												"name": "item",
+												"type": {
+													"kind": "other",
+													"text": "T"
+												}
+											},
+											{
+												"name": "index",
+												"type": {
+													"kind": "intrinsic",
+													"text": "number"
+												}
+											}
+										]
+									}
+								]
+							},
+							"description": "Renders one item, receiving it and its index.",
+							"parameters": [
+								{
+									"name": "item",
+									"type": "T"
+								},
+								{
+									"name": "index",
+									"type": "number"
+								}
+							]
+						},
+						{
+							"name": "empty",
+							"type": "Snippet<[]>",
+							"optional": true,
+							"description": "Rendered in place of the list when `items` is empty."
+						}
+					]
+				}
+			],
+			"dependents": [
+				"index.ts"
 			]
 		},
 		{
@@ -426,11 +616,88 @@
 					"returnDescription": "the sum"
 				},
 				{
+					"name": "sumBy",
+					"kind": "function",
+					"docComment": "Sum a list by a numeric projection of each item.",
+					"typeSignature": "<T>(items: readonly T[], toNumber: (item: T) => number): number",
+					"sourceLine": 40,
+					"genericParams": [
+						{
+							"name": "T"
+						}
+					],
+					"examples": [
+						"```ts\nsumBy([{ n: 1 }, { n: 2 }], (item) => item.n) // 3\n```"
+					],
+					"alsoExportedFrom": [
+						"index.ts"
+					],
+					"parameters": [
+						{
+							"name": "items",
+							"type": "readonly T[]",
+							"description": "values to sum"
+						},
+						{
+							"name": "toNumber",
+							"type": "(item: T) => number",
+							"description": "projects each item to the number added"
+						}
+					],
+					"returnType": "number",
+					"returnDescription": "the total, `0` for an empty list"
+				},
+				{
+					"name": "roundTo",
+					"kind": "function",
+					"docComment": "Round a number to a fixed count of decimal places.",
+					"typeSignature": "(value: number, precision: number): number",
+					"sourceLine": 53,
+					"internalMessage": "shared with `Calculator.svelte`, not a stable API",
+					"parameters": [
+						{
+							"name": "value",
+							"type": "number",
+							"description": "number to round"
+						},
+						{
+							"name": "precision",
+							"type": "number",
+							"description": "decimal places to keep"
+						}
+					],
+					"returnType": "number",
+					"returnDescription": "the rounded number"
+				},
+				{
+					"name": "addVector",
+					"kind": "function",
+					"docComment": "Add one vector into another.",
+					"typeSignature": "(target: Vector2, source: Vector2): void",
+					"sourceLine": 78,
+					"mutates": {
+						"target": "adds into its `x` and `y` fields rather than returning a new vector"
+					},
+					"parameters": [
+						{
+							"name": "target",
+							"type": "Vector2",
+							"description": "vector to mutate"
+						},
+						{
+							"name": "source",
+							"type": "Vector2",
+							"description": "vector to add"
+						}
+					],
+					"returnType": "void"
+				},
+				{
 					"name": "multiply",
 					"kind": "function",
 					"docComment": "Multiply two numbers.",
 					"typeSignature": "(a: number, b: number): number",
-					"sourceLine": 24,
+					"sourceLine": 28,
 					"alsoExportedFrom": [
 						"index.ts"
 					],
@@ -454,7 +721,7 @@
 					"kind": "interface",
 					"docComment": "Configuration for math operations.",
 					"typeSignature": "MathConfig",
-					"sourceLine": 27,
+					"sourceLine": 59,
 					"alsoExportedFrom": [
 						"index.ts"
 					],
@@ -462,13 +729,13 @@
 						{
 							"name": "precision",
 							"kind": "variable",
-							"docComment": "Decimal precision.",
+							"docComment": "Decimal places kept when `round` is set.",
 							"typeSignature": "number"
 						},
 						{
 							"name": "round",
 							"kind": "variable",
-							"docComment": "Round results?",
+							"docComment": "Round results to `precision`?",
 							"typeSignature": "boolean"
 						}
 					]
@@ -478,7 +745,7 @@
 					"kind": "interface",
 					"docComment": "A 2D vector.",
 					"typeSignature": "Vector2",
-					"sourceLine": 35,
+					"sourceLine": 67,
 					"members": [
 						{
 							"name": "x",
@@ -491,29 +758,6 @@
 							"typeSignature": "number"
 						}
 					]
-				},
-				{
-					"name": "add_vector",
-					"kind": "function",
-					"docComment": "Add vectors in place.",
-					"typeSignature": "(target: Vector2, source: Vector2): void",
-					"sourceLine": 46,
-					"mutates": {
-						"target": "modifies x and y fields"
-					},
-					"parameters": [
-						{
-							"name": "target",
-							"type": "Vector2",
-							"description": "vector to mutate"
-						},
-						{
-							"name": "source",
-							"type": "Vector2",
-							"description": "vector to add"
-						}
-					],
-					"returnType": "void"
 				}
 			],
 			"moduleComment": "Math utilities for demonstrating svelte-docinfo analysis.",
@@ -596,13 +840,13 @@
 			"path": "shapes.ts",
 			"declarations": [
 				{
-					"name": "shape_area",
+					"name": "shapeArea",
 					"kind": "function",
 					"docComment": "Compute the area of a shape.",
 					"typeSignature": "(shape: HasArea): number",
-					"sourceLine": 106,
+					"sourceLine": 110,
 					"examples": [
-						"```ts\nshape_area(new Rectangle(2, 3)) // 6\nshape_area(1) // Math.PI\n```"
+						"```ts\nshapeArea(new Rectangle(2, 3)) // 6\nshapeArea(1) // Math.PI\n```"
 					],
 					"parameters": [
 						{
@@ -643,11 +887,59 @@
 					"returnDescription": "the shape's area"
 				},
 				{
+					"name": "describeShape",
+					"kind": "function",
+					"docComment": "Describe a shape for display.",
+					"typeSignature": "(shape: HasArea, options?: { precision?: number | undefined; label?: string | undefined; }): string",
+					"sourceLine": 131,
+					"parameters": [
+						{
+							"name": "shape",
+							"type": "HasArea",
+							"description": "the shape to describe"
+						},
+						{
+							"name": "options",
+							"type": "{ precision?: number | undefined; label?: string | undefined; }",
+							"description": "formatting options",
+							"defaultValue": "{}",
+							"propertyDescriptions": {
+								"precision": "decimal places for the area",
+								"label": "prefix for the description"
+							}
+						}
+					],
+					"returnType": "string",
+					"returnDescription": "a human-readable description"
+				},
+				{
+					"name": "rectangleArea",
+					"kind": "function",
+					"docComment": "Compute a rectangle's area from its dimensions.",
+					"typeSignature": "(width: number, height: number): number",
+					"sourceLine": 145,
+					"deprecatedMessage": "use `shapeArea(new Rectangle(width, height))`",
+					"parameters": [
+						{
+							"name": "width",
+							"type": "number",
+							"description": "rectangle width"
+						},
+						{
+							"name": "height",
+							"type": "number",
+							"description": "rectangle height"
+						}
+					],
+					"returnType": "number",
+					"returnDescription": "the area"
+				},
+				{
 					"name": "ShapeKind",
 					"kind": "enum",
 					"docComment": "Supported shape categories.",
 					"typeSignature": "ShapeKind",
-					"sourceLine": 8,
+					"sourceLine": 9,
 					"members": [
 						{
 							"name": "Circle",
@@ -666,7 +958,7 @@
 					"kind": "enum",
 					"docComment": "Cardinal directions as a const enum (inlined at use sites).",
 					"typeSignature": "Direction",
-					"sourceLine": 14,
+					"sourceLine": 15,
 					"members": [
 						{
 							"name": "North",
@@ -695,7 +987,7 @@
 					"kind": "interface",
 					"docComment": "Anything with a computable area.",
 					"typeSignature": "HasArea",
-					"sourceLine": 22,
+					"sourceLine": 23,
 					"members": [
 						{
 							"name": "area",
@@ -709,11 +1001,32 @@
 					]
 				},
 				{
+					"name": "ShapeInput",
+					"kind": "type",
+					"docComment": "What `shapeArea` measures: a shape, or a circle's radius.",
+					"typeSignature": "ShapeInput",
+					"sourceLine": 29,
+					"typeInfo": {
+						"kind": "union",
+						"alias": "ShapeInput",
+						"members": [
+							{
+								"kind": "reference",
+								"name": "HasArea"
+							},
+							{
+								"kind": "intrinsic",
+								"text": "number"
+							}
+						]
+					}
+				},
+				{
 					"name": "DrawOptions",
 					"kind": "interface",
 					"docComment": "Options for drawing a shape outline.",
 					"typeSignature": "DrawOptions",
-					"sourceLine": 28,
+					"sourceLine": 32,
 					"members": [
 						{
 							"name": "stroke",
@@ -736,9 +1049,9 @@
 					"name": "Rectangle",
 					"kind": "class",
 					"docComment": "An axis-aligned rectangle.",
-					"sourceLine": 43,
+					"sourceLine": 47,
 					"seeAlso": [
-						"`shape_area`"
+						"`shapeArea`"
 					],
 					"since": "0.6.0",
 					"implements": [
@@ -807,7 +1120,7 @@
 							"returnType": "void"
 						},
 						{
-							"name": "count_draw",
+							"name": "countDraw",
 							"kind": "function",
 							"docComment": "Number of times this rectangle has been drawn, for subclasses.",
 							"typeSignature": "(): number",
@@ -838,40 +1151,14 @@
 					]
 				},
 				{
-					"name": "describe_shape",
-					"kind": "function",
-					"docComment": "Describe a shape for display.",
-					"typeSignature": "(shape: HasArea, options?: { precision?: number | undefined; label?: string | undefined; }): string",
-					"sourceLine": 127,
-					"parameters": [
-						{
-							"name": "shape",
-							"type": "HasArea",
-							"description": "the shape to describe"
-						},
-						{
-							"name": "options",
-							"type": "{ precision?: number | undefined; label?: string | undefined; }",
-							"description": "formatting options",
-							"defaultValue": "{}",
-							"propertyDescriptions": {
-								"precision": "decimal places for the area",
-								"label": "prefix for the description"
-							}
-						}
-					],
-					"returnType": "string",
-					"returnDescription": "a human-readable description"
-				},
-				{
 					"name": "UNIT_SQUARE",
 					"kind": "variable",
 					"docComment": "Unit square corners as a readonly tuple (const assertion).",
 					"typeSignature": "readonly [{ readonly x: 0; readonly y: 0; }, { readonly x: 1; readonly y: 0; }, { readonly x: 1; readonly y: 1; }, { readonly x: 0; readonly y: 1; }]",
-					"sourceLine": 133
+					"sourceLine": 150
 				}
 			],
-			"moduleComment": "Geometric shapes demonstrating classes, interfaces, enums, function\noverloads, const assertions, and richer JSDoc tags.",
+			"moduleComment": "Geometric shapes demonstrating classes, interfaces, enums, a union type\nalias, function overloads, const assertions, and richer JSDoc tags\n(`@deprecated` among them).",
 			"dependents": [
 				"index.ts"
 			]
@@ -882,21 +1169,23 @@
 			"kind": "unknown_param",
 			"file": "src/lib/has-issues.ts",
 			"line": 15,
-			"column": 14,
-			"message": "@param \"missing\" on \"demonstrate_typo\" doesn't match any parameter (typo or stale doc?)",
+			"column": 1,
+			"message": "@param \"missing\" on \"demonstrateTypo\" doesn't match any parameter (typo or stale doc?)",
 			"severity": "warning",
 			"paramName": "missing",
-			"functionName": "demonstrate_typo"
+			"functionName": "demonstrateTypo"
 		}
 	],
+	"source_dir": "src/lib",
 	"sources": {
-		"Calculator.svelte": "<!--\n\t@component\n\tCalculator component for demonstrating Svelte analysis. A component\n\tcomment documents the component itself and becomes the declaration's\n\t`docComment`; the separate `@module` comment below documents the file\n\tand becomes the module's `moduleComment`. Both use the HTML comment\n\tform here — see `Card.svelte` for the in-script JSDoc form of each.\n-->\n\n<!--\n\t@module\n\tModule docs via the HTML comment form — coexists with the component\n\tdoc comment above. See `Card.svelte` for the in-script JSDoc form.\n-->\n\n<script lang=\"ts\">\n\timport { add, multiply, type MathConfig } from './math.js';\n\n\tlet {\n\t\tresult = $bindable(0),\n\t\tconfig,\n\t\tmode = 'add',\n\t\tdisabled = false\n\t}: {\n\t\t/** Current result (bindable). */\n\t\tresult?: number;\n\t\t/** Math configuration. */\n\t\tconfig?: MathConfig;\n\t\t/** Operation mode. */\n\t\tmode?: 'add' | 'multiply';\n\t\t/** Disable the calculator. */\n\t\tdisabled?: boolean;\n\t} = $props();\n\n\tlet input_value = $state(0);\n\n\tconst calculate = () => {\n\t\tif (disabled) return;\n\t\tconst op = mode === 'add' ? add : multiply;\n\t\tlet value = op(result, input_value);\n\t\tif (config?.round) {\n\t\t\tconst factor = 10 ** config.precision;\n\t\t\tvalue = Math.round(value * factor) / factor;\n\t\t}\n\t\tresult = value;\n\t};\n</script>\n\n<div class=\"calculator\">\n\t<output>{result}</output>\n\t<input type=\"number\" bind:value={input_value} {disabled} />\n\t<button onclick={calculate} {disabled}>\n\t\t{mode === 'add' ? 'Add' : 'Multiply'}\n\t</button>\n</div>\n\n<style>\n\t.calculator {\n\t\tdisplay: flex;\n\t\tflex-direction: column;\n\t\tgap: 0.5rem;\n\t\tpadding: 1rem;\n\t\tborder: 1px solid #ccc;\n\t\tborder-radius: 4px;\n\t}\n\toutput {\n\t\tfont-size: 2rem;\n\t\tfont-weight: bold;\n\t}\n</style>\n",
-		"Card.svelte": "<script lang=\"ts\">\n\t/**\n\t * Module docs via the in-script JSDoc form — the `@module` tag marks this\n\t * block as the `moduleComment` rather than docs for the statement below.\n\t * See `Calculator.svelte` for the HTML comment form.\n\t * @module\n\t */\n\n\timport type { Snippet } from 'svelte';\n\n\t/**\n\t * Card layout demonstrating `children` and snippet props —\n\t * `acceptsChildren` and structured snippet parameters in the output.\n\t * Component docs via the in-script JSDoc form — attached to the `$props()`\n\t * declaration, this block becomes the component's `docComment`, with no\n\t * `@component` tag required (only the HTML form needs that tag). See\n\t * `Calculator.svelte` for the HTML comment form.\n\t */\n\tlet {\n\t\ttitle,\n\t\theader,\n\t\tchildren\n\t}: {\n\t\t/** Title rendered when no `header` snippet is provided. */\n\t\ttitle?: string;\n\t\t/** Custom header content, receives the resolved title. */\n\t\theader?: Snippet<[title: string]>;\n\t\t/** Card body content. */\n\t\tchildren: Snippet;\n\t} = $props();\n</script>\n\n<div class=\"card\">\n\t<div class=\"card-header\">\n\t\t{#if header}\n\t\t\t{@render header(title ?? 'untitled')}\n\t\t{:else}\n\t\t\t<h3>{title ?? 'untitled'}</h3>\n\t\t{/if}\n\t</div>\n\t<div class=\"card-body\">\n\t\t{@render children()}\n\t</div>\n</div>\n\n<style>\n\t.card {\n\t\tborder: 1px solid #ccc;\n\t\tborder-radius: 4px;\n\t}\n\t.card-header {\n\t\tpadding: 0.5rem 1rem;\n\t\tborder-bottom: 1px solid #ccc;\n\t}\n\t.card-header h3 {\n\t\tmargin: 0;\n\t}\n\t.card-body {\n\t\tpadding: 1rem;\n\t}\n</style>\n",
+		"Calculator.svelte": "<!--\n\t@component\n\tA calculator that applies `mode` to `result` and the entered number,\n\toptionally rounding to the configured precision.\n-->\n\n<!--\n\t@module\n\tModule docs via the HTML comment form, alongside the component comment\n\tabove, which documents the component itself. See `Card.svelte` for the\n\tin-script JSDoc form of each.\n-->\n\n<script lang=\"ts\">\n\timport { add, multiply, roundTo, type MathConfig } from './math.js';\n\n\tlet {\n\t\tresult = $bindable(0),\n\t\tconfig,\n\t\tmode = 'add',\n\t\tdisabled = false,\n\t\tonresult\n\t}: {\n\t\t/** Current result (bindable). */\n\t\tresult?: number;\n\t\t/** Math configuration. */\n\t\tconfig?: MathConfig;\n\t\t/** Operation mode. */\n\t\tmode?: 'add' | 'multiply';\n\t\t/** Disable the calculator. */\n\t\tdisabled?: boolean;\n\t\t/** Called with each new result. */\n\t\tonresult?: (value: number) => void;\n\t} = $props();\n\n\tlet inputValue = $state(0);\n\n\tconst calculate = () => {\n\t\tif (disabled) return;\n\t\tconst op = mode === 'add' ? add : multiply;\n\t\tconst value = op(result, inputValue);\n\t\tresult = config?.round ? roundTo(value, config.precision) : value;\n\t\tonresult?.(result);\n\t};\n</script>\n\n<div class=\"calculator\">\n\t<output>{result}</output>\n\t<input type=\"number\" bind:value={inputValue} {disabled} />\n\t<button onclick={calculate} {disabled}>\n\t\t{mode === 'add' ? 'Add' : 'Multiply'}\n\t</button>\n</div>\n\n<style>\n\t.calculator {\n\t\tdisplay: flex;\n\t\tflex-direction: column;\n\t\tgap: 0.5rem;\n\t\tpadding: 1rem;\n\t\tborder: 1px solid #ccc;\n\t\tborder-radius: 4px;\n\t}\n\toutput {\n\t\tfont-size: 2rem;\n\t\tfont-weight: bold;\n\t}\n</style>\n",
+		"Card.svelte": "<script lang=\"ts\" module>\n\t/**\n\t * Module docs via the in-script JSDoc form — the `@module` tag marks this\n\t * block as the `moduleComment` rather than docs for the statement below.\n\t * See `Calculator.svelte` for the HTML comment form.\n\t * @module\n\t */\n\n\t// a template snippet exported from the module script documents as `kind: 'snippet'`\n\texport { cardFooter };\n</script>\n\n<script lang=\"ts\">\n\timport type { Snippet } from 'svelte';\n\timport type { HTMLAttributes } from 'svelte/elements';\n\n\t// component docs via the in-script JSDoc form: attached to `$props()`, it needs\n\t// no `@component` tag (see `Calculator.svelte` for the HTML comment form);\n\t// the inherited `HTMLAttributes` props are filtered out and listed in `externalTypes`\n\n\t/**\n\t * A card with a heading or custom header above its body content. Extra\n\t * attributes pass through to the root element.\n\t */\n\tconst {\n\t\theading,\n\t\theader,\n\t\tchildren,\n\t\t...rest\n\t}: HTMLAttributes<HTMLDivElement> & {\n\t\t/** Heading rendered when no `header` snippet is provided. */\n\t\theading?: string;\n\t\t/** Custom header content, receives the resolved heading. */\n\t\theader?: Snippet<[heading: string]>;\n\t\t/** Card body content. */\n\t\tchildren: Snippet;\n\t} = $props();\n</script>\n\n{#snippet cardFooter(text: string)}\n\t<small class=\"card-footer\">{text}</small>\n{/snippet}\n\n<div {...rest} class={['card', rest.class]}>\n\t<div class=\"card-header\">\n\t\t{#if header}\n\t\t\t{@render header(heading ?? 'untitled')}\n\t\t{:else}\n\t\t\t<h3>{heading ?? 'untitled'}</h3>\n\t\t{/if}\n\t</div>\n\t<div class=\"card-body\">\n\t\t{@render children()}\n\t</div>\n</div>\n\n<style>\n\t.card {\n\t\tborder: 1px solid #ccc;\n\t\tborder-radius: 4px;\n\t}\n\t.card-header {\n\t\tpadding: 0.5rem 1rem;\n\t\tborder-bottom: 1px solid #ccc;\n\t}\n\t.card-header h3 {\n\t\tmargin: 0;\n\t}\n\t.card-body {\n\t\tpadding: 1rem;\n\t}\n\t.card-footer {\n\t\tdisplay: block;\n\t\tpadding: 0.5rem 1rem;\n\t\tborder-top: 1px solid #ccc;\n\t}\n</style>\n",
 		"counter.svelte.ts": "/**\n * A reactive counter demonstrating Svelte 5 rune detection in plain\n * `.svelte.ts` modules — `$state`, `$state.raw`, `$derived`, and\n * `$derived.by` initializers surface on the `reactivity` field.\n * @module\n */\n\n/** A reactive counter built on Svelte 5 runes. */\nexport class Counter {\n\t/** Current count. */\n\tcount: number = $state(0);\n\t/** Past counts; replaced wholesale on change, so raw state. */\n\thistory: ReadonlyArray<number> = $state.raw([]);\n\t/** Double the current count. */\n\tdoubled: number = $derived(this.count * 2);\n\t/** Display label computed from several fields. */\n\tlabel: string = $derived.by(() => `count: ${this.count} (doubled: ${this.doubled})`);\n\n\t/**\n\t * Increment the count, recording the previous value.\n\t * @param amount - how much to add\n\t * @mutates `this`\n\t */\n\tincrement(amount: number = 1): void {\n\t\tthis.history = [...this.history, this.count];\n\t\tthis.count += amount;\n\t}\n}\n",
-		"has-issues.ts": "/**\n * This file exists to exercise the `analyze-diagnostics.js` example —\n * the `@param` below intentionally names a parameter that doesn't exist,\n * so the analyzer emits an `unknown_param` warning. Real code shouldn't\n * have this issue, but documentation slips happen, and the `diagnostics`\n * field lets consumers surface them without halting analysis.\n * @module\n */\n\n/**\n * Demonstrates a documentation mistake the analyzer catches.\n * @param missing - this name doesn't match any real parameter\n * @returns the input doubled\n */\nexport const demonstrate_typo = (value: number): number => value * 2;\n",
-		"index.ts": "/**\n * Public entry point demonstrating the re-export forms svelte-docinfo tracks.\n * @module\n */\n\n// same-name re-exports — recorded as `reExports` here\n// and `alsoExportedFrom` on the canonical declarations\nexport { add, multiply, type MathConfig } from './math.js';\nexport { Counter } from './counter.svelte.js';\nexport { default as Calculator } from './Calculator.svelte';\nexport { default as Card } from './Card.svelte';\n\n// renamed re-export — synthesizes an alias declaration with `aliasOf`\nexport { add_vector as vector_add } from './math.js';\n\n// namespace re-export — synthesizes a `namespace` declaration projecting shapes.ts\nexport * as shapes from './shapes.js';\n\n// direct external re-export — recorded on `externalReExports`, no declaration synthesized\nexport type { Snippet } from 'svelte';\n",
-		"math.ts": "/**\n * Math utilities for demonstrating svelte-docinfo analysis.\n * @module\n */\n\n/**\n * Add two numbers.\n * @param a - first number\n * @param b - second number\n * @returns the sum\n * @example\n * ```ts\n * add(2, 3) // 5\n * ```\n */\nexport const add = (a: number, b: number): number => a + b;\n\n/**\n * Multiply two numbers.\n * @param a - first number\n * @param b - second number\n * @returns the product\n */\nexport const multiply = (a: number, b: number): number => a * b;\n\n/** Configuration for math operations. */\nexport interface MathConfig {\n\t/** Decimal precision. */\n\tprecision: number;\n\t/** Round results? */\n\tround: boolean;\n}\n\n/** A 2D vector. */\nexport interface Vector2 {\n\tx: number;\n\ty: number;\n}\n\n/**\n * Add vectors in place.\n * @param target - vector to mutate\n * @param source - vector to add\n * @mutates target - modifies x and y fields\n */\nexport const add_vector = (target: Vector2, source: Vector2): void => {\n\ttarget.x += source.x;\n\ttarget.y += source.y;\n};\n",
-		"schema.ts": "/**\n * The merged value+type pattern: a runtime schema and its inferred type\n * sharing one exported name (`z.strictObject` + `z.infer` in real code).\n * The declaration documents the type meaning with full structure, and\n * `mergedValue: true` marks the name as also importable as a runtime value.\n * @module\n */\n\n/** Minimal stand-in for a schema library's parser type. */\nexport interface Parser<O> {\n\t/** Parse unknown input, returning the output type. */\n\tparse(input: unknown): O;\n}\n\n/** Extract a parser's output type — the `z.infer` analogue. */\nexport type Infer<P extends Parser<unknown>> = P extends Parser<infer O> ? O : never;\n\nconst create_parser = <O>(): Parser<O> => ({\n\tparse: (input) => input as O\n});\n\n/**\n * A 2D point schema — parse values with `Point.parse(input)`, type them as\n * `Point`. Documented on the const; the merged declaration falls back to it.\n */\nexport const Point: Parser<{ x: number; y: number }> = create_parser();\nexport type Point = Infer<typeof Point>;\n",
-		"shapes.ts": "/**\n * Geometric shapes demonstrating classes, interfaces, enums, function\n * overloads, const assertions, and richer JSDoc tags.\n * @module\n */\n\n/** Supported shape categories. */\nexport enum ShapeKind {\n\tCircle = 'circle',\n\tRectangle = 'rectangle'\n}\n\n/** Cardinal directions as a const enum (inlined at use sites). */\nexport const enum Direction {\n\tNorth,\n\tEast,\n\tSouth,\n\tWest\n}\n\n/** Anything with a computable area. */\nexport interface HasArea {\n\t/** Area in square units. */\n\treadonly area: number;\n}\n\n/** Options for drawing a shape outline. */\nexport interface DrawOptions {\n\t/**\n\t * Stroke color as a CSS color string.\n\t * @default 'black'\n\t */\n\tstroke?: string;\n\t/** Line width in pixels. */\n\twidth?: number;\n}\n\n/**\n * An axis-aligned rectangle.\n * @since 0.6.0\n * @see `shape_area`\n */\nexport class Rectangle implements HasArea {\n\t/** Shared kind tag for all rectangles. */\n\tstatic readonly kind = ShapeKind.Rectangle;\n\n\t/** Width in units. */\n\twidth: number;\n\t/** Height in units. */\n\theight: number;\n\n\t// private state is excluded from extraction\n\t#draw_count = 0;\n\n\t/**\n\t * @param width - initial width\n\t * @param height - initial height\n\t * @throws `RangeError` when either dimension is negative\n\t */\n\tconstructor(width: number, height: number) {\n\t\tif (width < 0 || height < 0) throw new RangeError('dimensions must be non-negative');\n\t\tthis.width = width;\n\t\tthis.height = height;\n\t}\n\n\t/** Area in square units. */\n\tget area(): number {\n\t\treturn this.width * this.height;\n\t}\n\n\t/** Longest side; setting it makes the rectangle a square. */\n\tget size(): number {\n\t\treturn Math.max(this.width, this.height);\n\t}\n\tset size(value: number) {\n\t\tthis.width = value;\n\t\tthis.height = value;\n\t}\n\n\t/**\n\t * Scale both dimensions in place.\n\t * @param factor - multiplier applied to width and height\n\t * @mutates `this`\n\t */\n\tscale(factor: number): void {\n\t\tthis.width *= factor;\n\t\tthis.height *= factor;\n\t}\n\n\t/** Number of times this rectangle has been drawn, for subclasses. */\n\tprotected count_draw(): number {\n\t\treturn ++this.#draw_count;\n\t}\n}\n\n/**\n * Compute the area of a shape.\n * @param shape - the shape to measure\n * @returns the shape's area\n * @example\n * ```ts\n * shape_area(new Rectangle(2, 3)) // 6\n * shape_area(1) // Math.PI\n * ```\n */\nexport function shape_area(shape: HasArea): number;\n/**\n * Compute the area of a circle from its radius.\n * @param radius - circle radius in units\n * @returns the circle's area\n */\nexport function shape_area(radius: number): number;\nexport function shape_area(shape_or_radius: HasArea | number): number {\n\treturn typeof shape_or_radius === 'number'\n\t\t? Math.PI * shape_or_radius ** 2\n\t\t: shape_or_radius.area;\n}\n\n/**\n * Describe a shape for display.\n * @param shape - the shape to describe\n * @param options - formatting options\n * @param options.precision - decimal places for the area\n * @param options.label - prefix for the description\n * @returns a human-readable description\n */\nexport const describe_shape = (\n\tshape: HasArea,\n\toptions: { precision?: number; label?: string } = {}\n): string => `${options.label ?? 'shape'}: area ${shape.area.toFixed(options.precision ?? 2)}`;\n\n/** Unit square corners as a readonly tuple (const assertion). */\nexport const UNIT_SQUARE = [\n\t{ x: 0, y: 0 },\n\t{ x: 1, y: 0 },\n\t{ x: 1, y: 1 },\n\t{ x: 0, y: 1 }\n] as const;\n"
+		"has-issues.ts": "/**\n * This file exists to exercise the `analyze-diagnostics.js` example —\n * the `@param` below intentionally names a parameter that doesn't exist,\n * so the analyzer emits an `unknown_param` warning. Real code shouldn't\n * have this issue, but documentation slips happen, and the `diagnostics`\n * field lets consumers surface them without halting analysis.\n * @module\n */\n\n/**\n * Demonstrates a documentation mistake the analyzer catches.\n * @param missing - this name doesn't match any real parameter\n * @returns the input doubled\n */\nexport function demonstrateTypo(value: number): number {\n\treturn value * 2;\n}\n",
+		"index.ts": "/**\n * Public entry point demonstrating the re-export forms svelte-docinfo tracks.\n * @module\n */\n\n// same-name re-exports — recorded as `reExports` here\n// and `alsoExportedFrom` on the canonical declarations\nexport { add, multiply, sumBy, type MathConfig } from './math.js';\nexport { Counter } from './counter.svelte.js';\nexport { default as Calculator } from './Calculator.svelte';\nexport { default as Card } from './Card.svelte';\nexport { default as List } from './List.svelte';\n\n// renamed re-export — synthesizes an alias declaration with `aliasOf`\nexport { addVector as vectorAdd } from './math.js';\n\n// namespace re-export — synthesizes a `namespace` declaration projecting shapes.ts\nexport * as shapes from './shapes.js';\n\n// direct external re-export — recorded on `externalReExports`, no declaration synthesized\nexport type { Snippet } from 'svelte';\n",
+		"List.svelte": "<!--\n\t@component\n\tRenders `items` as a list, each through the `item` snippet, with an\n\toptional fallback when the list is empty.\n-->\n\n<script lang=\"ts\" generics=\"T\">\n\t// the `generics` attribute surfaces as the component's `genericParams`\n\n\timport type { Snippet } from 'svelte';\n\n\tconst {\n\t\titems,\n\t\titem,\n\t\tempty\n\t}: {\n\t\t/** Items to render, in order. */\n\t\titems: ReadonlyArray<T>;\n\t\t/** Renders one item, receiving it and its index. */\n\t\titem: Snippet<[item: T, index: number]>;\n\t\t/** Rendered in place of the list when `items` is empty. */\n\t\tempty?: Snippet;\n\t} = $props();\n</script>\n\n{#if items.length}\n\t<ul>\n\t\t{#each items as value, index}\n\t\t\t<li>{@render item(value, index)}</li>\n\t\t{/each}\n\t</ul>\n{:else}\n\t{@render empty?.()}\n{/if}\n",
+		"math.ts": "/**\n * Math utilities for demonstrating svelte-docinfo analysis.\n * @module\n */\n\n/**\n * Add two numbers.\n * @param a - first number\n * @param b - second number\n * @returns the sum\n * @example\n * ```ts\n * add(2, 3) // 5\n * ```\n */\nexport function add(a: number, b: number): number {\n\treturn a + b;\n}\n\n// a `const` arrow extracts like a `function` declaration, as `kind: 'function'`\n\n/**\n * Multiply two numbers.\n * @param a - first number\n * @param b - second number\n * @returns the product\n */\nexport const multiply = (a: number, b: number): number => a * b;\n\n/**\n * Sum a list by a numeric projection of each item.\n * @param items - values to sum\n * @param toNumber - projects each item to the number added\n * @returns the total, `0` for an empty list\n * @example\n * ```ts\n * sumBy([{ n: 1 }, { n: 2 }], (item) => item.n) // 3\n * ```\n */\nexport function sumBy<T>(items: ReadonlyArray<T>, toNumber: (item: T) => number): number {\n\tlet total = 0;\n\tfor (const item of items) total += toNumber(item);\n\treturn total;\n}\n\n/**\n * Round a number to a fixed count of decimal places.\n * @param value - number to round\n * @param precision - decimal places to keep\n * @returns the rounded number\n * @internal shared with `Calculator.svelte`, not a stable API\n */\nexport function roundTo(value: number, precision: number): number {\n\tconst factor = 10 ** precision;\n\treturn Math.round(value * factor) / factor;\n}\n\n/** Configuration for math operations. */\nexport interface MathConfig {\n\t/** Decimal places kept when `round` is set. */\n\tprecision: number;\n\t/** Round results to `precision`? */\n\tround: boolean;\n}\n\n/** A 2D vector. */\nexport interface Vector2 {\n\tx: number;\n\ty: number;\n}\n\n/**\n * Add one vector into another.\n * @param target - vector to mutate\n * @param source - vector to add\n * @mutates target - adds into its `x` and `y` fields rather than returning a new vector\n */\nexport function addVector(target: Vector2, source: Vector2): void {\n\ttarget.x += source.x;\n\ttarget.y += source.y;\n}\n",
+		"schema.ts": "/**\n * The merged value+type pattern: a runtime schema and its inferred type\n * sharing one exported name (`z.strictObject` + `z.infer` in real code).\n * The declaration documents the type meaning with full structure, and\n * `mergedValue: true` marks the name as also importable as a runtime value.\n * @module\n */\n\n/** Minimal stand-in for a schema library's parser type. */\nexport interface Parser<O> {\n\t/** Parse unknown input, returning the output type. */\n\tparse(input: unknown): O;\n}\n\n/** Extract a parser's output type — the `z.infer` analogue. */\nexport type Infer<P extends Parser<unknown>> = P extends Parser<infer O> ? O : never;\n\nfunction createParser<O>(): Parser<O> {\n\treturn { parse: (input) => input as O };\n}\n\n/**\n * A 2D point schema — parse values with `Point.parse(input)`, type them as\n * `Point`. Documented on the const; the merged declaration falls back to it.\n */\nexport const Point: Parser<{ x: number; y: number }> = createParser();\nexport type Point = Infer<typeof Point>;\n",
+		"shapes.ts": "/**\n * Geometric shapes demonstrating classes, interfaces, enums, a union type\n * alias, function overloads, const assertions, and richer JSDoc tags\n * (`@deprecated` among them).\n * @module\n */\n\n/** Supported shape categories. */\nexport enum ShapeKind {\n\tCircle = 'circle',\n\tRectangle = 'rectangle'\n}\n\n/** Cardinal directions as a const enum (inlined at use sites). */\nexport const enum Direction {\n\tNorth,\n\tEast,\n\tSouth,\n\tWest\n}\n\n/** Anything with a computable area. */\nexport interface HasArea {\n\t/** Area in square units. */\n\treadonly area: number;\n}\n\n/** What `shapeArea` measures: a shape, or a circle's radius. */\nexport type ShapeInput = HasArea | number;\n\n/** Options for drawing a shape outline. */\nexport interface DrawOptions {\n\t/**\n\t * Stroke color as a CSS color string.\n\t * @default 'black'\n\t */\n\tstroke?: string;\n\t/** Line width in pixels. */\n\twidth?: number;\n}\n\n/**\n * An axis-aligned rectangle.\n * @since 0.6.0\n * @see `shapeArea`\n */\nexport class Rectangle implements HasArea {\n\t/** Shared kind tag for all rectangles. */\n\tstatic readonly kind = ShapeKind.Rectangle;\n\n\t/** Width in units. */\n\twidth: number;\n\t/** Height in units. */\n\theight: number;\n\n\t// private state is excluded from extraction\n\t#drawCount = 0;\n\n\t/**\n\t * @param width - initial width\n\t * @param height - initial height\n\t * @throws `RangeError` when either dimension is negative\n\t */\n\tconstructor(width: number, height: number) {\n\t\tif (width < 0 || height < 0) throw new RangeError('dimensions must be non-negative');\n\t\tthis.width = width;\n\t\tthis.height = height;\n\t}\n\n\t/** Area in square units. */\n\tget area(): number {\n\t\treturn this.width * this.height;\n\t}\n\n\t/** Longest side; setting it makes the rectangle a square. */\n\tget size(): number {\n\t\treturn Math.max(this.width, this.height);\n\t}\n\tset size(value: number) {\n\t\tthis.width = value;\n\t\tthis.height = value;\n\t}\n\n\t/**\n\t * Scale both dimensions in place.\n\t * @param factor - multiplier applied to width and height\n\t * @mutates `this`\n\t */\n\tscale(factor: number): void {\n\t\tthis.width *= factor;\n\t\tthis.height *= factor;\n\t}\n\n\t/** Number of times this rectangle has been drawn, for subclasses. */\n\tprotected countDraw(): number {\n\t\treturn ++this.#drawCount;\n\t}\n}\n\n/**\n * Compute the area of a shape.\n * @param shape - the shape to measure\n * @returns the shape's area\n * @example\n * ```ts\n * shapeArea(new Rectangle(2, 3)) // 6\n * shapeArea(1) // Math.PI\n * ```\n */\nexport function shapeArea(shape: HasArea): number;\n/**\n * Compute the area of a circle from its radius.\n * @param radius - circle radius in units\n * @returns the circle's area\n */\nexport function shapeArea(radius: number): number;\nexport function shapeArea(shapeOrRadius: ShapeInput): number {\n\treturn typeof shapeOrRadius === 'number'\n\t\t? Math.PI * shapeOrRadius ** 2\n\t\t: shapeOrRadius.area;\n}\n\n/**\n * Describe a shape for display.\n * @param shape - the shape to describe\n * @param options - formatting options\n * @param options.precision - decimal places for the area\n * @param options.label - prefix for the description\n * @returns a human-readable description\n */\nexport function describeShape(\n\tshape: HasArea,\n\toptions: { precision?: number; label?: string } = {}\n): string {\n\treturn `${options.label ?? 'shape'}: area ${shape.area.toFixed(options.precision ?? 2)}`;\n}\n\n/**\n * Compute a rectangle's area from its dimensions.\n * @param width - rectangle width\n * @param height - rectangle height\n * @returns the area\n * @deprecated use `shapeArea(new Rectangle(width, height))`\n */\nexport function rectangleArea(width: number, height: number): number {\n\treturn width * height;\n}\n\n/** Unit square corners as a readonly tuple (const assertion). */\nexport const UNIT_SQUARE = [\n\t{ x: 0, y: 0 },\n\t{ x: 1, y: 0 },\n\t{ x: 1, y: 1 },\n\t{ x: 0, y: 1 }\n] as const;\n"
 	}
 }

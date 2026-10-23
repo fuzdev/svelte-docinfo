@@ -64,7 +64,9 @@ Given a project with a `tsconfig.json` (at or above the project root) and two fi
  * @param b - second number
  * @returns the sum
  */
-export const add = (a: number, b: number): number => a + b;
+export function add(a: number, b: number): number {
+	return a + b;
+}
 ```
 
 and `src/lib/Calculator.svelte`:

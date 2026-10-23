@@ -15,13 +15,13 @@ export interface Parser<O> {
 /** Extract a parser's output type — the `z.infer` analogue. */
 export type Infer<P extends Parser<unknown>> = P extends Parser<infer O> ? O : never;
 
-const create_parser = <O>(): Parser<O> => ({
-	parse: (input) => input as O
-});
+function createParser<O>(): Parser<O> {
+	return { parse: (input) => input as O };
+}
 
 /**
  * A 2D point schema — parse values with `Point.parse(input)`, type them as
  * `Point`. Documented on the const; the merged declaration falls back to it.
  */
-export const Point: Parser<{ x: number; y: number }> = create_parser();
+export const Point: Parser<{ x: number; y: number }> = createParser();
 export type Point = Infer<typeof Point>;

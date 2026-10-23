@@ -13,7 +13,9 @@
  * add(2, 3) // 5
  * ```
  */
-export const add = (a: number, b: number): number => a + b;
+export function add(a: number, b: number): number {
+	return a + b;
+}
 
 /**
  * Multiply two numbers.
@@ -21,7 +23,9 @@ export const add = (a: number, b: number): number => a + b;
  * @param b - second number
  * @returns the product
  */
-export const multiply = (a: number, b: number): number => a * b;
+export function multiply(a: number, b: number): number {
+	return a * b;
+}
 
 /** Configuration for math operations. */
 export interface MathConfig {

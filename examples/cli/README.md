@@ -39,10 +39,12 @@ deliberate `unknown_param` warning from `has-issues.ts`):
 			"path": "math.ts",
 			"declarations": [
 				{"name": "add", "kind": "function", "docComment": "Add two numbers.", ...},
+				{"name": "sumBy", "kind": "function", ...},
+				{"name": "roundTo", "kind": "function", ...},
+				{"name": "addVector", "kind": "function", ...},
 				{"name": "multiply", "kind": "function", ...},
 				{"name": "MathConfig", "kind": "interface", ...},
-				{"name": "Vector2", "kind": "interface", ...},
-				{"name": "add_vector", "kind": "function", ...}
+				{"name": "Vector2", "kind": "interface", ...}
 			]
 		}
 	]

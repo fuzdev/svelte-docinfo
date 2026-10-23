@@ -12,11 +12,9 @@
 		children: Snippet;
 	} = $props();
 
-	// Analysis and raw sources of the examples/api corpus, committed by
-	// `extraction_data.gen.json.ts` — re-run `gro gen` after corpus changes.
-	const { modules, sources } = extraction_data;
-
-	const extraction = extraction_context.set(new ExtractionState({ modules, sources }));
+	// analysis and raw sources of the examples/api corpus, committed by
+	// `extraction_data.gen.json.ts` — re-run `gro gen` after corpus changes
+	const extraction = extraction_context.set(new ExtractionState(extraction_data));
 </script>
 
 <div class="extraction" data-view={extraction.active_view}>
@@ -59,6 +57,9 @@
 					onclick={() => (extraction.active_view = 'source')}
 				>
 					{module.path}
+					{#if extraction.diagnostics_by_path.has(module.path)}
+						<span class="extraction-flag" title="has diagnostics">⚠</span>
+					{/if}
 				</a>
 			{/each}
 		</nav>
@@ -104,6 +105,10 @@
 	nav a {
 		font-family: var(--font_family_mono);
 		white-space: nowrap;
+	}
+	.extraction-flag {
+		margin-left: var(--space_xs);
+		color: var(--caution_50);
 	}
 
 	/* narrow: collapse the three columns into one tabbed pane */
