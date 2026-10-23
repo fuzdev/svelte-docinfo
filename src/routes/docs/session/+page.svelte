@@ -22,8 +22,8 @@
 		<p>
 			<DeclarationLink name="createAnalysisSession" /> returns a persistent analysis handle backed
 			by a TypeScript <code>LanguageService</code>. Use it when the same source set is re-analyzed
-			repeatedly (Vite plugin, LSP-style tools): parsed ASTs, svelte2tsx output, and the dependency
-			graph are reused across cycles. The one-shot <DeclarationLink name="analyze" /> and
+			repeatedly (Vite plugin, LSP-style tools); it reuses parsed ASTs, svelte2tsx output, and the
+			dependency graph across cycles. The one-shot <DeclarationLink name="analyze" /> and
 			<DeclarationLink name="analyzeFromFiles" /> wrap single-use sessions; if you analyze once
 			(CLI, CI, one-off generation), use them instead. The full type definitions are in
 			<ModuleLink module_path="session.ts">session.ts</ModuleLink>.
