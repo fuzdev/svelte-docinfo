@@ -46,7 +46,9 @@
 		</button>
 	</div>
 	<div class="sidebar">
-		<Breadcrumb class="py_sm" style="flex-wrap: nowrap;" />
+		<!-- `contain: inline-size` keeps the nowrap path from widening the auto column,
+		     so the module links alone size the sidebar -->
+		<Breadcrumb class="py_sm" style="flex-wrap: nowrap; contain: inline-size;" />
 		<nav>
 			{#each extraction.modules as module (module.path)}
 				<a
@@ -71,7 +73,7 @@
 	.extraction {
 		height: 100%;
 		display: grid;
-		grid-template-columns: 375px minmax(0, 1fr) minmax(0, 1fr);
+		grid-template-columns: auto minmax(0, 1fr) minmax(0, 1fr);
 	}
 	/* the tab bar only drives the narrow single-pane layout; hidden when the
 	   three regions sit side by side */
