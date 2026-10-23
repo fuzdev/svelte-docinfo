@@ -45,7 +45,10 @@ import{$ as e,A as t,G as n,J as r,M as i,P as a,X as o,Z as s,dt as c,ft as l,h
 				module. An HTML comment's lines parse like a script comment's, with their common indentation
 				removed, so its tags and examples work the same way. A comment that's only <code>@module</code> isn't a source. Likewise, an HTML <code>@component</code> comment plus
 				in-script component JSDoc emits it with <code>commentType: "doc_comment"</code>, and the
-				JSDoc wins.</p>`,1),O=i(`<!> <p>Tag problems surface as warnings: <code>misplaced_tag</code>, <code>unknown_param</code>,
+				JSDoc wins. The HTML <code>@component</code> comment follows the <code>@module</code> rule:
+				the first comment with <code>@component</code> at a line start, parsed the same way, so a
+				passing mention doesn't count. svelte2tsx, which editor hover uses, takes the last comment
+				containing <code>@component</code> anywhere instead, and <code>component_comment_mismatch</code> warns when the two disagree.</p>`,1),O=i(`<!> <p>Tag problems surface as warnings: <code>misplaced_tag</code>, <code>unknown_param</code>,
 				and <code>duplicate_comment</code>, described in the sections above and in <!>. The parser is <!>.</p>`,1),k=i(`<section><p>svelte-docinfo extracts TSDoc/JSDoc tags from source comments into structured fields on the <!>. This page lists every parsed tag, where its
 			value lands, and which symbol receives it.</p> <p>The set is the common tags of <a href="https://jsdoc.app/">JSDoc</a> and the <a href="https://tsdoc.org/">TSDoc spec</a>, plus the custom <code>@nodocs</code> and <code>@mutates</code>. Where the standards spell a tag differently, both spellings work
 			(<code>@default</code> / <code>@defaultValue</code>, <code>@return</code> / <code>@returns</code>).</p> <p>Inline tags like <code></code> are kept in the extracted text for the consumer to
