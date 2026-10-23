@@ -492,9 +492,9 @@ describe('session context closure', () => {
 			const brokenFiles: Record<string, string> = {
 				// an `{#each}` with no expression is one of the few inputs svelte2tsx rejects
 				'src/lib/Broken.svelte': `{#each}`,
-				// a healthy component beside it, as in any real project: once the
-				// program loads `svelte`'s types, its ambient `*.svelte` module
-				// catches the import the missing virtual can't resolve
+				// a healthy component beside it, as in any real project — its
+				// virtual brings `svelte`'s ambient `*.svelte` module into the
+				// program, which must not change how `Broken` reads
 				'src/lib/Widget.svelte': `<script lang="ts">\n\tlet { a }: { a: string } = $props();\n</script>\n{a}`,
 				'src/lib/api.ts': `export { default as Widget } from './Widget.svelte';\nexport { default as Broken } from './Broken.svelte';\nexport * as ns from './Broken.svelte';`
 			};
@@ -519,18 +519,25 @@ describe('session context closure', () => {
 						modules.map((m) => m.path),
 						['api.ts']
 					);
-					// with no virtual there's nothing to describe, but the name the
-					// module publishes stays in its output, flagged incomplete
+					// with no virtual there's nothing to describe, but the names the
+					// module publishes stay in its output, flagged incomplete; the
+					// namespace names a module the output lacks, as for any gated
+					// target
 					assert.deepStrictEqual(
-						modules[0]!.declarations.map((d) => [d.name, d.kind, d.partial, d.aliasOf?.module]),
+						modules[0]!.declarations.map((d) => [
+							d.name,
+							d.kind,
+							d.partial,
+							d.kind === 'namespace' ? d.module : d.aliasOf?.module
+						]),
 						[
 							['Widget', 'component', false, 'Widget.svelte'],
-							['Broken', 'component', true, 'Broken.svelte']
+							['Broken', 'component', true, 'Broken.svelte'],
+							['ns', 'namespace', true, 'Broken.svelte']
 						]
 					);
-					// only the component itself: a namespace over it is not one
-					assert.isFalse(modules[0]!.declarations.some((d) => d.name === 'ns'));
 					assert.deepStrictEqual(modules[0]!.reExports, []);
+					assert.deepStrictEqual(modules[0]!.externalReExports, []);
 				} finally {
 					session.dispose();
 				}

@@ -509,11 +509,11 @@ export interface ExportSurface {
 	/** Surface entries, sorted by `name` (case-insensitive order, `compareStrings`). */
 	entries: Array<ExportSurfaceEntry>;
 	/**
-	 * Star targets (own or transitive) absent from `modules` — their
-	 * projected names are unknown, so the surface is incomplete. Empty for a
-	 * whole analysis result, whose `starExports` only name modules it
-	 * contains; it fills when `modules` is a subset of one (a filtered list,
-	 * modules assembled by hand).
+	 * Star targets (own or transitive) whose projected names are unknown, so
+	 * the surface is incomplete: ones absent from `modules` (a filtered list,
+	 * modules assembled by hand — a whole analysis result's `starExports` only
+	 * name modules it contains), and `partial` placeholders, such as a
+	 * component that failed to transform.
 	 */
 	unresolvedStarExports: Array<string>;
 	/**
@@ -562,8 +562,9 @@ interface InternalSurface {
  * (an approximation of ES fixpoint resolution — fine in practice). Surfaces
  * resolved inside a cycle are path-relative and not memoized, so sibling
  * star paths resolve independently rather than inheriting them. Star
- * targets missing from `modules` are reported in `unresolvedStarExports`
- * rather than guessed at; `externalStarExports` aggregates external star
+ * targets missing from `modules` or `partial` (a placeholder whose bindings
+ * are unknown) are reported in `unresolvedStarExports` rather than guessed
+ * at; `externalStarExports` aggregates external star
  * specifiers reachable from the module, whose names are unknowable.
  *
  * @param modules - the analyzed modules (parsed `ModuleJson`s — run wire
@@ -672,7 +673,8 @@ export const resolveExportSurface = (
 		// 5. Star projection, with ES shadowing and ambiguity rules
 		const excluded = new Set<string>();
 		for (const target of mod.starExports) {
-			if (!byPath.has(target)) {
+			// a `partial` placeholder's bindings are unknown, like an absent module's
+			if (!byPath.has(target) || byPath.get(target)!.partial) {
 				surface.unresolvedStars.add(target);
 				continue;
 			}

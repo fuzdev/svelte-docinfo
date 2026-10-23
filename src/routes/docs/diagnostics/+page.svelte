@@ -246,7 +246,10 @@
 						<td>
 							<strong>Trigger:</strong> svelte2tsx threw on a <code>.svelte</code> file.
 							<strong>Consequence:</strong> the file's <DeclarationLink name="ModuleJson" /> is a
-							placeholder (<code>partial: true</code>, empty <code>declarations</code>).
+							placeholder (<code>partial: true</code>, empty <code>declarations</code>). Its default
+							and namespace re-exports document as <code>partial</code> components or namespaces (a
+							<code>&lt;script module&gt;</code> name stays a bare variable), and a star over it is
+							one <DeclarationLink name="resolveExportSurface" /> reports unresolved.
 							<strong>Ingest-time.</strong>
 						</td>
 					</tr>

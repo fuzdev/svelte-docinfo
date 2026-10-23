@@ -35,7 +35,8 @@ export const collectingLog = (): { infos: Array<string>; log: AnalysisLog } => {
  * A minimal `ExtractContext` for tests driving extraction seams directly
  * (extractors, `analyzeExports`, `analyzeTypescriptModule`): fresh
  * diagnostics array, nothing external, no alias registry (written-name
- * recovery only), widening-mode optionals. Override per test via `overrides`.
+ * recovery only), widening-mode optionals, every `.svelte` target read as
+ * having a virtual. Override per test via `overrides`.
  */
 export const mockExtractContext = (
 	checker: ts.TypeChecker,
@@ -47,6 +48,7 @@ export const mockExtractContext = (
 	aliasRegistry: undefined,
 	exactOptionalPropertyTypes: false,
 	isEmittedFile: () => true,
+	svelteFileStatus: () => 'virtual',
 	...overrides
 });
 

@@ -57,6 +57,7 @@ import {
 	applyReturnType,
 	isExternalSignature,
 	type ExtractContext,
+	type FileExists,
 	type IsEmittedFile
 } from './typescript-extract-shared.ts';
 import {
@@ -1608,6 +1609,8 @@ const extractPropsViaChecker = (
  * @param program - TypeScript program containing the virtual file
  * @param virtualFile - pre-transformed virtual file data
  * @param aliasRegistry - the analyzed set's alias registry (see `buildAliasRegistry`), or `undefined` when no pre-pass ran
+ * @param isEmittedFile - whether a file emits a module this pass (see `IsEmittedFile`); defaults to `isSource`
+ * @param fileExists - whether a path exists, owned content included (see `SvelteFileStatus`); defaults to the disk
  * @returns module analysis with declarations, re-exports, and star exports;
  *   `undefined` if the virtual file is not found in the program
  */
@@ -1620,7 +1623,8 @@ export const analyzeSvelteModule = (
 	program: ts.Program,
 	virtualFile: SvelteVirtualFile,
 	aliasRegistry?: AliasRegistry,
-	isEmittedFile?: IsEmittedFile
+	isEmittedFile?: IsEmittedFile,
+	fileExists?: FileExists
 ): ModuleAnalysis | undefined => {
 	// Every diagnostic below carries the absolute `.svelte` id, never
 	// `modulePath` — see the `Diagnostic.file` schema doc for why the absolute
@@ -1652,7 +1656,8 @@ export const analyzeSvelteModule = (
 		options,
 		diagnostics,
 		aliasRegistry,
-		isEmittedFile
+		isEmittedFile,
+		fileExists
 	);
 
 	// 1. Use analyzeExports for full checker-backed analysis (same as .ts files).

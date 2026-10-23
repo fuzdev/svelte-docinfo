@@ -30,7 +30,7 @@ import type {
 import type { DeclarationJsonBuild, MemberJsonBuild } from './declaration-build.ts';
 import { type Diagnostic, type MisplacedTagDiagnostic } from './diagnostics.ts';
 import { toErrorMessage } from './error.ts';
-import { stripVirtualSuffix } from './source.ts';
+import { SVELTE_VIRTUAL_SUFFIX, stripVirtualSuffix } from './source.ts';
 import { applyToDeclaration, parseComment, type TsdocParsedComment } from './tsdoc.ts';
 import {
 	specifierExportedName,
@@ -75,7 +75,29 @@ export interface ExtractContext {
 	exactOptionalPropertyTypes: boolean;
 	/** Whether a file emits a module this pass (see `IsEmittedFile`). */
 	isEmittedFile: IsEmittedFile;
+	/** What the pass can see of a `.svelte` file (see `SvelteFileStatus`). */
+	svelteFileStatus: (file: string) => SvelteFileStatus;
 }
+
+/**
+ * What an extraction pass can see of a `.svelte` file at an absolute POSIX
+ * path, which decides how a relative `.svelte` re-export reads:
+ *
+ * - `'virtual'` — the program has its svelte2tsx virtual, so ordinary
+ *   resolution applies
+ * - `'virtualless'` — the file exists (owned content or disk) but the program
+ *   has no virtual for it: its transform failed, or it was never supplied
+ * - `'missing'` — no virtual and no file, as for a mistyped specifier
+ *
+ * Without a virtual, a `.svelte` specifier would otherwise resolve to nothing,
+ * or to the `svelte` package's ambient `declare module '*.svelte'` once some
+ * file in the program imports `svelte` — so the reading would turn on
+ * unrelated files. The re-export arms ask this by path instead.
+ */
+export type SvelteFileStatus = 'virtual' | 'virtualless' | 'missing';
+
+/** Whether a path exists for an analysis pass — owned in-memory content or disk. */
+export type FileExists = (file: string) => boolean;
 
 /**
  * Whether the file at an absolute POSIX path emits a module in this analysis
@@ -109,7 +131,9 @@ export type IsEmittedFile = (file: string) => boolean;
  * `isExternalPath` from that object, and the two axes must agree), and
  * `exactOptionalPropertyTypes` is read off the *merged* compiler options
  * rather than the raw tsconfig, so a session-level override reaches the strip
- * gate (`optionalWidened`).
+ * gate (`optionalWidened`). `svelteFileStatus` reads virtuals off the program
+ * and existence off `fileExists`, which defaults to the disk; `analyzeCore`
+ * passes one that also sees owned in-memory content.
  *
  * Direct callers outside the dispatchers (tests, fixture harnesses, subpath
  * consumers) build the object literal themselves and decide every field
@@ -121,14 +145,21 @@ export const createExtractContext = (
 	options: ModuleSourceOptions,
 	diagnostics: Array<Diagnostic>,
 	aliasRegistry: AliasRegistry | undefined,
-	isEmittedFile: IsEmittedFile = (file) => isSource(file, options)
+	isEmittedFile: IsEmittedFile = (file) => isSource(file, options),
+	fileExists: FileExists = ts.sys.fileExists
 ): ExtractContext => ({
 	checker,
 	diagnostics,
 	isExternalFile: createIsExternalFile(options),
 	aliasRegistry,
 	exactOptionalPropertyTypes: !!program.getCompilerOptions().exactOptionalPropertyTypes,
-	isEmittedFile
+	isEmittedFile,
+	svelteFileStatus: (file) =>
+		program.getSourceFile(file + SVELTE_VIRTUAL_SUFFIX)
+			? 'virtual'
+			: fileExists(file)
+				? 'virtualless'
+				: 'missing'
 });
 
 /**

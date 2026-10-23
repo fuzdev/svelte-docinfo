@@ -1383,6 +1383,7 @@ export const createAnalysisSession = (options: AnalysisSessionOptions): Analysis
 			svelteVirtualFiles,
 			transformFailedIds,
 			contextSvelteFiles,
+			fileExists: (file) => owned.has(file) || ts.sys.fileExists(file),
 			onDuplicates: opts?.onDuplicates,
 			log
 		});

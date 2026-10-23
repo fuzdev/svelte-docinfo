@@ -326,38 +326,135 @@ const reExportPublicName = (
 		: exportName;
 
 /**
- * The project file a re-export names when its component has no svelte2tsx
- * virtual in the program — its transform failed, or it was never supplied
- * (the context closure off) — or `undefined` for any other re-export.
- *
- * With no virtual to resolve to, a `.svelte` specifier falls through to the
- * `svelte` package's ambient `declare module '*.svelte'`, loaded as soon as
- * any file imports `svelte`. Its default export is a real symbol in an
- * external file, so the re-export would read as one from a package. Detected
- * by that landing spot plus a relative `.svelte` specifier on the statement;
- * the path is the specifier resolved against the re-exporting file.
- *
- * Limits: it sees nothing until some file in the program imports `svelte`
- * (no ambient module yet, so the name documents as a bare `variable`); an
- * import-then-export has no specifier on the export statement and is not
- * caught; and the file isn't checked for existence, so a mistyped path reads
- * the same as a failed component.
+ * The project file a relative `.svelte` specifier names, resolved against the
+ * file that wrote it, or `undefined` for any other specifier.
  */
-const virtuallessSvelteTarget = (
-	statement: ts.ExportDeclaration,
-	aliasedSymbol: ts.Symbol,
+const relativeSvelteSpecifierFile = (
+	specifier: ts.Expression | undefined,
 	currentFileName: string
 ): string | undefined => {
-	const specifier = statement.moduleSpecifier;
 	if (!specifier || !ts.isStringLiteral(specifier)) return undefined;
 	if (!specifier.text.startsWith('.') || !specifier.text.endsWith('.svelte')) return undefined;
-	// a declaration *inside* the ambient module: its default export, not the
-	// module itself (which is what `export * as ns` resolves to)
-	let node: ts.Node | undefined = aliasedSymbol.declarations?.[0];
-	if (!node || ts.isModuleDeclaration(node)) return undefined;
-	while (node && !ts.isModuleDeclaration(node)) node = node.parent;
-	if (!node || !ts.isStringLiteral(node.name) || node.name.text !== '*.svelte') return undefined;
 	return toPosixPath(resolve(dirname(currentFileName), specifier.text));
+};
+
+/** A re-export of a `.svelte` file the program has no virtual for (see `virtuallessSvelteReExport`). */
+interface VirtuallessSvelteReExport {
+	/**
+	 * The component's file, or `undefined` when there's nothing to document —
+	 * the file is missing (a mistyped specifier) or outside the project.
+	 */
+	file: string | undefined;
+	/**
+	 * The binding taken from the component: `'default'`, `'*'` for a namespace,
+	 * or a `<script module>` export's name.
+	 */
+	importedName: string;
+	/**
+	 * The export that publishes the binding straight off the component, in the
+	 * file that wrote it — this module's own statement, or a module further
+	 * down the chain. `declaredName` is what that file documents it as: the
+	 * component's name for `export {default} from './X.svelte'`, else the
+	 * exported name.
+	 */
+	declaring: { file: string; node: ExportNode; declaredName: string };
+}
+
+/** An export hop's declaration node. */
+type ExportNode = ts.ExportSpecifier | ts.NamespaceExport | ts.ExportAssignment;
+
+/**
+ * The statement an export node belongs to, where its JSDoc lives: the
+ * `ExportDeclaration` of a specifier or `export * as`, else the node itself
+ * (`export default X`).
+ */
+const exportStatementOf = (node: ExportNode): ts.ExportDeclaration | ts.ExportAssignment =>
+	ts.isExportSpecifier(node) ? node.parent.parent : ts.isNamespaceExport(node) ? node.parent : node;
+
+/**
+ * Read a re-export whose chain reaches a relative `.svelte` specifier naming a
+ * file the program has no svelte2tsx virtual for — its transform failed, or
+ * it was never supplied (the context closure off). Returns `undefined` for
+ * any other re-export, which resolves the ordinary way.
+ *
+ * Decided by path and `ExtractContext.svelteFileStatus`, never by what the
+ * checker resolves the specifier to: with no virtual, that is nothing, or the
+ * `svelte` package's ambient `declare module '*.svelte'` once some file in the
+ * program imports `svelte`, so a symbol-based reading would turn on unrelated
+ * files. The walk follows immediate aliases syntactically — export
+ * specifiers, `export * as`, `export default X`, and imports, in this file
+ * or through other modules — until a hop takes the default or namespace of a
+ * relative `.svelte` file, or reaches a real declaration. A `<script module>`
+ * name taken from a component that has a virtual walks on through it, so a
+ * component's own re-export of a failed one is reached too. Non-relative
+ * specifiers (a `paths` alias) are not read.
+ */
+const virtuallessSvelteReExport = (
+	exportSymbol: ts.Symbol,
+	ctx: ExtractContext,
+	isExternalPath: (file: string) => boolean
+): VirtuallessSvelteReExport | undefined => {
+	// the latest export hop, and whether it is `export {default} from`, which
+	// its file documents under the component's name
+	let declaring: { file: string; node: ExportNode; name: string; slot: boolean } | undefined;
+	let hop: ts.Symbol | undefined = exportSymbol;
+	// bounded: an alias cycle is a type error, but must not hang the walk
+	for (let i = 0; hop && i < 64; i++) {
+		const decl: ts.Declaration | undefined = hop.declarations?.[0];
+		if (!decl) return undefined;
+		const hopFile = stripVirtualSuffix(decl.getSourceFile().fileName);
+		let specifier: ts.Expression | undefined;
+		let importedName: string | undefined;
+		if (ts.isExportSpecifier(decl)) {
+			specifier = decl.parent.parent.moduleSpecifier;
+			importedName = (decl.propertyName ?? decl.name).text;
+		} else if (ts.isNamespaceExport(decl)) {
+			specifier = decl.parent.moduleSpecifier;
+			importedName = '*';
+		} else if (ts.isExportAssignment(decl)) {
+			// `export default X`: the binding comes from `X`'s own hop
+		} else if (ts.isImportClause(decl)) {
+			specifier = decl.parent.moduleSpecifier;
+			importedName = 'default';
+		} else if (ts.isNamespaceImport(decl)) {
+			specifier = decl.parent.parent.moduleSpecifier;
+			importedName = '*';
+		} else if (ts.isImportSpecifier(decl)) {
+			specifier = decl.parent.parent.parent.moduleSpecifier;
+			importedName = (decl.propertyName ?? decl.name).text;
+		} else {
+			return undefined;
+		}
+		if (ts.isExportSpecifier(decl) || ts.isNamespaceExport(decl) || ts.isExportAssignment(decl)) {
+			const slot = hop.name === 'default' && !!specifier && importedName === 'default';
+			declaring = { file: hopFile, node: decl, name: hop.name, slot };
+		}
+		const file = relativeSvelteSpecifierFile(specifier, hopFile);
+		const status = file === undefined ? undefined : ctx.svelteFileStatus(file);
+		// a component with a virtual ends the walk at its default or namespace;
+		// a `<script module>` name walks on into the virtual, which may itself
+		// re-export from a component that has none
+		if (status === 'virtual' && (importedName === 'default' || importedName === '*')) {
+			return undefined;
+		}
+		if (file === undefined || status === 'virtual' || importedName === undefined || !declaring) {
+			hop =
+				(hop.flags & ts.SymbolFlags.Alias) !== 0
+					? ctx.checker.getImmediateAliasedSymbol(hop)
+					: undefined;
+			continue;
+		}
+		return {
+			file: status === 'virtualless' && !isExternalPath(file) ? file : undefined,
+			importedName,
+			declaring: {
+				file: declaring.file,
+				node: declaring.node,
+				declaredName: declaring.slot ? getComponentName(file) : declaring.name
+			}
+		};
+	}
+	return undefined;
 };
 
 /** Whether `symbol` is what `sourceFile` exports as `default`, through any alias. */
@@ -569,10 +666,9 @@ export const analyzeExports = (
 	// Extract star exports (export * from './module' / 'pkg')
 	const { starExports, externalStarExports } = extractStarExports(
 		sourceFile,
-		checker,
+		ctx,
 		options,
-		isExternalPath,
-		ctx.isEmittedFile
+		isExternalPath
 	);
 
 	// Normalize virtual paths once (e.g., Foo.svelte.__svelte2tsx__.ts → Foo.svelte)
@@ -638,6 +734,88 @@ export const analyzeExports = (
 				// (`getLocalExportStatement` finds none in this file).
 				if (!star && !isDeclaredInFile(exportSymbol, currentFileName)) continue;
 				const starLine = star ? lineOf(star) : undefined;
+
+				// A component the program has no virtual for (see
+				// `virtuallessSvelteReExport`): nothing can be read off it, but
+				// the statement still publishes a name, so its default documents
+				// as a `partial` component and a namespace over it as a `partial`
+				// namespace, in the shapes a valid component's re-exports take. A
+				// missing file publishes nothing to document. A `<script module>`
+				// name falls through to the arms below.
+				const virtualless = star
+					? undefined
+					: virtuallessSvelteReExport(exportSymbol, ctx, isExternalPath);
+				if (virtualless) {
+					const { file, importedName, declaring } = virtualless;
+					if (file === undefined) continue;
+					if (importedName === 'default' || importedName === '*') {
+						const localNode = exportSymbol.declarations![0] as ExportNode;
+						const localStatement = exportStatementOf(localNode);
+						const localTsdoc = parseComment(localStatement, sourceFile);
+						const sourceLine = lineOf(localNode);
+						const module = extractPath(file, options);
+						const direct = declaring.file === currentFileName;
+						// Through another module, a same-name re-export links to the
+						// module that declares the name when it emits, like any chain
+						const immediate = checker.getImmediateAliasedSymbol(exportSymbol);
+						let name = direct ? declaring.declaredName : exportSymbol.name;
+						let link: string | undefined;
+						if (!direct && immediate?.name === exportSymbol.name) {
+							const canonicalDecl = walkSameNameCanonical(exportSymbol, immediate, checker)
+								.declarations?.[0];
+							const canonicalFile =
+								canonicalDecl && stripVirtualSuffix(canonicalDecl.getSourceFile().fileName);
+							if (canonicalFile === declaring.file) name = declaring.declaredName;
+							if (
+								canonicalFile &&
+								canonicalFile !== currentFileName &&
+								ctx.isEmittedFile(canonicalFile)
+							) {
+								link = canonicalFile;
+							}
+						}
+						if (link && !localTsdoc?.nodocs) {
+							const typeOnly =
+								ts.isExportDeclaration(localStatement) &&
+								(localStatement.isTypeOnly ||
+									(ts.isExportSpecifier(localNode) && localNode.isTypeOnly));
+							reExports.push({
+								name,
+								module: extractPath(link, options),
+								...(typeOnly ? { typeOnly: true } : {}),
+								sourceLine
+							});
+						}
+						if (link && !localTsdoc) continue;
+						const decl: DeclarationJsonBuild =
+							importedName === '*'
+								? {
+										name,
+										kind: 'namespace',
+										module,
+										partial: true,
+										...(direct
+											? {}
+											: {
+													aliasOf: {
+														module: extractPath(declaring.file, options),
+														name: declaring.declaredName
+													}
+												}),
+										sourceLine
+									}
+								: {
+										name,
+										kind: 'component',
+										partial: true,
+										aliasOf: { module, name: getComponentName(file) },
+										sourceLine
+									};
+						if (localTsdoc) applyToDeclaration(decl, localTsdoc);
+						declarations.push({ declaration: decl, nodocs: !!localTsdoc?.nodocs });
+						continue;
+					}
+				}
 
 				// Namespace re-exports (`export * as ns from './x'` and re-exports
 				// of such bindings) need special handling: their deeply-resolved
@@ -775,28 +953,6 @@ export const analyzeExports = (
 							}
 							declarations.push({ declaration: decl, nodocs: !!localTsdoc?.nodocs });
 						};
-
-						// A component the program has no virtual for (see
-						// `virtuallessSvelteTarget`): nothing can be read off it, but
-						// the statement still publishes a name, so it documents as a
-						// `partial` component rather than vanishing into the external
-						// arm below.
-						const virtualless =
-							local && virtuallessSvelteTarget(local.statement, aliasedSymbol, currentFileName);
-						if (virtualless !== undefined && !isExternalPath(virtualless)) {
-							const module = extractPath(virtualless, options);
-							const componentName = getComponentName(virtualless);
-							const decl: DeclarationJsonBuild = {
-								name: exportSymbol.name === 'default' ? componentName : exportSymbol.name,
-								kind: 'component',
-								partial: true,
-								aliasOf: { module, name: componentName },
-								sourceLine: specifierLine
-							};
-							if (localTsdoc) applyToDeclaration(decl, localTsdoc);
-							declarations.push({ declaration: decl, nodocs: !!localTsdoc?.nodocs });
-							continue;
-						}
 
 						// Only link when the original's module is in the output; one
 						// that emits nothing (gated, or a source file outside the
@@ -1270,16 +1426,24 @@ const stripModuleTag = (text: string): string => {
  * `export *` plus `export type *` over one module is one entry. Unresolvable
  * specifiers (missing package, typo) are silently skipped.
  *
+ * A relative `.svelte` target the program has no virtual for is read by path
+ * (`ExtractContext.svelteFileStatus`), never through what the checker
+ * resolves it to: when it emits a module (the `partial` placeholder of a
+ * failed transform) it is a `starExports` entry, which `resolveExportSurface`
+ * reports as unresolved; otherwise (gated, never supplied, missing) it is
+ * dropped. Such a star is never an `externalStarExports` entry.
+ *
  * Statement-level `@nodocs` suppresses the entry — the same rule as the other
  * re-export encodings (same-name edges and renamed aliases).
  */
 const extractStarExports = (
 	sourceFile: ts.SourceFile,
-	checker: ts.TypeChecker,
+	ctx: ExtractContext,
 	options: ModuleSourceOptions,
-	isExternalPath: (file: string) => boolean,
-	isEmittedFile: IsEmittedFile
+	isExternalPath: (file: string) => boolean
 ): { starExports: Array<string>; externalStarExports: Array<string> } => {
+	const { checker, isEmittedFile } = ctx;
+	const currentFileName = stripVirtualSuffix(sourceFile.fileName);
 	const starExports: Array<string> = [];
 	const externalStarExports: Array<string> = [];
 
@@ -1291,6 +1455,24 @@ const extractStarExports = (
 			ts.isStringLiteral(statement.moduleSpecifier)
 		) {
 			if (parseComment(statement, sourceFile)?.nodocs) continue;
+			// A `.svelte` target with no virtual is read by path (see
+			// `SvelteFileStatus`): recorded when it emits a module (the
+			// `partial` placeholder of a failed transform), else dropped
+			const svelteFile = relativeSvelteSpecifierFile(statement.moduleSpecifier, currentFileName);
+			if (svelteFile !== undefined) {
+				const status = ctx.svelteFileStatus(svelteFile);
+				if (status !== 'virtual') {
+					if (
+						status === 'virtualless' &&
+						!isExternalPath(svelteFile) &&
+						ctx.isEmittedFile(svelteFile)
+					) {
+						const path = extractPath(svelteFile, options);
+						if (!starExports.includes(path)) starExports.push(path);
+					}
+					continue;
+				}
+			}
 			// Use the type checker to resolve the module - it has already resolved all imports
 			// during program creation, so this leverages TypeScript's full module resolution
 			const moduleSymbol = checker.getSymbolAtLocation(statement.moduleSpecifier);

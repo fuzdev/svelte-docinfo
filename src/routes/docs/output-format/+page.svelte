@@ -518,6 +518,14 @@ if (declaration.typeInfo) typeJsonToTokens(declaration.typeInfo);
 					re-exporting module (except names that file re-exports from a package).
 				</li>
 				<li>
+					<strong>Components that failed to transform</strong> (or were never supplied): nothing can
+					be read off them, so a re-export of the component (its default) documents as a
+					<code>partial</code> component, and a namespace over it as a <code>partial</code>
+					namespace, whether the <code>.svelte</code> path is written here or in a module the
+					re-export goes through. A star over one lands on <code>starExports</code> when its
+					placeholder module is in the output, and is dropped otherwise.
+				</li>
+				<li>
 					<strong>Gated canonicals</strong>: re-exporting a symbol from a module excluded from
 					output (e.g. <code>internal/</code>) synthesizes a full alias even when the name is
 					unchanged, since the canonical module emits nothing to link. Its

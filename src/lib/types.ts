@@ -1299,6 +1299,11 @@ export interface NamespaceDeclarationJsonSchema extends Named<
  * Carries no inline members — `module` points to the source module whose
  * declarations are projected under this name. Consumers that want to render
  * `ns.a` can deref by reading the source module's `declarations` array.
+ *
+ * Over a `.svelte` file with no svelte2tsx virtual (its transform failed, or
+ * it was never supplied) the binding is `partial`: its members are unknown,
+ * and `module` names the component's `partial` placeholder, or a module the
+ * result lacks when the component emits nothing.
  */
 export const NamespaceDeclarationJson: NamespaceDeclarationJsonSchema =
 	NamespaceDeclarationJsonImpl;
@@ -1477,11 +1482,12 @@ const ModuleJsonImpl = v.strictObject({
 	 * `aliasOf`, or `reExports` entries for bindings whose canonical does
 	 * emit — following ES star semantics (`default` doesn't project, a local
 	 * export shadows, a name two stars disagree on is excluded). A binding
-	 * such a module re-exports from a package is not recorded anywhere, and
-	 * neither is a star over a component that failed to transform, which lands
-	 * in `externalStarExports` under its relative specifier (when the program
-	 * has the Svelte shims, i.e. some other component has a virtual; else it's
-	 * skipped as unresolvable).
+	 * such a module re-exports from a package is not recorded anywhere.
+	 *
+	 * A star over a component that failed to transform names its `partial`
+	 * placeholder module, whose bindings are unknown (`resolveExportSurface`
+	 * reports it unresolved); one that emits nothing (gated, never supplied)
+	 * is dropped.
 	 */
 	starExports: v.optional(v.array(v.string()), () => []),
 	/**
@@ -1502,7 +1508,9 @@ const ModuleJsonImpl = v.strictObject({
 	 * External modules fully re-exported via `export * from 'pkg'`, as
 	 * written (statement order, each specifier once). The projected names are unknown — the
 	 * package isn't analyzed. Statement-level `@nodocs` suppresses the
-	 * entry; unresolvable specifiers are skipped.
+	 * entry; unresolvable specifiers are skipped. A relative `.svelte`
+	 * specifier is never an entry, whether or not its component has a
+	 * virtual (see `starExports`).
 	 */
 	externalStarExports: v.optional(v.array(v.string()), () => []),
 	/**

@@ -473,14 +473,20 @@ The opt-in `findDuplicates` flags duplicate names by canonical identity after re
   materialized. A star over a module that emits nothing is read as the named re-exports it
   stands for (`collectMaterializedStars`), with ES star semantics.
 - **External** (the immediate target is a package) → `externalReExports` /
-  `externalStarExports`, flat statement facts; a star over a component whose transform
-  failed also lands there, under its relative specifier, when the program has the Svelte
-  shims (some other component has a virtual). Indirect chains leave no trace.
+  `externalStarExports`, flat statement facts. Indirect chains leave no trace.
 - **Non-emitted canonicals** (gated, a context file, a module left out of `exports`) → a
   full alias even for a same-name re-export, with `aliasOf.module` dangling by design and
   no `reExports` edge. The predicate is `ExtractContext.isEmittedFile`, not `isSource`, so
-  no edge or `starExports` entry points at a module the output lacks. A component with no
-  virtual re-exports as a `partial` component (`virtuallessSvelteTarget`).
+  no edge or `starExports` entry points at a module the output lacks.
+- **Virtual-less components** (transform failed, or never supplied) → read by the path of
+  a relative `.svelte` specifier (`ExtractContext.svelteFileStatus`), never through the
+  `svelte` package's ambient `*.svelte` module, so unrelated files can't change the
+  reading (`virtuallessSvelteReExport`). The default re-exports as a `partial` component
+  and a namespace as a `partial` namespace — export-from, import-then-export, and
+  `export default X`, directly or through other modules (taking a valid chain's edges
+  and aliases). A star names the `partial` placeholder when it emits
+  (`resolveExportSurface` reports it unresolved), else drops. A missing or out-of-root
+  file documents nothing.
 - **Namespace** (`export * as ns from './x'`) → `NamespaceDeclarationJson` whose `module`
   points at the projected source, detected via `ValueModule` before `analyzeDeclaration`
   (which would leak `typeof import(...)`).
@@ -502,6 +508,11 @@ instead of guessing. Lock-in tests:
 - `@nodocs` on members and component props is ignored with no warning.
 - Silently dropped: indirect external re-exports, unresolvable specifiers, the type-only
   marker of `export type * from` and of a renamed value (`export type {c as d} from`).
+- A `<script module>` name re-exported from a component with no virtual documents as a
+  bare `kind: 'variable'`.
+- A virtual-less component re-exported through a non-relative specifier (a `paths` alias
+  like `$lib/…`) still depends on the ambient `*.svelte` module: a bare `variable`, or an
+  `externalReExports`/`externalStarExports` entry once another component has a virtual.
 - `ParameterJson` deliberately has no doc fields, unlike `ComponentPropJson`.
 - `</script >` (whitespace before `>`): Svelte and `findScriptTags` accept it, svelte2tsx
   doesn't, so a legacy component written that way documents no props and warns

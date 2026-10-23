@@ -60,7 +60,11 @@ import { type ModuleSourceOptions, extractPath, extractDependencies } from './so
 import { toPosixPath, isAbsolutePosixPath } from './paths.ts';
 import { buildAliasRegistry, type AliasRegistrySource } from './typescript-alias-registry.ts';
 import type { AliasRegistry } from './typescript-extract-type-json.ts';
-import { createExtractContext, type IsEmittedFile } from './typescript-extract-shared.ts';
+import {
+	createExtractContext,
+	type FileExists,
+	type IsEmittedFile
+} from './typescript-extract-shared.ts';
 import {
 	sortModules,
 	findDuplicates,
@@ -328,7 +332,9 @@ const toModuleJson = (raw: ModuleAnalysis): ModuleJson => {
  * modules themselves get written-name recovery only, while `analyzeCore`
  * passes the registry its pre-pass built (see `buildAliasRegistry`).
  * `isEmittedFile` likewise: `analyzeCore` answers from its emitted set, and a
- * direct caller falls back to `isSource` (see `IsEmittedFile`).
+ * direct caller falls back to `isSource` (see `IsEmittedFile`). `fileExists`
+ * too: `analyzeCore` sees its inputs' in-memory content, and a direct caller
+ * falls back to the disk (see `SvelteFileStatus`).
  *
  * @internal Importable from `svelte-docinfo/analyze-core.js` for tests and
  * power users; not stable API.
@@ -340,7 +346,8 @@ export const analyzeModule = (
 	diagnostics: Array<Diagnostic>,
 	log?: AnalysisLog,
 	aliasRegistry?: AliasRegistry,
-	isEmittedFile?: IsEmittedFile
+	isEmittedFile?: IsEmittedFile,
+	fileExists?: FileExists
 ): ModuleJson | undefined => {
 	const checker = program.getTypeChecker();
 	const modulePath = extractPath(sourceFile.id, options);
@@ -387,7 +394,8 @@ export const analyzeModule = (
 			options,
 			diagnostics,
 			aliasRegistry,
-			isEmittedFile
+			isEmittedFile,
+			fileExists
 		);
 		raw = analyzeTypescriptModule(sourceFile, tsSourceFile, modulePath, ctx, options);
 		// a TS module can't declare a snippet, but it can re-export one from a
@@ -455,10 +463,18 @@ export interface AnalyzeCoreInputs {
 	 *
 	 * Resolution requires the component's virtual to exist — via the context
 	 * closure (`analyzeFromFiles` included) or by passing the file as `analyze()`
-	 * input. Without it a gated component re-export degrades silently to an
-	 * empty `kind: 'variable'` husk.
+	 * input. Without it a gated component re-export documents as a `partial`
+	 * component with nothing filled.
 	 */
 	contextSvelteFiles?: ReadonlyArray<SourceFileInfo>;
+	/**
+	 * Whether a path exists — owned in-memory content or disk. It tells a
+	 * `.svelte` file with no svelte2tsx virtual from a mistyped specifier (see
+	 * `SvelteFileStatus`). Defaults to the files handed in plus the disk; a
+	 * session passes its whole owned set, which also holds files that emit
+	 * nothing and aren't offered as context.
+	 */
+	fileExists?: FileExists;
 	onDuplicates?: OnDuplicates;
 	log?: AnalysisLog;
 }
@@ -475,7 +491,8 @@ const analyzeContextComponents = (
 	emittedModules: ReadonlyArray<ModuleJson>,
 	inputs: AnalyzeCoreInputs,
 	aliasRegistry: AliasRegistry,
-	isEmittedFile: IsEmittedFile
+	isEmittedFile: IsEmittedFile,
+	fileExists: FileExists
 ): Array<ModuleJson> => {
 	const { sourceOptions, program, svelteVirtualFiles } = inputs;
 	const referenced = new Set<string>();
@@ -501,7 +518,8 @@ const analyzeContextComponents = (
 			program,
 			virtualFile,
 			aliasRegistry,
-			isEmittedFile
+			isEmittedFile,
+			fileExists
 		);
 		if (raw) contextModules.push(toModuleJson(raw));
 	}
@@ -548,6 +566,12 @@ export const analyzeCore = (inputs: AnalyzeCoreInputs): AnalyzeResultJson => {
 	// link to from one they have to document in place.
 	const emittedIds = new Set(sourceFiles.map((f) => toPosixPath(f.id)));
 	const isEmittedFile: IsEmittedFile = (file) => emittedIds.has(file);
+	// Existence for `SvelteFileStatus`: the caller's answer, else the files
+	// handed in (in-memory content counts) plus the disk.
+	const knownIds = new Set(emittedIds);
+	for (const f of contextSvelteFiles ?? []) knownIds.add(toPosixPath(f.id));
+	const fileExists: FileExists =
+		inputs.fileExists ?? ((file) => knownIds.has(file) || ts.sys.fileExists(file));
 
 	// Registry pre-pass: register the emitted set's exported lost aliases
 	// before any extraction, so every `resolveTypeInfo` call this cycle can
@@ -627,7 +651,8 @@ export const analyzeCore = (inputs: AnalyzeCoreInputs): AnalyzeResultJson => {
 				program,
 				virtualFile,
 				aliasRegistry,
-				isEmittedFile
+				isEmittedFile,
+				fileExists
 			);
 			if (raw) {
 				mod = toModuleJson(raw);
@@ -642,7 +667,8 @@ export const analyzeCore = (inputs: AnalyzeCoreInputs): AnalyzeResultJson => {
 				diagnostics,
 				log,
 				aliasRegistry,
-				isEmittedFile
+				isEmittedFile,
+				fileExists
 			);
 		}
 
@@ -655,7 +681,14 @@ export const analyzeCore = (inputs: AnalyzeCoreInputs): AnalyzeResultJson => {
 	// `mergeReExports` (their edges would back-link modules absent from
 	// output) and out of the emitted set.
 	const contextModules = contextSvelteFiles?.length
-		? analyzeContextComponents(contextSvelteFiles, modules, inputs, aliasRegistry, isEmittedFile)
+		? analyzeContextComponents(
+				contextSvelteFiles,
+				modules,
+				inputs,
+				aliasRegistry,
+				isEmittedFile,
+				fileExists
+			)
 		: [];
 
 	// Phase 2a: build alsoExportedFrom arrays from the modules' forward edges
