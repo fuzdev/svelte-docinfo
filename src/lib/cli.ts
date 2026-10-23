@@ -18,7 +18,7 @@
  * @module
  */
 
-import { Command, type OptionValues } from 'commander';
+import { Command, CommanderError, type OptionValues } from 'commander';
 import { writeFile, readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import picomatch from 'picomatch';
@@ -135,7 +135,8 @@ export interface CliOptions {
  * Run the CLI with the given arguments.
  *
  * @param argv - command line arguments (defaults to `process.argv`)
- * @returns exit code: 0 for success, 1 if errors in diagnostics, 2 for CLI errors or any
+ * @returns exit code: 0 for success (including `--help` and `--version`), 1 if errors in
+ *   diagnostics, 2 for CLI errors (an unknown flag, a missing or invalid option value) or any
  *   thrown analysis error (including an `--on-duplicates throw` collision)
  */
 export const runCli = async (argv: Array<string> = process.argv): Promise<number> => {
@@ -165,6 +166,12 @@ export const runCli = async (argv: Array<string> = process.argv): Promise<number
 		);
 	})();
 
+	// Commander exits 1 on its own parse errors; throw instead so they map to 2,
+	// keeping 1 for analysis errors. Its messages go through `console.error`
+	// like the CLI's own errors.
+	program.exitOverride();
+	program.configureOutput({ writeErr: (s) => console.error(s.trimEnd()) });
+
 	program
 		.name('svelte-docinfo')
 		.description('Static analysis for TypeScript and Svelte source code')
@@ -190,7 +197,8 @@ export const runCli = async (argv: Array<string> = process.argv): Promise<number
 			'--discovery <mode>',
 			`Source file discovery strategy: ${DISCOVERY_VALUES.join('|')} ` +
 				'(default: auto — exports first, glob fallback). ' +
-				'`exports` is strict and fails if package.json exports is missing or empty ' +
+				'`exports` is strict and fails if package.json exports is missing ' +
+				'or resolves to no files ' +
 				'(also incompatible with --include).'
 		)
 		.option('--dist-dir <dir>', 'Dist directory for exports discovery (default: dist)')
@@ -243,8 +251,8 @@ Examples:
   $ svelte-docinfo --source-dir src               Non-SvelteKit project (src/ root)
   $ svelte-docinfo --source-dir src/lib --source-dir src/routes
                                                   Multiple source dirs (source-root auto-derived as 'src')
-  $ svelte-docinfo --source-dir src/lib --source-dir lib/utils --source-root .
-                                                  No common prefix — module paths stay project-relative
+  $ svelte-docinfo --source-dir src/lib --source-dir lib/utils
+                                                  No common prefix — module paths are project-relative
   $ svelte-docinfo --discovery glob               Skip package.json exports
   $ svelte-docinfo --discovery exports            Strict — fail if exports missing
   $ svelte-docinfo --tsconfig tsconfig.lib.json   Use a specific tsconfig
@@ -366,6 +374,12 @@ Examples:
 			}
 		});
 
-	await program.parseAsync(argv);
+	try {
+		await program.parseAsync(argv);
+	} catch (error) {
+		if (!(error instanceof CommanderError)) throw error;
+		// `--help` and `--version` throw with exit code 0
+		return error.exitCode === 0 ? 0 : 2;
+	}
 	return exitCode;
 };

@@ -244,6 +244,24 @@ describe('runCli', { timeout: 15_000 }, () => {
 		);
 	});
 
+	test('returns 2 on an unknown flag', async () => {
+		const { exitCode, stderr } = await runCliCapture(['node', 'svelte-docinfo', '--bogus']);
+		assert.strictEqual(exitCode, 2);
+		assert.ok(
+			stderr.some((e) => e.includes("unknown option '--bogus'")),
+			stderr.join('; ')
+		);
+	});
+
+	test('returns 2 on a missing option value', async () => {
+		const { exitCode, stderr } = await runCliCapture(['node', 'svelte-docinfo', '--tsconfig']);
+		assert.strictEqual(exitCode, 2);
+		assert.ok(
+			stderr.some((e) => e.includes('argument missing')),
+			stderr.join('; ')
+		);
+	});
+
 	test('returns 0 on empty project (no files match)', async () => {
 		await withTestProject(
 			{
