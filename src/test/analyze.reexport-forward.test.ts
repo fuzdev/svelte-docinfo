@@ -622,6 +622,28 @@ export const Foo = 1;
 		});
 	});
 
+	test('a value and a type-only star over one target record it once', async () => {
+		const files = {
+			'node_modules/extpkg/package.json': `{"name": "extpkg", "version": "1.0.0", "main": "./index.js", "types": "./index.d.ts"}`,
+			'node_modules/extpkg/index.d.ts': `export declare const ext: number;\n`,
+			'node_modules/extpkg/index.js': `export const ext = 1;\n`,
+			'src/lib/b.ts': `export const b = 1;\n`,
+			'src/lib/index.ts': `export * from './b.ts';\nexport type * from './b.ts';\nexport * from 'extpkg';\nexport type * from 'extpkg';\n`
+		};
+
+		await withTestProject(files, async (projectRoot) => {
+			const { sourceFiles, sourceOptions } = setupAnalysis(projectRoot, {
+				'src/lib/b.ts': files['src/lib/b.ts'],
+				'src/lib/index.ts': files['src/lib/index.ts']
+			});
+			const { modules } = await analyze({ sourceFiles, sourceOptions });
+
+			const indexModule = modules.find((m) => m.path === 'index.ts')!;
+			assert.deepStrictEqual(indexModule.starExports, ['b.ts']);
+			assert.deepStrictEqual(indexModule.externalStarExports, ['extpkg']);
+		});
+	});
+
 	test('import-then-export and chains through a source module stay out of externalReExports', async () => {
 		// `import {x}; export {x}` has no re-export statement — the specifier
 		// lives on the import. And a re-export of a source module that itself

@@ -1455,7 +1455,7 @@ const ModuleJsonImpl = v.strictObject({
 	 * Paths are relative to `sourceRoot`. Statement-level `@nodocs`
 	 * suppresses the entry, like the other re-export encodings. `export type *
 	 * from` is recorded like a value star — per-statement type-only-ness isn't
-	 * captured.
+	 * captured — and each target appears once, however many statements name it.
 	 *
 	 * Only modules that are themselves in the result appear. A star over a
 	 * project module that emits nothing (gated, or outside the analyzed
@@ -1466,7 +1466,9 @@ const ModuleJsonImpl = v.strictObject({
 	 * export shadows, a name two stars disagree on is excluded). A binding
 	 * such a module re-exports from a package is not recorded anywhere, and
 	 * neither is a star over a component that failed to transform, which lands
-	 * in `externalStarExports` under its relative specifier.
+	 * in `externalStarExports` under its relative specifier (when the program
+	 * has the Svelte shims, i.e. some other component has a virtual; else it's
+	 * skipped as unresolvable).
 	 */
 	starExports: v.optional(v.array(v.string()), () => []),
 	/**
@@ -1485,7 +1487,7 @@ const ModuleJsonImpl = v.strictObject({
 	externalReExports: v.optional(v.array(ExternalReExportJson), () => []),
 	/**
 	 * External modules fully re-exported via `export * from 'pkg'`, as
-	 * written (statement order). The projected names are unknown — the
+	 * written (statement order, each specifier once). The projected names are unknown — the
 	 * package isn't analyzed. Statement-level `@nodocs` suppresses the
 	 * entry; unresolvable specifiers are skipped.
 	 */

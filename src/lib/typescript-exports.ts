@@ -1266,8 +1266,9 @@ const stripModuleTag = (text: string): string => {
  * emit a module land in `starExports` as `sourceRoot`-relative paths; ones that
  * emit nothing are omitted, their bindings materialized by the caller
  * (`collectMaterializedStars`). External targets land in `externalStarExports`
- * as written. Unresolvable specifiers (missing package, typo) are silently
- * skipped.
+ * as written. Each target appears once, at its first statement, so
+ * `export *` plus `export type *` over one module is one entry. Unresolvable
+ * specifiers (missing package, typo) are silently skipped.
  *
  * Statement-level `@nodocs` suppresses the entry — the same rule as the other
  * re-export encodings (same-name edges and renamed aliases).
@@ -1304,11 +1305,13 @@ const extractStarExports = (
 					// `collectMaterializedStars`), so no entry points at a module
 					// the output lacks.
 					if (isEmittedFile(resolvedPath)) {
-						starExports.push(extractPath(resolvedPath, options));
+						const path = extractPath(resolvedPath, options);
+						if (!starExports.includes(path)) starExports.push(path);
 					}
 				} else {
 					// External package — record the specifier as written
-					externalStarExports.push(statement.moduleSpecifier.text);
+					const specifier = statement.moduleSpecifier.text;
+					if (!externalStarExports.includes(specifier)) externalStarExports.push(specifier);
 				}
 			}
 			// If the module couldn't be resolved (missing package, typo), skip it
