@@ -84,6 +84,22 @@ are the tomes in `src/routes/docs/`. Examples: `examples/vite/`, `examples/api/`
   `type Foo = z.infer<typeof Foo>` documents the type (`selectDeclarationNode`), with
   `mergedValue: true` (also a runtime value; `generateImport` emits a value import). When
   the type has no JSDoc, the const's is used. Class+interface merges document the class.
+- **JSDoc type declarations (JS)** — `@typedef`/`@callback` tags are type aliases
+  (`isTypeAliasLike`; `typeAliasTypeNode`/`typeAliasTypeParameters` read the right-hand side
+  and `@template`s), so every alias path treats them like `type A = …`: `@property` members,
+  a `@callback`'s `(call)` member with its `@param`/`@returns` text, written union order, the
+  alias registry, `alias_lost`, and `const A` + `@typedef A` merging with `mergedValue`. Docs
+  follow TypeScript's hover, except as noted: a block declaring a typedef without a
+  `@param`/`@returns` is a typedef block (`isTypedefBlock` in `tsdoc.ts`), which the
+  declaration below skips, prose and tags alike (in `.ts` files too); its typedef takes the
+  prose and tags unless the block declares several (`typedefOwnsBlock`). A function doc block
+  stays the function's, leaving its typedef only the tag's own comment (stricter than hover,
+  as is the several-typedef case). A module comment, a component comment, or the in-script
+  component JSDoc keeps its prose, its typedef tags dropping as unknown ones; a `@typedef` in a
+  component's HTML `@component` comment, which svelte2tsx copies onto the generated component
+  statement, documents nothing and never registers (`isStrayComponentTypedef`, a structural
+  test that fails open if svelte2tsx moves the copy). A `@enum` const is `kind: 'enum'` over
+  its value (`isJSDocEnumSymbol`). TS binds none of these in `.ts` files.
 - **Svelte 5 components** — props, generics, snippets, and `acceptsChildren` via svelte2tsx
   and the checker, including JS components and legacy `export let` components (see Svelte
   Component Analysis).
@@ -520,14 +536,18 @@ The opt-in `findDuplicates` flags duplicate names by canonical identity after re
   as lookup-only context). Re-exported `<script module>` functions and types analyze as
   what they are.
 
-Statement-level `@nodocs` suppresses every encoding. `resolveExportSurface` combines them
-into a module's full export surface with ES star semantics and reports unresolvable stars
-instead of guessing. Lock-in tests:
+Statement-level `@nodocs` suppresses every encoding; one inside a typedef block
+(`isTypedefBlock`) is the typedef's, so the statement keeps its encodings.
+`resolveExportSurface` combines them into a module's full export surface with ES star
+semantics and reports unresolvable stars instead of guessing. Lock-in tests:
 `src/test/analyze.reexport-{edges,namespace,forward,gated,star,import}.test.ts` and
 `postprocess.surface.test.ts`.
 
 ### Not Supported
 
+- A same-name `@typedef {import('./a.js').A} A` documents as an alias over the import, as its
+  TS twin `type A = import('./a.js').A` does, never as a re-export edge. A `@property` after a
+  non-`@property` tag has left the typedef's property list and drops silently.
 - Standalone `namespace Foo {}` documents as a bare `kind: 'variable'` (`export * as ns` is
   supported). Decorators aren't modeled.
 - `@nodocs` on members and component props is ignored with no warning.

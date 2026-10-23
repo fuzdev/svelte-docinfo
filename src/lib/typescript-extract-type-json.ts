@@ -49,6 +49,50 @@ import { isSvelteShimPath } from './typescript-program.ts';
 import type { TupleElementJson, TypeJson } from './types.ts';
 
 /**
+ * A type-alias declaration in either language: TypeScript's
+ * `type A = …`, or a JSDoc `@typedef` / `@callback` tag, which declares the
+ * same alias symbol (`ts.SymbolFlags.TypeAlias`) in a JS file. Every alias
+ * path tests `isTypeAliasLike` and reads the parts through
+ * `typeAliasTypeNode` and `typeAliasTypeParameters`, so a typedef documents
+ * like its TypeScript twin. A JSDoc `@enum` tag declares an alias too, but
+ * documents as `kind: 'enum'` over its value, so it isn't alias-like here.
+ * TypeScript binds these tags in JS files only: a `@typedef` in a `.ts` file
+ * declares nothing, so it never reaches an alias path.
+ */
+export type TypeAliasLike = ts.TypeAliasDeclaration | ts.JSDocTypedefTag | ts.JSDocCallbackTag;
+
+/** Whether a node is a type-alias declaration in either language (`TypeAliasLike`). */
+export const isTypeAliasLike = (node: ts.Node): node is TypeAliasLike =>
+	ts.isTypeAliasDeclaration(node) || ts.isJSDocTypedefTag(node) || ts.isJSDocCallbackTag(node);
+
+/**
+ * The written right-hand side of a type alias: `type A = <this>`, a
+ * typedef's braced type (`@typedef {<this>} A`), the `JSDocTypeLiteral` a
+ * `@typedef {object} A` (or an untyped `@typedef A`) builds from its
+ * `@property` tags, or a `@callback`'s `JSDocSignature`. `undefined` for a
+ * bare `@typedef A` that writes neither a type nor properties.
+ */
+export const typeAliasTypeNode = (node: TypeAliasLike): ts.TypeNode | undefined => {
+	if (ts.isTypeAliasDeclaration(node)) return node.type;
+	const expression = node.typeExpression;
+	if (expression === undefined) return undefined;
+	return ts.isJSDocTypeExpression(expression) ? expression.type : expression;
+};
+
+/**
+ * A type alias's type parameters: a TypeScript alias's own, or the
+ * `@template` tags in a typedef's JSDoc block (`@template T` beside
+ * `@typedef {{a: T}} A`), the checker's reading
+ * (`ts.getEffectiveTypeParameterDeclarations`).
+ */
+export const typeAliasTypeParameters = (
+	node: TypeAliasLike
+): ReadonlyArray<ts.TypeParameterDeclaration> =>
+	ts.isTypeAliasDeclaration(node)
+		? (node.typeParameters ?? [])
+		: ts.getEffectiveTypeParameterDeclarations(node);
+
+/**
  * Recursion cap for `TypeJson` trees; nodes at the cap degrade to
  * `{kind: 'other', text}`. Bounds pathological nesting and terminates the one
  * unbounded walk a recursive alias can produce (`type Json = string | Json[]`
@@ -347,7 +391,7 @@ export interface AliasRegistry {
 	 * the registry is the one cycle-scoped object every warn site already holds
 	 * (the warning is gated on a registry being in hand).
 	 */
-	warnedAliasLost: Set<ts.TypeAliasDeclaration>;
+	warnedAliasLost: Set<TypeAliasLike>;
 }
 
 /** `ts.Type` with the internal `id` field (absent from the public declarations). */
@@ -799,8 +843,9 @@ const unionMemberTypes = (type: ts.UnionType): ReadonlyArray<ts.Type> => {
 
 /**
  * The written union node an aliased union was declared with: the alias
- * declaration's right-hand side, for a non-generic alias whose right-hand side
- * is a union. A generic alias declines — its declaration's members are written
+ * declaration's right-hand side (a typedef's included: `@typedef {'b' | 'a'} A`
+ * orders like `type A = 'b' | 'a'`), for a non-generic alias whose right-hand
+ * side is a union. A generic alias declines — its declaration's members are written
  * over the type parameters, not the instantiation's arguments. An alias local
  * to a generic scope passes this gate (no type arguments of its own) but
  * writes the outer type parameters; `orderByWrittenUnion`'s validation
@@ -809,10 +854,11 @@ const unionMemberTypes = (type: ts.UnionType): ReadonlyArray<ts.Type> => {
 const aliasUnionNode = (type: ts.Type): ts.UnionTypeNode | undefined => {
 	const alias = type.aliasSymbol;
 	if (alias === undefined || type.aliasTypeArguments?.length) return undefined;
-	const declaration = alias.declarations?.find(ts.isTypeAliasDeclaration);
-	if (declaration === undefined || declaration.typeParameters?.length) return undefined;
-	const rhs = unwrapParenthesizedType(declaration.type);
-	return ts.isUnionTypeNode(rhs) ? rhs : undefined;
+	const declaration = alias.declarations?.find(isTypeAliasLike);
+	if (declaration === undefined || typeAliasTypeParameters(declaration).length) return undefined;
+	const written = typeAliasTypeNode(declaration);
+	const rhs = written && unwrapParenthesizedType(written);
+	return rhs && ts.isUnionTypeNode(rhs) ? rhs : undefined;
 };
 
 /**

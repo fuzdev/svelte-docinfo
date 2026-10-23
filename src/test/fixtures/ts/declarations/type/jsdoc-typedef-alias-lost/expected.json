@@ -1,0 +1,54 @@
+{
+	"path": "input.js",
+	"declarations": [
+		{
+			"name": "A",
+			"kind": "type",
+			"typeSignature": "A",
+			"sourceLine": 2,
+			"members": [
+				{
+					"name": "b",
+					"kind": "variable",
+					"typeSignature": "{ a: string; }",
+					"typeInfo": {
+						"kind": "reference",
+						"name": "B",
+						"module": "input.js"
+					}
+				}
+			]
+		},
+		{
+			"name": "B",
+			"kind": "type",
+			"docComment": "An indexed-access right-hand side loses `aliasSymbol`.",
+			"typeSignature": "{ a: string; }",
+			"sourceLine": 8,
+			"members": [
+				{
+					"name": "a",
+					"kind": "variable",
+					"typeSignature": "string"
+				}
+			]
+		},
+		{
+			"name": "C",
+			"kind": "type",
+			"typeSignature": "{ a: string; }",
+			"sourceLine": 11,
+			"typeInfo": {
+				"kind": "reference",
+				"name": "B"
+			},
+			"members": [
+				{
+					"name": "a",
+					"kind": "variable",
+					"typeSignature": "string"
+				}
+			]
+		}
+	]
+}

@@ -142,7 +142,8 @@
 				<code>typeInfo</code>), and <code>mergedValue: true</code> marks that the name is also a
 				runtime value, so <DeclarationLink name="generateImport" /> emits <code>import</code>
 				instead of <code>import type</code>. JSDoc falls back to the value declaration's comment
-				when the type has none, and <code>@nodocs</code> on either declaration excludes the pair.
+				when the type has none, and <code>@nodocs</code> on either declaration excludes the pair. In
+				JS, a <code>const Foo</code> with a same-named <code>@typedef</code> merges the same way.
 			</p>
 			<p>Shared fields on all variants:</p>
 			<ul>

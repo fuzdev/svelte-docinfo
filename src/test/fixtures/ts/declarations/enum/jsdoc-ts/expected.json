@@ -1,0 +1,88 @@
+{
+	"path": "input.ts",
+	"declarations": [
+		{
+			"name": "A",
+			"kind": "enum",
+			"docComment": "Description 1.",
+			"typeSignature": "A",
+			"sourceLine": 5,
+			"members": [
+				{
+					"name": "a",
+					"kind": "variable",
+					"docComment": "Description 2",
+					"typeSignature": "A.a"
+				},
+				{
+					"name": "b",
+					"kind": "variable",
+					"typeSignature": "A.b"
+				}
+			]
+		},
+		{
+			"name": "B",
+			"kind": "enum",
+			"typeSignature": "B",
+			"sourceLine": 12,
+			"members": [
+				{
+					"name": "a",
+					"kind": "variable",
+					"typeSignature": "B.a"
+				},
+				{
+					"name": "b",
+					"kind": "variable",
+					"typeSignature": "B.b"
+				}
+			]
+		},
+		{
+			"name": "fn",
+			"kind": "function",
+			"typeSignature": "(x: A): A",
+			"sourceLine": 17,
+			"parameters": [
+				{
+					"name": "x",
+					"type": "A",
+					"typeInfo": {
+						"kind": "union",
+						"alias": "A",
+						"members": [
+							{
+								"kind": "literal",
+								"value": "a",
+								"text": "A.a"
+							},
+							{
+								"kind": "literal",
+								"value": "b",
+								"text": "A.b"
+							}
+						]
+					}
+				}
+			],
+			"returnType": "A",
+			"returnTypeInfo": {
+				"kind": "union",
+				"alias": "A",
+				"members": [
+					{
+						"kind": "literal",
+						"value": "a",
+						"text": "A.a"
+					},
+					{
+						"kind": "literal",
+						"value": "b",
+						"text": "A.b"
+					}
+				]
+			}
+		}
+	]
+}

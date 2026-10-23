@@ -180,6 +180,21 @@ export function double(n: number | bigint): number | bigint {
 		</TomeSection>
 
 		<TomeSection>
+			<TomeSectionHeader text="@typedef blocks" />
+			<p>
+				In JS, a block that declares a <code>@typedef</code> or <code>@callback</code> and has no
+				<code>@param</code> or <code>@returns</code> of its own documents the typedef, not the
+				declaration below it, as TypeScript's hover reads it. A <code>@module</code> block keeps its
+				prose for the module, and a component's JSDoc above <code>$props()</code> for the component;
+				the typedef gets no prose of its own. A <code>@typedef</code> in a component's HTML
+				<code>@component</code> comment documents nothing. Declare a component's props typedef in
+				its own block, and put the prose on the <code>@type</code> block above
+				<code>$props()</code>: svelte2tsx copies that block into its generated code, so svelte-check
+				reports a typedef there as a duplicate identifier.
+			</p>
+		</TomeSection>
+
+		<TomeSection>
 			<TomeSectionHeader text="@param matching and unknown_param" />
 			<p>
 				<code>@param</code> keys are matched against parameter names, and the leading <code>-</code>
@@ -271,7 +286,9 @@ export function double(n: number | bigint): number | bigint {
 					<strong>Re-exports</strong>: on a re-export statement, it drops the
 					<code>alsoExportedFrom</code> link, any synthesized alias, and the module's
 					<code>reExports</code>, <code>starExports</code>, or <code>externalReExports</code> /
-					<code>externalStarExports</code> entry. The canonical declaration is unaffected.
+					<code>externalStarExports</code> entry. The canonical declaration is unaffected. In JS, a
+					<code>@nodocs</code> in a <code>@typedef</code> block above the statement hides the
+					typedef instead, and the re-export stays.
 				</li>
 				<li>
 					<strong>Merged value+type pairs</strong>: a <code>const Foo</code> + <code>type Foo</code>

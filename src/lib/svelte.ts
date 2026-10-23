@@ -60,6 +60,8 @@ import {
 	extractSignatureParameters,
 	applyReturnType,
 	isExternalSignature,
+	isStrayComponentTypedef,
+	selectDeclarationNode,
 	type ExtractContext,
 	type FileExists,
 	type IsEmittedFile
@@ -469,6 +471,14 @@ const mapVirtualPositionWithFallback = (
 	return { line: line + 1, column: character + 1 };
 };
 
+/** Whether a node is a JSDoc `@typedef`/`@callback` tag in the given virtual. */
+const isVirtualTypedefTag = (
+	node: ts.Node,
+	virtualSource: ts.SourceFile
+): node is ts.JSDocTypedefTag | ts.JSDocCallbackTag =>
+	(ts.isJSDocTypedefTag(node) || ts.isJSDocCallbackTag(node)) &&
+	node.getSourceFile() === virtualSource;
+
 /**
  * Extract the original source line for the component's `<script>` tag.
  *
@@ -741,6 +751,11 @@ const isPropsDeclaration = (statement: ts.Statement): boolean =>
  * svelte2tsx consumes descriptions merged into an inline `@type {{...}}`
  * literal when it rewrites it into a synthesized typedef (the HTML fallback
  * still applies).
+ *
+ * Typedef blocks aren't skipped here: an instance-script typedef is local to
+ * `$$render` and never emitted, and this doc slot is the package's convention
+ * rather than a declaration's hover, so the block's prose stays the
+ * component's.
  */
 const findComponentTsdoc = (
 	root: ts.Node,
@@ -755,7 +770,7 @@ const findComponentTsdoc = (
 		if (ts.isPropertySignature(node)) return;
 
 		if (ts.isVariableStatement(node) || ts.isVariableDeclaration(node)) {
-			const tsdoc = parseComment(node, sourceFile);
+			const tsdoc = parseComment(node, sourceFile, false);
 			if (tsdoc && hasDocContent(tsdoc)) {
 				foundTsdoc = tsdoc;
 				return;
@@ -1711,9 +1726,28 @@ export const analyzeSvelteModule = (
 		externalReExports,
 		externalStarExports
 	} = analyzeExports(virtualTsSource, ctx, options);
+	// stray typedefs from the HTML `@component` comment document nothing, so
+	// their `alias_lost` warnings drop with them
+	const virtualModuleSymbol = checker.getSymbolAtLocation(virtualTsSource);
+	const virtualExports = virtualModuleSymbol ? checker.getExportsOfModule(virtualModuleSymbol) : [];
+	const strayTypedefNames = new Set(
+		virtualExports.filter(isStrayComponentTypedef).map((symbol) => symbol.name)
+	);
+	if (strayTypedefNames.size) {
+		for (let i = diagnostics.length - 1; i >= 0; i--) {
+			const diagnostic = diagnostics[i]!;
+			if (
+				diagnostic.kind === 'alias_lost' &&
+				diagnostic.file === virtualTsSource.fileName &&
+				strayTypedefNames.has(diagnostic.aliasName)
+			) {
+				diagnostics.splice(i, 1);
+			}
+		}
+	}
 
 	// 2. Filter internal svelte2tsx symbols and the default export (generated component class),
-	//    and reclassify exported snippets from 'function' to 'snippet'
+	//    the stray typedefs, and reclassify exported snippets from 'function' to 'snippet'
 	const moduleDeclarations: Array<DeclarationAnalysis> = [];
 	for (const d of rawDeclarations) {
 		// The svelte2tsx-emitted component default export (`export default Foo__SvelteComponent_`)
@@ -1721,6 +1755,7 @@ export const analyzeSvelteModule = (
 		// synthesized fresh below — drop it with the rest of the generated names.
 		const name = d.declaration.name;
 		if (name === undefined || isSvelte2tsxGeneratedExport(name)) continue;
+		if (strayTypedefNames.has(name)) continue;
 
 		reclassifySnippetDeclaration(d.declaration);
 
@@ -1782,6 +1817,16 @@ export const analyzeSvelteModule = (
 						virtualTsSource.getLineAndCharacterOfPosition(stmt.getStart(virtualTsSource)).line + 1;
 					if (!exportNodesByLine.has(line)) exportNodesByLine.set(line, stmt);
 				}
+			}
+		}
+		// a JS `<script module>`'s `@typedef`/`@callback` declares no statement:
+		// its node is the tag, which also wins over a same-named const
+		// (`selectDeclarationNode` documents the merged pair as the typedef)
+		for (const symbol of virtualExports) {
+			if (strayTypedefNames.has(symbol.name)) continue;
+			const node = selectDeclarationNode(symbol);
+			if (node && isVirtualTypedefTag(node, virtualTsSource)) {
+				nodesByName.set(symbol.name, node);
 			}
 		}
 

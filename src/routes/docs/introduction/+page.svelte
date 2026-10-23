@@ -133,7 +133,9 @@ const {modules} = await analyze({
 					tags (<code>@param</code>, <code>@returns</code>, <code>@example</code>,
 					<code>@deprecated</code>, etc.) plus <code>@nodocs</code> to exclude from docs,
 					<code>@internal</code> kept as an <code>internalMessage</code> marker, and
-					<code>@mutates</code> to flag side effects
+					<code>@mutates</code> to flag side effects; in JS, <code>@typedef</code> and
+					<code>@callback</code> document like type aliases and an <code>@enum</code> const like an
+					enum
 				</li>
 				<li>
 					<strong>structured types</strong>: <code>typeInfo</code> trees beside the flat type

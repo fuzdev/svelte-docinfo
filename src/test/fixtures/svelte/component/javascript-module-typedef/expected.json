@@ -1,0 +1,81 @@
+{
+	"path": "ComponentJavascriptModuleTypedef.svelte",
+	"declarations": [
+		{
+			"name": "ComponentJavascriptModuleTypedef",
+			"kind": "component",
+			"sourceLine": 20,
+			"props": [
+				{
+					"name": "a",
+					"type": "A"
+				}
+			],
+			"lang": "js"
+		},
+		{
+			"name": "c",
+			"kind": "variable",
+			"typeSignature": "1",
+			"sourceLine": 10
+		},
+		{
+			"name": "D",
+			"kind": "type",
+			"docComment": "Description 4.",
+			"typeSignature": "{ d: number; }",
+			"sourceLine": 16,
+			"members": [
+				{
+					"name": "d",
+					"kind": "variable",
+					"typeSignature": "number"
+				}
+			],
+			"mergedValue": true
+		},
+		{
+			"name": "A",
+			"kind": "type",
+			"docComment": "Description 1.",
+			"typeSignature": "A",
+			"sourceLine": 4,
+			"members": [
+				{
+					"name": "a",
+					"kind": "variable",
+					"docComment": "Description 2",
+					"typeSignature": "string"
+				}
+			]
+		},
+		{
+			"name": "B",
+			"kind": "type",
+			"typeSignature": "B",
+			"sourceLine": 7,
+			"typeInfo": {
+				"kind": "union",
+				"alias": "B",
+				"members": [
+					{
+						"kind": "literal",
+						"value": "d",
+						"text": "\"d\""
+					},
+					{
+						"kind": "literal",
+						"value": "c",
+						"text": "\"c\""
+					}
+				]
+			}
+		},
+		{
+			"name": "C",
+			"kind": "type",
+			"typeSignature": "number",
+			"sourceLine": 9
+		}
+	]
+}

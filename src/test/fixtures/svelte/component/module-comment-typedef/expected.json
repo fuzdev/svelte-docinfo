@@ -1,0 +1,24 @@
+{
+	"path": "ComponentModuleCommentTypedef.svelte",
+	"declarations": [
+		{
+			"name": "ComponentModuleCommentTypedef",
+			"kind": "component",
+			"sourceLine": 9,
+			"lang": "js"
+		},
+		{
+			"name": "a",
+			"kind": "variable",
+			"typeSignature": "1",
+			"sourceLine": 8
+		},
+		{
+			"name": "A",
+			"kind": "type",
+			"typeSignature": "string",
+			"sourceLine": 4
+		}
+	],
+	"moduleComment": "Description 1."
+}

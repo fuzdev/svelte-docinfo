@@ -189,7 +189,16 @@ Where each behavior is locked. Unit and behavior-level mechanics live in
   rune-free script — nor a named slot alone: `slot-*`), exported snippets
   (`exported-snippet*`), merged valibot schema, JS components (`javascript`,
   `props/jsdoc-type`), JSDoc parameters on a JS `<script module>` function
-  (`component/javascript-module-params`)
+  (`component/javascript-module-params`), and JS `<script module>` typedefs
+  with original-source lines and a merged const+typedef
+  (`component/javascript-module-typedef`); a `@typedef` line in a
+  `<script module>` module comment and in an HTML `@component` comment,
+  each keeping its prose, the latter's typedef documenting nothing
+  (`component/{module,component}-comment-typedef`), its lost alias naming
+  nothing at use sites and warning no `alias_lost`
+  (`component/component-comment-typedef-lost`); a `@typedef` line in the
+  in-script JSDoc above `$props()` keeping its prose for the component, over
+  the HTML comment (`component/doccomment-both-typedef-block`)
 - Script tags: a `<script>` nested in the template is not the component's
   (`component/nested-script-*`): ahead of a legacy instance script (`-legacy`)
   and a runes one (`-runes`), with `lang="ts"` in a JS component (`-lang`),
@@ -245,7 +254,9 @@ Where each behavior is locked. Unit and behavior-level mechanics live in
   Position-3 / rename / star (`module-exports`), external packages
   (`external-package`), gated Svelte canonical via `contextSvelteFiles`
   (`gated-component`), gated ts module with dangling `aliasOf`
-  (`gated-module`)
+  (`gated-module`), a `@nodocs` typedef block on `export {a}` and
+  `export {b} from` hiding the typedefs and keeping both re-export edges
+  (`typedef-block-nodocs`)
 - Errors: `untyped`, `template-malformed`, `type-resolution-failed`
 
 **ts**
@@ -265,6 +276,24 @@ Where each behavior is locked. Unit and behavior-level mechanics live in
   `analyze.type-info-union-order.test.ts`); alias-lost unions written as
   union members, grouping and the fallbacks to expansion
   (`types/union-lost-alias-written`)
+- JSDoc typedefs as type aliases (`declarations/type/jsdoc-*`, each JS one
+  beside a `-ts` twin where TS has one): `@property` members (bracketed and
+  `{T=}` optional, a nested `{object}`), written union order at the alias and
+  use sites, `@callback` `(call)` members, `@template` generics with a
+  constraint and default, block tags and `@nodocs`, `alias_lost`; whose
+  block prose a typedef takes (`jsdoc-typedef-blocks`: several typedefs in
+  one block, detached and directly above a declaration, one in a function's
+  `@param`/`@returns` block, typedef blocks above declarations, which skip
+  them, with `@nodocs`/`@deprecated`/`@see` and `@type` staying the
+  typedef's, and a `@callback` block with its `@param` above a const); a
+  `@module` block's typedef leaving the module its prose
+  (`module/comment/typedef{,-ts}`); a `.ts` file's typedefs and `@enum`
+  declaring nothing, and its declaration skipping a typedef block
+  (`jsdoc-typedef-in-ts`); a merged const+typedef (`merged-value-typedef`);
+  a JS `@enum` const, with string and array initializers listing no library
+  members, and an `Object.freeze` and a spread initializer
+  (`declarations/enum/jsdoc`); a JS component's typedef props over an
+  external bag (svelte `types/jsdoc-typedef-external`)
 - TSDoc placement on declarations and members (`ts/tsdoc/*`), including
   `@default` (`declarations/*/jsdoc-default*`)
 - Type aliases: object literals, intersections, mapped, unions, tuples,

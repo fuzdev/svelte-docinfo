@@ -1,0 +1,35 @@
+{
+	"path": "input.js",
+	"declarations": [
+		{
+			"name": "A",
+			"kind": "type",
+			"docComment": "Description 3.",
+			"typeSignature": "{ a: string; }",
+			"sourceLine": 12,
+			"members": [
+				{
+					"name": "a",
+					"kind": "variable",
+					"typeSignature": "string"
+				}
+			],
+			"mergedValue": true
+		},
+		{
+			"name": "B",
+			"kind": "type",
+			"docComment": "Description 2.",
+			"typeSignature": "{ b: number; }",
+			"sourceLine": 15,
+			"members": [
+				{
+					"name": "b",
+					"kind": "variable",
+					"typeSignature": "number"
+				}
+			],
+			"mergedValue": true
+		}
+	]
+}

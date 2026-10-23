@@ -1,0 +1,56 @@
+{
+	"modules": [
+		{
+			"path": "ReexportsTypedefBlockNodocs/dep.ts",
+			"declarations": [
+				{
+					"name": "a",
+					"kind": "variable",
+					"typeSignature": "1",
+					"sourceLine": 1,
+					"alsoExportedFrom": [
+						"ReexportsTypedefBlockNodocs/ReexportsTypedefBlockNodocs.svelte"
+					]
+				},
+				{
+					"name": "b",
+					"kind": "variable",
+					"typeSignature": "2",
+					"sourceLine": 2,
+					"alsoExportedFrom": [
+						"ReexportsTypedefBlockNodocs/ReexportsTypedefBlockNodocs.svelte"
+					]
+				}
+			],
+			"dependents": [
+				"ReexportsTypedefBlockNodocs/ReexportsTypedefBlockNodocs.svelte"
+			]
+		},
+		{
+			"path": "ReexportsTypedefBlockNodocs/ReexportsTypedefBlockNodocs.svelte",
+			"declarations": [
+				{
+					"name": "ReexportsTypedefBlockNodocs",
+					"kind": "component",
+					"sourceLine": 17,
+					"lang": "js"
+				}
+			],
+			"dependencies": [
+				"ReexportsTypedefBlockNodocs/dep.ts"
+			],
+			"reExports": [
+				{
+					"name": "a",
+					"module": "ReexportsTypedefBlockNodocs/dep.ts",
+					"sourceLine": 9
+				},
+				{
+					"name": "b",
+					"module": "ReexportsTypedefBlockNodocs/dep.ts",
+					"sourceLine": 16
+				}
+			]
+		}
+	]
+}

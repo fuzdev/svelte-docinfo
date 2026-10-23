@@ -1,0 +1,96 @@
+{
+	"path": "input.js",
+	"declarations": [
+		{
+			"name": "A",
+			"kind": "type",
+			"docComment": "Description 1.",
+			"typeSignature": "A",
+			"sourceLine": 3,
+			"members": [
+				{
+					"name": "(call)",
+					"kind": "function",
+					"typeSignature": "(a: string, b?: number | undefined, ...c: {}): boolean",
+					"parameters": [
+						{
+							"name": "a",
+							"type": "string",
+							"description": "Description 2"
+						},
+						{
+							"name": "b",
+							"type": "number",
+							"optional": true,
+							"description": "Description 3"
+						},
+						{
+							"name": "c",
+							"type": "{}",
+							"rest": true,
+							"description": "Description 4"
+						}
+					],
+					"returnType": "boolean"
+				}
+			]
+		},
+		{
+			"name": "B",
+			"kind": "type",
+			"typeSignature": "B",
+			"sourceLine": 11,
+			"members": [
+				{
+					"name": "(call)",
+					"kind": "function",
+					"typeSignature": "(this: { n: number; }, a: { x: number; }, b?: number | undefined): any",
+					"parameters": [
+						{
+							"name": "a",
+							"type": "{ x: number; }"
+						},
+						{
+							"name": "b",
+							"type": "number",
+							"optional": true,
+							"defaultValue": "1"
+						}
+					],
+					"returnType": "any"
+				}
+			]
+		},
+		{
+			"name": "C",
+			"kind": "type",
+			"typeSignature": "C",
+			"sourceLine": 18,
+			"members": [
+				{
+					"name": "a",
+					"kind": "function",
+					"docComment": "Description 6",
+					"typeSignature": "(a: string, b?: number | undefined, ...c: {}): boolean",
+					"parameters": [
+						{
+							"name": "a",
+							"type": "string"
+						},
+						{
+							"name": "b",
+							"type": "number",
+							"optional": true
+						},
+						{
+							"name": "c",
+							"type": "{}",
+							"rest": true
+						}
+					],
+					"returnType": "boolean"
+				}
+			]
+		}
+	]
+}

@@ -1,0 +1,18 @@
+{
+	"path": "input.js",
+	"declarations": [
+		{
+			"name": "a",
+			"kind": "variable",
+			"typeSignature": "1",
+			"sourceLine": 7
+		},
+		{
+			"name": "A",
+			"kind": "type",
+			"typeSignature": "string",
+			"sourceLine": 3
+		}
+	],
+	"moduleComment": "Description 1."
+}

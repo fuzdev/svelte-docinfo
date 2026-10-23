@@ -1,0 +1,18 @@
+{
+	"path": "ComponentComponentCommentTypedef.svelte",
+	"declarations": [
+		{
+			"name": "ComponentComponentCommentTypedef",
+			"kind": "component",
+			"docComment": "Description 1.",
+			"sourceLine": 6,
+			"props": [
+				{
+					"name": "a",
+					"type": "any"
+				}
+			],
+			"lang": "js"
+		}
+	]
+}

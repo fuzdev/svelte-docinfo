@@ -1,0 +1,79 @@
+{
+	"path": "input.ts",
+	"declarations": [
+		{
+			"name": "A",
+			"kind": "type",
+			"docComment": "Description 1.",
+			"typeSignature": "A<T, U>",
+			"sourceLine": 4,
+			"genericParams": [
+				{
+					"name": "T"
+				},
+				{
+					"name": "U",
+					"constraint": "string",
+					"defaultType": "'a'"
+				}
+			],
+			"members": [
+				{
+					"name": "a",
+					"kind": "variable",
+					"typeSignature": "T"
+				},
+				{
+					"name": "b",
+					"kind": "variable",
+					"typeSignature": "U"
+				}
+			]
+		},
+		{
+			"name": "B",
+			"kind": "type",
+			"typeSignature": "B<T>",
+			"sourceLine": 6,
+			"genericParams": [
+				{
+					"name": "T"
+				}
+			],
+			"members": [
+				{
+					"name": "(call)",
+					"kind": "function",
+					"typeSignature": "(a: T): T",
+					"parameters": [
+						{
+							"name": "a",
+							"type": "T"
+						}
+					],
+					"returnType": "T"
+				}
+			]
+		},
+		{
+			"name": "C",
+			"kind": "type",
+			"typeSignature": "C<T>",
+			"sourceLine": 8,
+			"genericParams": [
+				{
+					"name": "T",
+					"constraint": "object"
+				}
+			],
+			"members": [
+				{
+					"name": "a",
+					"kind": "variable",
+					"docComment": "Description 2",
+					"typeSignature": "T"
+				}
+			]
+		}
+	]
+}

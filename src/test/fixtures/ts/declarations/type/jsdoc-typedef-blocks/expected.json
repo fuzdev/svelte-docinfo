@@ -1,0 +1,176 @@
+{
+	"path": "input.js",
+	"declarations": [
+		{
+			"name": "fn",
+			"kind": "function",
+			"docComment": "Description 4.",
+			"typeSignature": "(a: number): number",
+			"sourceLine": 14,
+			"deprecatedMessage": "",
+			"parameters": [
+				{
+					"name": "a",
+					"type": "number",
+					"description": "Description 6"
+				}
+			],
+			"returnType": "number"
+		},
+		{
+			"name": "fn2",
+			"kind": "function",
+			"typeSignature": "(): void",
+			"sourceLine": 37,
+			"returnType": "void"
+		},
+		{
+			"name": "fn3",
+			"kind": "function",
+			"docComment": "Description 15.",
+			"typeSignature": "(): string",
+			"sourceLine": 60,
+			"returnType": "string",
+			"returnDescription": "Description 16"
+		},
+		{
+			"name": "fn4",
+			"kind": "function",
+			"typeSignature": "(): void",
+			"sourceLine": 69,
+			"returnType": "void"
+		},
+		{
+			"name": "b",
+			"kind": "variable",
+			"typeSignature": "1",
+			"sourceLine": 23
+		},
+		{
+			"name": "c",
+			"kind": "variable",
+			"docComment": "Description 9.",
+			"typeSignature": "1",
+			"sourceLine": 31
+		},
+		{
+			"name": "d",
+			"kind": "variable",
+			"typeSignature": "1",
+			"sourceLine": 46
+		},
+		{
+			"name": "e",
+			"kind": "variable",
+			"typeSignature": "string",
+			"sourceLine": 53
+		},
+		{
+			"name": "f",
+			"kind": "variable",
+			"typeSignature": "1",
+			"sourceLine": 77
+		},
+		{
+			"name": "g",
+			"kind": "variable",
+			"typeSignature": "1",
+			"sourceLine": 85
+		},
+		{
+			"name": "A",
+			"kind": "type",
+			"docComment": "Description 2",
+			"typeSignature": "number",
+			"sourceLine": 3
+		},
+		{
+			"name": "B",
+			"kind": "type",
+			"docComment": "Description 3",
+			"typeSignature": "string",
+			"sourceLine": 4
+		},
+		{
+			"name": "C",
+			"kind": "type",
+			"docComment": "Description 5",
+			"typeSignature": "number",
+			"sourceLine": 10
+		},
+		{
+			"name": "F",
+			"kind": "type",
+			"docComment": "Description 10.",
+			"typeSignature": "number",
+			"sourceLine": 35
+		},
+		{
+			"name": "I",
+			"kind": "type",
+			"typeSignature": "string",
+			"sourceLine": 57
+		},
+		{
+			"name": "E",
+			"kind": "type",
+			"docComment": "Description 8.",
+			"typeSignature": "string",
+			"sourceLine": 27
+		},
+		{
+			"name": "G",
+			"kind": "type",
+			"docComment": "Description 11.",
+			"typeSignature": "string",
+			"sourceLine": 41,
+			"deprecatedMessage": "Description 13",
+			"seeAlso": [
+				"Description 12"
+			],
+			"since": "1.0.0"
+		},
+		{
+			"name": "H",
+			"kind": "type",
+			"docComment": "Description 14.",
+			"typeSignature": "string",
+			"sourceLine": 50
+		},
+		{
+			"name": "K",
+			"kind": "type",
+			"docComment": "Description 19",
+			"typeSignature": "string",
+			"sourceLine": 73
+		},
+		{
+			"name": "L",
+			"kind": "type",
+			"typeSignature": "number",
+			"sourceLine": 74
+		},
+		{
+			"name": "M",
+			"kind": "type",
+			"docComment": "Description 20.",
+			"typeSignature": "M",
+			"sourceLine": 81,
+			"members": [
+				{
+					"name": "(call)",
+					"kind": "function",
+					"typeSignature": "(x: string): void",
+					"parameters": [
+						{
+							"name": "x",
+							"type": "string",
+							"description": "Description 21"
+						}
+					],
+					"returnType": "void"
+				}
+			]
+		}
+	]
+}

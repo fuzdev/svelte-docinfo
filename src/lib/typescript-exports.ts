@@ -54,7 +54,10 @@ import {
 import {
 	isAliasLostType,
 	isBrandLikeIntersection,
-	isLiteralOnlyUnion
+	isLiteralOnlyUnion,
+	isTypeAliasLike,
+	typeAliasTypeNode,
+	type TypeAliasLike
 } from './typescript-extract-type-json.ts';
 import { extractFunctionInfo, extractVariableInfo } from './typescript-extract-function.ts';
 import { extractTypeInfo, extractEnumInfo } from './typescript-extract-type.ts';
@@ -1300,7 +1303,7 @@ export const analyzeDeclaration = (
 		extractTypeInfo(declNode, result, ctx);
 		// the nodocs gate is explicit because extraction runs before the nodocs
 		// filter in analyze-core — an excluded alias must not warn
-		if (!nodocs && ts.isTypeAliasDeclaration(declNode)) {
+		if (!nodocs && isTypeAliasLike(declNode)) {
 			warnAliasLost(declNode, name, ctx);
 		}
 	} else if (result.kind === 'enum') {
@@ -1354,11 +1357,12 @@ const ALIAS_LOST_RHS_KINDS: ReadonlySet<ts.SyntaxKind> = new Set([
  * analyzing site. Two non-recoverable aliases over one lost type still warn
  * separately (each names its own declaration site).
  */
-const warnAliasLost = (node: ts.TypeAliasDeclaration, name: string, ctx: ExtractContext): void => {
+const warnAliasLost = (node: TypeAliasLike, name: string, ctx: ExtractContext): void => {
 	const registry = ctx.aliasRegistry;
 	if (!registry) return;
 	if (registry.warnedAliasLost.has(node)) return;
-	if (!ALIAS_LOST_RHS_KINDS.has(node.type.kind)) return;
+	const rhs = typeAliasTypeNode(node);
+	if (!rhs || !ALIAS_LOST_RHS_KINDS.has(rhs.kind)) return;
 	// The svelte2tsx-synthesized component alias (`<Name>__SvelteComponent_`,
 	// alias-lost by construction for generic components) is not an author-side
 	// type — the svelte layer filters it from declarations after the walk, so

@@ -47,6 +47,18 @@
  * typedef or callback) parse to their own tag description — the only doc such
  * a declaration can carry.
  *
+ * `@typedef`/`@callback` tags declare type aliases in JS. A block declaring one
+ * without a `@param` or `@returns` is a typedef block (`isTypedefBlock`). As
+ * in TypeScript's hover, the declaration it's attached to skips it. Its
+ * typedef takes the block's prose and tags (hover shows no block tags on a
+ * typedef) unless the block declares several (`typedefOwnsBlock`), and a
+ * function doc block stays the function's, leaving a typedef in it only its
+ * own tag comment; both are stricter than hover, which gives every typedef
+ * the block's prose. A `@callback`'s `JSDocSignature` parses to its
+ * `@param`/`@returns` text. Comment text parsed without a node
+ * (`parseCommentText`) and the in-script component JSDoc keep a typedef
+ * block's prose (`skipTypedefBlocks: false`).
+ *
  * Due to TS Compiler API limitations:
  * - TS API includes dash separator in `@param` tag text; we strip the leading `- ` as it's syntax, not content
  * - `@throws` braced types (`{TypeError}`) parse into the tag's typeExpression, not its text —
@@ -309,14 +321,26 @@ export const jsdocParamTagDefault = (
  * - `@mutates` - mutation documentation (non-standard)
  * - `@nodocs` - exclusion flag (non-standard)
  *
+ * A JSDoc `@typedef` or `@callback` tag parses to the typedef's docs
+ * (`parseTypedefComment`), and a `@callback`'s signature to its parameter and
+ * return descriptions (`parseCallbackSignatureComment`).
+ *
  * JSDoc blocks tagged `@module` are excluded entirely (text and tags): a module
  * comment attaches to the file's first statement in the AST, and without the
  * filter it would read as that statement's own docs. Module comments parse
- * through `parseModuleComment`, which hands this function the comment's text.
+ * through `parseModuleComment`, which parses the comment's text the same way.
+ * Typedef blocks (`isTypedefBlock`: a `@typedef`/`@callback` without a
+ * `@param` or `@returns`) are excluded the same way, as TypeScript's hover
+ * skips them: they document their typedefs, not the declaration below.
+ * `skipTypedefBlocks: false` keeps them, for a block that stands for a module
+ * or component comment, which a `@typedef` line doesn't make a typedef's:
+ * there the tag drops as an unknown one, and the prose stays.
  *
  * @param node - the TypeScript node to extract JSDoc from
  * @param sourceFile - source file for full-text tag reads (`@see`); defaults to the node's own
- * @returns parsed comment with structured metadata, or undefined if no JSDoc found (or only `@module` blocks)
+ * @param skipTypedefBlocks - whether typedef blocks are excluded
+ * @returns parsed comment with structured metadata, or undefined if no JSDoc found (or only
+ *   `@module` and typedef blocks)
  *
  * @example
  * ```ts
@@ -329,7 +353,8 @@ export const jsdocParamTagDefault = (
  */
 export const parseComment = (
 	node: ts.Node,
-	sourceFile: ts.SourceFile = node.getSourceFile()
+	sourceFile: ts.SourceFile = node.getSourceFile(),
+	skipTypedefBlocks = true
 ): TsdocParsedComment | undefined => {
 	// `@property`/`@param` tags declare symbols themselves (JSDoc typedefs,
 	// callbacks); their description rides the tag, not an attached block —
@@ -342,10 +367,156 @@ export const parseComment = (
 		return { text: cleaned, params };
 	}
 
-	const tsdocComments = ts.getJSDocCommentsAndTags(node).filter((c) => !belongsToModuleBlock(c));
+	if (ts.isJSDocTypedefTag(node) || ts.isJSDocCallbackTag(node)) {
+		return parseTypedefComment(node, sourceFile);
+	}
+	if (ts.isJSDocSignature(node) && ts.isJSDocCallbackTag(node.parent)) {
+		return parseCallbackSignatureComment(node, sourceFile);
+	}
+
+	const tsdocComments = ts
+		.getJSDocCommentsAndTags(node)
+		.filter((c) => !belongsToModuleBlock(c) && !(skipTypedefBlocks && belongsToTypedefBlock(c)));
 	if (tsdocComments.length === 0) return undefined;
 
-	let fullText = '';
+	// Extract main comment text. `jsdocCommentText` keeps inline `{@link}`
+	// tags — a link node carries its target in `name`, not `text`, so a manual
+	// `.map((c) => c.text)` join would silently drop it.
+	const texts: Array<string> = [];
+	for (const comment of tsdocComments) {
+		if (ts.isJSDoc(comment) && comment.comment) {
+			const text = jsdocCommentText(comment.comment, sourceFile);
+			if (text) texts.push(text);
+		}
+	}
+
+	// Extract tags (module- and typedef-block tags filtered like their text above)
+	const tags = ts
+		.getJSDocTags(node)
+		.filter(
+			(tag) => !belongsToModuleBlock(tag) && !(skipTypedefBlocks && belongsToTypedefBlock(tag))
+		);
+	return parseCommentParts(texts, tags, sourceFile);
+};
+
+/**
+ * Whether a JSDoc tag declares a type alias: `@typedef` or `@callback`.
+ */
+const isTypedefDeclaringTag = (tag: ts.JSDocTag): boolean =>
+	ts.isJSDocTypedefTag(tag) || ts.isJSDocCallbackTag(tag);
+
+/**
+ * Whether a JSDoc block documents a function: it has a `@param` or
+ * `@returns` tag. A `@callback`'s own `@param`/`@returns` tags sit under its
+ * `JSDocSignature`, not in the block's tags, so they don't count.
+ */
+const isFunctionDocBlock = (block: ts.JSDoc): boolean =>
+	!!block.tags?.some((t) => ts.isJSDocParameterTag(t) || ts.isJSDocReturnTag(t));
+
+/**
+ * Whether a JSDoc block is a typedef block: it declares a `@typedef` or
+ * `@callback` and is not a function doc block (`isFunctionDocBlock`).
+ *
+ * TypeScript's reading (`getJsDocCommentsFromDeclarations` and
+ * `getJsDocTagsFromDeclarations`, behind hover): a declaration other than the
+ * typedef skips such a block, prose and tags alike, so it documents only the
+ * typedefs it declares. A function doc block documents the function. Hover
+ * also gives a typedef in it the block's prose (`getCommentHavingNodes` reads
+ * the whole block for any typedef); we deliberately leave the prose to the
+ * function and give the typedef only its own tag comment. `@type` is no function-doc
+ * tag, so a block of prose, `@typedef {string} N`, and `@type {N}` above a
+ * const gives the prose to `N`. The rule is TypeScript's in `.ts` files too, where nothing
+ * binds the typedef but the declaration below still skips the block.
+ */
+const isTypedefBlock = (block: ts.JSDoc): boolean =>
+	!!block.tags?.some(isTypedefDeclaringTag) && !isFunctionDocBlock(block);
+
+/**
+ * Whether a JSDoc node or tag belongs to a typedef block (`isTypedefBlock`),
+ * which documents its typedefs and not the declaration it's attached to.
+ * Per-block like `belongsToModuleBlock`; a tag outside any block (a
+ * `@callback`'s nested `@param`) belongs to none.
+ */
+const belongsToTypedefBlock = (node: ts.JSDoc | ts.JSDocTag): boolean =>
+	ts.isJSDoc(node) ? isTypedefBlock(node) : ts.isJSDoc(node.parent) && isTypedefBlock(node.parent);
+
+/**
+ * Whether a typedef or callback owns its JSDoc block's prose and block tags
+ * (`@nodocs`, `@deprecated`, `@see`, `@since`, `@example`, …), not only its
+ * own tag comment. It does when the block is a typedef block
+ * (`isTypedefBlock`: not a function doc block), not a `@module` block, and
+ * declares no other typedef or callback; a block of several leaves each one
+ * its own tag comment. Both that case and a typedef in a function doc block
+ * depart from hover on purpose: hover gives every typedef in a block the
+ * block's prose, which here has no single owner. Hover also shows no block
+ * tags on a typedef, while an owning typedef takes them here with the prose.
+ * Position plays no part: a typedef block directly above a declaration
+ * documents the typedef, and the declaration skips it
+ * (`belongsToTypedefBlock`), as TypeScript's hover reads it.
+ */
+const typedefOwnsBlock = (tag: ts.JSDocTypedefTag | ts.JSDocCallbackTag): boolean => {
+	const block = tag.parent;
+	if (isModuleJsdocBlock(block) || !isTypedefBlock(block)) return false;
+	return !block.tags?.some((t) => t !== tag && isTypedefDeclaringTag(t));
+};
+
+/**
+ * Parse a JSDoc `@typedef` or `@callback`'s documentation: the block's
+ * prose and tags when the typedef owns its block (`typedefOwnsBlock`), then
+ * its own tag comment (`@typedef {number} A - Description 1`, the leading
+ * `- ` dropped). Its `@property`, `@param`, and `@returns` tags describe its
+ * members (`extractTypeAliasProperties`), not the alias.
+ */
+const parseTypedefComment = (
+	tag: ts.JSDocTypedefTag | ts.JSDocCallbackTag,
+	sourceFile: ts.SourceFile
+): TsdocParsedComment | undefined => {
+	const texts: Array<string> = [];
+	let tags: Array<ts.JSDocTag> = [];
+	const block = tag.parent;
+	if (typedefOwnsBlock(tag)) {
+		const blockText = jsdocCommentText(block.comment, sourceFile);
+		if (blockText) texts.push(blockText);
+		tags = block.tags?.filter((t) => t !== tag) ?? [];
+	}
+	const tagText = jsdocCommentText(tag.comment, sourceFile);
+	const cleaned = tagText && cleanTagDescription(tagText);
+	if (cleaned) texts.push(cleaned);
+	if (texts.length === 0 && tags.length === 0) return undefined;
+	return parseCommentParts(texts, tags, sourceFile);
+};
+
+/**
+ * Parse a `@callback`'s signature documentation: each `@param` tag's
+ * description (dotted and nested names keyed as on a function) and the
+ * `@returns` text, which `emitCallOrConstructSignature` puts on the alias's
+ * `(call)` member. Prose and block tags document the alias itself
+ * (`parseTypedefComment`).
+ */
+const parseCallbackSignatureComment = (
+	signature: ts.JSDocSignature,
+	sourceFile: ts.SourceFile
+): TsdocParsedComment | undefined => {
+	const params: Record<string, string> = Object.create(null);
+	// `parameters` also holds a `@this` tag, which names no parameter
+	for (const param of signature.parameters) {
+		if (ts.isJSDocParameterTag(param)) collectParamTag(param, params, sourceFile);
+	}
+	const returnText = jsdocCommentText(signature.type?.comment, sourceFile);
+	const returns = returnText?.trim() || undefined;
+	if (returns === undefined && Object.keys(params).length === 0) return undefined;
+	return { text: '', params, returns };
+};
+
+/**
+ * Build a parsed comment from description texts (joined by newlines) and the
+ * tags to read. The one tag reader every `parseComment` source shares.
+ */
+const parseCommentParts = (
+	texts: ReadonlyArray<string>,
+	tags: ReadonlyArray<ts.JSDocTag>,
+	sourceFile: ts.SourceFile
+): TsdocParsedComment => {
 	// Null-prototype map: keys are parameter names parsed from source. Without it,
 	// a parameter named after an `Object.prototype` key (`constructor`, `toString`,
 	// `__proto__`, …) with no matching `@param` tag would read the inherited
@@ -363,20 +534,6 @@ export const parseComment = (
 	let mutates: Record<string, string> | undefined;
 	let nodocs: boolean | undefined;
 
-	// Extract main comment text. `jsdocCommentText` keeps inline `{@link}`
-	// tags — a link node carries its target in `name`, not `text`, so a manual
-	// `.map((c) => c.text)` join would silently drop it.
-	for (const comment of tsdocComments) {
-		if (ts.isJSDoc(comment) && comment.comment) {
-			const text = jsdocCommentText(comment.comment, sourceFile);
-			if (text) {
-				fullText += text + '\n';
-			}
-		}
-	}
-
-	// Extract tags (module-block tags filtered like their text above)
-	const tags = ts.getJSDocTags(node).filter((tag) => !belongsToModuleBlock(tag));
 	for (const tag of tags) {
 		const tagText = jsdocCommentText(tag.comment, sourceFile);
 		const tagName = tag.tagName.text;
@@ -443,10 +600,8 @@ export const parseComment = (
 		}
 	}
 
-	fullText = fullText.trim();
-
 	return {
-		text: fullText,
+		text: texts.join('\n').trim(),
 		params,
 		returns,
 		throws,
@@ -622,7 +777,7 @@ export const parseCommentText = (text: string): TsdocParsedComment | undefined =
 		true,
 		ts.ScriptKind.TS
 	);
-	const parsed = parseComment(sourceFile.statements[0]!, sourceFile);
+	const parsed = parseComment(sourceFile.statements[0]!, sourceFile, false);
 	return parsed && escaped !== text
 		? (restoreCommentText(parsed, escapes) as TsdocParsedComment)
 		: parsed;

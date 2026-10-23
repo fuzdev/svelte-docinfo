@@ -1,0 +1,42 @@
+{
+	"path": "input.ts",
+	"declarations": [
+		{
+			"name": "A",
+			"kind": "type",
+			"docComment": "Description 1.",
+			"typeSignature": "number",
+			"sourceLine": 9,
+			"examples": [
+				"const a = 1;"
+			],
+			"deprecatedMessage": "Description 2",
+			"seeAlso": [
+				"https://fuz.dev"
+			],
+			"since": "1.0.0"
+		},
+		{
+			"name": "C",
+			"kind": "type",
+			"docComment": "Description 3.",
+			"typeSignature": "C",
+			"sourceLine": 20,
+			"deprecatedMessage": "",
+			"members": [
+				{
+					"name": "(call)",
+					"kind": "function",
+					"typeSignature": "(a: string): void",
+					"parameters": [
+						{
+							"name": "a",
+							"type": "string"
+						}
+					],
+					"returnType": "void"
+				}
+			]
+		}
+	]
+}

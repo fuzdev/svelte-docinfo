@@ -1,0 +1,91 @@
+{
+	"path": "input.js",
+	"declarations": [
+		{
+			"name": "A",
+			"kind": "type",
+			"docComment": "Description 1.",
+			"typeSignature": "A",
+			"sourceLine": 3,
+			"members": [
+				{
+					"name": "a",
+					"kind": "variable",
+					"docComment": "Description 2",
+					"typeSignature": "string"
+				},
+				{
+					"name": "b",
+					"kind": "variable",
+					"docComment": "Description 3",
+					"typeSignature": "number",
+					"optional": true
+				},
+				{
+					"name": "c",
+					"kind": "variable",
+					"docComment": "Description 4",
+					"typeSignature": "boolean",
+					"optional": true
+				},
+				{
+					"name": "d",
+					"kind": "variable",
+					"typeSignature": "string | null",
+					"optional": true,
+					"typeInfo": {
+						"kind": "union",
+						"members": [
+							{
+								"kind": "intrinsic",
+								"text": "string"
+							},
+							{
+								"kind": "intrinsic",
+								"text": "null"
+							}
+						]
+					}
+				},
+				{
+					"name": "e",
+					"kind": "variable",
+					"docComment": "Description 5",
+					"typeSignature": "{ f: number; }"
+				}
+			]
+		},
+		{
+			"name": "B",
+			"kind": "type",
+			"typeSignature": "B",
+			"sourceLine": 13,
+			"members": [
+				{
+					"name": "a",
+					"kind": "variable",
+					"typeSignature": "string"
+				}
+			]
+		},
+		{
+			"name": "C",
+			"kind": "type",
+			"typeSignature": "C",
+			"sourceLine": 17,
+			"members": [
+				{
+					"name": "a",
+					"kind": "variable",
+					"typeSignature": "string"
+				},
+				{
+					"name": "b",
+					"kind": "variable",
+					"typeSignature": "number",
+					"optional": true
+				}
+			]
+		}
+	]
+}

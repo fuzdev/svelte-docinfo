@@ -1,0 +1,117 @@
+{
+	"path": "input.js",
+	"declarations": [
+		{
+			"name": "a",
+			"kind": "variable",
+			"typeSignature": "\"a\"",
+			"sourceLine": 2
+		},
+		{
+			"name": "b",
+			"kind": "variable",
+			"typeSignature": "A",
+			"sourceLine": 10,
+			"typeInfo": {
+				"kind": "union",
+				"alias": "A",
+				"members": [
+					{
+						"kind": "literal",
+						"value": "b",
+						"text": "\"b\""
+					},
+					{
+						"kind": "literal",
+						"value": "a",
+						"text": "\"a\""
+					},
+					{
+						"kind": "intrinsic",
+						"text": "null"
+					}
+				]
+			}
+		},
+		{
+			"name": "fn",
+			"kind": "function",
+			"typeSignature": "(x: A): A",
+			"sourceLine": 16,
+			"parameters": [
+				{
+					"name": "x",
+					"type": "A",
+					"typeInfo": {
+						"kind": "union",
+						"alias": "A",
+						"members": [
+							{
+								"kind": "literal",
+								"value": "b",
+								"text": "\"b\""
+							},
+							{
+								"kind": "literal",
+								"value": "a",
+								"text": "\"a\""
+							},
+							{
+								"kind": "intrinsic",
+								"text": "null"
+							}
+						]
+					}
+				}
+			],
+			"returnType": "A",
+			"returnTypeInfo": {
+				"kind": "union",
+				"alias": "A",
+				"members": [
+					{
+						"kind": "literal",
+						"value": "b",
+						"text": "\"b\""
+					},
+					{
+						"kind": "literal",
+						"value": "a",
+						"text": "\"a\""
+					},
+					{
+						"kind": "intrinsic",
+						"text": "null"
+					}
+				]
+			}
+		},
+		{
+			"name": "A",
+			"kind": "type",
+			"docComment": "Description 1.",
+			"typeSignature": "A",
+			"sourceLine": 6,
+			"typeInfo": {
+				"kind": "union",
+				"alias": "A",
+				"members": [
+					{
+						"kind": "literal",
+						"value": "b",
+						"text": "\"b\""
+					},
+					{
+						"kind": "literal",
+						"value": "a",
+						"text": "\"a\""
+					},
+					{
+						"kind": "intrinsic",
+						"text": "null"
+					}
+				]
+			}
+		}
+	]
+}

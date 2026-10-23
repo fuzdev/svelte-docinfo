@@ -30,7 +30,11 @@ import type {
 import type { DeclarationJsonBuild, MemberJsonBuild } from './declaration-build.ts';
 import { type Diagnostic, type MisplacedTagDiagnostic } from './diagnostics.ts';
 import { toErrorMessage } from './error.ts';
-import { SVELTE_VIRTUAL_SUFFIX, stripVirtualSuffix } from './source.ts';
+import {
+	SVELTE_COMPONENT_ALIAS_SUFFIX,
+	SVELTE_VIRTUAL_SUFFIX,
+	stripVirtualSuffix
+} from './source.ts';
 import {
 	applyToDeclaration,
 	jsdocParamTagDefault,
@@ -38,9 +42,12 @@ import {
 	type TsdocParsedComment
 } from './tsdoc.ts';
 import {
+	isTypeAliasLike,
 	specifierExportedName,
 	optionalWideningTarget,
 	resolveTypeInfo,
+	typeAliasTypeNode,
+	typeAliasTypeParameters,
 	type AliasRegistry
 } from './typescript-extract-type-json.ts';
 import { createIsExternalFile, type IsExternalFile } from './typescript-program.ts';
@@ -253,8 +260,12 @@ export const getLocalExportStatement = (
  * - Classes → `'class'`
  * - Functions (declarations, expressions, arrows) → `'function'`
  * - Interfaces → `'interface'`
- * - Type aliases → `'type'`
- * - Enums (regular and const) → `'enum'`
+ * - Type aliases → `'type'`, JSDoc `@typedef` / `@callback` included
+ * - Enums (regular and const) → `'enum'`, and a JS `@enum` const
+ *   (`@enum {string}` on `export const A = {a: 'a'}`): the checker binds
+ *   the tag as a type alias over the value's name, but like a TypeScript
+ *   enum the name is a runtime object of members and a type, so it
+ *   documents as one
  * - Variables → `'variable'` (unless function-valued → `'function'`)
  *
  * Note: namespace re-exports (`export * as ns from './x'`) have no inline
@@ -273,6 +284,7 @@ export const inferDeclarationKind = (symbol: ts.Symbol, node: ts.Node): Declarat
 	if (symbol.flags & ts.SymbolFlags.Class) return 'class';
 	if (symbol.flags & ts.SymbolFlags.Function) return 'function';
 	if (symbol.flags & ts.SymbolFlags.Interface) return 'interface';
+	if (isJSDocEnumSymbol(symbol)) return 'enum';
 	if (symbol.flags & ts.SymbolFlags.TypeAlias) return 'type';
 	if (symbol.flags & ts.SymbolFlags.Enum) return 'enum';
 	if (symbol.flags & ts.SymbolFlags.ConstEnum) return 'enum';
@@ -282,7 +294,7 @@ export const inferDeclarationKind = (symbol: ts.Symbol, node: ts.Node): Declarat
 		return 'function';
 	if (ts.isClassDeclaration(node)) return 'class';
 	if (ts.isInterfaceDeclaration(node)) return 'interface';
-	if (ts.isTypeAliasDeclaration(node)) return 'type';
+	if (isTypeAliasLike(node)) return 'type';
 	if (ts.isEnumDeclaration(node)) return 'enum';
 	if (ts.isVariableDeclaration(node)) {
 		// Check if it's a function-valued variable
@@ -295,6 +307,14 @@ export const inferDeclarationKind = (symbol: ts.Symbol, node: ts.Node): Declarat
 
 	return 'variable';
 };
+
+/**
+ * Whether a symbol is a JS `@enum` const: the tag declares a type alias
+ * merged with the value (`inferDeclarationKind` documents it as an enum, from
+ * the value declaration).
+ */
+export const isJSDocEnumSymbol = (symbol: ts.Symbol): boolean =>
+	!!(symbol.flags & ts.SymbolFlags.TypeAlias) && !!symbol.declarations?.some(ts.isJSDocEnumTag);
 
 /**
  * Select the declaration node that carries a symbol's documented meaning.
@@ -312,6 +332,10 @@ export const inferDeclarationKind = (symbol: ts.Symbol, node: ts.Node): Declarat
  * what consumers look up. A class+interface merge resolves value-space
  * (`class`), so it documents the class with no doc fallback and no
  * `mergedValue` marker — a class already implies value+type.
+ *
+ * JS merges the same way: `const Foo = …` beside `@typedef {…} Foo` selects
+ * the typedef tag, as `type Foo` would be. A JS `@enum` const selects its
+ * value declaration, which holds the members (`isJSDocEnumSymbol`).
  */
 export const selectDeclarationNode = (symbol: ts.Symbol): ts.Declaration | undefined => {
 	// Class/Function flags win in inferDeclarationKind, so only a flag set
@@ -320,8 +344,8 @@ export const selectDeclarationNode = (symbol: ts.Symbol): ts.Declaration | undef
 		let matches: ((node: ts.Node) => boolean) | undefined;
 		if (symbol.flags & ts.SymbolFlags.Interface) {
 			matches = ts.isInterfaceDeclaration;
-		} else if (symbol.flags & ts.SymbolFlags.TypeAlias) {
-			matches = ts.isTypeAliasDeclaration;
+		} else if (symbol.flags & ts.SymbolFlags.TypeAlias && !isJSDocEnumSymbol(symbol)) {
+			matches = isTypeAliasLike;
 		} else if (symbol.flags & (ts.SymbolFlags.Enum | ts.SymbolFlags.ConstEnum)) {
 			matches = ts.isEnumDeclaration;
 		}
@@ -330,6 +354,40 @@ export const selectDeclarationNode = (symbol: ts.Symbol): ts.Declaration | undef
 	}
 	return symbol.valueDeclaration ?? symbol.declarations?.[0];
 };
+
+/**
+ * Whether a JSDoc `@typedef`/`@callback` tag sits in svelte2tsx's copy of the
+ * HTML `@component` comment. svelte2tsx emits that copy directly on the
+ * generated component statement (`const <Name>__SvelteComponent_ = …`, or
+ * `$$Component` when svelte2tsx gets no filename), so a typedef line in the
+ * HTML comment declares a virtual-only type the author never wrote in a
+ * script. The test is structural (the tag's comment hosted by
+ * that statement) and needs no source map. If svelte2tsx moves the copy, it
+ * fails open: the typedef documents again, with a `sourceLine` past the end of
+ * the original source.
+ */
+export const isStrayComponentTypedefTag = (node: ts.Node): boolean => {
+	if (!ts.isJSDocTypedefTag(node) && !ts.isJSDocCallbackTag(node)) return false;
+	const host = node.parent.parent;
+	return (
+		ts.isVariableStatement(host) &&
+		host.declarationList.declarations.some(
+			(d) =>
+				ts.isIdentifier(d.name) &&
+				(d.name.text.endsWith(SVELTE_COMPONENT_ALIAS_SUFFIX) || d.name.text === '$$Component')
+		)
+	);
+};
+
+/**
+ * Whether a Svelte virtual's export is declared only by stray component-comment
+ * typedefs (`isStrayComponentTypedefTag`). It documents nothing:
+ * `analyzeSvelteModule` drops it with its `alias_lost` warnings and
+ * `buildAliasRegistry` never registers it. A merged symbol (a `<script module>`
+ * declaration of the same name) isn't stray.
+ */
+export const isStrayComponentTypedef = (symbol: ts.Symbol): boolean =>
+	!!symbol.declarations?.length && symbol.declarations.every(isStrayComponentTypedefTag);
 
 /** Separator the TypeScript printer emits before a top-level `undefined` union member. */
 const UNDEFINED_UNION_SUFFIX = ' | undefined';
@@ -454,13 +512,27 @@ export const extractSignatureParameters = (
 	const { checker, aliasRegistry } = ctx;
 	return sig.parameters.map((param) => {
 		const paramDecl = param.valueDeclaration;
-		const rest = !!(paramDecl && ts.isParameter(paramDecl) && paramDecl.dotDotDotToken);
+		// a `@callback`'s parameters are declared by its `@param` tags, which
+		// read like the `@param` tags of a JS function's parameters: `{...T}`
+		// is the rest form, and a bracket or `{T=}` makes the tag omittable.
+		// An `@overload`'s tags are declarations of the same shape, not read yet
+		const paramTag = paramDecl && isCallbackParameterTag(paramDecl) ? paramDecl : undefined;
+		const rest = paramTag
+			? !!paramTag.typeExpression && ts.isJSDocVariadicType(paramTag.typeExpression.type)
+			: !!(paramDecl && ts.isParameter(paramDecl) && paramDecl.dotDotDotToken);
 		// whether a caller may omit the argument, the checker's own reading: a `?`,
 		// an initializer with no required parameter after it, and in JS a
 		// bracketed `@param {T} [b]` or `@param {T=} b`; never a rest parameter,
-		// which the checker reads as optional under a bracketed `@param [rest]`
+		// which the checker reads as optional under a bracketed `@param [rest]`.
+		// The checker's `isOptionalParameter` takes a `@param` tag too, though
+		// its public signature names only `ParameterDeclaration`
 		const optional =
-			!rest && !!(paramDecl && ts.isParameter(paramDecl) && checker.isOptionalParameter(paramDecl));
+			!rest &&
+			!!(
+				paramDecl &&
+				(ts.isParameter(paramDecl) || paramTag) &&
+				checker.isOptionalParameter(paramDecl as ts.ParameterDeclaration)
+			);
 
 		// Get type - use declaration location if available, otherwise get declared type.
 		// An optional parameter is widened to include `undefined` like an optional
@@ -475,7 +547,11 @@ export const extractSignatureParameters = (
 		if (paramDecl) {
 			const paramType = checker.getTypeOfSymbolAtLocation(param, paramDecl);
 			typeString = getTypeSignature(paramType, checker, optional);
-			const annotation = ts.isParameter(paramDecl) ? paramDecl.type : undefined;
+			// a `@callback` parameter's written type is part of the alias's own
+			// right-hand side, like a property tag's
+			const annotation = ts.isParameter(paramDecl)
+				? paramDecl.type
+				: paramTag?.typeExpression?.type;
 			typeInfo = resolveTypeInfo(paramType, checker, aliasRegistry, optional, {
 				writtenNode: annotation
 			});
@@ -511,7 +587,9 @@ export const extractSignatureParameters = (
 		// tags by position, counting unbraced dotted tags (`@param [opts.z=3]`) as
 		// positions, so a dotted tag's default would land on the wrong parameter.
 		let defaultValue: string | undefined;
-		if (paramDecl && ts.isParameter(paramDecl)) {
+		if (paramTag) {
+			if (optional) defaultValue = jsdocParamTagDefault(paramTag);
+		} else if (paramDecl && ts.isParameter(paramDecl)) {
 			if (paramDecl.initializer) {
 				defaultValue = paramDecl.initializer.getText();
 			} else if (optional) {
@@ -535,6 +613,17 @@ export const extractSignatureParameters = (
 		if (typeInfo) parameter.typeInfo = typeInfo;
 		return parameter;
 	});
+};
+
+/**
+ * Whether a declaration is a `@param` tag declaring a `@callback`'s
+ * parameter (its parent is the callback's `JSDocSignature`).
+ */
+const isCallbackParameterTag = (node: ts.Node): node is ts.JSDocParameterTag => {
+	if (!ts.isJSDocParameterTag(node)) return false;
+	// typed as the enclosing `JSDoc`, but a signature's parameter tags sit under the signature
+	const parent: ts.Node = node.parent;
+	return ts.isJSDocSignature(parent) && ts.isJSDocCallbackTag(parent.parent);
 };
 
 /**
@@ -625,14 +714,34 @@ export const applyReturnType = (
 	const { checker } = ctx;
 	const returnType = checker.getReturnTypeOfSignature(sig);
 	target.returnType = checker.typeToString(returnType);
-	// a JSDoc signature's `type` is a return *tag*, not a TypeNode
+	// a JSDoc signature's `type` is a return *tag*, not a TypeNode. A
+	// `@callback`'s `@returns {T}` is part of the alias's own right-hand side,
+	// so its written type feeds recovery like a TypeScript function type's
 	const decl = sig.declaration;
-	const returnNode = decl && !ts.isJSDocSignature(decl) ? decl.type : undefined;
+	const returnNode =
+		decl && ts.isJSDocSignature(decl)
+			? ts.isJSDocCallbackTag(decl.parent)
+				? decl.type?.typeExpression?.type
+				: undefined
+			: decl?.type;
 	const returnTypeInfo = resolveTypeInfo(returnType, checker, ctx.aliasRegistry, false, {
 		writtenNode: returnNode
 	});
 	if (returnTypeInfo) target.returnTypeInfo = returnTypeInfo;
 };
+
+/**
+ * A signature declaration's own type parameters, none for a JSDoc signature
+ * (a `@callback`'s or an `@overload`'s), whose `typeParameters` are
+ * `@template` tags rather than declarations. A `@callback`'s templates
+ * document on the alias (`typeAliasTypeParameters`), as a generic
+ * `type A<T> = (x: T) => T` keeps `T` off its `(call)` member; an
+ * `@overload`'s aren't read yet.
+ */
+const signatureTypeParameters = (
+	decl: ts.Node | undefined
+): ReadonlyArray<ts.TypeParameterDeclaration> | undefined =>
+	decl && ts.isFunctionLike(decl) && !ts.isJSDocSignature(decl) ? decl.typeParameters : undefined;
 
 /**
  * Extract all public overload signatures for a function.
@@ -687,9 +796,8 @@ const extractOverloads = (
 		}
 
 		// Extract per-overload generic type parameters
-		if (ts.isFunctionLike(decl) && decl.typeParameters?.length) {
-			overload.genericParams = decl.typeParameters.map(parseGenericParam);
-		}
+		const typeParams = signatureTypeParameters(decl);
+		if (typeParams?.length) overload.genericParams = typeParams.map(parseGenericParam);
 
 		// Detect primary overload by matching JSDoc text against the parent's.
 		// The parent's JSDoc comes from the symbol's first declaration — the
@@ -849,10 +957,8 @@ export const populatePropertyMember = (
 		populateCallableMember(member, callSigs, ctx, tsdoc, paramValidationNode, name);
 		// generic signatures carry genericParams like method signatures and
 		// (call) members do — read from the primary signature's declaration
-		const sigDecl = callSigs[0]!.getDeclaration();
-		if (ts.isFunctionLike(sigDecl) && sigDecl.typeParameters?.length) {
-			member.genericParams = sigDecl.typeParameters.map(parseGenericParam);
-		}
+		const typeParams = signatureTypeParameters(callSigs[0]!.getDeclaration());
+		if (typeParams?.length) member.genericParams = typeParams.map(parseGenericParam);
 	} else {
 		member.typeSignature = getTypeSignature(propType, checker, widened);
 		const typeInfo = resolveTypeInfo(propType, checker, ctx.aliasRegistry, widened, {
@@ -1234,13 +1340,13 @@ const referencesTypeParamBoundInDescent = (
 				.getSymbolAtLocation(n)
 				?.getDeclarations()
 				?.find(ts.isTypeParameterDeclaration);
-			const owner = paramDecl?.parent;
+			const owner = paramDecl && typeParameterOwner(paramDecl);
 			if (
 				owner &&
 				paramDecl &&
 				!subst?.has(paramDecl) &&
 				(ts.isInterfaceDeclaration(owner) ||
-					ts.isTypeAliasDeclaration(owner) ||
+					isTypeAliasLike(owner) ||
 					ts.isClassDeclaration(owner)) &&
 				seen.has(owner)
 			) {
@@ -1252,6 +1358,17 @@ const referencesTypeParamBoundInDescent = (
 	};
 	visit(node);
 	return found;
+};
+
+/**
+ * The declaration a type parameter belongs to: its parent, or for a JSDoc
+ * `@template` the typedef or callback its block declares (the block's other
+ * tags are the parameter's siblings, so the parent is only the template tag).
+ */
+const typeParameterOwner = (param: ts.TypeParameterDeclaration): ts.Node | undefined => {
+	const parent = param.parent;
+	if (!ts.isJSDocTemplateTag(parent)) return parent;
+	return ts.isJSDoc(parent.parent) ? parent.parent.tags?.find(isTypeAliasLike) : undefined;
 };
 
 /**
@@ -1334,16 +1451,18 @@ const collectFromLocalComposition = (
 	for (const decl of decls) {
 		if (isExternalFile(decl.getSourceFile()) || seen.has(decl)) continue;
 		if (
-			!ts.isTypeAliasDeclaration(decl) &&
+			!isTypeAliasLike(decl) &&
 			!ts.isInterfaceDeclaration(decl) &&
 			!ts.isClassDeclaration(decl)
 		) {
 			continue;
 		}
 		seen.add(decl);
-		const inner = buildParamSubstitutions(decl.typeParameters, typeArgs, walk, subst);
-		if (ts.isTypeAliasDeclaration(decl)) {
-			collectExternalTypeRefs(decl.type, walk, out, depth + 1, inner);
+		const typeParams = isTypeAliasLike(decl) ? typeAliasTypeParameters(decl) : decl.typeParameters;
+		const inner = buildParamSubstitutions(typeParams, typeArgs, walk, subst);
+		if (isTypeAliasLike(decl)) {
+			const rhs = typeAliasTypeNode(decl);
+			if (rhs) collectExternalTypeRefs(rhs, walk, out, depth + 1, inner);
 		} else {
 			// interfaces and classes both compose through `extends` entries — an
 			// interface's only clause kind is `extends`, and a class's
@@ -1419,12 +1538,11 @@ const collectFromLocalIndexedAccess = (
 					propDecl.end <= d.end
 			);
 			const containerParams =
-				container &&
-				(ts.isInterfaceDeclaration(container) ||
-					ts.isClassDeclaration(container) ||
-					ts.isTypeAliasDeclaration(container))
+				container && (ts.isInterfaceDeclaration(container) || ts.isClassDeclaration(container))
 					? container.typeParameters
-					: undefined;
+					: container && isTypeAliasLike(container)
+						? typeAliasTypeParameters(container)
+						: undefined;
 			const inner = buildParamSubstitutions(
 				containerParams,
 				node.objectType.typeArguments,
@@ -1697,6 +1815,12 @@ export const getNodeLocation = (node: ts.Node): { file: string; line: number; co
 /**
  * Parse a TypeScript generic type parameter declaration into structured info.
  *
+ * A JSDoc `@template {C} T` writes its constraint on the tag rather than the
+ * parameter, for the tag's first parameter only, which
+ * `ts.getEffectiveConstraintOfTypeParameter` reads; the braces are dropped,
+ * so `constraint` is `C` as in `<T extends C>`. A bracketed default
+ * (`@template [T=D]`) is on the parameter like TypeScript's.
+ *
  * @param param - the TypeScript type parameter declaration node
  * @returns structured `GenericParamJson` with name, constraint, and default type
  */
@@ -1705,8 +1829,11 @@ export const parseGenericParam = (param: ts.TypeParameterDeclaration): GenericPa
 		name: param.name.text
 	};
 
-	if (param.constraint) {
-		result.constraint = param.constraint.getText();
+	const constraint = ts.getEffectiveConstraintOfTypeParameter(param);
+	if (constraint) {
+		result.constraint = (
+			ts.isJSDocTypeExpression(constraint) ? constraint.type : constraint
+		).getText();
 	}
 
 	if (param.default) {
@@ -1802,10 +1929,8 @@ export const emitCallOrConstructSignature = (
 			diagnostics
 		);
 
-		const sigDecl = sig.getDeclaration();
-		if (ts.isFunctionLike(sigDecl) && sigDecl.typeParameters?.length) {
-			member.genericParams = sigDecl.typeParameters.map(parseGenericParam);
-		}
+		const typeParams = signatureTypeParameters(sig.getDeclaration());
+		if (typeParams?.length) member.genericParams = typeParams.map(parseGenericParam);
 
 		if (signatures.length > 1) {
 			member.overloads = extractOverloads(signatures, ctx, tsdoc, memberName);

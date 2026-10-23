@@ -1,0 +1,21 @@
+{
+	"path": "TypesJsdocTypedefExternal.svelte",
+	"declarations": [
+		{
+			"name": "TypesJsdocTypedefExternal",
+			"kind": "component",
+			"sourceLine": 1,
+			"externalTypes": [
+				"HTMLButtonAttributes"
+			],
+			"props": [
+				{
+					"name": "a",
+					"type": "string"
+				}
+			],
+			"acceptsChildren": true,
+			"lang": "js"
+		}
+	]
+}

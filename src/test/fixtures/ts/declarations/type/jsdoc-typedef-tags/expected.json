@@ -1,0 +1,43 @@
+{
+	"path": "input.js",
+	"declarations": [
+		{
+			"name": "A",
+			"kind": "type",
+			"docComment": "Description 1.",
+			"typeSignature": "number",
+			"sourceLine": 3,
+			"examples": [
+				"const a = 1;"
+			],
+			"deprecatedMessage": "Description 2",
+			"seeAlso": [
+				"https://fuz.dev"
+			],
+			"since": "1.0.0"
+		},
+		{
+			"name": "C",
+			"kind": "type",
+			"docComment": "Description 3.",
+			"typeSignature": "C",
+			"sourceLine": 18,
+			"deprecatedMessage": "",
+			"members": [
+				{
+					"name": "(call)",
+					"kind": "function",
+					"typeSignature": "(a: string): any",
+					"parameters": [
+						{
+							"name": "a",
+							"type": "string",
+							"description": "Description 4"
+						}
+					],
+					"returnType": "any"
+				}
+			]
+		}
+	]
+}

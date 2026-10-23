@@ -1,0 +1,93 @@
+{
+	"path": "input.js",
+	"declarations": [
+		{
+			"name": "A",
+			"kind": "enum",
+			"docComment": "Description 1.",
+			"typeSignature": "string",
+			"sourceLine": 5,
+			"members": [
+				{
+					"name": "a",
+					"kind": "variable",
+					"docComment": "Description 2",
+					"typeSignature": "string"
+				},
+				{
+					"name": "b",
+					"kind": "variable",
+					"typeSignature": "string"
+				}
+			]
+		},
+		{
+			"name": "B",
+			"kind": "enum",
+			"typeSignature": "number",
+			"sourceLine": 12,
+			"members": [
+				{
+					"name": "a",
+					"kind": "variable",
+					"typeSignature": "number"
+				},
+				{
+					"name": "b",
+					"kind": "variable",
+					"typeSignature": "number"
+				}
+			]
+		},
+		{
+			"name": "C",
+			"kind": "enum",
+			"typeSignature": "string",
+			"sourceLine": 15
+		},
+		{
+			"name": "D",
+			"kind": "enum",
+			"typeSignature": "string",
+			"sourceLine": 18
+		},
+		{
+			"name": "fn",
+			"kind": "function",
+			"typeSignature": "(x: string): string",
+			"sourceLine": 21,
+			"parameters": [
+				{
+					"name": "x",
+					"type": "string"
+				}
+			],
+			"returnType": "string"
+		},
+		{
+			"name": "F",
+			"kind": "enum",
+			"typeSignature": "string",
+			"sourceLine": 26
+		},
+		{
+			"name": "G",
+			"kind": "enum",
+			"typeSignature": "string",
+			"sourceLine": 36,
+			"members": [
+				{
+					"name": "h",
+					"kind": "variable",
+					"typeSignature": "string"
+				},
+				{
+					"name": "g",
+					"kind": "variable",
+					"docComment": "Description 4",
+					"typeSignature": "string"
+				}
+			]
+		}
+	]
+}

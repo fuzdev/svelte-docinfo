@@ -32,12 +32,15 @@ import { parseComment } from './tsdoc.ts';
 import {
 	getLocalExportStatement,
 	isDeclaredInFile,
+	isStrayComponentTypedef,
 	selectDeclarationNode
 } from './typescript-extract-shared.ts';
 import {
 	isAliasLostType,
+	isTypeAliasLike,
 	namedSymbolName,
 	linkableAliasSymbol,
+	typeAliasTypeParameters,
 	unionMemberSetKey,
 	type AliasRegistry,
 	type AliasRegistryEntry
@@ -146,11 +149,13 @@ const winsTieBreak = (next: AliasRegistryEntry, incumbent: AliasRegistryEntry): 
  * it:
  *
  * - survives the svelte2tsx filters on virtuals (`default` and generated
- *   `$$`/`__sveltets_` names skipped)
+ *   `$$`/`__sveltets_` names skipped, and stray HTML-comment typedefs,
+ *   `isStrayComponentTypedef`)
  * - is declared in the file (star-projected bindings skipped, mirroring
  *   `analyzeExports`'s locality rule)
  * - resolves — through local export clauses, `@nodocs`-free ones only — to a
- *   `TypeAliasDeclaration` in the *same* file (a re-export of another module's
+ *   type alias (`isTypeAliasLike`: a `TypeAliasDeclaration` or a JSDoc
+ *   `@typedef`/`@callback`) in the *same* file (a re-export of another module's
  *   alias registers from that module when it's emitted, and never when it's
  *   gated — gated aliases have no doc page for a reference to land on;
  *   merged value+type symbols select the type-space node via
@@ -185,7 +190,12 @@ export const buildAliasRegistry = (
 
 		for (const exportSymbol of checker.getExportsOfModule(moduleSymbol)) {
 			const name = exportSymbol.name;
-			if (isVirtual && isSvelte2tsxGeneratedExport(name)) continue;
+			if (
+				isVirtual &&
+				(isSvelte2tsxGeneratedExport(name) || isStrayComponentTypedef(exportSymbol))
+			) {
+				continue;
+			}
 			if (!isDeclaredInFile(exportSymbol, currentFileName)) continue;
 
 			let resolved = exportSymbol;
@@ -202,11 +212,11 @@ export const buildAliasRegistry = (
 			}
 
 			const declNode = selectDeclarationNode(resolved);
-			if (!declNode || !ts.isTypeAliasDeclaration(declNode)) continue;
+			if (!declNode || !isTypeAliasLike(declNode)) continue;
 			// canonical declared elsewhere: its own module's walk registers it (or
 			// deliberately doesn't, when that module is gated from output)
 			if (stripVirtualSuffix(declNode.getSourceFile().fileName) !== currentFileName) continue;
-			if (declNode.typeParameters?.length) continue;
+			if (typeAliasTypeParameters(declNode).length) continue;
 			if (hasNodocs(declNode)) continue;
 			// merged value+type pair: @nodocs on either declaration suppresses,
 			// matching analyzeDeclaration's rule

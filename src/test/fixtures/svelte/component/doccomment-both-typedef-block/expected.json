@@ -1,0 +1,27 @@
+{
+	"path": "ComponentDoccommentBothTypedefBlock.svelte",
+	"declarations": [
+		{
+			"name": "ComponentDoccommentBothTypedefBlock",
+			"kind": "component",
+			"docComment": "JSDoc component description.",
+			"sourceLine": 6,
+			"props": [
+				{
+					"name": "prop1",
+					"type": "string"
+				}
+			],
+			"lang": "js"
+		}
+	],
+	"diagnostics": [
+		{
+			"kind": "duplicate_comment",
+			"commentType": "doc_comment",
+			"file": "src/lib/ComponentDoccommentBothTypedefBlock.svelte",
+			"message": "Both HTML @component comment and JSDoc in <script> provide component documentation. Using JSDoc.",
+			"severity": "warning"
+		}
+	]
+}

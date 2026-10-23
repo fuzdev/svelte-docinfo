@@ -1,0 +1,92 @@
+{
+	"path": "input.ts",
+	"declarations": [
+		{
+			"name": "A",
+			"kind": "type",
+			"docComment": "Description 1.",
+			"typeSignature": "A",
+			"sourceLine": 8,
+			"members": [
+				{
+					"name": "(call)",
+					"kind": "function",
+					"typeSignature": "(a: string, b?: number | undefined, ...c: {}): boolean",
+					"parameters": [
+						{
+							"name": "a",
+							"type": "string"
+						},
+						{
+							"name": "b",
+							"type": "number",
+							"optional": true
+						},
+						{
+							"name": "c",
+							"type": "{}",
+							"rest": true
+						}
+					],
+					"returnType": "boolean"
+				}
+			]
+		},
+		{
+			"name": "B",
+			"kind": "type",
+			"typeSignature": "B",
+			"sourceLine": 10,
+			"members": [
+				{
+					"name": "(call)",
+					"kind": "function",
+					"typeSignature": "(a: { x: number; }, b?: number | undefined): void",
+					"parameters": [
+						{
+							"name": "a",
+							"type": "{ x: number; }"
+						},
+						{
+							"name": "b",
+							"type": "number",
+							"optional": true
+						}
+					],
+					"returnType": "void"
+				}
+			]
+		},
+		{
+			"name": "C",
+			"kind": "type",
+			"typeSignature": "C",
+			"sourceLine": 12,
+			"members": [
+				{
+					"name": "a",
+					"kind": "function",
+					"docComment": "Description 6",
+					"typeSignature": "(a: string, b?: number | undefined, ...c: {}): boolean",
+					"parameters": [
+						{
+							"name": "a",
+							"type": "string"
+						},
+						{
+							"name": "b",
+							"type": "number",
+							"optional": true
+						},
+						{
+							"name": "c",
+							"type": "{}",
+							"rest": true
+						}
+					],
+					"returnType": "boolean"
+				}
+			]
+		}
+	]
+}

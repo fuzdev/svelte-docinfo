@@ -23,7 +23,11 @@ import type { DeclarationModifier } from './types.ts';
 import type { DeclarationJsonBuild, MemberJsonBuild } from './declaration-build.ts';
 import { toErrorMessage } from './error.ts';
 import { parseComment } from './tsdoc.ts';
-import { resolveTypeInfo } from './typescript-extract-type-json.ts';
+import {
+	resolveTypeInfo,
+	typeAliasTypeNode,
+	type TypeAliasLike
+} from './typescript-extract-type-json.ts';
 import { type IsExternalFile } from './typescript-program.ts';
 import {
 	emitCallOrConstructSignature,
@@ -126,7 +130,7 @@ const extractLocalIndexInfo = (
 const emitLocalIndexSignature = (
 	declaration: DeclarationJsonBuild,
 	nodeType: ts.Type,
-	node: ts.TypeAliasDeclaration,
+	node: TypeAliasLike,
 	ctx: ExtractContext,
 	kind: 'string' | 'number'
 ): void => {
@@ -197,10 +201,16 @@ const isReadonlyProperty = (prop: ts.Symbol, mappedReadonly: boolean): boolean =
  * - Call signatures (`(call)`)
  * - Construct signatures (`(construct)`)
  *
+ * A JSDoc typedef reads the same way: a `@typedef {object}` builds its
+ * properties from `@property` tags (each tag's description is the member's
+ * `docComment`, and a bracketed `[x]` or `{T=}` makes it optional), and a
+ * `@callback` is a function type, so it gets a `(call)` member whose
+ * parameters and return carry the callback's `@param`/`@returns` text.
+ *
  * @mutates declaration - adds members
  */
 export const extractTypeAliasProperties = (
-	node: ts.TypeAliasDeclaration,
+	node: TypeAliasLike,
 	nodeType: ts.Type,
 	declaration: DeclarationJsonBuild,
 	ctx: ExtractContext
@@ -214,9 +224,10 @@ export const extractTypeAliasProperties = (
 	// intersections, bare references, indexed-access. Unions are gated out here
 	// (the Svelte prop path calls `filterDocumentedProperties` directly, so unions
 	// still surface `externalTypes` there, just not for plain type aliases).
+	const typeNode = typeAliasTypeNode(node);
 	const { properties: filteredProperties, externalTypes } = filterDocumentedProperties(
 		nodeType,
-		node.type,
+		typeNode ?? node,
 		checker,
 		isExternalFile
 	);
@@ -274,7 +285,9 @@ export const extractTypeAliasProperties = (
 		const annotation =
 			propDecl && (ts.isPropertySignature(propDecl) || ts.isPropertyDeclaration(propDecl))
 				? propDecl.type
-				: undefined;
+				: propDecl && ts.isJSDocPropertyTag(propDecl)
+					? propDecl.typeExpression?.type
+					: undefined;
 		// owns the TSDoc application too — `@default` gates on the settled kind
 		populatePropertyMember(
 			member,
