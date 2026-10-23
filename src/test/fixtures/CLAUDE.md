@@ -191,7 +191,8 @@ Where each behavior is locked. Unit and behavior-level mechanics live in
   `props/jsdoc-type`; typedef `@property` types as written nodes, recovering a lost alias
   and ordering a union as written: `props/jsdoc-typedef-written{,-ts}`), JSDoc parameters
   on a JS `<script module>` function
-  (`component/javascript-module-params`), and JS `<script module>` typedefs
+  (`component/javascript-module-params`), `@overload`s on one
+  (`component/javascript-module-overloads`), and JS `<script module>` typedefs
   with original-source lines and a merged const+typedef
   (`component/javascript-module-typedef`); a `@typedef` line in a
   `<script module>` module comment and in an HTML `@component` comment,
@@ -298,14 +299,33 @@ Where each behavior is locked. Unit and behavior-level mechanics live in
   external bag (svelte `types/jsdoc-typedef-external`)
 - JSDoc annotations in JS, each beside a `-ts` twin: `@template` generics with a
   constraint and default on functions, arrows, function expressions, classes, methods, a
-  `@type` function type, and a `typeof` member (`generics/jsdoc-template`), never on an
-  `@overload`-ed function or method's implementation; `@param`/`@type`/`@returns` types as
-  written nodes, recovering lost aliases at parameters (`[b]` included), returns,
-  variables, fields, getters (`@returns` and `@type`), and setters
-  (`types/jsdoc-type-info-recovery`), and ordering unions as written, `{T=}` included
-  (`types/jsdoc-union-written-order`); a `.ts` file's JSDoc types annotating nothing, the
-  checker's union order standing at a parameter, return, field, and getter
-  (`types/jsdoc-ignored-in-ts`)
+  `@type` function type, and a `typeof` member (`generics/jsdoc-template`), an
+  `@overload`-ed function or method's coming from its first overload;
+  `@param`/`@type`/`@returns` types as written nodes, recovering lost aliases at
+  parameters (`[b]` included), returns, variables, fields, getters (`@returns` and
+  `@type`), setters, and `@overload` parameters and returns
+  (`types/jsdoc-type-info-recovery`), and ordering unions as written, `{T=}` and
+  `@overload`s included (`types/jsdoc-union-written-order`); a `.ts` file's JSDoc types
+  annotating nothing, the checker's union order standing at a parameter, return, field,
+  and getter (`types/jsdoc-ignored-in-ts`)
+- JS `@overload`, each beside a `-ts` twin where TS has one: per-overload prose, `@param`, and
+  `@returns`, the first overload documenting the symbol and the implementation's block hidden
+  (its `@nodocs` too), symbol-scope tags on a later overload warning `misplaced_tag` (in TS
+  even when it repeats the first's prose), optional, defaulted, and rest overload parameters,
+  per-overload `@template` generics, an arrow const, and a lone overload
+  (`declarations/function/jsdoc-overloads`); several overloads in one block sharing its prose
+  and tags (`-single-block`); a `@template` after `@overload` leaving TS's own `(): any` and
+  its `@param` documenting nothing (`-template-after`, JS only); a typedef block hosting the
+  first `@overload`, its prose and tags the typedef's (`-typedef-block`, JS only); a `@module`
+  block hosting the first `@overload`, its prose the module's (`-module-block`, JS only); a
+  constructor, a generic method, a static rest method, and a getter/setter pair whose
+  `@overload` tags declare nothing, and in TS an interface merged ahead of a class, its
+  method's overload warning rather than the class's (`members/jsdoc-class-method-overloads`);
+  a property borrowing an overloaded function's signatures (`@property {typeof fn1} a`,
+  `a: typeof fn1`), every overload's tags warning even when the property repeats the first
+  overload's prose, and in TS a property typed by an interface's call signatures
+  (`members/jsdoc-borrowed-overloads`); a JS
+  `<script module>` function (svelte `component/javascript-module-overloads`)
 - TSDoc placement on declarations and members (`ts/tsdoc/*`), including
   `@default` (`declarations/*/jsdoc-default*`)
 - Type aliases: object literals, intersections, mapped, unions, tuples,

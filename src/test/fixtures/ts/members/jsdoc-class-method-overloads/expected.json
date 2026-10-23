@@ -1,0 +1,187 @@
+{
+	"path": "input.js",
+	"declarations": [
+		{
+			"name": "A",
+			"kind": "class",
+			"sourceLine": 1,
+			"members": [
+				{
+					"name": "constructor",
+					"kind": "constructor",
+					"docComment": "Description 1.",
+					"typeSignature": "(a: string): A",
+					"parameters": [
+						{
+							"name": "a",
+							"type": "string",
+							"description": "Description 2"
+						}
+					],
+					"overloads": [
+						{
+							"typeSignature": "(a: string): A",
+							"parameters": [
+								{
+									"name": "a",
+									"type": "string",
+									"description": "Description 2"
+								}
+							],
+							"returnType": "A",
+							"docComment": "Description 1."
+						},
+						{
+							"typeSignature": "(a: number, b?: boolean | undefined): A",
+							"parameters": [
+								{
+									"name": "a",
+									"type": "number",
+									"description": "Description 4"
+								},
+								{
+									"name": "b",
+									"type": "boolean",
+									"optional": true,
+									"description": "Description 5"
+								}
+							],
+							"returnType": "A",
+							"docComment": "Description 3."
+						}
+					]
+				},
+				{
+					"name": "fn1",
+					"kind": "function",
+					"docComment": "Description 1.",
+					"typeSignature": "<T>(a: T): T",
+					"genericParams": [
+						{
+							"name": "T"
+						}
+					],
+					"parameters": [
+						{
+							"name": "a",
+							"type": "T",
+							"description": "Description 2"
+						}
+					],
+					"overloads": [
+						{
+							"typeSignature": "<T>(a: T): T",
+							"parameters": [
+								{
+									"name": "a",
+									"type": "T",
+									"description": "Description 2"
+								}
+							],
+							"returnType": "T",
+							"genericParams": [
+								{
+									"name": "T"
+								}
+							],
+							"docComment": "Description 1.",
+							"returnDescription": "Description 3"
+						},
+						{
+							"typeSignature": "(a: number): number",
+							"parameters": [
+								{
+									"name": "a",
+									"type": "number",
+									"description": "Description 5"
+								}
+							],
+							"returnType": "number",
+							"docComment": "Description 4.",
+							"returnDescription": "Description 6"
+						}
+					],
+					"returnType": "T",
+					"returnDescription": "Description 3"
+				},
+				{
+					"name": "fn2",
+					"kind": "function",
+					"docComment": "Description 1.",
+					"typeSignature": "(a: string): string",
+					"modifiers": [
+						"static"
+					],
+					"parameters": [
+						{
+							"name": "a",
+							"type": "string"
+						}
+					],
+					"overloads": [
+						{
+							"typeSignature": "(a: string): string",
+							"parameters": [
+								{
+									"name": "a",
+									"type": "string"
+								}
+							],
+							"returnType": "string",
+							"docComment": "Description 1."
+						},
+						{
+							"typeSignature": "(...rest: number | undefined): number",
+							"parameters": [
+								{
+									"name": "rest",
+									"type": "number | undefined",
+									"typeInfo": {
+										"kind": "union",
+										"members": [
+											{
+												"kind": "intrinsic",
+												"text": "number"
+											},
+											{
+												"kind": "intrinsic",
+												"text": "undefined"
+											}
+										]
+									},
+									"rest": true,
+									"description": "Description 2"
+								}
+							],
+							"returnType": "number",
+							"docComment": "Description 1."
+						}
+					],
+					"returnType": "string"
+				},
+				{
+					"name": "prop1",
+					"kind": "variable",
+					"docComment": "Description 2.",
+					"typeSignature": "string",
+					"modifiers": [
+						"getter",
+						"setter"
+					]
+				}
+			]
+		}
+	],
+	"diagnostics": [
+		{
+			"kind": "misplaced_tag",
+			"file": "src/lib/input.js",
+			"line": 31,
+			"column": 5,
+			"message": "@example on non-primary overload of \"fn1\" — place it on the primary signature's JSDoc instead (symbol-scope tags describe the function as a whole)",
+			"severity": "warning",
+			"tagName": "example",
+			"functionName": "fn1"
+		}
+	]
+}

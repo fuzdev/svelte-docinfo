@@ -78,8 +78,20 @@ are the tomes in `src/routes/docs/`. Examples: `examples/vite/`, `examples/api/`
     on top-level functions, overloads, or constructors.
   - Text is kept raw (inline `{@link}` survives); rendering is the consumer's concern.
 - **Overloads** — every public signature with its own JSDoc. `@param`/`@returns` flow to
-  their overload; the first signature's JSDoc documents the symbol, and symbol-scope tags
-  on a later overload emit `misplaced_tag`.
+  their overload; one overload's JSDoc documents the symbol (the first signature's, or the
+  visited declaration's when merging reorders them), and symbol-scope tags on any other
+  overload emit `misplaced_tag`. A JS `@overload` (`jsdocOverloadSignatures`)
+  documents like a TS overload: its JSDoc is the block hosting the tag, its own
+  `@param`/`@returns` tags nested in its `JSDocSignature` (`parseOverloadSignatureComment`),
+  and the implementation's block is hidden as a TS implementation's JSDoc is. Functions,
+  arrows, methods, and constructors alike; never accessors, which the checker doesn't
+  overload.
+  - The primary overload is the one the member's docs come from, by identity, when the
+    signatures are the parent's own (`ownsSignatureDeclarations`): a JS overload sharing
+    its block, a TS overload that declaration, so another one repeating its prose still
+    warns, and an interface merged ahead of a class doesn't shift it. Signatures borrowed
+    through a type (`m: typeof g`, `@property {typeof g} m`) have no primary (the member's
+    docs are its own, never the lender's), so every overload's tags warn.
 - **Merged value+type symbols** — `const Foo = z.strictObject(...)` +
   `type Foo = z.infer<typeof Foo>` documents the type (`selectDeclarationNode`), with
   `mergedValue: true` (also a runtime value; `generateImport` emits a value import). When
@@ -102,8 +114,8 @@ are the tomes in `src/routes/docs/`. Examples: `examples/vite/`, `examples/api/`
   its value (`isJSDocEnumSymbol`). TS binds none of these in `.ts` files.
 - **JSDoc annotations (JS)** — read as the checker reads them: `@template` tags are
   `genericParams` on functions, arrows, function expressions, classes, and methods
-  (`ts.getEffectiveTypeParameterDeclarations`; never an `@overload`-ed implementation's,
-  `hasJSDocOverloadTags`), and a `@type`/`@param`/`@property`/`@returns`
+  (`signatureTypeParameters`; an `@overload`-ed implementation's are its first
+  overload's, each overload's its block's), and a `@type`/`@param`/`@property`/`@returns`
   type is the site's written annotation (`writtenTypeAnnotation`, `writtenReturnTypeNode`,
   `writtenGetterTypeNode`), feeding written-name recovery and written union order like a TS
   annotation. A `.ts` file's JSDoc types annotate nothing.
@@ -555,6 +567,8 @@ semantics and reports unresolvable stars instead of guessing. Lock-in tests:
 - A same-name `@typedef {import('./a.js').A} A` documents as an alias over the import, as its
   TS twin `type A = import('./a.js').A` does, never as a re-export edge. A `@property` after a
   non-`@property` tag has left the typedef's property list and drops silently.
+- An `@overload`'s `{...T}` parameter types as `T | undefined` (the checker's own reading;
+  signature help prints `T[]`).
 - Standalone `namespace Foo {}` documents as a bare `kind: 'variable'` (`export * as ns` is
   supported). Decorators aren't modeled.
 - `@nodocs` on members and component props is ignored with no warning.

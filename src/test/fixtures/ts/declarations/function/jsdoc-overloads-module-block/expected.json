@@ -1,0 +1,42 @@
+{
+	"path": "input.js",
+	"declarations": [
+		{
+			"name": "fn1",
+			"kind": "function",
+			"typeSignature": "(a: string): string",
+			"sourceLine": 18,
+			"parameters": [
+				{
+					"name": "a",
+					"type": "string"
+				}
+			],
+			"overloads": [
+				{
+					"typeSignature": "(a: string): string",
+					"parameters": [
+						{
+							"name": "a",
+							"type": "string"
+						}
+					],
+					"returnType": "string"
+				},
+				{
+					"typeSignature": "(a: number): number",
+					"parameters": [
+						{
+							"name": "a",
+							"type": "number"
+						}
+					],
+					"returnType": "number",
+					"docComment": "Description 2."
+				}
+			],
+			"returnType": "string"
+		}
+	],
+	"moduleComment": "Description 1."
+}

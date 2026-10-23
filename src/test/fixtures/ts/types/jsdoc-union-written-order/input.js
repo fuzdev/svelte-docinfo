@@ -23,3 +23,24 @@ export class C {
 	/** @type {'a' | 'c' | null} */
 	a = null;
 }
+
+/**
+ * @overload
+ * @param {'a' | 'b'} x
+ * @returns {'a' | 'c' | 'b'}
+ */
+/**
+ * @overload
+ * @param {'b' | 'd'} x
+ * @param {('a' | 'c')=} y
+ * @returns {'b' | 'd'}
+ */
+/**
+ * @param {any} x
+ * @param {any} [y]
+ * @returns {any}
+ */
+export function fn2(x, y) {
+	void y;
+	return x;
+}

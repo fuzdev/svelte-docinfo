@@ -1,0 +1,66 @@
+{
+	"path": "input.js",
+	"declarations": [
+		{
+			"name": "fn1",
+			"kind": "function",
+			"typeSignature": "(a: string): string",
+			"sourceLine": 19,
+			"parameters": [
+				{
+					"name": "a",
+					"type": "string",
+					"description": "Description 2"
+				}
+			],
+			"overloads": [
+				{
+					"typeSignature": "(a: string): string",
+					"parameters": [
+						{
+							"name": "a",
+							"type": "string",
+							"description": "Description 2"
+						}
+					],
+					"returnType": "string"
+				},
+				{
+					"typeSignature": "(a: number): number",
+					"parameters": [
+						{
+							"name": "a",
+							"type": "number",
+							"description": "Description 4"
+						}
+					],
+					"returnType": "number",
+					"docComment": "Description 3."
+				}
+			],
+			"returnType": "string"
+		},
+		{
+			"name": "A",
+			"kind": "type",
+			"docComment": "Description 1.",
+			"typeSignature": "A",
+			"sourceLine": 3,
+			"since": "1.0.0",
+			"typeInfo": {
+				"kind": "union",
+				"alias": "A",
+				"members": [
+					{
+						"kind": "intrinsic",
+						"text": "string"
+					},
+					{
+						"kind": "intrinsic",
+						"text": "number"
+					}
+				]
+			}
+		}
+	]
+}

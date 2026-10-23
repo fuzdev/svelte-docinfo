@@ -59,6 +59,7 @@ export class A {
 	}
 
 	/**
+	 * Description 7.
 	 * @overload
 	 * @param {string} a
 	 * @returns {string}
@@ -70,7 +71,6 @@ export class A {
 	 * @returns {V}
 	 */
 	/**
-	 * Description 7.
 	 * @template U
 	 * @param {U} a
 	 * @returns {U}
@@ -87,6 +87,7 @@ export class A {
 export const fn4 = (a) => a;
 
 /**
+ * Description 8.
  * @overload
  * @param {string} a
  * @returns {string}
@@ -98,7 +99,6 @@ export const fn4 = (a) => a;
  * @returns {U}
  */
 /**
- * Description 8.
  * @template T
  * @param {T} a
  * @returns {T}
@@ -110,12 +110,12 @@ export function fn5(a) {
 /** @typedef {{fn: typeof fn1}} O */
 
 /**
+ * Description 9.
  * @overload
  * @param {string} a
  * @returns {string}
  */
 /**
- * Description 9.
  * @template T
  * @param {T} a
  * @returns {T}

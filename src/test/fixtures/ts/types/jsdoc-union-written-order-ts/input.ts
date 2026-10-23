@@ -15,3 +15,10 @@ export const fn1 = (x: 'a' | 'b', y?: 'a' | 'c', z?: 'b' | 'd'): 'a' | 'c' | 'b'
 export class C {
 	a: 'a' | 'c' | null = null;
 }
+
+export function fn2(x: 'a' | 'b'): 'a' | 'c' | 'b';
+export function fn2(x: 'b' | 'd', y?: 'a' | 'c'): 'b' | 'd';
+export function fn2(x: any, y?: any): any {
+	void y;
+	return x;
+}

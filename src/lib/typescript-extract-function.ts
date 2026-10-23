@@ -23,9 +23,9 @@ import { resolveTypeInfo, writtenTypeAnnotation } from './typescript-extract-typ
 import {
 	detectReactivity,
 	getNodeLocation,
-	hasJSDocOverloadTags,
 	parseGenericParam,
 	populateCallableMember,
+	signatureTypeParameters,
 	type ExtractContext
 } from './typescript-extract-shared.ts';
 
@@ -69,15 +69,13 @@ export const extractFunctionInfo = (
 	}
 
 	// Extract generic type parameters, the checker's reading
-	// (`ts.getEffectiveTypeParameterDeclarations`), so a JS function's
-	// `@template` tags count like `<T>`. A JS function with `@overload` tags is
-	// documented by its overloads, so the implementation's `@template` tags
-	// aren't its public generics
+	// (`signatureTypeParameters`), so a JS function's `@template` tags count
+	// like `<T>`. A JS function with `@overload` tags is documented by its
+	// overloads, so its generics are its first overload's, as a TypeScript
+	// function's are, and the implementation's `@template` tags are hidden
 	let typeParameters: ReadonlyArray<ts.TypeParameterDeclaration> | undefined;
 	if (ts.isFunctionDeclaration(node) || ts.isArrowFunction(node) || ts.isFunctionExpression(node)) {
-		if (!hasJSDocOverloadTags(node)) {
-			typeParameters = ts.getEffectiveTypeParameterDeclarations(node);
-		}
+		typeParameters = signatureTypeParameters(node);
 	} else if (ts.isVariableDeclaration(node)) {
 		const annotation = writtenTypeAnnotation(node);
 		if (annotation && ts.isFunctionTypeNode(annotation)) {
@@ -92,9 +90,7 @@ export const extractFunctionInfo = (
 			// `export const foo = <T>(x: T) => x` — generics live on the initializer,
 			// not the variable. In JS the statement's `@template` tags are the
 			// initializer's
-			if (!hasJSDocOverloadTags(node.initializer)) {
-				typeParameters = ts.getEffectiveTypeParameterDeclarations(node.initializer);
-			}
+			typeParameters = signatureTypeParameters(node.initializer);
 		}
 	}
 	if (typeParameters?.length) {

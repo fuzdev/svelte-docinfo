@@ -47,3 +47,24 @@ export class C {
 		void x;
 	}
 }
+
+/**
+ * @overload
+ * @param {A} x
+ * @returns {B}
+ */
+/**
+ * @overload
+ * @param {B} x
+ * @param {A} [y]
+ * @returns {A}
+ */
+/**
+ * @param {any} x
+ * @param {any} [y]
+ * @returns {any}
+ */
+export function fn2(x, y) {
+	void y;
+	return x;
+}

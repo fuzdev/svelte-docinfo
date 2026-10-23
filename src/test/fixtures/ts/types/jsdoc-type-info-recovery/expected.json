@@ -41,6 +41,74 @@
 			}
 		},
 		{
+			"name": "fn2",
+			"kind": "function",
+			"typeSignature": "(x: \"a\" | \"b\"): { d: number; }",
+			"sourceLine": 67,
+			"parameters": [
+				{
+					"name": "x",
+					"type": "\"a\" | \"b\"",
+					"typeInfo": {
+						"kind": "reference",
+						"name": "A"
+					}
+				}
+			],
+			"overloads": [
+				{
+					"typeSignature": "(x: \"a\" | \"b\"): { d: number; }",
+					"parameters": [
+						{
+							"name": "x",
+							"type": "\"a\" | \"b\"",
+							"typeInfo": {
+								"kind": "reference",
+								"name": "A"
+							}
+						}
+					],
+					"returnType": "{ d: number; }",
+					"returnTypeInfo": {
+						"kind": "reference",
+						"name": "B"
+					}
+				},
+				{
+					"typeSignature": "(x: { d: number; }, y?: \"a\" | \"b\" | undefined): \"a\" | \"b\"",
+					"parameters": [
+						{
+							"name": "x",
+							"type": "{ d: number; }",
+							"typeInfo": {
+								"kind": "reference",
+								"name": "B"
+							}
+						},
+						{
+							"name": "y",
+							"type": "\"a\" | \"b\"",
+							"typeInfo": {
+								"kind": "reference",
+								"name": "A"
+							},
+							"optional": true
+						}
+					],
+					"returnType": "\"a\" | \"b\"",
+					"returnTypeInfo": {
+						"kind": "reference",
+						"name": "A"
+					}
+				}
+			],
+			"returnType": "{ d: number; }",
+			"returnTypeInfo": {
+				"kind": "reference",
+				"name": "B"
+			}
+		},
+		{
 			"name": "b",
 			"kind": "variable",
 			"typeSignature": "\"a\" | \"b\"",

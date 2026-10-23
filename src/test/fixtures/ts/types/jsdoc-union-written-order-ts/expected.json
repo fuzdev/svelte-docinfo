@@ -2,6 +2,161 @@
 	"path": "input.ts",
 	"declarations": [
 		{
+			"name": "fn2",
+			"kind": "function",
+			"typeSignature": "(x: \"b\" | \"a\"): \"c\" | \"b\" | \"a\"",
+			"sourceLine": 19,
+			"parameters": [
+				{
+					"name": "x",
+					"type": "\"b\" | \"a\"",
+					"typeInfo": {
+						"kind": "union",
+						"members": [
+							{
+								"kind": "literal",
+								"value": "a",
+								"text": "\"a\""
+							},
+							{
+								"kind": "literal",
+								"value": "b",
+								"text": "\"b\""
+							}
+						]
+					}
+				}
+			],
+			"overloads": [
+				{
+					"typeSignature": "(x: \"b\" | \"a\"): \"c\" | \"b\" | \"a\"",
+					"parameters": [
+						{
+							"name": "x",
+							"type": "\"b\" | \"a\"",
+							"typeInfo": {
+								"kind": "union",
+								"members": [
+									{
+										"kind": "literal",
+										"value": "a",
+										"text": "\"a\""
+									},
+									{
+										"kind": "literal",
+										"value": "b",
+										"text": "\"b\""
+									}
+								]
+							}
+						}
+					],
+					"returnType": "\"c\" | \"b\" | \"a\"",
+					"returnTypeInfo": {
+						"kind": "union",
+						"members": [
+							{
+								"kind": "literal",
+								"value": "a",
+								"text": "\"a\""
+							},
+							{
+								"kind": "literal",
+								"value": "c",
+								"text": "\"c\""
+							},
+							{
+								"kind": "literal",
+								"value": "b",
+								"text": "\"b\""
+							}
+						]
+					}
+				},
+				{
+					"typeSignature": "(x: \"d\" | \"b\", y?: \"c\" | \"a\" | undefined): \"d\" | \"b\"",
+					"parameters": [
+						{
+							"name": "x",
+							"type": "\"d\" | \"b\"",
+							"typeInfo": {
+								"kind": "union",
+								"members": [
+									{
+										"kind": "literal",
+										"value": "b",
+										"text": "\"b\""
+									},
+									{
+										"kind": "literal",
+										"value": "d",
+										"text": "\"d\""
+									}
+								]
+							}
+						},
+						{
+							"name": "y",
+							"type": "\"c\" | \"a\"",
+							"typeInfo": {
+								"kind": "union",
+								"members": [
+									{
+										"kind": "literal",
+										"value": "a",
+										"text": "\"a\""
+									},
+									{
+										"kind": "literal",
+										"value": "c",
+										"text": "\"c\""
+									}
+								]
+							},
+							"optional": true
+						}
+					],
+					"returnType": "\"d\" | \"b\"",
+					"returnTypeInfo": {
+						"kind": "union",
+						"members": [
+							{
+								"kind": "literal",
+								"value": "b",
+								"text": "\"b\""
+							},
+							{
+								"kind": "literal",
+								"value": "d",
+								"text": "\"d\""
+							}
+						]
+					}
+				}
+			],
+			"returnType": "\"c\" | \"b\" | \"a\"",
+			"returnTypeInfo": {
+				"kind": "union",
+				"members": [
+					{
+						"kind": "literal",
+						"value": "a",
+						"text": "\"a\""
+					},
+					{
+						"kind": "literal",
+						"value": "c",
+						"text": "\"c\""
+					},
+					{
+						"kind": "literal",
+						"value": "b",
+						"text": "\"b\""
+					}
+				]
+			}
+		},
+		{
 			"name": "Z",
 			"kind": "type",
 			"docComment": "Resolves first, interning the literals in reverse, which sets the\nchecker's internal order for every union below.",

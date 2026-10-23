@@ -180,6 +180,39 @@ export function double(n: number | bigint): number | bigint {
 		</TomeSection>
 
 		<TomeSection>
+			<TomeSectionHeader text="@overload blocks" />
+			<p>
+				In JS, each <code>@overload</code> tag declares a signature, and its JSDoc is the block the
+				tag sits in, with the <code>@param</code> and <code>@returns</code> tags that follow it. The
+				first overload documents the function, as the first signature does in TS. The
+				implementation's own block is hidden with its signature, as TypeScript reads it, so put the
+				function's prose and symbol-scope tags on the first <code>@overload</code> block, not on the
+				implementation's. Write <code>@template</code> before <code>@overload</code>: TypeScript
+				rejects one between <code>@overload</code> and its <code>@param</code>/<code>@returns</code>
+				tags.
+			</p>
+			<Code
+				lang="js"
+				content={`/**
+ * Doubles a number or a bigint.
+ * @overload
+ * @param {number} n - the number to double
+ * @returns {number}
+ * @example double(2) // 4
+ */
+/**
+ * @overload
+ * @param {bigint} n - the bigint to double
+ * @returns {bigint}
+ */
+/** @param {number | bigint} n */
+export function double(n) {
+  return /** @type {any} */ (n) * 2;
+}`}
+			/>
+		</TomeSection>
+
+		<TomeSection>
 			<TomeSectionHeader text="@typedef blocks" />
 			<p>
 				In JS, a block that declares a <code>@typedef</code> or <code>@callback</code> and has no

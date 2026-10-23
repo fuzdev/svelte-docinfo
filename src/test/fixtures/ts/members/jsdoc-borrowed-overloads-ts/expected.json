@@ -1,0 +1,253 @@
+{
+	"path": "input.ts",
+	"declarations": [
+		{
+			"name": "fn1",
+			"kind": "function",
+			"docComment": "Description 1.",
+			"typeSignature": "(a: string): string",
+			"sourceLine": 6,
+			"examples": [
+				"fn1('a');"
+			],
+			"parameters": [
+				{
+					"name": "a",
+					"type": "string"
+				}
+			],
+			"overloads": [
+				{
+					"typeSignature": "(a: string): string",
+					"parameters": [
+						{
+							"name": "a",
+							"type": "string"
+						}
+					],
+					"returnType": "string",
+					"docComment": "Description 1."
+				},
+				{
+					"typeSignature": "(a: number): number",
+					"parameters": [
+						{
+							"name": "a",
+							"type": "number"
+						}
+					],
+					"returnType": "number",
+					"docComment": "Description 2."
+				}
+			],
+			"returnType": "string"
+		},
+		{
+			"name": "A",
+			"kind": "type",
+			"typeSignature": "A",
+			"sourceLine": 17,
+			"members": [
+				{
+					"name": "a",
+					"kind": "function",
+					"docComment": "Description 3",
+					"typeSignature": "(a: string): string",
+					"parameters": [
+						{
+							"name": "a",
+							"type": "string"
+						}
+					],
+					"overloads": [
+						{
+							"typeSignature": "(a: string): string",
+							"parameters": [
+								{
+									"name": "a",
+									"type": "string"
+								}
+							],
+							"returnType": "string",
+							"docComment": "Description 1."
+						},
+						{
+							"typeSignature": "(a: number): number",
+							"parameters": [
+								{
+									"name": "a",
+									"type": "number"
+								}
+							],
+							"returnType": "number",
+							"docComment": "Description 2."
+						}
+					],
+					"returnType": "string"
+				}
+			]
+		},
+		{
+			"name": "B",
+			"kind": "type",
+			"typeSignature": "B",
+			"sourceLine": 22,
+			"members": [
+				{
+					"name": "a",
+					"kind": "function",
+					"docComment": "Description 1.",
+					"typeSignature": "(a: string): string",
+					"parameters": [
+						{
+							"name": "a",
+							"type": "string"
+						}
+					],
+					"overloads": [
+						{
+							"typeSignature": "(a: string): string",
+							"parameters": [
+								{
+									"name": "a",
+									"type": "string"
+								}
+							],
+							"returnType": "string",
+							"docComment": "Description 1."
+						},
+						{
+							"typeSignature": "(a: number): number",
+							"parameters": [
+								{
+									"name": "a",
+									"type": "number"
+								}
+							],
+							"returnType": "number",
+							"docComment": "Description 2."
+						}
+					],
+					"returnType": "string"
+				}
+			]
+		},
+		{
+			"name": "D",
+			"kind": "type",
+			"typeSignature": "D",
+			"sourceLine": 42,
+			"members": [
+				{
+					"name": "a",
+					"kind": "function",
+					"docComment": "Description 6",
+					"typeSignature": "(a: string): string",
+					"parameters": [
+						{
+							"name": "a",
+							"type": "string"
+						}
+					],
+					"overloads": [
+						{
+							"typeSignature": "(a: string): string",
+							"parameters": [
+								{
+									"name": "a",
+									"type": "string"
+								}
+							],
+							"returnType": "string",
+							"docComment": "Description 4."
+						},
+						{
+							"typeSignature": "(a: number): number",
+							"parameters": [
+								{
+									"name": "a",
+									"type": "number"
+								}
+							],
+							"returnType": "number",
+							"docComment": "Description 5."
+						}
+					],
+					"returnType": "string"
+				}
+			]
+		}
+	],
+	"diagnostics": [
+		{
+			"kind": "misplaced_tag",
+			"file": "src/lib/input.ts",
+			"line": 12,
+			"column": 1,
+			"message": "@example on non-primary overload of \"fn1\" — place it on the primary signature's JSDoc instead (symbol-scope tags describe the function as a whole)",
+			"severity": "warning",
+			"tagName": "example",
+			"functionName": "fn1"
+		},
+		{
+			"kind": "misplaced_tag",
+			"file": "src/lib/input.ts",
+			"line": 6,
+			"column": 1,
+			"message": "@example on non-primary overload of \"a\" — place it on the primary signature's JSDoc instead (symbol-scope tags describe the function as a whole)",
+			"severity": "warning",
+			"tagName": "example",
+			"functionName": "a"
+		},
+		{
+			"kind": "misplaced_tag",
+			"file": "src/lib/input.ts",
+			"line": 12,
+			"column": 1,
+			"message": "@example on non-primary overload of \"a\" — place it on the primary signature's JSDoc instead (symbol-scope tags describe the function as a whole)",
+			"severity": "warning",
+			"tagName": "example",
+			"functionName": "a"
+		},
+		{
+			"kind": "misplaced_tag",
+			"file": "src/lib/input.ts",
+			"line": 6,
+			"column": 1,
+			"message": "@example on non-primary overload of \"a\" — place it on the primary signature's JSDoc instead (symbol-scope tags describe the function as a whole)",
+			"severity": "warning",
+			"tagName": "example",
+			"functionName": "a"
+		},
+		{
+			"kind": "misplaced_tag",
+			"file": "src/lib/input.ts",
+			"line": 12,
+			"column": 1,
+			"message": "@example on non-primary overload of \"a\" — place it on the primary signature's JSDoc instead (symbol-scope tags describe the function as a whole)",
+			"severity": "warning",
+			"tagName": "example",
+			"functionName": "a"
+		},
+		{
+			"kind": "misplaced_tag",
+			"file": "src/lib/input.ts",
+			"line": 33,
+			"column": 2,
+			"message": "@example on non-primary overload of \"a\" — place it on the primary signature's JSDoc instead (symbol-scope tags describe the function as a whole)",
+			"severity": "warning",
+			"tagName": "example",
+			"functionName": "a"
+		},
+		{
+			"kind": "misplaced_tag",
+			"file": "src/lib/input.ts",
+			"line": 39,
+			"column": 2,
+			"message": "@example on non-primary overload of \"a\" — place it on the primary signature's JSDoc instead (symbol-scope tags describe the function as a whole)",
+			"severity": "warning",
+			"tagName": "example",
+			"functionName": "a"
+		}
+	]
+}

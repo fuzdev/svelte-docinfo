@@ -1,0 +1,93 @@
+{
+	"path": "input.js",
+	"declarations": [
+		{
+			"name": "fn1",
+			"kind": "function",
+			"docComment": "Description 1.",
+			"typeSignature": "(): any",
+			"sourceLine": 20,
+			"overloads": [
+				{
+					"typeSignature": "(): any",
+					"returnType": "any",
+					"docComment": "Description 1."
+				},
+				{
+					"typeSignature": "(a: number): number",
+					"parameters": [
+						{
+							"name": "a",
+							"type": "number"
+						}
+					],
+					"returnType": "number",
+					"docComment": "Description 3."
+				}
+			],
+			"returnType": "any"
+		},
+		{
+			"name": "fn2",
+			"kind": "function",
+			"docComment": "Description 1.",
+			"typeSignature": "(a: string): string",
+			"sourceLine": 41,
+			"parameters": [
+				{
+					"name": "a",
+					"type": "string",
+					"description": "Description 2"
+				}
+			],
+			"overloads": [
+				{
+					"typeSignature": "(a: string): string",
+					"parameters": [
+						{
+							"name": "a",
+							"type": "string",
+							"description": "Description 2"
+						}
+					],
+					"returnType": "string",
+					"docComment": "Description 1."
+				},
+				{
+					"typeSignature": "(a: number): number",
+					"parameters": [
+						{
+							"name": "a",
+							"type": "number"
+						}
+					],
+					"returnType": "number",
+					"docComment": "Description 3."
+				}
+			],
+			"returnType": "string"
+		}
+	],
+	"diagnostics": [
+		{
+			"kind": "unknown_param",
+			"file": "src/lib/input.js",
+			"line": 20,
+			"column": 1,
+			"message": "@param \"a\" on \"fn1\" doesn't match any parameter (typo or stale doc?)",
+			"severity": "warning",
+			"paramName": "a",
+			"functionName": "fn1"
+		},
+		{
+			"kind": "unknown_param",
+			"file": "src/lib/input.js",
+			"line": 5,
+			"column": 4,
+			"message": "@param \"a\" on \"fn1\" doesn't match any parameter (typo or stale doc?)",
+			"severity": "warning",
+			"paramName": "a",
+			"functionName": "fn1"
+		}
+	]
+}

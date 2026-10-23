@@ -1,0 +1,120 @@
+{
+	"path": "input.js",
+	"declarations": [
+		{
+			"name": "fn1",
+			"kind": "function",
+			"docComment": "Description 1.",
+			"typeSignature": "<T>(a: T): T",
+			"sourceLine": 13,
+			"genericParams": [
+				{
+					"name": "T"
+				}
+			],
+			"deprecatedMessage": "",
+			"parameters": [
+				{
+					"name": "a",
+					"type": "T",
+					"description": "Description 2"
+				}
+			],
+			"overloads": [
+				{
+					"typeSignature": "<T>(a: T): T",
+					"parameters": [
+						{
+							"name": "a",
+							"type": "T",
+							"description": "Description 2"
+						}
+					],
+					"returnType": "T",
+					"genericParams": [
+						{
+							"name": "T"
+						}
+					],
+					"docComment": "Description 1.",
+					"returnDescription": "Description 3"
+				},
+				{
+					"typeSignature": "<T>(a: number, b?: string | undefined): number",
+					"parameters": [
+						{
+							"name": "a",
+							"type": "number",
+							"description": "Description 4"
+						},
+						{
+							"name": "b",
+							"type": "string",
+							"optional": true,
+							"description": "Description 5"
+						}
+					],
+					"returnType": "number",
+					"genericParams": [
+						{
+							"name": "T"
+						}
+					],
+					"docComment": "Description 1.",
+					"returnDescription": "Description 6"
+				}
+			],
+			"returnType": "T",
+			"returnDescription": "Description 3"
+		},
+		{
+			"name": "fn2",
+			"kind": "function",
+			"typeSignature": "(a: string): string",
+			"sourceLine": 40,
+			"parameters": [
+				{
+					"name": "a",
+					"type": "string"
+				}
+			],
+			"overloads": [
+				{
+					"typeSignature": "(a: string): string",
+					"parameters": [
+						{
+							"name": "a",
+							"type": "string"
+						}
+					],
+					"returnType": "string"
+				},
+				{
+					"typeSignature": "(a: number): number",
+					"parameters": [
+						{
+							"name": "a",
+							"type": "number",
+							"description": "Description 2"
+						}
+					],
+					"returnType": "number",
+					"docComment": "Description 1."
+				},
+				{
+					"typeSignature": "(a: boolean): boolean",
+					"parameters": [
+						{
+							"name": "a",
+							"type": "boolean",
+							"description": "Description 3"
+						}
+					],
+					"returnType": "boolean",
+					"docComment": "Description 1."
+				}
+			],
+			"returnType": "string"
+		}
+	]
+}

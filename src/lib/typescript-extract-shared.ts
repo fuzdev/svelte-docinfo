@@ -37,12 +37,13 @@ import {
 } from './source.ts';
 import {
 	applyToDeclaration,
+	firstJSDocOverloadSignature,
+	jsdocOverloadSignatures,
 	jsdocParamTagDefault,
 	parseComment,
 	type TsdocParsedComment
 } from './tsdoc.ts';
 import {
-	isJavaScriptNode,
 	isTypeAliasLike,
 	specifierExportedName,
 	optionalWideningTarget,
@@ -515,11 +516,11 @@ export const extractSignatureParameters = (
 	const { checker, aliasRegistry } = ctx;
 	return sig.parameters.map((param) => {
 		const paramDecl = param.valueDeclaration;
-		// a `@callback`'s parameters are declared by its `@param` tags, which
-		// read like the `@param` tags of a JS function's parameters: `{...T}`
-		// is the rest form, and a bracket or `{T=}` makes the tag omittable.
-		// An `@overload`'s tags are declarations of the same shape, not read yet
-		const paramTag = paramDecl && isCallbackParameterTag(paramDecl) ? paramDecl : undefined;
+		// a `@callback`'s or an `@overload`'s parameters are declared by its
+		// `@param` tags, which read like the `@param` tags of a JS function's
+		// parameters: `{...T}` is the rest form, and a bracket or `{T=}` makes
+		// the tag omittable
+		const paramTag = paramDecl && isSignatureParameterTag(paramDecl) ? paramDecl : undefined;
 		const rest = paramTag
 			? !!paramTag.typeExpression && ts.isJSDocVariadicType(paramTag.typeExpression.type)
 			: !!(paramDecl && ts.isParameter(paramDecl) && paramDecl.dotDotDotToken);
@@ -551,7 +552,8 @@ export const extractSignatureParameters = (
 			const paramType = checker.getTypeOfSymbolAtLocation(param, paramDecl);
 			typeString = getTypeSignature(paramType, checker, optional);
 			// a `@callback` parameter's written type is part of the alias's own
-			// right-hand side, like a property tag's
+			// right-hand side, like a property tag's, and an `@overload`
+			// parameter's is its signature's annotation
 			const annotation = ts.isParameter(paramDecl)
 				? writtenTypeAnnotation(paramDecl)
 				: paramTag && writtenTypeAnnotation(paramTag);
@@ -619,14 +621,15 @@ export const extractSignatureParameters = (
 };
 
 /**
- * Whether a declaration is a `@param` tag declaring a `@callback`'s
- * parameter (its parent is the callback's `JSDocSignature`).
+ * Whether a declaration is a `@param` tag declaring a `@callback`'s or an
+ * `@overload`'s parameter (its parent is the tag's `JSDocSignature`), rather
+ * than documenting a function's own parameter.
  */
-const isCallbackParameterTag = (node: ts.Node): node is ts.JSDocParameterTag => {
+const isSignatureParameterTag = (node: ts.Node): node is ts.JSDocParameterTag => {
 	if (!ts.isJSDocParameterTag(node)) return false;
 	// typed as the enclosing `JSDoc`, but a signature's parameter tags sit under the signature
 	const parent: ts.Node = node.parent;
-	return ts.isJSDocSignature(parent) && ts.isJSDocCallbackTag(parent.parent);
+	return ts.isJSDocSignature(parent);
 };
 
 /**
@@ -719,14 +722,12 @@ export const applyReturnType = (
 	target.returnType = checker.typeToString(returnType);
 	// a JSDoc signature's `type` is a return *tag*, not a TypeNode. A
 	// `@callback`'s `@returns {T}` is part of the alias's own right-hand side,
-	// so its written type feeds recovery like a TypeScript function type's.
-	// An `@overload`'s isn't read yet
+	// and an `@overload`'s is its signature's annotation, so its written type
+	// feeds recovery like a TypeScript function type's
 	const decl = sig.declaration;
 	const returnNode =
 		decl && ts.isJSDocSignature(decl)
-			? ts.isJSDocCallbackTag(decl.parent)
-				? decl.type?.typeExpression?.type
-				: undefined
+			? decl.type?.typeExpression?.type
 			: decl && writtenReturnTypeNode(decl);
 	const returnTypeInfo = resolveTypeInfo(returnType, checker, ctx.aliasRegistry, false, {
 		writtenNode: returnNode
@@ -735,37 +736,41 @@ export const applyReturnType = (
 };
 
 /**
- * Whether a JS function or method carries `@overload` tags, which make its
- * overloads the public signatures and hide the implementation's, `@template`
- * tags included. The checker honors `@overload` only in JS, so a `.ts` file's
- * tag is ignored here too.
- */
-export const hasJSDocOverloadTags = (node: ts.Node): boolean =>
-	isJavaScriptNode(node) && ts.getJSDocTags(node).some(ts.isJSDocOverloadTag);
-
-/**
  * A signature declaration's own type parameters, the checker's reading
  * (`ts.getEffectiveTypeParameterDeclarations`), so a JS function or method's
- * `@template` tags count like `<T>`. None for a JSDoc signature (a
- * `@callback`'s or an `@overload`'s), or for an implementation with
- * `@overload` tags (`hasJSDocOverloadTags`): a `@callback`'s templates
- * document on the alias (`typeAliasTypeParameters`), as a generic
- * `type A<T> = (x: T) => T` keeps `T` off its `(call)` member; an
- * `@overload`'s aren't read yet.
+ * `@template` tags count like `<T>`, and an `@overload`'s are its block's
+ * `@template` tags (a block of several overloads gives each of them its
+ * templates, as the checker does; one inside the overload's signature, after
+ * its `@overload` and before its last `@param`/`@returns`, is a parse error
+ * the checker drops; one at the block's end is accepted). An implementation
+ * with `@overload` tags (`firstJSDocOverloadSignature`) reads its first
+ * overload's, as a TypeScript function's generics are its first overload's;
+ * its own `@template` tags are hidden with it. None for a `@callback`'s
+ * signature: its templates document on the alias (`typeAliasTypeParameters`),
+ * as a generic `type A<T> = (x: T) => T` keeps `T` off its `(call)` member.
  */
 export const signatureTypeParameters = (
 	decl: ts.Node | undefined
-): ReadonlyArray<ts.TypeParameterDeclaration> | undefined =>
-	decl && ts.isFunctionLike(decl) && !ts.isJSDocSignature(decl) && !hasJSDocOverloadTags(decl)
-		? ts.getEffectiveTypeParameterDeclarations(decl)
-		: undefined;
+): ReadonlyArray<ts.TypeParameterDeclaration> | undefined => {
+	if (!decl) return undefined;
+	if (ts.isJSDocSignature(decl)) {
+		return ts.isJSDocOverloadTag(decl.parent)
+			? ts.getEffectiveTypeParameterDeclarations(decl)
+			: undefined;
+	}
+	if (!ts.isFunctionLike(decl)) return undefined;
+	const overload = firstJSDocOverloadSignature(decl);
+	return ts.getEffectiveTypeParameterDeclarations(overload ?? decl);
+};
 
 /**
  * Extract all public overload signatures for a function.
  *
  * Each overload gets its own typeSignature, parameters, returnType, and
  * per-overload JSDoc if available. The implementation signature is excluded
- * (TypeScript's `getCallSignatures()` already omits it).
+ * (TypeScript's `getCallSignatures()` already omits it). A JS `@overload`'s
+ * signature is a `JSDocSignature`, whose JSDoc is the block hosting its tag
+ * (`parseComment`), and whose `@param` tags declare its parameters.
  *
  * Per-overload `@param` descriptions flow through to that overload's
  * `parameters[i].description`. Per-overload `@returns` populates
@@ -773,23 +778,33 @@ export const signatureTypeParameters = (
  * describe its own parameters and return value distinctly.
  *
  * Symbol-scope tags describe the function as a whole and belong on the parent
- * declaration. The primary overload — the one whose JSDoc text matches the
- * parent's `docComment` — already feeds the parent's symbol-level extraction.
- * Tags on non-primary overloads are still dropped, but not silently: this
- * function emits `misplaced_tag` for each (tag set and rationale on
+ * declaration. When the signatures are the parent's own, the primary overload
+ * is the one the parent's docs come from (`primaryDecl`), and it already feeds
+ * the parent's symbol-level extraction. The primary is matched by identity:
+ * for a JS `@overload`, every overload sharing the primary's block (prose
+ * can't tell them apart: every JS overload parses to a comment, empty when
+ * proseless), for a TS overload the declaration itself, so another overload
+ * repeating its prose is still non-primary, and the checker's signature order
+ * doesn't matter (an interface merged ahead of a class lists its signatures
+ * first, though the class's member is the one documented). Borrowed
+ * signatures (`m: typeof g`, `@property {typeof g} m`, a property typed by an
+ * interface with call signatures) have no primary: the parent's docs are its
+ * own, never the lender's, so every overload's symbol-scope tags would be
+ * lost. Tags on non-primary overloads are still dropped, but not silently:
+ * this function emits `misplaced_tag` for each (tag set and rationale on
  * `MisplacedTagDiagnostic`).
  *
  * @param signatures - all call signatures from the type checker
  * @param ctx - the extraction pass's context
- * @param parentTsdoc - parsed JSDoc of the parent declaration (for primary-signature detection)
  * @param parentName - parent function/method name (for diagnostic messages)
+ * @param primaryDecl - the declaration of the overload the parent's docs come from, or undefined when the signatures are borrowed (`ownsSignatureDeclarations`)
  * @returns array of overload info objects
  */
 const extractOverloads = (
 	signatures: ReadonlyArray<ts.Signature>,
 	ctx: ExtractContext,
-	parentTsdoc: TsdocParsedComment | undefined,
-	parentName: string
+	parentName: string,
+	primaryDecl: ts.Node | undefined
 ): Array<OverloadJsonInput> => {
 	const { checker, diagnostics } = ctx;
 	return signatures.map((sig) => {
@@ -816,16 +831,16 @@ const extractOverloads = (
 		const typeParams = signatureTypeParameters(decl);
 		if (typeParams?.length) overload.genericParams = typeParams.map(parseGenericParam);
 
-		// Detect primary overload by matching JSDoc text against the parent's.
-		// The parent's JSDoc comes from the symbol's first declaration — the
-		// first overload signature, JSDoc or not — so that signature is the
-		// "primary": its symbol-scope tags already reach the parent through
-		// symbol-level extraction. Non-primary overloads with
-		// symbol-scope tags would silently lose them; surface as warnings instead.
-		const isPrimary =
-			tsdoc?.text !== undefined &&
-			parentTsdoc?.text !== undefined &&
-			tsdoc.text === parentTsdoc.text;
+		// Detect the primary overload, whose symbol-scope tags already reach
+		// the parent (rule in the TSDoc above). Non-primary overloads with
+		// symbol-scope tags would silently lose them; surface as warnings instead
+		// (`getDeclaration()`'s type omits the `JSDocSignature` an `@overload` declares)
+		const sigDecl = sig.declaration;
+		const isPrimary = primaryDecl
+			? sigDecl && ts.isJSDocSignature(sigDecl) && ts.isJSDocSignature(primaryDecl)
+				? sigDecl.parent.parent === primaryDecl.parent.parent
+				: sigDecl === primaryDecl
+			: false;
 		if (!isPrimary && tsdoc) {
 			const misplaced = collectSymbolScopeTags(tsdoc);
 			if (misplaced.length > 0) {
@@ -863,7 +878,8 @@ const extractOverloads = (
  * target. No-op when `signatures` is empty.
  *
  * @param target - declaration or member build object (mutated)
- * @param signatures - public call/construct signatures (`signatures[0]` is primary)
+ * @param signatures - public call/construct signatures (`signatures[0]` supplies
+ *   `typeSignature`, `parameters`, and the return type)
  * @param ctx - the extraction pass's context
  * @param tsdoc - parsed TSDoc for the target (supplies `@param`/`@returns`)
  * @param paramValidationNode - node `validateParamKeys` reports `unknown_param` against
@@ -895,8 +911,43 @@ export const populateCallableMember = (
 	validateParamKeys(tsdoc?.params, target.parameters, paramValidationNode, name, ctx.diagnostics);
 
 	if (signatures.length > 1) {
-		target.overloads = extractOverloads(signatures, ctx, tsdoc, name);
+		// the parent's docs are `paramValidationNode`'s, or its first
+		// `@overload`'s when it has them
+		const owns = ownsSignatureDeclarations(paramValidationNode, signatures[0]!, ctx.checker);
+		const primaryDecl = owns
+			? (firstJSDocOverloadSignature(paramValidationNode) ?? paramValidationNode)
+			: undefined;
+		target.overloads = extractOverloads(signatures, ctx, name, primaryDecl);
 	}
+};
+
+/**
+ * Whether a signature is declared by `node` itself, so `node`'s JSDoc is that
+ * signature's, rather than borrowed through its type (`m: typeof g`,
+ * `@property {typeof g} m`, `m: I` for an interface `I` with call
+ * signatures). A JS `@overload`'s signature is `node`'s when it is one of
+ * `node`'s own `jsdocOverloadSignatures`. Any other is `node`'s when it is
+ * one of the declarations of `node`'s symbol (all of a TS function's or
+ * method's overloads, merged across declarations) or, for a nameless
+ * declaration (a constructor, an `export default function` overload), a
+ * nameless sibling of the same kind.
+ */
+const ownsSignatureDeclarations = (
+	node: ts.Node,
+	sig: ts.Signature,
+	checker: ts.TypeChecker
+): boolean => {
+	// `getDeclaration()`'s type omits the `JSDocSignature` an `@overload` declares
+	const decl = sig.declaration;
+	if (!decl) return false;
+	if (ts.isJSDocSignature(decl)) return jsdocOverloadSignatures(node).includes(decl);
+	// every caller's `node` is the parent declaration (`paramValidationNode`)
+	const name = ts.getNameOfDeclaration(node as ts.Declaration);
+	if (!name) {
+		return decl.kind === node.kind && decl.parent === node.parent && !ts.getNameOfDeclaration(decl);
+	}
+	const symbol = checker.getSymbolAtLocation(name);
+	return !!symbol?.declarations?.includes(decl);
 };
 
 /**
@@ -1952,7 +2003,9 @@ export const emitCallOrConstructSignature = (
 		if (typeParams?.length) member.genericParams = typeParams.map(parseGenericParam);
 
 		if (signatures.length > 1) {
-			member.overloads = extractOverloads(signatures, ctx, tsdoc, memberName);
+			// a `(call)`/`(construct)` member's JSDoc is its first signature's
+			// (`resolveTsdocNode`), so that signature is the primary
+			member.overloads = extractOverloads(signatures, ctx, memberName, sig.declaration);
 		}
 
 		(declaration.members ??= []).push(member);

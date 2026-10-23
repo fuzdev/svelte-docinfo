@@ -1,0 +1,77 @@
+{
+	"path": "ComponentJavascriptModuleOverloads.svelte",
+	"declarations": [
+		{
+			"name": "ComponentJavascriptModuleOverloads",
+			"kind": "component",
+			"sourceLine": 27,
+			"lang": "js"
+		},
+		{
+			"name": "fn",
+			"kind": "function",
+			"docComment": "Description 1.",
+			"typeSignature": "(a: string): string",
+			"sourceLine": 23,
+			"parameters": [
+				{
+					"name": "a",
+					"type": "string",
+					"description": "Description 2"
+				}
+			],
+			"overloads": [
+				{
+					"typeSignature": "(a: string): string",
+					"parameters": [
+						{
+							"name": "a",
+							"type": "string",
+							"description": "Description 2"
+						}
+					],
+					"returnType": "string",
+					"docComment": "Description 1.",
+					"returnDescription": "Description 3"
+				},
+				{
+					"typeSignature": "<T>(a: T, b?: number | undefined): T",
+					"parameters": [
+						{
+							"name": "a",
+							"type": "T",
+							"description": "Description 5"
+						},
+						{
+							"name": "b",
+							"type": "number",
+							"optional": true,
+							"description": "Description 6"
+						}
+					],
+					"returnType": "T",
+					"genericParams": [
+						{
+							"name": "T"
+						}
+					],
+					"docComment": "Description 4."
+				}
+			],
+			"returnType": "string",
+			"returnDescription": "Description 3"
+		}
+	],
+	"diagnostics": [
+		{
+			"kind": "misplaced_tag",
+			"file": "src/lib/ComponentJavascriptModuleOverloads.svelte",
+			"line": 11,
+			"column": 5,
+			"message": "@since on non-primary overload of \"fn\" — place it on the primary signature's JSDoc instead (symbol-scope tags describe the function as a whole)",
+			"severity": "warning",
+			"tagName": "since",
+			"functionName": "fn"
+		}
+	]
+}

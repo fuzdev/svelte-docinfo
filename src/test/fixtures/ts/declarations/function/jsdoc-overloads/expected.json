@@ -1,0 +1,416 @@
+{
+	"path": "input.js",
+	"declarations": [
+		{
+			"name": "fn1",
+			"kind": "function",
+			"docComment": "Description 1.",
+			"typeSignature": "(a: string): string",
+			"sourceLine": 26,
+			"examples": [
+				"fn1('a');"
+			],
+			"seeAlso": [
+				"https://fuz.dev"
+			],
+			"parameters": [
+				{
+					"name": "a",
+					"type": "string",
+					"description": "Description 2"
+				}
+			],
+			"overloads": [
+				{
+					"typeSignature": "(a: string): string",
+					"parameters": [
+						{
+							"name": "a",
+							"type": "string",
+							"description": "Description 2"
+						}
+					],
+					"returnType": "string",
+					"docComment": "Description 1.",
+					"returnDescription": "Description 3"
+				},
+				{
+					"typeSignature": "(a: number): number",
+					"parameters": [
+						{
+							"name": "a",
+							"type": "number",
+							"description": "Description 5"
+						}
+					],
+					"returnType": "number",
+					"docComment": "Description 4.",
+					"returnDescription": "Description 6"
+				}
+			],
+			"returnType": "string",
+			"returnDescription": "Description 3"
+		},
+		{
+			"name": "fn2",
+			"kind": "function",
+			"docComment": "Description 1.",
+			"typeSignature": "(a: string, b?: number | undefined, c?: boolean | undefined, d?: number | undefined): void",
+			"sourceLine": 48,
+			"parameters": [
+				{
+					"name": "a",
+					"type": "string",
+					"description": "Description 2"
+				},
+				{
+					"name": "b",
+					"type": "number",
+					"optional": true,
+					"description": "Description 3"
+				},
+				{
+					"name": "c",
+					"type": "boolean",
+					"optional": true,
+					"description": "Description 4"
+				},
+				{
+					"name": "d",
+					"type": "number",
+					"optional": true,
+					"description": "Description 5",
+					"defaultValue": "0"
+				}
+			],
+			"overloads": [
+				{
+					"typeSignature": "(a: string, b?: number | undefined, c?: boolean | undefined, d?: number | undefined): void",
+					"parameters": [
+						{
+							"name": "a",
+							"type": "string",
+							"description": "Description 2"
+						},
+						{
+							"name": "b",
+							"type": "number",
+							"optional": true,
+							"description": "Description 3"
+						},
+						{
+							"name": "c",
+							"type": "boolean",
+							"optional": true,
+							"description": "Description 4"
+						},
+						{
+							"name": "d",
+							"type": "number",
+							"optional": true,
+							"description": "Description 5",
+							"defaultValue": "0"
+						}
+					],
+					"returnType": "void",
+					"docComment": "Description 1."
+				},
+				{
+					"typeSignature": "(...rest: string | undefined): void",
+					"parameters": [
+						{
+							"name": "rest",
+							"type": "string | undefined",
+							"typeInfo": {
+								"kind": "union",
+								"members": [
+									{
+										"kind": "intrinsic",
+										"text": "string"
+									},
+									{
+										"kind": "intrinsic",
+										"text": "undefined"
+									}
+								]
+							},
+							"rest": true,
+							"description": "Description 7"
+						}
+					],
+					"returnType": "void",
+					"docComment": "Description 6."
+				}
+			],
+			"returnType": "void"
+		},
+		{
+			"name": "fn3",
+			"kind": "function",
+			"docComment": "Description 1.",
+			"typeSignature": "<T>(a: T): T",
+			"sourceLine": 74,
+			"genericParams": [
+				{
+					"name": "T"
+				}
+			],
+			"parameters": [
+				{
+					"name": "a",
+					"type": "T"
+				}
+			],
+			"overloads": [
+				{
+					"typeSignature": "<T>(a: T): T",
+					"parameters": [
+						{
+							"name": "a",
+							"type": "T"
+						}
+					],
+					"returnType": "T",
+					"genericParams": [
+						{
+							"name": "T"
+						}
+					],
+					"docComment": "Description 1."
+				},
+				{
+					"typeSignature": "<U extends string, V = number>(a: U, b: V): [U, V]",
+					"parameters": [
+						{
+							"name": "a",
+							"type": "U"
+						},
+						{
+							"name": "b",
+							"type": "V"
+						}
+					],
+					"returnType": "[U, V]",
+					"genericParams": [
+						{
+							"name": "U",
+							"constraint": "string"
+						},
+						{
+							"name": "V",
+							"defaultType": "number"
+						}
+					],
+					"docComment": "Description 2."
+				}
+			],
+			"returnType": "T"
+		},
+		{
+			"name": "fn5",
+			"kind": "function",
+			"docComment": "Description 1.",
+			"typeSignature": "(a: string): string",
+			"sourceLine": 106,
+			"parameters": [
+				{
+					"name": "a",
+					"type": "string",
+					"description": "Description 2"
+				}
+			],
+			"returnType": "string"
+		},
+		{
+			"name": "fn6",
+			"kind": "function",
+			"typeSignature": "(a: string): string",
+			"sourceLine": 125,
+			"parameters": [
+				{
+					"name": "a",
+					"type": "string"
+				}
+			],
+			"overloads": [
+				{
+					"typeSignature": "(a: string): string",
+					"parameters": [
+						{
+							"name": "a",
+							"type": "string"
+						}
+					],
+					"returnType": "string"
+				},
+				{
+					"typeSignature": "(a: number): number",
+					"parameters": [
+						{
+							"name": "a",
+							"type": "number"
+						}
+					],
+					"returnType": "number"
+				}
+			],
+			"returnType": "string"
+		},
+		{
+			"name": "fn7",
+			"kind": "function",
+			"typeSignature": "(a: string): string",
+			"sourceLine": 144,
+			"parameters": [
+				{
+					"name": "a",
+					"type": "string"
+				}
+			],
+			"overloads": [
+				{
+					"typeSignature": "(a: string): string",
+					"parameters": [
+						{
+							"name": "a",
+							"type": "string"
+						}
+					],
+					"returnType": "string"
+				},
+				{
+					"typeSignature": "(a: number): number",
+					"parameters": [
+						{
+							"name": "a",
+							"type": "number"
+						}
+					],
+					"returnType": "number"
+				}
+			],
+			"returnType": "string"
+		},
+		{
+			"name": "fn8",
+			"kind": "function",
+			"docComment": "Description 1.",
+			"typeSignature": "(a: string): string",
+			"sourceLine": 165,
+			"parameters": [
+				{
+					"name": "a",
+					"type": "string"
+				}
+			],
+			"overloads": [
+				{
+					"typeSignature": "(a: string): string",
+					"parameters": [
+						{
+							"name": "a",
+							"type": "string"
+						}
+					],
+					"returnType": "string",
+					"docComment": "Description 1."
+				},
+				{
+					"typeSignature": "(a: number): number",
+					"parameters": [
+						{
+							"name": "a",
+							"type": "number"
+						}
+					],
+					"returnType": "number",
+					"docComment": "Description 1."
+				}
+			],
+			"returnType": "string"
+		},
+		{
+			"name": "fn4",
+			"kind": "function",
+			"docComment": "Description 1.",
+			"typeSignature": "(a: string): string",
+			"sourceLine": 94,
+			"parameters": [
+				{
+					"name": "a",
+					"type": "string",
+					"description": "Description 2"
+				}
+			],
+			"overloads": [
+				{
+					"typeSignature": "(a: string): string",
+					"parameters": [
+						{
+							"name": "a",
+							"type": "string",
+							"description": "Description 2"
+						}
+					],
+					"returnType": "string",
+					"docComment": "Description 1."
+				},
+				{
+					"typeSignature": "(a: number): number",
+					"parameters": [
+						{
+							"name": "a",
+							"type": "number",
+							"description": "Description 4"
+						}
+					],
+					"returnType": "number",
+					"docComment": "Description 3."
+				}
+			],
+			"returnType": "string"
+		}
+	],
+	"diagnostics": [
+		{
+			"kind": "misplaced_tag",
+			"file": "src/lib/input.js",
+			"line": 12,
+			"column": 4,
+			"message": "@deprecated on non-primary overload of \"fn1\" — place it on the primary signature's JSDoc instead (symbol-scope tags describe the function as a whole)",
+			"severity": "warning",
+			"tagName": "deprecated",
+			"functionName": "fn1"
+		},
+		{
+			"kind": "misplaced_tag",
+			"file": "src/lib/input.js",
+			"line": 12,
+			"column": 4,
+			"message": "@since on non-primary overload of \"fn1\" — place it on the primary signature's JSDoc instead (symbol-scope tags describe the function as a whole)",
+			"severity": "warning",
+			"tagName": "since",
+			"functionName": "fn1"
+		},
+		{
+			"kind": "misplaced_tag",
+			"file": "src/lib/input.js",
+			"line": 135,
+			"column": 4,
+			"message": "@deprecated on non-primary overload of \"fn7\" — place it on the primary signature's JSDoc instead (symbol-scope tags describe the function as a whole)",
+			"severity": "warning",
+			"tagName": "deprecated",
+			"functionName": "fn7"
+		},
+		{
+			"kind": "misplaced_tag",
+			"file": "src/lib/input.js",
+			"line": 156,
+			"column": 4,
+			"message": "@deprecated on non-primary overload of \"fn8\" — place it on the primary signature's JSDoc instead (symbol-scope tags describe the function as a whole)",
+			"severity": "warning",
+			"tagName": "deprecated",
+			"functionName": "fn8"
+		}
+	]
+}

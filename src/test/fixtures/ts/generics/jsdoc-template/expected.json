@@ -51,7 +51,8 @@
 							"type": "string"
 						}
 					],
-					"returnType": "string"
+					"returnType": "string",
+					"docComment": "Description 8."
 				},
 				{
 					"typeSignature": "<U>(a: U): U",
@@ -61,7 +62,12 @@
 							"type": "U"
 						}
 					],
-					"returnType": "U"
+					"returnType": "U",
+					"genericParams": [
+						{
+							"name": "U"
+						}
+					]
 				}
 			],
 			"returnType": "string"
@@ -198,7 +204,8 @@
 									"type": "string"
 								}
 							],
-							"returnType": "string"
+							"returnType": "string",
+							"docComment": "Description 7."
 						},
 						{
 							"typeSignature": "<V>(a: V): V",
@@ -208,7 +215,12 @@
 									"type": "V"
 								}
 							],
-							"returnType": "V"
+							"returnType": "V",
+							"genericParams": [
+								{
+									"name": "V"
+								}
+							]
 						}
 					],
 					"returnType": "string"

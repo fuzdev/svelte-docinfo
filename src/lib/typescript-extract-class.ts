@@ -19,7 +19,7 @@ import ts from 'typescript';
 import type { MemberKind, DeclarationModifier } from './types.ts';
 import type { DeclarationJsonBuild, MemberJsonBuild } from './declaration-build.ts';
 import { toErrorMessage } from './error.ts';
-import { parseComment, applyToDeclaration } from './tsdoc.ts';
+import { parseComment, applyToDeclaration, jsdocOverloadSignatures } from './tsdoc.ts';
 import {
 	resolveTypeInfo,
 	writtenGetterTypeNode,
@@ -172,12 +172,21 @@ export const extractClassInfo = (
 						// for `export default class { ... }`).
 						const ctorDecls = node.members.filter(ts.isConstructorDeclaration);
 						// When overload signatures (no body) exist, only those count as
-						// public signatures — the implementation is hidden. Mirrors what
+						// public signatures — the implementation is hidden, and so is a
+						// JS constructor's behind its `@overload` tags. Mirrors what
 						// `getConstructSignatures()` returns on the class type.
 						const overloadDecls = ctorDecls.filter((c) => !c.body);
-						const ctorsToUse = overloadDecls.length > 0 ? overloadDecls : ctorDecls;
+						const ctorsToUse: Array<ts.ConstructorDeclaration | ts.JSDocSignature> =
+							overloadDecls.length > 0
+								? overloadDecls
+								: ctorDecls.flatMap((c): Array<ts.ConstructorDeclaration | ts.JSDocSignature> => {
+										const jsdocOverloads = jsdocOverloadSignatures(c);
+										return jsdocOverloads.length > 0 ? jsdocOverloads : [c];
+									});
+						// the checker's `getSignatureFromDeclaration` takes a JSDoc
+						// signature too, though its public signature doesn't name one
 						signatures = ctorsToUse
-							.map((c) => checker.getSignatureFromDeclaration(c))
+							.map((c) => checker.getSignatureFromDeclaration(c as ts.SignatureDeclaration))
 							.filter((s): s is ts.Signature => s !== undefined);
 					} else {
 						// For methods, get call signatures from the method symbol

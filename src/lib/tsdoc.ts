@@ -325,6 +325,14 @@ export const jsdocParamTagDefault = (
  * (`parseTypedefComment`), and a `@callback`'s signature to its parameter and
  * return descriptions (`parseCallbackSignatureComment`).
  *
+ * A JS function, method, or constructor with `@overload` tags is documented by
+ * its overloads, as the checker types it: an `@overload`'s signature parses to
+ * its block's docs plus its own `@param` and `@returns` tags
+ * (`parseOverloadSignatureComment`), and the declaration to its first
+ * overload's (`firstJSDocOverloadSignature`).
+ * The implementation's own block is hidden, prose and tags alike, as a
+ * TypeScript implementation signature's JSDoc is.
+ *
  * JSDoc blocks tagged `@module` are excluded entirely (text and tags): a module
  * comment attaches to the file's first statement in the AST, and without the
  * filter it would read as that statement's own docs. Module comments parse
@@ -370,9 +378,14 @@ export const parseComment = (
 	if (ts.isJSDocTypedefTag(node) || ts.isJSDocCallbackTag(node)) {
 		return parseTypedefComment(node, sourceFile);
 	}
-	if (ts.isJSDocSignature(node) && ts.isJSDocCallbackTag(node.parent)) {
-		return parseCallbackSignatureComment(node, sourceFile);
+	if (ts.isJSDocSignature(node)) {
+		if (ts.isJSDocCallbackTag(node.parent)) return parseCallbackSignatureComment(node, sourceFile);
+		if (ts.isJSDocOverloadTag(node.parent)) {
+			return parseOverloadSignatureComment(node, sourceFile, skipTypedefBlocks);
+		}
 	}
+	const overload = firstJSDocOverloadSignature(node);
+	if (overload) return parseOverloadSignatureComment(overload, sourceFile, skipTypedefBlocks);
 
 	const tsdocComments = ts
 		.getJSDocCommentsAndTags(node)
@@ -506,6 +519,75 @@ const parseCallbackSignatureComment = (
 	const returns = returnText?.trim() || undefined;
 	if (returns === undefined && Object.keys(params).length === 0) return undefined;
 	return { text: '', params, returns };
+};
+
+/**
+ * The signatures of a JS function, method, or constructor's `@overload` tags,
+ * in order: its public signatures, which hide the implementation's. A
+ * variable declaration reads its function initializer's, whose JSDoc is the
+ * statement's. The checker honors `@overload` only in JS, so a `.ts` file's
+ * tags declare nothing, and never on an accessor, whose tags declare nothing
+ * either.
+ */
+export const jsdocOverloadSignatures = (node: ts.Node): Array<ts.JSDocSignature> => {
+	if (!(node.flags & ts.NodeFlags.JavaScriptFile)) return [];
+	const host =
+		ts.isVariableDeclaration(node) &&
+		node.initializer &&
+		(ts.isArrowFunction(node.initializer) || ts.isFunctionExpression(node.initializer))
+			? node.initializer
+			: node;
+	if (!ts.isFunctionLike(host) || ts.isJSDocSignature(host) || ts.isAccessor(host)) return [];
+	return ts
+		.getJSDocTags(host)
+		.filter(ts.isJSDocOverloadTag)
+		.map((tag) => tag.typeExpression);
+};
+
+/**
+ * The first of `jsdocOverloadSignatures`, the declaration's first public
+ * signature, or undefined when it has no `@overload` tags.
+ */
+export const firstJSDocOverloadSignature = (node: ts.Node): ts.JSDocSignature | undefined =>
+	jsdocOverloadSignatures(node)[0];
+
+/**
+ * Parse an `@overload`'s documentation, TypeScript's reading of an overload
+ * signature's docs (`getCommentHavingNodes`): the prose and tags of the block
+ * hosting the `@overload` tag, then the signature's own `@param` and
+ * `@returns` tags, which the parser nests under its `JSDocSignature`. A block
+ * with several `@overload` tags gives each the block's prose and tags, its
+ * other overloads' tags aside. A `@module` block contributes neither, and a
+ * typedef block (`isTypedefBlock`) neither unless `skipTypedefBlocks` is
+ * false, as on a declaration.
+ */
+const parseOverloadSignatureComment = (
+	signature: ts.JSDocSignature,
+	sourceFile: ts.SourceFile,
+	skipTypedefBlocks: boolean
+): TsdocParsedComment | undefined => {
+	const texts: Array<string> = [];
+	const tags: Array<ts.JSDocTag> = [];
+	// typed as the enclosing `JSDoc`, but an overload tag's signature sits under the tag
+	const block: ts.Node = signature.parent.parent;
+	if (
+		ts.isJSDoc(block) &&
+		!belongsToModuleBlock(block) &&
+		!(skipTypedefBlocks && isTypedefBlock(block))
+	) {
+		const text = jsdocCommentText(block.comment, sourceFile);
+		if (text) texts.push(text);
+		for (const tag of block.tags ?? []) {
+			if (!ts.isJSDocOverloadTag(tag)) tags.push(tag);
+		}
+	}
+	// `parameters` also holds a `@this` tag, which names no parameter
+	for (const param of signature.parameters) {
+		if (ts.isJSDocParameterTag(param)) tags.push(param);
+	}
+	if (signature.type) tags.push(signature.type);
+	if (texts.length === 0 && tags.length === 0) return undefined;
+	return parseCommentParts(texts, tags, sourceFile);
 };
 
 /**

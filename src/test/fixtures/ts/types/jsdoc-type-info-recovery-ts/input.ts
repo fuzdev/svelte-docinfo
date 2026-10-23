@@ -30,3 +30,10 @@ export class C {
 		void x;
 	}
 }
+
+export function fn2(x: A): B;
+export function fn2(x: B, y?: A): A;
+export function fn2(x: any, y?: any): any {
+	void y;
+	return x;
+}
