@@ -1,0 +1,188 @@
+{
+	"path": "input.ts",
+	"declarations": [
+		{
+			"name": "Z",
+			"kind": "type",
+			"docComment": "Resolves first, interning the literals in reverse, which sets the\nchecker's internal order for every union below.",
+			"typeSignature": "Z",
+			"sourceLine": 5,
+			"typeInfo": {
+				"kind": "union",
+				"alias": "Z",
+				"members": [
+					{
+						"kind": "literal",
+						"value": "d",
+						"text": "\"d\""
+					},
+					{
+						"kind": "literal",
+						"value": "c",
+						"text": "\"c\""
+					},
+					{
+						"kind": "literal",
+						"value": "b",
+						"text": "\"b\""
+					},
+					{
+						"kind": "literal",
+						"value": "a",
+						"text": "\"a\""
+					}
+				]
+			}
+		},
+		{
+			"name": "a",
+			"kind": "variable",
+			"typeSignature": "\"d\" | \"c\" | \"b\" | \"a\"",
+			"sourceLine": 7,
+			"typeInfo": {
+				"kind": "union",
+				"members": [
+					{
+						"kind": "literal",
+						"value": "a",
+						"text": "\"a\""
+					},
+					{
+						"kind": "literal",
+						"value": "b",
+						"text": "\"b\""
+					},
+					{
+						"kind": "literal",
+						"value": "c",
+						"text": "\"c\""
+					},
+					{
+						"kind": "literal",
+						"value": "d",
+						"text": "\"d\""
+					}
+				]
+			}
+		},
+		{
+			"name": "fn1",
+			"kind": "function",
+			"typeSignature": "(x: \"b\" | \"a\", y?: \"c\" | \"a\" | undefined, z?: \"d\" | \"b\" | undefined): \"c\" | \"b\" | \"a\"",
+			"sourceLine": 9,
+			"parameters": [
+				{
+					"name": "x",
+					"type": "\"b\" | \"a\"",
+					"typeInfo": {
+						"kind": "union",
+						"members": [
+							{
+								"kind": "literal",
+								"value": "a",
+								"text": "\"a\""
+							},
+							{
+								"kind": "literal",
+								"value": "b",
+								"text": "\"b\""
+							}
+						]
+					}
+				},
+				{
+					"name": "y",
+					"type": "\"c\" | \"a\"",
+					"typeInfo": {
+						"kind": "union",
+						"members": [
+							{
+								"kind": "literal",
+								"value": "a",
+								"text": "\"a\""
+							},
+							{
+								"kind": "literal",
+								"value": "c",
+								"text": "\"c\""
+							}
+						]
+					},
+					"optional": true
+				},
+				{
+					"name": "z",
+					"type": "\"d\" | \"b\"",
+					"typeInfo": {
+						"kind": "union",
+						"members": [
+							{
+								"kind": "literal",
+								"value": "b",
+								"text": "\"b\""
+							},
+							{
+								"kind": "literal",
+								"value": "d",
+								"text": "\"d\""
+							}
+						]
+					},
+					"optional": true
+				}
+			],
+			"returnType": "\"c\" | \"b\" | \"a\"",
+			"returnTypeInfo": {
+				"kind": "union",
+				"members": [
+					{
+						"kind": "literal",
+						"value": "a",
+						"text": "\"a\""
+					},
+					{
+						"kind": "literal",
+						"value": "c",
+						"text": "\"c\""
+					},
+					{
+						"kind": "literal",
+						"value": "b",
+						"text": "\"b\""
+					}
+				]
+			}
+		},
+		{
+			"name": "C",
+			"kind": "class",
+			"sourceLine": 15,
+			"members": [
+				{
+					"name": "a",
+					"kind": "variable",
+					"typeSignature": "\"c\" | \"a\" | null",
+					"typeInfo": {
+						"kind": "union",
+						"members": [
+							{
+								"kind": "literal",
+								"value": "a",
+								"text": "\"a\""
+							},
+							{
+								"kind": "literal",
+								"value": "c",
+								"text": "\"c\""
+							},
+							{
+								"kind": "intrinsic",
+								"text": "null"
+							}
+						]
+					}
+				}
+			]
+		}
+	]
+}

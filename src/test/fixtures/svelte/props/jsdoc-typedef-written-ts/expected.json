@@ -1,0 +1,51 @@
+{
+	"path": "PropsJsdocTypedefWrittenTs.svelte",
+	"declarations": [
+		{
+			"name": "PropsJsdocTypedefWrittenTs",
+			"kind": "component",
+			"sourceLine": 1,
+			"props": [
+				{
+					"name": "prop1",
+					"type": "{ c: number; }",
+					"typeInfo": {
+						"kind": "reference",
+						"name": "A"
+					}
+				},
+				{
+					"name": "prop2",
+					"type": "\"a\" | \"d\" | \"c\" | \"b\"",
+					"typeInfo": {
+						"kind": "union",
+						"members": [
+							{
+								"kind": "literal",
+								"value": "a",
+								"text": "\"a\""
+							},
+							{
+								"kind": "literal",
+								"value": "b",
+								"text": "\"b\""
+							},
+							{
+								"kind": "literal",
+								"value": "c",
+								"text": "\"c\""
+							},
+							{
+								"kind": "literal",
+								"value": "d",
+								"text": "\"d\""
+							}
+						]
+					},
+					"optional": true,
+					"defaultValue": "z"
+				}
+			]
+		}
+	]
+}

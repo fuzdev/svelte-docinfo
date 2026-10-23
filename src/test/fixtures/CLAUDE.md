@@ -188,7 +188,9 @@ Where each behavior is locked. Unit and behavior-level mechanics live in
   `$props()`, a rune-using exported binding, `<svelte:options runes />` over a
   rune-free script — nor a named slot alone: `slot-*`), exported snippets
   (`exported-snippet*`), merged valibot schema, JS components (`javascript`,
-  `props/jsdoc-type`), JSDoc parameters on a JS `<script module>` function
+  `props/jsdoc-type`; typedef `@property` types as written nodes, recovering a lost alias
+  and ordering a union as written: `props/jsdoc-typedef-written{,-ts}`), JSDoc parameters
+  on a JS `<script module>` function
   (`component/javascript-module-params`), and JS `<script module>` typedefs
   with original-source lines and a merged const+typedef
   (`component/javascript-module-typedef`); a `@typedef` line in a
@@ -294,6 +296,16 @@ Where each behavior is locked. Unit and behavior-level mechanics live in
   members, and an `Object.freeze` and a spread initializer
   (`declarations/enum/jsdoc`); a JS component's typedef props over an
   external bag (svelte `types/jsdoc-typedef-external`)
+- JSDoc annotations in JS, each beside a `-ts` twin: `@template` generics with a
+  constraint and default on functions, arrows, function expressions, classes, methods, a
+  `@type` function type, and a `typeof` member (`generics/jsdoc-template`), never on an
+  `@overload`-ed function or method's implementation; `@param`/`@type`/`@returns` types as
+  written nodes, recovering lost aliases at parameters (`[b]` included), returns,
+  variables, fields, getters (`@returns` and `@type`), and setters
+  (`types/jsdoc-type-info-recovery`), and ordering unions as written, `{T=}` included
+  (`types/jsdoc-union-written-order`); a `.ts` file's JSDoc types annotating nothing, the
+  checker's union order standing at a parameter, return, field, and getter
+  (`types/jsdoc-ignored-in-ts`)
 - TSDoc placement on declarations and members (`ts/tsdoc/*`), including
   `@default` (`declarations/*/jsdoc-default*`)
 - Type aliases: object literals, intersections, mapped, unions, tuples,

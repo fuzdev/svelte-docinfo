@@ -100,6 +100,13 @@ are the tomes in `src/routes/docs/`. Examples: `examples/vite/`, `examples/api/`
   statement, documents nothing and never registers (`isStrayComponentTypedef`, a structural
   test that fails open if svelte2tsx moves the copy). A `@enum` const is `kind: 'enum'` over
   its value (`isJSDocEnumSymbol`). TS binds none of these in `.ts` files.
+- **JSDoc annotations (JS)** — read as the checker reads them: `@template` tags are
+  `genericParams` on functions, arrows, function expressions, classes, and methods
+  (`ts.getEffectiveTypeParameterDeclarations`; never an `@overload`-ed implementation's,
+  `hasJSDocOverloadTags`), and a `@type`/`@param`/`@property`/`@returns`
+  type is the site's written annotation (`writtenTypeAnnotation`, `writtenReturnTypeNode`,
+  `writtenGetterTypeNode`), feeding written-name recovery and written union order like a TS
+  annotation. A `.ts` file's JSDoc types annotate nothing.
 - **Svelte 5 components** — props, generics, snippets, and `acceptsChildren` via svelte2tsx
   and the checker, including JS components and legacy `export let` components (see Svelte
   Component Analysis).

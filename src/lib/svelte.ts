@@ -72,6 +72,7 @@ import {
 	restElementForms,
 	tupleElementName,
 	tupleElements,
+	writtenTypeAnnotation,
 	type AliasRegistry
 } from './typescript-extract-type-json.ts';
 import {
@@ -1547,9 +1548,13 @@ const extractPropsViaChecker = (
 			const widened = optionalWidened(ctx, optional);
 			typeString = getTypeSignature(propType, checker, widened);
 			// the written annotation (in the svelte2tsx virtual or an imported
-			// props type) feeds name recovery; only symbols are resolved from it,
-			// so source-position remapping is not implicated
-			const annotation = propDecl && ts.isPropertySignature(propDecl) ? propDecl.type : undefined;
+			// props type, or a JS typedef's `@property` tag) feeds name recovery
+			// and union order; only symbols are resolved from it, so
+			// source-position remapping is not implicated
+			const annotation =
+				propDecl && (ts.isPropertySignature(propDecl) || ts.isJSDocPropertyTag(propDecl))
+					? writtenTypeAnnotation(propDecl)
+					: undefined;
 			typeInfo = resolveTypeInfo(propType, checker, ctx.aliasRegistry, widened, {
 				writtenNode: annotation
 			});

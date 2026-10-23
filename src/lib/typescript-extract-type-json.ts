@@ -93,6 +93,56 @@ export const typeAliasTypeParameters = (
 		: ts.getEffectiveTypeParameterDeclarations(node);
 
 /**
+ * Whether a node was parsed as JavaScript — a `.js` file, or a Svelte virtual
+ * with `ScriptKind.JS`. TypeScript reads JSDoc types as annotations only there.
+ */
+export const isJavaScriptNode = (node: ts.Node): boolean =>
+	(node.flags & ts.NodeFlags.JavaScriptFile) !== 0;
+
+/**
+ * The written type annotation of a declaration, the checker's reading
+ * (TypeScript's internal `getEffectiveTypeAnnotationNode`): its own `type`,
+ * or in JavaScript its JSDoc type — a `@param`/`@property` tag's braced
+ * type, or the `@type` tag's (`ts.getJSDocType`). In a `.ts` file JSDoc
+ * types annotate nothing, so they're never read. Every variable, parameter,
+ * property, and property-tag site reads its `writtenNode` through it, so a
+ * JSDoc-annotated JS site gets written-name recovery and written union order
+ * like its TypeScript twin.
+ */
+export const writtenTypeAnnotation = (
+	node:
+		| ts.ParameterDeclaration
+		| ts.VariableDeclaration
+		| ts.PropertyDeclaration
+		| ts.PropertySignature
+		| ts.JSDocPropertyLikeTag
+): ts.TypeNode | undefined => {
+	if (!isJavaScriptNode(node)) return ts.isJSDocPropertyLikeTag(node) ? undefined : node.type;
+	if (ts.isJSDocPropertyLikeTag(node)) return node.typeExpression?.type;
+	return node.type ?? ts.getJSDocType(node);
+};
+
+/**
+ * The written return type of a signature declaration, the checker's reading
+ * (TypeScript's internal `getEffectiveReturnTypeNode`) outside JSDoc
+ * signatures, which `applyReturnType` reads itself: its own `type`, or in
+ * JavaScript the `@returns` tag's type, else the return type of a function
+ * type its `@type` tag writes (`ts.getJSDocReturnType`).
+ */
+export const writtenReturnTypeNode = (decl: ts.SignatureDeclaration): ts.TypeNode | undefined => {
+	if (decl.type) return decl.type;
+	return isJavaScriptNode(decl) ? ts.getJSDocReturnType(decl) : undefined;
+};
+
+/**
+ * The written type of a getter, the checker's reading: in JavaScript a
+ * `@type {A}` tag on the getter wins, typing the accessor `A`, then the
+ * written return type (`writtenReturnTypeNode`).
+ */
+export const writtenGetterTypeNode = (getter: ts.GetAccessorDeclaration): ts.TypeNode | undefined =>
+	(isJavaScriptNode(getter) ? ts.getJSDocType(getter) : undefined) ?? writtenReturnTypeNode(getter);
+
+/**
  * Recursion cap for `TypeJson` trees; nodes at the cap degrade to
  * `{kind: 'other', text}`. Bounds pathological nesting and terminates the one
  * unbounded walk a recursive alias can produce (`type Json = string | Json[]`

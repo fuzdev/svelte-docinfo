@@ -19,10 +19,11 @@ import ts from 'typescript';
 import type { DeclarationJsonBuild } from './declaration-build.ts';
 import { toErrorMessage } from './error.ts';
 import type { TsdocParsedComment } from './tsdoc.ts';
-import { resolveTypeInfo } from './typescript-extract-type-json.ts';
+import { resolveTypeInfo, writtenTypeAnnotation } from './typescript-extract-type-json.ts';
 import {
 	detectReactivity,
 	getNodeLocation,
+	hasJSDocOverloadTags,
 	parseGenericParam,
 	populateCallableMember,
 	type ExtractContext
@@ -67,21 +68,33 @@ export const extractFunctionInfo = (
 		});
 	}
 
-	// Extract generic type parameters
-	let typeParameters: ts.NodeArray<ts.TypeParameterDeclaration> | undefined;
+	// Extract generic type parameters, the checker's reading
+	// (`ts.getEffectiveTypeParameterDeclarations`), so a JS function's
+	// `@template` tags count like `<T>`. A JS function with `@overload` tags is
+	// documented by its overloads, so the implementation's `@template` tags
+	// aren't its public generics
+	let typeParameters: ReadonlyArray<ts.TypeParameterDeclaration> | undefined;
 	if (ts.isFunctionDeclaration(node) || ts.isArrowFunction(node) || ts.isFunctionExpression(node)) {
-		typeParameters = node.typeParameters;
+		if (!hasJSDocOverloadTags(node)) {
+			typeParameters = ts.getEffectiveTypeParameterDeclarations(node);
+		}
 	} else if (ts.isVariableDeclaration(node)) {
-		if (node.type && ts.isFunctionTypeNode(node.type)) {
-			// `export const fn: <T>(x: T) => T = (x) => x` — generics on the type annotation.
-			// Annotation wins over initializer when both carry generics: it's the public type.
-			typeParameters = node.type.typeParameters;
+		const annotation = writtenTypeAnnotation(node);
+		if (annotation && ts.isFunctionTypeNode(annotation)) {
+			// `export const fn: <T>(x: T) => T = (x) => x` (or a JS `@type` writing
+			// it) — generics on the type annotation. Annotation wins over
+			// initializer when both carry generics: it's the public type.
+			typeParameters = annotation.typeParameters;
 		} else if (
 			node.initializer &&
 			(ts.isArrowFunction(node.initializer) || ts.isFunctionExpression(node.initializer))
 		) {
-			// `export const foo = <T>(x: T) => x` — generics live on the initializer, not the variable.
-			typeParameters = node.initializer.typeParameters;
+			// `export const foo = <T>(x: T) => x` — generics live on the initializer,
+			// not the variable. In JS the statement's `@template` tags are the
+			// initializer's
+			if (!hasJSDocOverloadTags(node.initializer)) {
+				typeParameters = ts.getEffectiveTypeParameterDeclarations(node.initializer);
+			}
 		}
 	}
 	if (typeParameters?.length) {
@@ -110,7 +123,7 @@ export const extractVariableInfo = (
 	try {
 		const type = checker.getTypeOfSymbolAtLocation(symbol, node);
 		declaration.typeSignature = checker.typeToString(type);
-		const annotation = ts.isVariableDeclaration(node) ? node.type : undefined;
+		const annotation = ts.isVariableDeclaration(node) ? writtenTypeAnnotation(node) : undefined;
 		const typeInfo = resolveTypeInfo(type, checker, ctx.aliasRegistry, false, {
 			writtenNode: annotation
 		});

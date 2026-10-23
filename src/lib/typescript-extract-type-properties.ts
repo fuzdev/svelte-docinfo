@@ -26,6 +26,7 @@ import { parseComment } from './tsdoc.ts';
 import {
 	resolveTypeInfo,
 	typeAliasTypeNode,
+	writtenTypeAnnotation,
 	type TypeAliasLike
 } from './typescript-extract-type-json.ts';
 import { type IsExternalFile } from './typescript-program.ts';
@@ -283,11 +284,12 @@ export const extractTypeAliasProperties = (
 		const propTsdoc = propDecl ? parseComment(propDecl, propDecl.getSourceFile()) : undefined;
 
 		const annotation =
-			propDecl && (ts.isPropertySignature(propDecl) || ts.isPropertyDeclaration(propDecl))
-				? propDecl.type
-				: propDecl && ts.isJSDocPropertyTag(propDecl)
-					? propDecl.typeExpression?.type
-					: undefined;
+			propDecl &&
+			(ts.isPropertySignature(propDecl) ||
+				ts.isPropertyDeclaration(propDecl) ||
+				ts.isJSDocPropertyTag(propDecl))
+				? writtenTypeAnnotation(propDecl)
+				: undefined;
 		// owns the TSDoc application too — `@default` gates on the settled kind
 		populatePropertyMember(
 			member,

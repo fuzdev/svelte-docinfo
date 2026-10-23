@@ -42,9 +42,12 @@ import {
 	type TsdocParsedComment
 } from './tsdoc.ts';
 import {
+	isJavaScriptNode,
 	isTypeAliasLike,
 	specifierExportedName,
 	optionalWideningTarget,
+	writtenReturnTypeNode,
+	writtenTypeAnnotation,
 	resolveTypeInfo,
 	typeAliasTypeNode,
 	typeAliasTypeParameters,
@@ -550,8 +553,8 @@ export const extractSignatureParameters = (
 			// a `@callback` parameter's written type is part of the alias's own
 			// right-hand side, like a property tag's
 			const annotation = ts.isParameter(paramDecl)
-				? paramDecl.type
-				: paramTag?.typeExpression?.type;
+				? writtenTypeAnnotation(paramDecl)
+				: paramTag && writtenTypeAnnotation(paramTag);
 			typeInfo = resolveTypeInfo(paramType, checker, aliasRegistry, optional, {
 				writtenNode: annotation
 			});
@@ -716,14 +719,15 @@ export const applyReturnType = (
 	target.returnType = checker.typeToString(returnType);
 	// a JSDoc signature's `type` is a return *tag*, not a TypeNode. A
 	// `@callback`'s `@returns {T}` is part of the alias's own right-hand side,
-	// so its written type feeds recovery like a TypeScript function type's
+	// so its written type feeds recovery like a TypeScript function type's.
+	// An `@overload`'s isn't read yet
 	const decl = sig.declaration;
 	const returnNode =
 		decl && ts.isJSDocSignature(decl)
 			? ts.isJSDocCallbackTag(decl.parent)
 				? decl.type?.typeExpression?.type
 				: undefined
-			: decl?.type;
+			: decl && writtenReturnTypeNode(decl);
 	const returnTypeInfo = resolveTypeInfo(returnType, checker, ctx.aliasRegistry, false, {
 		writtenNode: returnNode
 	});
@@ -731,17 +735,30 @@ export const applyReturnType = (
 };
 
 /**
- * A signature declaration's own type parameters, none for a JSDoc signature
- * (a `@callback`'s or an `@overload`'s), whose `typeParameters` are
- * `@template` tags rather than declarations. A `@callback`'s templates
+ * Whether a JS function or method carries `@overload` tags, which make its
+ * overloads the public signatures and hide the implementation's, `@template`
+ * tags included. The checker honors `@overload` only in JS, so a `.ts` file's
+ * tag is ignored here too.
+ */
+export const hasJSDocOverloadTags = (node: ts.Node): boolean =>
+	isJavaScriptNode(node) && ts.getJSDocTags(node).some(ts.isJSDocOverloadTag);
+
+/**
+ * A signature declaration's own type parameters, the checker's reading
+ * (`ts.getEffectiveTypeParameterDeclarations`), so a JS function or method's
+ * `@template` tags count like `<T>`. None for a JSDoc signature (a
+ * `@callback`'s or an `@overload`'s), or for an implementation with
+ * `@overload` tags (`hasJSDocOverloadTags`): a `@callback`'s templates
  * document on the alias (`typeAliasTypeParameters`), as a generic
  * `type A<T> = (x: T) => T` keeps `T` off its `(call)` member; an
  * `@overload`'s aren't read yet.
  */
-const signatureTypeParameters = (
+export const signatureTypeParameters = (
 	decl: ts.Node | undefined
 ): ReadonlyArray<ts.TypeParameterDeclaration> | undefined =>
-	decl && ts.isFunctionLike(decl) && !ts.isJSDocSignature(decl) ? decl.typeParameters : undefined;
+	decl && ts.isFunctionLike(decl) && !ts.isJSDocSignature(decl) && !hasJSDocOverloadTags(decl)
+		? ts.getEffectiveTypeParameterDeclarations(decl)
+		: undefined;
 
 /**
  * Extract all public overload signatures for a function.
@@ -1458,7 +1475,9 @@ const collectFromLocalComposition = (
 			continue;
 		}
 		seen.add(decl);
-		const typeParams = isTypeAliasLike(decl) ? typeAliasTypeParameters(decl) : decl.typeParameters;
+		const typeParams = isTypeAliasLike(decl)
+			? typeAliasTypeParameters(decl)
+			: ts.getEffectiveTypeParameterDeclarations(decl);
 		const inner = buildParamSubstitutions(typeParams, typeArgs, walk, subst);
 		if (isTypeAliasLike(decl)) {
 			const rhs = typeAliasTypeNode(decl);
@@ -1539,7 +1558,7 @@ const collectFromLocalIndexedAccess = (
 			);
 			const containerParams =
 				container && (ts.isInterfaceDeclaration(container) || ts.isClassDeclaration(container))
-					? container.typeParameters
+					? ts.getEffectiveTypeParameterDeclarations(container)
 					: container && isTypeAliasLike(container)
 						? typeAliasTypeParameters(container)
 						: undefined;

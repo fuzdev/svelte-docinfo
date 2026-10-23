@@ -1,0 +1,125 @@
+{
+	"path": "input.js",
+	"declarations": [
+		{
+			"name": "fn1",
+			"kind": "function",
+			"typeSignature": "(x: \"a\" | \"b\", y?: { d: number; } | undefined): { d: number; } | undefined",
+			"sourceLine": 20,
+			"parameters": [
+				{
+					"name": "x",
+					"type": "\"a\" | \"b\"",
+					"typeInfo": {
+						"kind": "reference",
+						"name": "A"
+					}
+				},
+				{
+					"name": "y",
+					"type": "{ d: number; }",
+					"typeInfo": {
+						"kind": "reference",
+						"name": "B"
+					},
+					"optional": true
+				}
+			],
+			"returnType": "{ d: number; } | undefined",
+			"returnTypeInfo": {
+				"kind": "union",
+				"members": [
+					{
+						"kind": "reference",
+						"name": "B"
+					},
+					{
+						"kind": "intrinsic",
+						"text": "undefined"
+					}
+				]
+			}
+		},
+		{
+			"name": "b",
+			"kind": "variable",
+			"typeSignature": "\"a\" | \"b\"",
+			"sourceLine": 26,
+			"typeInfo": {
+				"kind": "reference",
+				"name": "A"
+			}
+		},
+		{
+			"name": "c",
+			"kind": "variable",
+			"typeSignature": "{ d: number; } | null",
+			"sourceLine": 29,
+			"typeInfo": {
+				"kind": "union",
+				"members": [
+					{
+						"kind": "reference",
+						"name": "B"
+					},
+					{
+						"kind": "intrinsic",
+						"text": "null"
+					}
+				]
+			}
+		},
+		{
+			"name": "C",
+			"kind": "class",
+			"sourceLine": 31,
+			"members": [
+				{
+					"name": "a",
+					"kind": "variable",
+					"typeSignature": "\"a\" | \"b\"",
+					"typeInfo": {
+						"kind": "reference",
+						"name": "A"
+					}
+				},
+				{
+					"name": "b",
+					"kind": "variable",
+					"typeSignature": "{ d: number; }",
+					"modifiers": [
+						"getter"
+					],
+					"typeInfo": {
+						"kind": "reference",
+						"name": "B"
+					}
+				},
+				{
+					"name": "c",
+					"kind": "variable",
+					"typeSignature": "{ d: number; }",
+					"modifiers": [
+						"getter"
+					],
+					"typeInfo": {
+						"kind": "reference",
+						"name": "B"
+					}
+				},
+				{
+					"name": "d",
+					"kind": "variable",
+					"typeSignature": "\"a\" | \"b\"",
+					"modifiers": [
+						"setter"
+					],
+					"typeInfo": {
+						"kind": "reference",
+						"name": "A"
+					}
+				}
+			]
+		}
+	]
+}

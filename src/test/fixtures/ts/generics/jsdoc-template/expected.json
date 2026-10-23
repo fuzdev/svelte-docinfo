@@ -1,0 +1,287 @@
+{
+	"path": "input.js",
+	"declarations": [
+		{
+			"name": "fn1",
+			"kind": "function",
+			"docComment": "Description 1.",
+			"typeSignature": "<T, K extends string = \"k\">(a: T, b?: K | undefined): T",
+			"sourceLine": 9,
+			"genericParams": [
+				{
+					"name": "T"
+				},
+				{
+					"name": "K",
+					"constraint": "string",
+					"defaultType": "'k'"
+				}
+			],
+			"parameters": [
+				{
+					"name": "a",
+					"type": "T"
+				},
+				{
+					"name": "b",
+					"type": "K",
+					"optional": true
+				}
+			],
+			"returnType": "T"
+		},
+		{
+			"name": "fn5",
+			"kind": "function",
+			"docComment": "Description 8.",
+			"typeSignature": "(a: string): string",
+			"sourceLine": 106,
+			"parameters": [
+				{
+					"name": "a",
+					"type": "string"
+				}
+			],
+			"overloads": [
+				{
+					"typeSignature": "(a: string): string",
+					"parameters": [
+						{
+							"name": "a",
+							"type": "string"
+						}
+					],
+					"returnType": "string"
+				},
+				{
+					"typeSignature": "<U>(a: U): U",
+					"parameters": [
+						{
+							"name": "a",
+							"type": "U"
+						}
+					],
+					"returnType": "U"
+				}
+			],
+			"returnType": "string"
+		},
+		{
+			"name": "fn2",
+			"kind": "function",
+			"docComment": "Description 2.",
+			"typeSignature": "<T, K extends string = \"k\">(a: T, b?: K | undefined): T",
+			"sourceLine": 22,
+			"genericParams": [
+				{
+					"name": "T"
+				},
+				{
+					"name": "K",
+					"constraint": "string",
+					"defaultType": "'k'"
+				}
+			],
+			"parameters": [
+				{
+					"name": "a",
+					"type": "T"
+				},
+				{
+					"name": "b",
+					"type": "K",
+					"optional": true
+				}
+			],
+			"returnType": "T"
+		},
+		{
+			"name": "fn3",
+			"kind": "function",
+			"docComment": "Description 3.",
+			"typeSignature": "<T>(a: T): T",
+			"sourceLine": 33,
+			"genericParams": [
+				{
+					"name": "T"
+				}
+			],
+			"parameters": [
+				{
+					"name": "a",
+					"type": "T"
+				}
+			],
+			"returnType": "T"
+		},
+		{
+			"name": "A",
+			"kind": "class",
+			"docComment": "Description 4.",
+			"sourceLine": 42,
+			"genericParams": [
+				{
+					"name": "T"
+				},
+				{
+					"name": "K",
+					"constraint": "string",
+					"defaultType": "'k'"
+				}
+			],
+			"members": [
+				{
+					"name": "a",
+					"kind": "variable",
+					"typeSignature": "T | undefined",
+					"typeInfo": {
+						"kind": "union",
+						"members": [
+							{
+								"kind": "other",
+								"text": "T"
+							},
+							{
+								"kind": "intrinsic",
+								"text": "undefined"
+							}
+						]
+					}
+				},
+				{
+					"name": "constructor",
+					"kind": "constructor",
+					"typeSignature": "<T, K extends string = \"k\">(b: K): A<T, K>",
+					"parameters": [
+						{
+							"name": "b",
+							"type": "K"
+						}
+					]
+				},
+				{
+					"name": "fn1",
+					"kind": "function",
+					"docComment": "Description 5.",
+					"typeSignature": "<U extends object>(a: U): U",
+					"genericParams": [
+						{
+							"name": "U",
+							"constraint": "object"
+						}
+					],
+					"parameters": [
+						{
+							"name": "a",
+							"type": "U"
+						}
+					],
+					"returnType": "U"
+				},
+				{
+					"name": "fn2",
+					"kind": "function",
+					"docComment": "Description 7.",
+					"typeSignature": "(a: string): string",
+					"parameters": [
+						{
+							"name": "a",
+							"type": "string"
+						}
+					],
+					"overloads": [
+						{
+							"typeSignature": "(a: string): string",
+							"parameters": [
+								{
+									"name": "a",
+									"type": "string"
+								}
+							],
+							"returnType": "string"
+						},
+						{
+							"typeSignature": "<V>(a: V): V",
+							"parameters": [
+								{
+									"name": "a",
+									"type": "V"
+								}
+							],
+							"returnType": "V"
+						}
+					],
+					"returnType": "string"
+				}
+			]
+		},
+		{
+			"name": "fn4",
+			"kind": "function",
+			"docComment": "Description 6.",
+			"typeSignature": "<T>(a: T): T",
+			"sourceLine": 87,
+			"genericParams": [
+				{
+					"name": "T"
+				}
+			],
+			"parameters": [
+				{
+					"name": "a",
+					"type": "T"
+				}
+			],
+			"returnType": "T"
+		},
+		{
+			"name": "fn6",
+			"kind": "function",
+			"docComment": "Description 9.",
+			"typeSignature": "(a: string): string",
+			"sourceLine": 123,
+			"parameters": [
+				{
+					"name": "a",
+					"type": "string"
+				}
+			],
+			"returnType": "string"
+		},
+		{
+			"name": "O",
+			"kind": "type",
+			"typeSignature": "O",
+			"sourceLine": 110,
+			"members": [
+				{
+					"name": "fn",
+					"kind": "function",
+					"typeSignature": "<T, K extends string = \"k\">(a: T, b?: K | undefined): T",
+					"genericParams": [
+						{
+							"name": "T"
+						},
+						{
+							"name": "K",
+							"constraint": "string",
+							"defaultType": "'k'"
+						}
+					],
+					"parameters": [
+						{
+							"name": "a",
+							"type": "T"
+						},
+						{
+							"name": "b",
+							"type": "K",
+							"optional": true
+						}
+					],
+					"returnType": "T"
+				}
+			]
+		}
+	]
+}

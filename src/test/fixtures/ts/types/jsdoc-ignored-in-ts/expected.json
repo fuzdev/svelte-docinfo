@@ -1,0 +1,134 @@
+{
+	"path": "input.ts",
+	"declarations": [
+		{
+			"name": "fn1",
+			"kind": "function",
+			"docComment": "A `.ts` file's JSDoc types annotate nothing, so the checker's order stands.",
+			"typeSignature": "(x?: \"b\" | \"a\"): \"b\" | \"a\"",
+			"sourceLine": 14,
+			"parameters": [
+				{
+					"name": "x",
+					"type": "\"b\" | \"a\"",
+					"typeInfo": {
+						"kind": "union",
+						"members": [
+							{
+								"kind": "literal",
+								"value": "b",
+								"text": "\"b\""
+							},
+							{
+								"kind": "literal",
+								"value": "a",
+								"text": "\"a\""
+							}
+						]
+					},
+					"optional": true,
+					"defaultValue": "ab()"
+				}
+			],
+			"returnType": "\"b\" | \"a\"",
+			"returnTypeInfo": {
+				"kind": "union",
+				"members": [
+					{
+						"kind": "literal",
+						"value": "b",
+						"text": "\"b\""
+					},
+					{
+						"kind": "literal",
+						"value": "a",
+						"text": "\"a\""
+					}
+				]
+			}
+		},
+		{
+			"name": "Z",
+			"kind": "type",
+			"docComment": "Resolves first, interning the literals in reverse, which sets the\nchecker's internal order for every union below.",
+			"typeSignature": "Z",
+			"sourceLine": 5,
+			"typeInfo": {
+				"kind": "union",
+				"alias": "Z",
+				"members": [
+					{
+						"kind": "literal",
+						"value": "d",
+						"text": "\"d\""
+					},
+					{
+						"kind": "literal",
+						"value": "c",
+						"text": "\"c\""
+					},
+					{
+						"kind": "literal",
+						"value": "b",
+						"text": "\"b\""
+					},
+					{
+						"kind": "literal",
+						"value": "a",
+						"text": "\"a\""
+					}
+				]
+			}
+		},
+		{
+			"name": "C",
+			"kind": "class",
+			"sourceLine": 18,
+			"members": [
+				{
+					"name": "a",
+					"kind": "variable",
+					"typeSignature": "\"b\" | \"a\"",
+					"typeInfo": {
+						"kind": "union",
+						"members": [
+							{
+								"kind": "literal",
+								"value": "b",
+								"text": "\"b\""
+							},
+							{
+								"kind": "literal",
+								"value": "a",
+								"text": "\"a\""
+							}
+						]
+					}
+				},
+				{
+					"name": "b",
+					"kind": "variable",
+					"typeSignature": "\"b\" | \"a\"",
+					"modifiers": [
+						"getter"
+					],
+					"typeInfo": {
+						"kind": "union",
+						"members": [
+							{
+								"kind": "literal",
+								"value": "b",
+								"text": "\"b\""
+							},
+							{
+								"kind": "literal",
+								"value": "a",
+								"text": "\"a\""
+							}
+						]
+					}
+				}
+			]
+		}
+	]
+}

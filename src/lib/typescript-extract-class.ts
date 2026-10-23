@@ -20,7 +20,11 @@ import type { MemberKind, DeclarationModifier } from './types.ts';
 import type { DeclarationJsonBuild, MemberJsonBuild } from './declaration-build.ts';
 import { toErrorMessage } from './error.ts';
 import { parseComment, applyToDeclaration } from './tsdoc.ts';
-import { resolveTypeInfo } from './typescript-extract-type-json.ts';
+import {
+	resolveTypeInfo,
+	writtenGetterTypeNode,
+	writtenTypeAnnotation
+} from './typescript-extract-type-json.ts';
 import {
 	applyHeritageExternalTypes,
 	detectReactivity,
@@ -33,6 +37,7 @@ import {
 	optionalWidened,
 	parseGenericParam,
 	populateCallableMember,
+	signatureTypeParameters,
 	type ExtractContext
 } from './typescript-extract-shared.ts';
 
@@ -73,8 +78,10 @@ export const extractClassInfo = (
 			.flatMap((hc) => hc.types.map((t) => t.getText()));
 	}
 
-	if (node.typeParameters?.length) {
-		declaration.genericParams = node.typeParameters.map(parseGenericParam);
+	// the checker's reading, so a JS class's `@template` tags count like `<T>`
+	const typeParameters = ts.getEffectiveTypeParameterDeclarations(node);
+	if (typeParameters.length) {
+		declaration.genericParams = typeParameters.map(parseGenericParam);
 	}
 
 	// Extract members with full metadata
@@ -150,7 +157,7 @@ export const extractClassInfo = (
 						const widened = optionalWidened(ctx, !!member.questionToken);
 						memberDeclaration.typeSignature = getTypeSignature(t, checker, widened);
 						const typeInfo = resolveTypeInfo(t, checker, ctx.aliasRegistry, widened, {
-							writtenNode: member.type
+							writtenNode: writtenTypeAnnotation(member)
 						});
 						if (typeInfo) memberDeclaration.typeInfo = typeInfo;
 					}
@@ -196,6 +203,15 @@ export const extractClassInfo = (
 						memberName,
 						!isConstructor
 					);
+
+					// a method's own generics, as on interface methods; an overloaded
+					// method's are its first overload's, like a function's
+					if (!isConstructor) {
+						const typeParams = signatureTypeParameters(member);
+						if (typeParams?.length) {
+							memberDeclaration.genericParams = typeParams.map(parseGenericParam);
+						}
+					}
 				}
 			} catch (err) {
 				memberDeclaration.partial = true;
@@ -281,7 +297,7 @@ export const extractClassInfo = (
 					const getterType = checker.getTypeOfSymbolAtLocation(getterSymbol, getter);
 					accessorDeclaration.typeSignature = checker.typeToString(getterType);
 					const typeInfo = resolveTypeInfo(getterType, checker, ctx.aliasRegistry, false, {
-						writtenNode: getter.type
+						writtenNode: writtenGetterTypeNode(getter)
 					});
 					if (typeInfo) accessorDeclaration.typeInfo = typeInfo;
 				}
@@ -294,7 +310,7 @@ export const extractClassInfo = (
 					const setterType = checker.getTypeOfSymbolAtLocation(setterSymbol, setter);
 					accessorDeclaration.typeSignature = checker.typeToString(setterType);
 					const typeInfo = resolveTypeInfo(setterType, checker, ctx.aliasRegistry, false, {
-						writtenNode: setter.parameters[0]?.type
+						writtenNode: setter.parameters[0] && writtenTypeAnnotation(setter.parameters[0])
 					});
 					if (typeInfo) accessorDeclaration.typeInfo = typeInfo;
 				}
