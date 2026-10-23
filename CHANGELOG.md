@@ -1,5 +1,65 @@
 # svelte-docinfo
 
+## 0.14.0
+
+### Minor Changes
+
+- fix: document import-then-export like the export-from form ([44f002f](https://github.com/fuzdev/svelte-docinfo/commit/44f002f))
+
+  An imported binding exported again under a name other than the one its module exports it as (`import {foo as bar} from './x.ts'; export {bar}`, `import G from './G.svelte'; export {G}`, `import * as ns from './x.ts'; export {ns}`) documented nothing when the target emits a module. Each import-then-export form now gives the same output as the export-from statement it stands for, with `sourceLine` at the export:
+
+  - A renamed or default import gives a synthesized alias with `aliasOf`, as `export {foo as bar} from` and `export {default as G} from` do. A Svelte component's is a `component` alias.
+  - A namespace import gives a `namespace` declaration, as `export * as ns from` does, and a renamed re-export of it from another module is a `namespace` alias with `aliasOf` naming that module, where it used to be a `variable` typed `typeof import(...)`.
+  - **breaking:** `export default X` over an import is `export {default} from` (or `export {x as default} from`). `import G from './G.svelte'; export default G` (and `export {G as default}`) used to give a `default` component declaration; it now gives only a `reExports` edge named `G`, as `export {default} from './G.svelte'` does. With JSDoc on the statement, the synthesized alias is named `G` and sits at the `export default` line, which it lacked before. A component that failed to transform documents under its name too, as `export {default} from` did already.
+  - A same-name re-export through such a module links to the module that declares the name, so no `reExports` edge points at a module without it.
+  - A same-name `export {default} from './c.ts'` over a component that failed to transform no longer depends on unrelated files: it links to `c.ts` whether or not some other component imports `svelte`.
+  - JSDoc on an `export default x` statement now applies, as on `export {x as default}`, and `@nodocs` there suppresses.
+
+  A package binding imported and exported again still records nothing.
+
+- **breaking:** parse module-comment tags into `ModuleJson` fields ([e916edb](https://github.com/fuzdev/svelte-docinfo/commit/e916edb))
+
+  A `@module` comment's tags used to stay in `moduleComment` as literal text, so `@see`, `@example`, and the rest rendered verbatim on docs sites. Module comments now parse with the same tag parser as declarations, in TS files and in all three Svelte sources (instance `<script>`, `<script module>`, and the HTML `<!-- @module -->` comment):
+
+  - `moduleComment` holds only the comment's prose, with every tag line removed. It's absent when the comment is tags alone. Prose written after a tag belongs to that tag, as in a declaration's JSDoc.
+  - New `ModuleJson` fields, with the same names, defaults, and meaning as on declarations: `examples` and `seeAlso` (default `[]`), `deprecatedMessage`, `internalMessage` (`''` for a bare tag), and `since`.
+  - Tags that only describe a declaration (`@param`, `@returns`, `@mutates`, `@throws`, `@default`, and `@nodocs` as before) are dropped from a module comment with a `misplaced_tag` warning. `MisplacedTagDiagnostic.tagName` gains `'param'` and `'returns'`. Unknown tags are dropped silently.
+  - In a module comment, only an `@` that starts a line starts a tag, so a mid-line `@` (`` `// @foo` ``, `x @> y`) stays in the text. A declaration's JSDoc still follows TypeScript, which starts a tag at any `@` after whitespace.
+  - In a Svelte file, a module comment of tags alone now counts as a source for `duplicate_comment` and can win the priority order. A bare `@module` comment still doesn't count, and one holding only dropped tags (`/** @nodocs @module */`) yields to a lower-priority comment that documents the module. The `duplicate_comment` message names the source used instead of "Using first found."
+  - An HTML `<!-- @module -->` comment keeps its relative indentation: the lines' common indentation is removed instead of trimming each line, so an indented `@example` keeps its shape.
+  - A JSDoc block is a module comment only when a line starts with `@module`. A mid-line mention (`` an HTML `<!-- @module -->` comment ``) used to make TypeScript's parse treat the block as a module block, so the declaration below lost its whole doc comment while no module comment was extracted either; the declaration keeps it now, up to the mention (a declaration's JSDoc still ends its text at a mid-line `@`, as TypeScript reads it).
+
+  For library users: `extractModuleComment`, `extractSvelteModuleComment`, and `extractHtmlModuleComment` return the parsed comment (`TsdocParsedComment`) instead of a string, `ModuleExportsAnalysis.moduleComment` is replaced by `moduleDoc`, and `warnModuleCommentNodocs` is replaced by `warnModuleCommentTags`. `tsdoc.ts` adds `parseCommentText`, `parseModuleComment`, `hasModuleTag`, `toModuleDocFields`, and the `ModuleDocFields` type.
+
+  Inline `{@link}` tags now keep their source text everywhere, declarations included. TypeScript's reprint added a space to a link whose target isn't an entity name (`{@link ./x.ts}` became `{@link  ./x.ts}`) and before a `|` (`{@link url|text}` became `{@link url |text}`).
+
+### Patch Changes
+
+- fix: CLI usage errors exit 2, as documented ([a45f7fc](https://github.com/fuzdev/svelte-docinfo/commit/a45f7fc))
+
+  An unknown flag or a missing option value now exits 2 like the other CLI errors, leaving 1 for analysis errors. Before, commander exited 1 on its own parse errors.
+
+- fix: record each star-export target once ([a7d8804](https://github.com/fuzdev/svelte-docinfo/commit/a7d8804))
+
+  `export * from './x'` plus `export type * from './x'` now gives one `starExports` entry instead of two, and likewise for `externalStarExports`.
+
+- fix: read re-exports of a component with no virtual by path ([b12f1a5](https://github.com/fuzdev/svelte-docinfo/commit/b12f1a5))
+
+  A re-export of a `.svelte` file that svelte2tsx couldn't transform (or that was never supplied) used to depend on whether some other component in the program imported `svelte`. Only then did TypeScript resolve the specifier, to `svelte`'s ambient `*.svelte` module. A relative `.svelte` specifier is now read by path, so these forms no longer depend on unrelated files: `export * from`, `export {default}` and `export {default as X} from`, `export * as ns from`, import-then-export (`import X from './Bad.svelte'; export {X}`, `export {X as default}`, `import * as ns`), and `export default X`, whether written in the re-exporting module or in a module the re-export goes through. Non-relative specifiers (a `paths` alias like `$lib/Bad.svelte`) still depend on them.
+
+  Output changes, some of them breaking for consumers that read these fields:
+
+  - `export * from './Bad.svelte'` over a component that failed to transform is a `starExports` entry naming its `partial` placeholder module (`'Bad.svelte'`), never an `externalStarExports` entry. A star over one that emits nothing (gated, never supplied) is dropped.
+  - `resolveExportSurface` reports a star over a `partial` module in `unresolvedStarExports`, since its bindings are unknown, so that field is no longer always empty for a whole analysis result.
+  - The default re-exports as a `partial` component with `aliasOf`, named as a valid component's would be (`default` for `export default X` and `export {X as default}`, the component's name for `export {default} from`), where some forms used to give a bare `variable` or nothing.
+  - A namespace over it (`export * as ns from`, `import * as ns` then `export {ns}`) documents as a `partial` namespace, where it used to give a bare `variable` or an `externalReExports` entry.
+  - Through another module (`export {X} from './x.ts'` where `x.ts` re-exports the component), a same-name re-export gets a `reExports` edge to that module when it emits, and a renamed or gated one a `partial` alias, as for a valid component, where these used to give bare variables or nothing.
+  - A `.svelte` specifier whose file doesn't exist (a typo) or lies outside the project documents nothing, where it used to give a bare `variable`, a `partial` component, or an external entry.
+
+- fix: recover a lost alias written as one member of a larger union ([70aca32](https://github.com/fuzdev/svelte-docinfo/commit/70aca32))
+
+  An alias TypeScript drops (over an indexed access or conditional, like `z.infer<typeof S>`) that is itself a union lost its name in `typeInfo` once other members were written beside it: `a: LostUnion | null` documented as the expanded members plus `null`. The written reference now recovers as one `{kind: 'reference', name: 'LostUnion'}` member at its written position, so `a` reads `LostUnion | null`, wherever the union is written: at the annotated position, nested inside it, or as an alias right-hand side (`type Opt = LostUnion | null`, at every use of `Opt`). The members still expand when they don't all survive as distinct members (`LostUnion | string`, where `string` absorbs string literals), when an earlier written member overlaps it (`'a' | LostUnion`), when a lost union that includes `undefined` sits at an optional position whose `undefined` the optional widening strips (`x?: LostU | 'z'` without `exactOptionalPropertyTypes`, or an optional parameter), and at unannotated positions such as an inferred `cond ? s.out : null`. Flat type strings are unchanged.
+
 ## 0.13.0
 
 ### Minor Changes
