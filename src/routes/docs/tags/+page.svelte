@@ -72,7 +72,7 @@
 							(<code>{`@throws {TypeError} - description`}</code>, unions included) lands in
 							<code>type</code>; the description may be empty or multiline. Without braces the first
 							word is the type (<code>@throws TypeError if …</code>), so <code>@throws if …</code>
-							records <code>if</code> as the type
+							records <code>if</code> as the type. A lone unbraced word is the description
 						</td>
 					</tr>
 					<tr>
@@ -107,11 +107,12 @@
 					<tr>
 						<td><code>@default</code></td>
 						<td>
-							<code>defaultValue</code> on variable declarations and on members (for a function
-							member, the behavior when the callback is omitted). Also fills
+							<code>defaultValue</code> on variable declarations and on variable and function
+							members (for a function member, the behavior when the callback is omitted). Also fills
 							<DeclarationLink name="ComponentPropJson" />.<code>defaultValue</code> when the prop
-							has no destructuring default. Never on top-level functions or overloads.
-							<code>@defaultValue</code> and <code>@defaultvalue</code> parse identically
+							has no destructuring default. Never on top-level functions, overloads, or
+							constructors. <code>@defaultValue</code> and <code>@defaultvalue</code> parse
+							identically
 						</td>
 					</tr>
 					<tr>
@@ -306,33 +307,12 @@ export function add_days(d: Date, n: number): Date { /* ... */ }`}
 		</TomeSection>
 
 		<TomeSection>
-			<TomeSectionHeader text="Re-exports inherit comments selectively" />
-			<p>
-				A re-export with its own JSDoc synthesizes an alias in the re-exporting module, even when
-				the name is unchanged. Its local doc fields win and the canonical's fill gaps. See
-				<TomeLink slug="output-format" hash="Re-exports">Re-exports</TomeLink>.
-			</p>
-		</TomeSection>
-
-		<TomeSection>
 			<TomeSectionHeader text="Tag-related diagnostics" />
-			<p>Three diagnostic kinds report tag problems, all warnings:</p>
-			<ul>
-				<li>
-					<code>misplaced_tag</code>: a symbol-scope tag on a non-primary overload, or
-					<code>@nodocs</code> in a <code>@module</code> comment
-				</li>
-				<li>
-					<code>unknown_param</code>: <code>@param</code> key with no matching parameter
-				</li>
-				<li>
-					<code>duplicate_comment</code>: more than one <code>@module</code> source in a Svelte
-					file, or an HTML <code>@component</code> comment plus in-script component JSDoc
-				</li>
-			</ul>
 			<p>
-				See <TomeLink slug="diagnostics" /> for details and
-				<ModuleLink module_path="tsdoc.ts">tsdoc.ts</ModuleLink> for the parser.
+				Tag problems surface as warnings: <code>misplaced_tag</code>, <code>unknown_param</code>,
+				and <code>duplicate_comment</code>, described in the sections above and in
+				<TomeLink slug="diagnostics" />. The parser is
+				<ModuleLink module_path="tsdoc.ts">tsdoc.ts</ModuleLink>.
 			</p>
 		</TomeSection>
 	</section>

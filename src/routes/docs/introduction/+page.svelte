@@ -116,21 +116,8 @@ const {modules} = await analyze({
 				parsed ASTs and svelte2tsx output across calls. See the <TomeLink slug="session" /> guide.
 			</p>
 			<p>
-				See the <TomeLink slug="api">API reference</TomeLink> for all exported functions and types.
-			</p>
-		</TomeSection>
-		<TomeSection>
-			<TomeSectionHeader text="Not supported" />
-			<p>
-				Standalone <code>namespace Foo {`{}`}</code> declarations document as a bare variable with
-				no members (namespace re-exports <em>are</em> supported). Decorators aren't modeled.
-			</p>
-			<p>
-				Legacy <code>export let</code> components document their props like any other, every one of
-				them <code>bindable</code>. A default <code>&lt;slot /&gt;</code> sets
-				<code>acceptsChildren</code> on a legacy component, with or without props, and is ignored on
-				a runes one; named slots, slot props, and events aren't modeled. Svelte context usage isn't
-				captured either.
+				The <TomeLink slug="output-format" /> reference shows example JSON, and the
+				<TomeLink slug="api">API reference</TomeLink> lists every exported function and type.
 			</p>
 		</TomeSection>
 		<TomeSection>
@@ -179,6 +166,15 @@ const {modules} = await analyze({
 					ES star semantics
 				</li>
 				<li>
+					<strong>external types</strong>: props and members from packages (like
+					<code>HTMLButtonAttributes</code>) are filtered out and named in
+					<code>externalTypes</code>, unless the <code>$props()</code> destructuring names them
+				</li>
+				<li>
+					<strong>classes and enums</strong>: public and protected class members, and enum members
+					with their values
+				</li>
+				<li>
 					<strong>dependency graphs</strong>: tracks imports between modules and computes dependents
 				</li>
 				<li>
@@ -196,25 +192,44 @@ const {modules} = await analyze({
 			</ul>
 		</TomeSection>
 		<TomeSection>
+			<TomeSectionHeader text="Limitations" />
+			<ul>
+				<li>
+					Standalone <code>namespace Foo {`{}`}</code> declarations document as a bare variable with
+					no members (<code>export * as ns</code> re-exports <em>are</em> supported). Decorators
+					aren't modeled.
+				</li>
+				<li>
+					Legacy <code>export let</code> components are partly supported: their props are
+					documented, all <code>bindable</code>, and a default <code>&lt;slot /&gt;</code> sets
+					<code>acceptsChildren</code> (a runes component's <code>&lt;slot /&gt;</code> is ignored).
+					Named slots, slot props, events, and <code>$$restProps</code> aren't modeled.
+				</li>
+				<li>
+					<code>@nodocs</code> applies to declarations and export statements; on a member or
+					component prop it's ignored.
+				</li>
+				<li>
+					Svelte context usage isn't captured yet. Investigation is planned, and a
+					<a href="https://github.com/fuzdev/svelte-docinfo/discussions">request</a> would bump its
+					priority.
+				</li>
+			</ul>
+		</TomeSection>
+		<TomeSection>
 			<TomeSectionHeader text="Compared to sveld" />
 			<p>
 				<a href="https://github.com/carbon-design-system/sveld"><code>sveld</code></a> is a Svelte
 				component documentation generator that walks the AST and infers types from JSDoc annotations
 				and literal values. svelte-docinfo instead uses the TypeScript compiler API (via svelte2tsx)
 				as its source of truth, so it resolves imported types, generics, and complex inferred types
-				without requiring <code>@type</code> annotations. It also analyzes TypeScript modules, not
-				just <code>.svelte</code> files.
+				in TypeScript components without <code>@type</code> annotations. It also analyzes TypeScript
+				modules, not just <code>.svelte</code> files, tracks re-exports across modules, computes
+				dependency graphs, and records source locations.
 			</p>
 			<p>
-				svelte-docinfo additionally tracks re-exports across modules, computes dependency graphs,
-				and records source locations. It doesn't support Svelte 4 features like slots and dispatched
-				events (Svelte 5 replaces them with snippets and callback props) or the context API.
-			</p>
-		</TomeSection>
-		<TomeSection>
-			<TomeSectionHeader text="Example output" />
-			<p>
-				See the <TomeLink slug="output-format" /> reference for example JSON output.
+				svelte-docinfo doesn't model Svelte 4's slots and events, which Svelte 5 replaces with
+				snippets and callback props (see <a href="#Limitations">Limitations</a>).
 			</p>
 		</TomeSection>
 	</section>

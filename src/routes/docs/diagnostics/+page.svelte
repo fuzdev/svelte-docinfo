@@ -20,10 +20,8 @@
 <TomeContent {tome}>
 	<section>
 		<p>
-			Analysis accumulates errors and warnings without halting. A failing declaration is marked
-			<code>partial: true</code> and the rest of the module still analyzes. Detail lands in an array
-			of <DeclarationLink name="Diagnostic" /> entries, alongside <code>modules</code> in the
-			result.
+			Analysis accumulates errors and warnings without halting, as an array of
+			<DeclarationLink name="Diagnostic" /> entries alongside <code>modules</code> in the result.
 		</p>
 
 		<TomeSection>
@@ -31,8 +29,7 @@
 			<p>
 				<strong>Accumulated (non-fatal)</strong>: appended to the diagnostics array while analysis
 				continues. Covers type resolution failures, member or prop extraction failures, and JSDoc
-				tag misuse. The result is still valid, and declarations or members with incomplete data are
-				marked <code>partial: true</code>.
+				tag misuse. The result is still valid (see <a href="#severity-vs-partial">partial</a>).
 			</p>
 			<p>
 				<strong>Thrown (fatal)</strong>: setup-level problems throw from the public entry points:
@@ -54,7 +51,7 @@
 				</li>
 				<li>
 					<code>discovery: 'exports'</code> when <code>exports</code> is missing or resolves to no
-					files
+					files, or when the source paths share no common prefix
 				</li>
 				<li>a name collision under <code>onDuplicates: 'throw'</code></li>
 			</ul>
@@ -62,14 +59,6 @@
 				Wrap <code>analyze</code> / <code>analyzeFromFiles</code>, or
 				<code>createAnalysisSession</code> and <code>query</code>, to handle these. svelte2tsx
 				failures don't throw; they surface as <code>transform_failed</code>.
-			</p>
-			<p>
-				The table below marks each kind's lifecycle. <strong>Ingest-time</strong> kinds surface when
-				files are ingested and persist with the file until it is re-ingested or deleted,
-				<strong>discovery-time</strong> comes from file discovery, and unmarked kinds are recomputed
-				on every analysis pass. See the
-				<TomeLink slug="session" hash="Diagnostics-ingest-time-vs-query-time">session</TomeLink>
-				guide for how they combine.
 			</p>
 		</TomeSection>
 
@@ -115,6 +104,14 @@
 				<code>transform_failed</code> and <code>module_unreadable</code>, which are always
 				<code>error</code>.
 			</p>
+			<p>
+				The table below marks each kind's lifecycle. <strong>Ingest-time</strong> kinds surface when
+				files are ingested and persist with the file until it is re-ingested or deleted,
+				<strong>discovery-time</strong> comes from file discovery, and unmarked kinds are recomputed
+				on every analysis pass. See the
+				<TomeLink slug="session" hash="Diagnostics-ingest-time-vs-query-time">session</TomeLink>
+				guide for how they combine.
+			</p>
 			<table>
 				<thead>
 					<tr>
@@ -153,12 +150,10 @@
 							<strong>Trigger:</strong> a Svelte component prop type couldn't be resolved.
 							<strong>Consequence:</strong> that prop's type falls back to <code>"any"</code>; if
 							the whole props type on <code>$props()</code> is unresolvable, <code>props</code> is
-							empty. When the <code>acceptsChildren</code> check itself fails
-							(<code>propName: "children"</code>, no position), the type-based detection reports
-							<code>false</code>, though template use of <code>children</code> can still set it. A
-							legacy <code>export let</code> component whose svelte2tsx output has no recognized
-							props type reports each exported prop, at its export's line, and has empty
-							<code>props</code>.
+							empty. When the check for a <code>children</code> snippet fails, only template use of
+							<code>children</code> can set <code>acceptsChildren</code>. A legacy
+							<code>export let</code> component whose svelte2tsx output has no recognized props type
+							reports each exported prop, at its export's line, and has empty <code>props</code>.
 						</td>
 					</tr>
 					<tr>
@@ -193,10 +188,11 @@
 						<td>
 							<strong>Trigger:</strong> two sources supplied a comment for the same target: an HTML
 							<code>@component</code> comment plus script JSDoc
-							(<code>commentType: "doc_comment"</code>), or several <code>@module</code> comments
-							(<code>"module_comment"</code>). <strong>Consequence:</strong> the higher-priority
-							source wins: script JSDoc for doc comments; instance <code>&lt;script&gt;</code>, then
-							<code>&lt;script module&gt;</code>, then HTML for module comments.
+							(<code>commentType: "doc_comment"</code>), or several <code>@module</code> sources in
+							a Svelte file (<code>"module_comment"</code>). <strong>Consequence:</strong> the
+							higher-priority source wins: script JSDoc for doc comments; instance
+							<code>&lt;script&gt;</code>, then <code>&lt;script module&gt;</code>, then HTML for
+							module comments.
 						</td>
 					</tr>
 					<tr>
@@ -207,8 +203,9 @@
 							<code>@see</code>, <code>@throws</code>, <code>@mutates</code>, <code>@default</code>,
 							<code>@nodocs</code>) on a non-primary overload signature, or <code>@nodocs</code> in
 							a <code>@module</code> comment (then <code>functionName</code> is absent).
-							<strong>Consequence:</strong> the tag is dropped. Move it to the primary signature; to
-							omit a module, use <code>exclude</code> patterns.
+							<strong>Consequence:</strong> the tag has no effect. On an overload it's dropped; move
+							it to the primary signature. In a module comment it stays in the
+							<code>moduleComment</code> text; to omit a module, use <code>exclude</code> patterns.
 						</td>
 					</tr>
 					<tr>
@@ -227,9 +224,9 @@
 							<code>v.InferOutput&lt;typeof S&gt;</code>, and svelte-docinfo can't
 							<TomeLink slug="output-format" hash="Structured-types-typeInfo">recover it</TomeLink>.
 							Literal-only unions (<code>z.enum</code>, <code>v.picklist</code>) and brand
-							intersections don't warn, since they read fine expanded. <strong>Consequence:</strong>
-							unannotated positions document the alias's structure instead of its name. Where
-							applicable, a nominal symbol
+							intersections don't warn, since they read fine expanded, and neither do
+							<code>@nodocs</code> aliases. <strong>Consequence:</strong> unannotated positions
+							document the alias's structure instead of its name. Where applicable, a nominal symbol
 							(<code>interface Foo extends z.infer&lt;typeof S&gt; &#123;&#125;</code>) restores it.
 						</td>
 					</tr>
@@ -322,6 +319,10 @@ for (const d of byKind(diagnostics, 'misplaced_tag')) {
 					<code>'./file.ts:10:5: error: message'</code> (the <code>'./'</code> prefix is fixed)
 				</li>
 			</ul>
+			<p>
+				See <ModuleLink module_path="diagnostics.ts">diagnostics.ts</ModuleLink> for the schemas and
+				helpers.
+			</p>
 		</TomeSection>
 
 		<TomeSection>
@@ -368,21 +369,6 @@ if (hasErrors(diagnostics)) {
   // surface in the UI or fail the build
 }`}
 			/>
-		</TomeSection>
-
-		<TomeSection>
-			<TomeSectionHeader text="Absence rule" />
-			<p>
-				Absent optional fields (<code>line</code>, <code>column</code>) are omitted from JSON, per
-				the
-				<TomeLink slug="output-format" hash="Compact-JSON-and-absent-as-false">
-					compact output
-				</TomeLink>
-				rules. The Vite plugin's <code>modules</code> and <code>diagnostics</code> exports are
-				always present, even when empty. See
-				<ModuleLink module_path="diagnostics.ts">diagnostics.ts</ModuleLink> for the schemas and
-				helpers.
-			</p>
 		</TomeSection>
 	</section>
 </TomeContent>

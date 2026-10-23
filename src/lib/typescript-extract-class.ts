@@ -9,6 +9,8 @@
  *
  * @see `typescript-extract-shared.ts` for shared helpers
  *
+ * @internal
+ *
  * @module
  */
 

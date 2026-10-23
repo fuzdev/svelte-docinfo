@@ -11,79 +11,71 @@ divergence: the API is **camelCase**, since the package serves the broad Svelte 
 For the same reason `@fuzdev/fuz_util` is dev-only: `src/lib` never imports it, hence the
 local `toErrorMessage` and `mapConcurrent`.
 
-**This file is the map.** Behavioral policy lives in TSDoc beside the code. Each section
-points to the TSDoc that owns its policy; read it before changing behavior. User-facing docs are the tomes in
-`src/routes/docs/`. Examples: `examples/vite/`, `examples/api/`, `examples/cli/`.
+**This file is the map.** Behavioral policy lives in TSDoc beside the code; each section
+points to the TSDoc that owns it, so read that before changing behavior. User-facing docs
+are the tomes in `src/routes/docs/`. Examples: `examples/vite/`, `examples/api/`,
+`examples/cli/`.
 
 ## Capabilities
 
 - **Type resolution** — imported types, generics, inferred types. Every member type is
   checker-backed.
-- **Structured types** — optional `typeInfo` (`TypeJson`, a recursive 10-kind valibot schema)
-  beside the flat type strings: component props, parameters (snippet tuple elements
-  included), `returnTypeInfo` (functions, methods, overloads), type-alias/interface/class
-  members, variable and type-alias declarations. Policy lives on the `TypeJson` schema
-  TSDoc (`types.ts`) and in `typescript-extract-type-json.ts`:
-  - **Absence contract** — absent when the flat string is the whole story (intrinsics, bare
-    references, object/function roots). Relaxed at type-alias roots, where the flat string
+- **Structured types** — optional `typeInfo` (`TypeJson`, a recursive 10-kind valibot
+  schema) beside the flat type strings, on variables, type aliases, variable members,
+  component props, parameters, and tuple elements; `returnTypeInfo` on functions, function
+  members, and overloads. Policy: the `TypeJson` schema TSDoc (`types.ts`) and
+  `typescript-extract-type-json.ts`.
+  - **Absence** — absent when the flat string is the whole story (intrinsics, bare
+    references, object/function roots); relaxed at type-alias roots, where the flat string
     is just the alias name, and at recovered roots.
-  - **Shape** — union/intersection members keep alias names (read off the union's internal
-    `origin`, with a validated fallback). Union members take the written order: the alias
-    declaration's right-hand side for a non-generic aliased union, else the site annotation,
-    validated and falling back to the checker's order; nullish members sink last.
-    `true | false` collapses to `boolean`; the optional-widening `undefined` is dropped.
-    A literal `value` JSON can't carry (a bigint, a non-finite number) is a string.
-    Named generic instantiations (`Snippet<[a: string]>`) are `reference` nodes with
-    `typeArgs`; every other callable is `function`. Object literals and functions stay
-    terminal `text` (1000-char budget). Depth is capped at 5, degrading to `{kind: 'other'}`.
+  - **Shape** — union/intersection members keep alias names. Union members take the written
+    order (the alias right-hand side, else the site annotation, falling back to the
+    checker's order), nullish last. `true | false` collapses to `boolean`; the
+    optional-widening `undefined` is dropped. Literal `value`s JSON can't carry (bigint,
+    non-finite) are strings. Named generic instantiations are `reference` nodes with
+    `typeArgs`; other callables are `function`. Object literals and functions stay terminal
+    `text`, untruncated up to 1000 chars, then the checker's shortened rendering. Depth caps
+    at 5, degrading to `{kind: 'other'}`.
   - **Name recovery** — TypeScript drops the alias of a type over an indexed access or
-    conditional (`z.infer<typeof S>`), expanding it at every use. A svelte2tsx-generated
-    alias (declared in a virtual or the shims) counts as none (`linkableAliasSymbol`), so
-    `ComponentProps<typeof X>` over inline props is lost the same way, never
-    `$$ComponentProps`. Two channels recover
-    `{kind: 'reference', name}`. The **written** channel resolves the annotation at the
-    site, through import aliases to the exported name (`specifierExportedName`). The
-    **registry** channel (`buildAliasRegistry`, a query-scoped pre-pass) matches by type
-    identity against exported, non-`@nodocs`, non-generic lost aliases of emitted modules,
-    so unannotated inferred positions recover too. Registry hits carry `module` (always an
-    emitted module), and ambiguity resolves to a single global winner. The policy: never
-    name what the project didn't declare. Losses nothing recovers emit `alias_lost`.
-- **Member projection** — type-alias and interface properties share `populatePropertyMember`:
-  a callable becomes `kind: 'function'` with signature fields, anything else gets
+    conditional (`z.infer<typeof S>`). svelte2tsx-generated aliases count as none
+    (`linkableAliasSymbol`). Two channels recover `{kind: 'reference', name}`: the
+    **written** channel resolves the site's annotation through import renames
+    (`specifierExportedName`), and the **registry** channel (`buildAliasRegistry`) matches
+    by type identity against exported, non-`@nodocs`, non-generic lost aliases of emitted
+    modules, so unannotated positions recover too; its hits carry `module`, always an
+    emitted module. Never name what
+    the project didn't declare. Unrecovered losses emit `alias_lost`.
+- **Member projection** — type-alias and interface properties share
+  `populatePropertyMember`: a callable becomes `kind: 'function'`, anything else gets
   `typeSignature` + `typeInfo`. External-origin call signatures are filtered first, so
   `run?: typeof spawn` stays a `variable`. Class fields stay `variable` even when
   function-typed. Interfaces enumerate own members only. Literal member names are unquoted
-  (`memberNameText`) and computed names are skipped.
-- **TSDoc/JSDoc** (`tsdoc.ts`)
-  - Tags: `@param`, `@returns`, `@throws`, `@example`, `@deprecated`, `@internal`, `@see`,
-    `@since`, `@default`, `@module`, `@nodocs`, `@mutates`. `@return` → `@returns` and
-    `@defaultValue`/`@defaultvalue` → `@default`.
-  - `@internal` is a marker, not an exclusion: it sets `internalMessage` and the declaration,
-    member, or component prop stays documented. `@nodocs` removes the declaration from docs
-    and duplicate checking. It applies to declarations and export statements only; in a module
-    comment it has no effect and warns `misplaced_tag`.
-  - `@mutates` splits target from description at ` - `. On a component prop it declares what
-    the component writes into the value it's handed. Dotted `@param obj.prop` tags fill
+  (`memberNameText`); computed names are skipped.
+- **TSDoc/JSDoc** (`tsdoc.ts`) — `@param`, `@returns`, `@throws`, `@example`,
+  `@deprecated`, `@internal`, `@see`, `@since`, `@default`, `@module`, `@nodocs`,
+  `@mutates`. `@return` is read as `@returns`, and `@defaultValue`/`@defaultvalue` as
+  `@default`.
+  - `@internal` is a marker (`internalMessage`), not an exclusion. `@nodocs` removes a
+    declaration from docs and duplicate checking; it applies to declarations and export
+    statements only, and in a module comment warns `misplaced_tag`
+    (`warnModuleCommentNodocs`).
+  - `@mutates` splits target from description at ` - `. Dotted `@param obj.prop` fills
     `ParameterJson.propertyDescriptions`.
-  - `@default` → `defaultValue` lands on variables, component props, and function/variable
-    members, never on top-level functions, overloads, or constructors.
-  - Text is kept raw: inline `{@link}` survives, and rendering is the consumer's concern.
-- **Overloads** — every public signature with its own JSDoc. Signature-scope tags
-  (`@param`/`@returns`) flow to their overload. The first signature is primary: its JSDoc
-  documents the symbol, and symbol-scope tags on any later overload emit `misplaced_tag`.
+  - `@default` lands on variables, component props, and function/variable members, never
+    on top-level functions, overloads, or constructors.
+  - Text is kept raw (inline `{@link}` survives); rendering is the consumer's concern.
+- **Overloads** — every public signature with its own JSDoc. `@param`/`@returns` flow to
+  their overload; the first signature's JSDoc documents the symbol, and symbol-scope tags
+  on a later overload emit `misplaced_tag`.
 - **Merged value+type symbols** — `const Foo = z.strictObject(...)` +
-  `type Foo = z.infer<typeof Foo>` documents the type meaning (`selectDeclarationNode`).
-  `mergedValue: true` records that the name is also a runtime value, so `generateImport`
-  emits a value import. JSDoc falls back to the const when the type has none. Class+interface
-  merges document the class.
-- **Svelte 5 components** — props, generics, snippets, and `acceptsChildren` via svelte2tsx +
-  the checker. JS components (no `lang="ts"`) take props from the JSDoc `@type` on
-  `$props()`, or from the typedef svelte2tsx synthesizes for untyped destructuring. Legacy
-  `export let` components document their props the same way (see Svelte Component Analysis).
-- **Runes** — `$state`, `$state.raw`, `$derived`, `$derived.by` are detected syntactically in
+  `type Foo = z.infer<typeof Foo>` documents the type (`selectDeclarationNode`), with
+  `mergedValue: true` (also a runtime value; `generateImport` emits a value import). When
+  the type has no JSDoc, the const's is used. Class+interface merges document the class.
+- **Svelte 5 components** — props, generics, snippets, and `acceptsChildren` via svelte2tsx
+  and the checker, including JS components and legacy `export let` components (see Svelte
+  Component Analysis).
+- **Runes** — `$state`, `$state.raw`, `$derived`, `$derived.by`, detected syntactically in
   every file (`reactivity`).
-- **Re-exports and diagnostics** — see Key Design Decisions. Dependency edges: Sources and
-  Scope. Source lines: the `sourceLine` contract under Data Model.
 
 ## Architecture
 
@@ -91,167 +83,123 @@ points to the TSDoc that owns its policy; read it before changing behavior. User
 
 **Low-level** (compiler API)
 
-- `typescript-program.ts`
-  - Entry points: `createAnalysisProgram` (one-shot `ts.Program`),
-    `createAnalysisLanguageService` (persistent LS: `setFile`/`deleteFile`/`getProgram`/…),
-    and `loadTsconfig`.
-  - `loadTsconfig` parses relative to the config file's own directory (as `tsc -p` does),
-    and throws when the config or anything in its `extends` chain fails to load (SvelteKit's
-    generated tsconfig before `svelte-kit sync`), rather than analyzing with inherited
-    options silently dropped; option-level diagnostics and TS18003 don't throw.
-  - `tsconfig: false` analyzes without a config file, on `DEFAULT_COMPILER_OPTIONS` (strict,
-    since the compiler's own defaults are non-strict before TypeScript 6). It's explicit,
-    never a fallback: a config that can't be found still throws.
-  - `rootFileNames` (`RootFileNames`: a list, or a function over the tsconfig's roots)
-    replaces the program's roots, which otherwise make cold cost scale with the project.
-    Narrowing changes output only for ambient types declared in a file nothing imports,
-    which then resolve to `any` with no diagnostic; `declarationFileRoots` is the preset
-    that keeps the `.d.ts` roots. The `RootFileNames` TSDoc owns the
-    policy. Every entry point forwards `tsconfig`, `compilerOptions`, and `rootFileNames`
-    (the CLI as `--tsconfig`/`--no-tsconfig` only).
-  - `createIsExternalFile`/`createIsExternalPath` decide externality: outside the root,
-    under `node_modules`, or a `.d.ts` outside the source root. That's a different axis from `isSource`
-    — a gated local file isn't external.
-  - Virtual files are `VirtualFileEntry` (`{content, scriptKind?}`); the `scriptKind`
-    override makes JS-lang Svelte virtuals parse as JS.
-  - Both hosts answer `directoryExists` from served files (`createOwnedDirIndex`), so an
-    in-memory file in a directory absent from disk still resolves.
+- `typescript-program.ts` — `createAnalysisProgram` (one-shot `ts.Program`),
+  `createAnalysisLanguageService` (persistent LS), `loadTsconfig`, `RootFileNames`.
+  - `loadTsconfig` parses relative to the config's own directory (as `tsc -p` does) and
+    throws when the config or its `extends` chain fails to load (SvelteKit's tsconfig before
+    `svelte-kit sync`); option-level diagnostics and TS18003 don't throw. `tsconfig: false`
+    uses `DEFAULT_COMPILER_OPTIONS` (strict, since TS's own defaults are non-strict before
+    6); it's explicit, never a fallback.
+  - `rootFileNames` replaces the program's roots, which otherwise scale cold cost with the
+    project. Narrowing changes output only for ambient types in a file nothing imports
+    (they become `any`); `declarationFileRoots` keeps the `.d.ts` roots. Every entry point
+    forwards `tsconfig`, `compilerOptions`, and `rootFileNames` (the CLI only `tsconfig`, as
+    `--tsconfig`/`--no-tsconfig`).
+  - `createIsExternalFile`/`createIsExternalPath`: outside the root, under `node_modules`,
+    or a `.d.ts` outside the source root. A different axis from `isSource`.
+  - Virtual files are `VirtualFileEntry` (`{content, scriptKind?}`). Both hosts answer
+    `directoryExists` from served files (`createOwnedDirIndex`), so in-memory files in
+    directories absent from disk resolve.
   - A program with Svelte virtuals also roots svelte2tsx's `svelte-shims-v4.d.ts`
-    (`getSvelteShimRoots`), resolved from svelte-docinfo's own svelte2tsx. Without it every
-    component's type is `any`; TS-only programs root nothing extra. Flat strings print
-    component types as the checker sees them, svelte2tsx's generated names included
-    (`Component<$$ComponentProps, {}, "">`); the `TypeJson` builder treats generated aliases
-    (`$$ComponentProps`, the shims' `__sveltets_2_PropsWithChildren`) as nameless
-    (`linkableAliasSymbol`), and identifies the shims by path (`isSvelteShimPath`).
-- `typescript-extract-*.ts` — per-kind extractors, `@internal`, imported directly (no barrel):
-  - `-shared.ts`
-    - `ExtractContext`, built by `createExtractContext`: pass-constant state only —
-      checker, diagnostics, `isExternalFile`, `aliasRegistry`,
-      `exactOptionalPropertyTypes`.
-    - Declaration kind inference and selection.
-    - Signature/property projection (`populateCallableMember`, `populatePropertyMember`).
-    - The optional-widening gate (`optionalWidened`).
-    - External filtering and `externalTypes` attribution (`filterDocumentedProperties`,
-      `applyHeritageExternalTypes`).
-    - Class visibility (`isPrivateMemberDeclaration`) and rune detection.
-  - `-function.ts`, `-type.ts` (aliases, interfaces, enums), `-class.ts`, and
+    (`getSvelteShimRoots`); without it every component is `any`. Generated aliases
+    (`$$ComponentProps`, the shims' `__sveltets_2_PropsWithChildren`) are nameless to the
+    `TypeJson` builder (`linkableAliasSymbol`, `isSvelteShimPath`), though flat strings
+    print them as the checker does.
+- `typescript-extract-*.ts` — per-kind extractors, `@internal`, imported directly (no
+  barrel):
+  - `-shared.ts` — `ExtractContext` (pass-constant: checker, diagnostics,
+    `isExternalFile`, `isEmittedFile`, `aliasRegistry`, `exactOptionalPropertyTypes`) via
+    `createExtractContext`; declaration kind inference and selection; signature/property
+    projection (`populateCallableMember`, `populatePropertyMember`); the optional-widening
+    gate (`optionalWidened`); external filtering (`filterDocumentedProperties`,
+    `applyHeritageExternalTypes`); class visibility (`isPrivateMemberDeclaration`); rune
+    detection.
+  - `-function.ts`, `-type.ts` (aliases, interfaces, enums), `-class.ts`,
     `-type-properties.ts` (alias property enumeration, `hasExtractableProperties`).
-  - `-type-json.ts` — `resolveTypeInfo` (the `TypeJson` builder), the registry types and
-    predicates, and policy primitives shared with the flat-string paths
-    (`optionalWideningTarget`, `referenceSymbolName`, the tuple helpers), so strings and
-    trees can't drift.
+  - `-type-json.ts` — `resolveTypeInfo` (the `TypeJson` builder), registry types, and the
+    policy primitives the flat-string paths share (`optionalWideningTarget`,
+    `referenceSymbolName`, tuple helpers), so strings and trees can't drift.
 - `typescript-alias-registry.ts` — `buildAliasRegistry(sources, checker)`. `analyzeCore`
   runs it; direct `analyzeModule`/`analyzeSvelteModule` callers run it themselves or get
   written-channel recovery only.
-- `typescript-exports.ts` — module orchestration: `analyzeTypescriptModule`,
-  `analyzeExports`, `analyzeDeclaration`, `extractModuleComment`. Handles alias chains,
-  namespace classification, re-export JSDoc routing, merged symbols, and `alias_lost`.
+- `typescript-exports.ts` — `analyzeTypescriptModule`, `analyzeExports`,
+  `analyzeDeclaration`, `extractModuleComment`: alias chains, namespace classification,
+  re-export JSDoc routing, merged symbols, `alias_lost`.
 - `tsdoc.ts` — `parseComment`, `applyToDeclaration`, `cleanComment`, `hasDocContent`.
-- `diagnostics.ts` — `Diagnostic` (a discriminated union on `kind`), `DiagnosticKind`,
-  `DiagnosticSeverity`, `parseDiagnostics`, and read helpers (`hasErrors`, `errorsOf`,
-  `byKind`, `formatDiagnostic`, …). Diagnostics are a plain `Array<Diagnostic>`.
-- `log.ts` — `AnalysisLog` (`info`/`warn`/`error`): unstructured progress, separate from
-  diagnostics.
+- `diagnostics.ts` — `Diagnostic` (a union on `kind`), `DiagnosticKind`,
+  `DiagnosticSeverity`, `parseDiagnostics`, read helpers (`hasErrors`, `errorsOf`,
+  `byKind`, `formatDiagnostic`, …).
+- `log.ts` — `AnalysisLog` (`info`/`warn`/`error`): progress, separate from diagnostics.
 
 **Mid-level**
 
-- `svelte.ts`
-  - `analyzeSvelteModule`, `transformSvelteSource`.
-  - Script and module-comment extraction, always from the *original* source, never the
-    virtual. The component's script tags are located once, at transform, and ride the
-    virtual (`SvelteVirtualFile.scriptTags`).
-  - The render mode (`classifyRenderMode`) and the props anchors
-    (`resolveRunesPropsAnchor`, `resolveExportLetPropsAnchor`).
-  - Snippet helpers.
-- `svelte-scripts.ts` — `@internal`, imported directly (not in the barrel):
-  `findScriptTags`, which locates a component's top-level `<script>` tags (see Svelte
-  Component Analysis), `scanScriptTags`, and `isModuleScript`.
-- `svelte-legacy.ts` — `@internal`, imported directly (not in the barrel): the legacy
-  `export let` scan (`scanLegacyExports`) and the checker anchor for the props type
-  (`resolveLegacyPropsAnchor`).
+- `svelte.ts` — `analyzeSvelteModule`, `transformSvelteSource`; script and module-comment
+  extraction from the *original* source; render mode (`classifyRenderMode`); props anchors
+  (`resolveRunesPropsAnchor`, `resolveExportLetPropsAnchor`); snippet helpers;
+  `remapVirtualDiagnosticPositions`.
+- `svelte-scripts.ts` (`@internal`, not in the barrel) — `findScriptTags`,
+  `scanScriptTags`, `isModuleScript`.
+- `svelte-legacy.ts` (`@internal`, not in the barrel) — `scanLegacyExports`,
+  `resolveLegacyPropsAnchor`.
 - `source.ts` — `SourceFileInfo`, file-type predicates, virtual-path helpers
-  (`stripVirtualSuffix`, `SVELTE_VIRTUAL_SUFFIX`), the svelte2tsx generated-name filter
-  (`isSvelte2tsxGeneratedExport`), and `getDefaultAnalyzer`.
+  (`stripVirtualSuffix`, `SVELTE_VIRTUAL_SUFFIX`), `isSvelte2tsxGeneratedExport`,
+  `getDefaultAnalyzer`.
 - `paths.ts` — `toPosixPath`, `isAbsolutePosixPath`. Every stored, compared, or keyed path
   is POSIX; native paths are accepted at public boundaries.
-- `dep-resolver.ts`
-  - `ImportResolver` (`{resolve, identity, invalidate?}`) and `ResolveImport`.
-  - `createDefaultResolver`: TS resolution plus a manual `.svelte` fallback.
-  - `lexImports` (a syntax-only TypeScript parse) and `noDepsResolver`.
+- `dep-resolver.ts` — `ImportResolver` (`{resolve, identity, invalidate?}`),
+  `ResolveImport`, `normalizeResolveImport`, `createDefaultResolver` (TS resolution plus a
+  `.svelte` fallback), `lexImports` (syntax-only parse), `noDepsResolver`.
 - `concurrency.ts` — `MAX_FILE_CONCURRENCY`, `MAX_RESOLVE_CONCURRENCY`, `mapConcurrent`.
 - `error.ts` — `toErrorMessage`.
-- `schema.ts` — helpers the schema modules share, a leaf importing only valibot:
-  `parseWithSummary`, which the `parse*` helpers throw through so the message lists every
-  reported issue, one `path: message` line each, and the `@nodocs` `Named` alias the schema
-  interfaces extend through. Not in the barrel.
-- `source-config.ts`
-  - Options: `ModuleSourceOptions`, `createSourceOptions`/`normalizeSourceOptions`,
-    `ExcludeOption`.
-  - Source gating and paths: `isSource`, `extractPath`, `extractDependencies`.
-  - Include widening (`createSourceOptionsWithInclude`), pattern normalization, and the
-    baseline exclusions.
-- `types.ts` — the output schemas (valibot): `ModuleJson`, `DeclarationJson` (9 variants),
-  `MemberJson` (3), `TypeJson` (10 kinds), `OverloadJson`, and friends, plus
-  `parseModuleJson`. Field-level policy lives here. Each exported object schema is typed
-  through a `@nodocs` `FooSchema` interface (`extends Named<typeof FooImpl>`), which keeps
-  the emitted declarations referential and small. A fully inlined `ModuleJson` sends
-  consumers past TypeScript's instantiation depth (TS2589); a name on that root is enough
-  to clear it, and the rest are there for size. `diagnostics.ts` and `AnalyzeResultJson` follow
-  suit. `dist-types.test.ts` holds the emitted declarations to that: referential schema
-  consts, a size budget, and a consumer that typechecks against them.
-- `declaration-build.ts` — permissive build-time types (`DeclarationJsonBuild`,
-  `MemberJsonBuild`, …): every field optional except `kind`. The schemas validate at the
-  `parseModuleJson` boundary.
-- `declaration-helpers.ts`
-  - Display and import generation: `getDisplayName`, `generateImport`.
-  - `compactReplacer` and `isKind`.
-  - `typeJsonToTokens`/`typeJsonToText`: the renderer contract. A corpus test tokenizes
-    every tree in the fixture baselines.
-- `postprocess.ts`
-  - Pure phase-2 passes: `mergeReExports`, `resolveComponentAliases`, `findDuplicates`,
-    `sortModules`, `computeDependents`.
-  - `resolveExportSurface`.
-  - `compareStrings`: the comparator for all output ordering. Never use bare
-    `localeCompare` or a default `.sort()`.
-  - Input order is sorted too: `query()` analyzes the owned set in `compareStrings` order
-    of file ID, the language-service host returns owned program roots in that order, and
-    `globFiles`/`discoverFromExports` return files in it, so output is a function of the
-    file set, not the crawl or ingest order. Analysis order matters because TypeScript
-    prints an origin-less union (`z.enum` members, literal unions) in type-creation order,
-    which follows the order the checker first visits files; root order sets the merge
-    order of `declare global`, module augmentations, and interface merging. Two limits
-    remain, for flat strings and for trees at positions with no written union node: an
-    edit to an unrelated file can still reorder such a union's members, since it can
-    change which file first creates a member type, and checker work through
-    `getProgram()` before the first `query()` on a fresh program can reorder them in that
-    query's output.
+- `schema.ts` (not in the barrel) — `parseWithSummary` (the `parse*` helpers throw through
+  it, listing every issue) and the `@nodocs` `Named` alias; a leaf importing only valibot.
+- `source-config.ts` — `ModuleSourceOptions`, `DEFAULT_SOURCE_OPTIONS`,
+  `createSourceOptions`/`normalizeSourceOptions`, `ExcludeOption`, `isSource`,
+  `extractPath`, `extractDependencies`, include widening
+  (`createSourceOptionsWithInclude`), the baseline exclusions.
+- `types.ts` — the output schemas (valibot): `ModuleJson`, `DeclarationJson`, `MemberJson`,
+  `TypeJson`, `OverloadJson`, …, plus `parseModuleJson`. Field-level policy lives here.
+  Non-recursive object schemas are typed through `@nodocs` `FooSchema` interfaces
+  (`extends Named<typeof FooImpl>`); the recursive `TypeJson`/`TupleElementJson` are
+  `v.GenericSchema<…>`. That keeps emitted declarations referential and small: an inlined
+  `ModuleJson` sends consumers past TS's instantiation depth (TS2589).
+  `diagnostics.ts` and `AnalyzeResultJson` follow suit; `dist-types.test.ts` guards it.
+- `declaration-build.ts` — permissive build types (`DeclarationJsonBuild`,
+  `MemberJsonBuild`: every field optional but `kind`) and the per-module analysis records
+  (`ModuleAnalysis`, …). The schemas validate at `parseModuleJson`.
+- `declaration-helpers.ts` — `getDisplayName`, `generateImport`, `compactReplacer`,
+  `isKind`, and the renderer contract `typeJsonToTokens`/`typeJsonToText` (a corpus test
+  tokenizes every fixture tree).
+- `postprocess.ts` — pure passes: `mergeReExports`, `resolveComponentAliases`,
+  `findDuplicates`, `sortModules` (phase 2), and `computeDependents` (run by
+  `session.query` before `analyzeCore`); `resolveExportSurface`; `compareStrings`.
+  - `compareStrings` orders all output; never bare `localeCompare` or a default `.sort()`.
+  - Input order is sorted too (`query()`'s owned set, LS program roots, `globFiles`,
+    `discoverFromExports`), so output is a function of the file set, not crawl or ingest
+    order. It matters because TS prints an origin-less union in type-creation order, and
+    root order sets declaration-merge order. Known limits (an unrelated edit, or
+    `getProgram()` checker work before the first `query()`, can reorder such unions) are in
+    the `AnalysisSession` "Input order" TSDoc.
 
 **High-level**
 
 - `analyze.ts` — one-shot `analyze` and `analyzeFromFiles`, each a single-use session.
 - `session.ts` — `createAnalysisSession` (see Incremental Analysis).
-- `analyze-core.ts`
-  - `analyzeCore`: the two-phase loop.
-  - `analyzeModule`, `finalizeDiagnostics`, `normalizeDiagnosticPaths`,
-    `normalizeModulePathsInTypes`.
-  - `OnDuplicates`: the opt-in flat-namespace check. Off by default, since most packages
-    reuse names across modules; any mode emits `duplicate_declaration`.
-  - The envelope schemas `AnalyzeResultJson` and `AnalyzeResultJsonWire`, and
-    `parseAnalyzeResult`.
-- `vite.ts` — default export `svelteDocinfo`, serving `virtual:svelte-docinfo`.
+- `analyze-core.ts` — `analyzeCore` (the two-phase loop), `analyzeModule`,
+  `finalizeDiagnostics`, `normalizeDiagnosticPaths`, `normalizeModulePathsInTypes`,
+  `OnDuplicates` (the opt-in flat-namespace check; any mode emits `duplicate_declaration`),
+  and the envelope schemas `AnalyzeResultJson`/`AnalyzeResultJsonWire` with
+  `parseAnalyzeResult`.
+- `vite.ts` — default export `svelteDocinfo`, serving `virtual:svelte-docinfo`. Vite 6+,
+  per-environment dev APIs only; one dev server at a time. The module TSDoc owns the
+  lifecycle and restart policy; `vite.dev.test.ts` drives real middleware-mode servers.
   - Hooks: `configResolved`, `buildStart`, `buildEnd` (disposes the session),
-    `resolveId`/`load`, and `configureServer` (watch plus debounced re-analysis, gated on
+    `resolveId`/`load`, `configureServer` (watch plus debounced re-analysis, gated on
     `isSource(file) || session.has(file)`).
-  - Only the files discovery selected are inputs (`inputIds`). Any other file's edit is
-    passed with the context role, and an `add` event re-runs discovery to decide whether
-    the new file is an input (and re-roles owned files the selection moved), aiming at dev
-    output that matches a cold build of the same tree.
-  - Vite 6+, per-environment dev APIs only. Changed output reloads the page (no HMR
-    boundary: the module is data). The plugin serves one dev server at a time, adopted at
-    its client `buildStart`. The `vite.ts` module TSDoc owns the lifecycle and restart
-    policy. `vite.dev.test.ts` drives real middleware-mode servers.
-  - Types live in the root `virtual-svelte-docinfo.d.ts`; its header explains why it
-    can't move to `src/lib/`.
+  - Only the files discovery selected are inputs. Other edits pass with the context role,
+    and an `add` re-runs discovery, aiming at dev output that matches a cold build of the
+    same tree. Changed output reloads the page (no HMR boundary: the module is data).
+  - Types live in the root `virtual-svelte-docinfo.d.ts`; its header explains why.
 
 **Filesystem helpers** — `discovery.ts` (`discoverSourceFiles`), `files.ts` (`loadFile`,
 `globFiles`, `deriveIncludePatterns`), `exports.ts` (`parsePackageExports`,
@@ -261,448 +209,323 @@ points to the TSDoc that owns its policy; read it before changing behavior. User
 
 **Other** — `logo.ts` (docs-site SVG data, not in the barrel).
 
-**Barrel**: `svelte-docinfo` re-exports the common surface. `./*.js` and `./*.ts` subpaths
+**Barrel**: `svelte-docinfo` re-exports the common surface; `./*.js` and `./*.ts` subpaths
 expose every module's full API.
 
 ### Two-Phase Analysis
 
 `analyzeCore` runs, in order:
 
-0. **Alias-registry pre-pass** — `buildAliasRegistry` over the emitted set, with Svelte
-   modules read through their virtuals.
-1. **Module analysis** — dispatch by file type (TS, Svelte, CSS, JSON) to collect
-   declarations and re-export facts. Gated Svelte virtuals (`contextSvelteFiles`) are
-   analyzed only when an emitted alias references them.
+0. **Alias-registry pre-pass** — `buildAliasRegistry` over the emitted set, Svelte modules
+   read through their virtuals.
+1. **Module analysis** — dispatch by file type (TS, Svelte, CSS, JSON), collecting
+   declarations and re-export facts; a Svelte file whose transform failed gets a `partial`
+   placeholder.
+   - Then owned Svelte files that emit nothing (`contextSvelteFiles`: gated, or ingested as
+     context) are analyzed only when an emitted component alias references them, as
+     lookup-only context.
 2. **Linking** — `mergeReExports`, `resolveComponentAliases`, `sortModules`,
-   `findDuplicates` (only when `onDuplicates` is set), `normalizeModulePathsInTypes`, and
-   `finalizeDiagnostics`.
-
-The `postprocess.ts` passes are pure (new arrays, structural sharing).
-`normalizeModulePathsInTypes` and `finalizeDiagnostics` then rewrite phase 2's own output in
-place.
+   `findDuplicates` (only with `onDuplicates`), then `normalizeModulePathsInTypes` and
+   `finalizeDiagnostics`, which rewrite phase 2's output in place.
 
 ### Sources and Scope
 
-- **Vocabulary** — *owned*: ingested by the session. *Source* (emitted): owned and passing
-  `isSource`, and not a closure-ingested dependency (see Context closure); only
-  these produce a `ModuleJson`. *Gated*: in-root but failing `isSource`
-  (e.g. `internal/`), visible to the checker but never emitted. *Context*: files the
-  session reads from disk itself: gated ones, plus source dependencies nobody supplied. *External*: a package, an out-of-root file, or a `.d.ts`
-  outside the source root — a separate axis from gating.
-- **`SourceFileInfo`** — `{id, content, dependencies?}`. Files come from anywhere: disk,
-  memory, or a build pipeline.
-- **Owned ⊇ emitted** — ingest accepts any file, and owned content is served to the checker
-  before the disk fallback. But `query()` gates emission through `isSource` (under
-  `sourcePaths`, not matching `exclude`). Non-source files shape type resolution without
-  emitting a module; the gated count is logged as info.
-- **Reverse edges** — `dependents` are computed by `computeDependents` from the emitted set's
-  forward edges, never supplied by the caller.
+- **Vocabulary** — *owned*: ingested by the session. *Source* (emitted): owned, passing
+  `isSource`, and not a context file; only these produce a `ModuleJson`. *Gated*: in-root
+  but failing `isSource` (e.g. `internal/`): visible to the checker, never emitted.
+  *Context*: files the session reads from disk itself (gated ones, plus source
+  dependencies nobody supplied), and any file supplied with `context: true`. *External*: a
+  package, an out-of-root file, or a `.d.ts` outside the source root — a separate axis
+  from gating.
+- **`SourceFileInfo`** — `{id, content, dependencies?}`, from disk, memory, or a build
+  pipeline. Owned content is served to the checker before the disk fallback; `query()`
+  gates emission through `isSource` (under `sourcePaths`, not matching `exclude`).
+- **Reverse edges** — `dependents` come from `computeDependents` over the emitted set's
+  forward edges, never from the caller.
 
-**Discovery** (`analyzeFromFiles`, `discoverSourceFiles`; details in `discovery.ts`,
-`exports.ts`, `source-config.ts`):
+**Discovery** (`discovery.ts`, `exports.ts`, `source-config.ts`):
 
-- **Modes** — `'auto'` (default: `package.json` exports, falling back to globs), `'exports'`
-  (strict; throws when `exports` is missing or empty), `'glob'`. Passing `include` collapses
+- **Modes** — `'auto'` (default: `package.json` exports, falling back to globs),
+  `'exports'` (strict: throws when exports is missing or resolves to no source files, or
+  when several `sourcePaths` share no common prefix), `'glob'`. `include` collapses
   `'auto'` to glob; combining it with `'exports'` throws.
 - **Include widening** — each include pattern's static base joins `sourcePaths`
   (`createSourceOptionsWithInclude`, shared by `analyzeFromFiles` and the Vite plugin). A
   root-crossing pattern makes the whole project root source, and logs it.
-- **`exclude`** — a single field, applied both at discovery and at `isSource` (the query
-  gate and dependency edges). The default is
-  `['**/*.test.ts', '**/*.spec.ts', '**/internal/**']`. An array replaces the defaults; a
-  `(defaults) => patterns` callback extends them.
-- **The `src/lib/internal/` convention** — internal modules ship for public modules to import
-  but aren't documented. Packages typically pair them with an `"./internal/*": null` exports
-  key. Exports discovery honors null-target keys with Node's best-match semantics
-  (`createBlockedSpecifierChecker`).
-- **Always-on scope guards** — deliberately outside the default `exclude`, since a user
-  `exclude` replaces the defaults wholesale.
-  - The **baseline**: `node_modules` and dot-directory segments below a source path are never
-    source. It's matched relative to that source path, so an explicit dot-dir `sourcePaths`
-    entry still works. `dist`/`build` are not excluded.
-  - **Out-of-root validation**: `sourcePaths`/`sourceRoot` entries and absolute include or
-    exclude patterns that resolve outside `projectRoot` throw. In-root absolute paths
-    relativize. `'/src/lib'` is filesystem-absolute, not shorthand.
+- **`exclude`** — one field, applied at discovery and at `isSource`. Default
+  `['**/*.test.ts', '**/*.spec.ts', '**/internal/**']`; an array replaces it, a
+  `(defaults) => patterns` callback extends it.
+- **`src/lib/internal/`** — modules that ship for public modules to import but aren't
+  documented, usually paired with an `"./internal/*": null` exports key, which exports
+  discovery honors with Node's best-match semantics (`createBlockedSpecifierChecker`).
+- **Always-on guards** — outside the default `exclude`, since a user `exclude` replaces it
+  wholesale. `node_modules` and dot-directory segments below a source path are never
+  source, matched relative to that path (an explicit dot-dir `sourcePaths` entry works;
+  `dist`/`build` aren't excluded). `sourcePaths`/`sourceRoot` entries and absolute patterns
+  outside `projectRoot` throw; in-root absolute paths relativize. `'/src/lib'` is
+  filesystem-absolute, not shorthand.
 
 ### Svelte Component Analysis
 
-Svelte 5+ only, enforced at runtime: svelte2tsx output changed too much across versions to
-support older ones. The workflow, from the svelte2tsx virtual through props, is in the
-`analyzeSvelteModule` TSDoc. In short:
+Svelte 5+ only, enforced at runtime (svelte2tsx output changed too much across versions).
+The workflow is in the `analyzeSvelteModule` TSDoc; the policies:
 
-- **Virtuals** — each `.svelte` file becomes a `.__svelte2tsx__.ts` virtual that the checker
-  sees; the raw `.svelte` is never pushed to the LS. `.svelte` imports map to virtuals via
-  `resolveSvelteVirtualSpecifier`, shared by both program paths.
-- **Script tags** — only a top-level `<script>` is the component's instance or module
-  script, as in Svelte; one nested in an element, a block, or `<svelte:head>` is an
-  ordinary element and is never read. `findScriptTags` (`svelte-scripts.ts`, whose TSDoc
-  owns the policy) decides in two steps:
-  - A regex scan finds every tag. A tag preceded by nothing but whitespace, complete HTML
-    comments, and earlier such tags is top-level by construction (`provenTopLevel`), which
-    settles the usual scripts-first component with no parse.
-  - Otherwise Svelte's parser decides, on the source with script and style content
-    blanked. svelte2tsx parses the same way but demotes only tags the parser reads as
-    nested elements, so a tag spelled in an expression string or attribute value is still
-    a script to it. If the parser throws, every matched tag is kept.
-  - The result is computed at transform time and carried on the virtual, so a query
-    doesn't repeat it. The script language (`scriptKind`), the legacy `export let` scan,
-    and the in-script `@module` comments all read these tags.
-- **`<script module>` exports** analyze through the virtual; svelte2tsx internals are
-  filtered (`isSvelte2tsxGeneratedExport`), and positions are remapped to the original
-  source.
-- **Render mode** — legacy or runes is svelte2tsx's reading, since analysis never sees the
-  compiler's `runes` option. `classifyRenderMode` takes it from the `$$render` return's
-  `bindings` value: a string literal is legacy (template-only components and rune-free
-  scripts included), a `__sveltets_$$bindings` call is runes, and anything else is
-  unrecognized, which is treated as neither. It's read once per component, for the legacy
-  props and the default slot.
-- **Props** come from `extractPropsViaChecker`, which projects them from a `PropsAnchor`:
-  the props type, plus what the script says of each prop. `resolveRunesPropsAnchor` builds
-  one from the `$props()` declaration; without that declaration,
-  `resolveExportLetPropsAnchor` builds one for a legacy component (see Legacy
-  `export let`).
-  - Local props are emitted in source order. `representativeDeclaration` picks the component-file
-    declaration when a prop is redeclared over an external bag.
-  - External-origin props are filtered (see `externalTypes`), except the names the script
-    binds (the `$props()` destructuring's, or the `export let` names): those are admitted
-    with the external type and JSDoc. On a runes component they follow the other props
-    in destructuring order; a legacy component orders by its exports (see Legacy
-    `export let`). The rest element, a name the type lacks, and an index-signature-only
-    name admit nothing.
-  - `defaultValue` is verbatim source text, keyed by prop name (`class: c = 'a'` → `class`).
-- **Callback props** — a prop whose type has a call signature this project declared
-  carries `returnType`/`returnTypeInfo` and, when it has any, `parameters`. `returnType`
-  is the marker: snippets have `parameters` without it, and a zero-parameter callback
-  has it without `parameters`. `null` and the optional `undefined` are stripped first; a
-  union of functions is not a callback. External-origin signatures never count
-  (`localCallSignature`, the callable-member rule), which keeps `Component`-typed props
-  out and picks the own signature from `MouseEventHandler<…> & (() => void)`. The
-  `returnType` field doc in `types.ts` is the full statement.
-- **`acceptsChildren`** — true when a `Snippet`-typed `children` prop resolves, when the
-  template uses children, or when a legacy component (see Render mode) has a default slot:
-  a template `<slot />` or a declared `$$Slots`, read off the `$$render` return's `slots`
-  value by `hasDefaultSlot`. The slot rule covers propless and template-only components.
-  A runes component's `<slot />` is ignored, and a named slot alone doesn't count.
-- **`docComment` precedence** — in-script JSDoc at or above `$props()` wins over the HTML
-  `@component` comment, and `duplicate_comment` warns when both exist.
-  - Type-only blocks (`@type`/`@typedef`) don't count (`hasDocContent`).
-  - A component with no `$props()` gets only the HTML comment.
-  - `@nodocs` is read from whichever source wins.
-- **Legacy `export let`** — a legacy component (see Render mode) with no `$props()` gets
-  its `PropsAnchor` from two readings, both in `svelte-legacy.ts`: `scanLegacyExports` over
-  the original instance script (names, order, defaults, accessors) and
-  `resolveLegacyPropsAnchor` over the `$$render` return's `props` value (the type).
-  - Every prop is `bindable`. `defaultValue` is the initializer's text from the original
-    script, the `export {a as b}` rename form included.
-  - TS components read a type, and optionality is that type's: the literal svelte2tsx
-    writes from the exports, or the author's reserved `$$Props`, which filters like a runes
-    props type, with the `export let` names as the admitted ones. An `export let` name
-    `$$Props` doesn't declare is dropped, since a typed consumer can't pass it. JS
-    components, and TS ones whose exports are all untyped and uninitialized, have only an
-    object literal, so the type comes from each binding's JSDoc `@type` and a prop is
-    optional when it has an initializer.
-  - Order is the exports' source order, then props only `$$Props` declares.
-  - Accessors (`export const`, `export function`, `export class`) and type-only exports
-    aren't props.
-  - Slots and events aren't modeled, beyond the default slot setting `acceptsChildren`.
-  - A component read as runes isn't scanned: its exported bindings are instance exports,
-    so no props and no diagnostic.
-  - An unrecognized mode or props value yields no props and a `svelte_prop_failed` per
-    export. That includes the empty props value svelte2tsx writes when it found no
-    exports where the scan did; the known case is under Not Supported.
-  - The in-script doc slot doesn't exist, so `docComment` is the HTML comment only.
+- **Virtuals** — each `.svelte` file becomes a `.__svelte2tsx__.ts` virtual the checker
+  sees; the raw `.svelte` never reaches the LS. `.svelte` imports map to virtuals via
+  `resolveSvelteVirtualSpecifier`. `<script module>` exports analyze through the virtual,
+  with svelte2tsx internals filtered (`isSvelte2tsxGeneratedExport`) and positions
+  remapped to the original source.
+- **Script tags** — only a top-level `<script>` is the instance or module script, as in
+  Svelte. `findScriptTags` (`svelte-scripts.ts` TSDoc) settles the scripts-first case by
+  regex (`provenTopLevel`) and otherwise asks Svelte's parser. It runs once at transform;
+  the result rides the virtual (`SvelteVirtualFile.scriptTags`).
+- **Render mode** — legacy or runes is svelte2tsx's reading (`classifyRenderMode`, off the
+  `$$render` return's `bindings`), since analysis never sees the compiler's `runes` option.
+- **Props** — `extractPropsViaChecker` projects them from a `PropsAnchor`: the props type
+  plus what the script says of each prop, from `$props()` (`resolveRunesPropsAnchor`) or,
+  on a legacy component, the exports (`resolveExportLetPropsAnchor`). Local props come in
+  source order. External-origin props are filtered (see `externalTypes`), except names the
+  script binds (the destructuring's, or the `export let` names), which are admitted with
+  their external type and JSDoc, after the local props in destructuring order (a legacy
+  component orders everything by its exports). The rest element, a name the type lacks, and
+  an index-signature-only name admit nothing. JS
+  components read the JSDoc `@type` on `$props()` or svelte2tsx's synthesized typedef.
+  `defaultValue` is verbatim source text.
+- **Callback props** — a prop whose type has a call signature the project declared
+  (`localCallSignature`) carries `returnType`/`returnTypeInfo` and any `parameters`.
+  `returnType` is the marker: snippets have `parameters` without it. Full statement: the
+  `returnType` field doc in `types.ts`.
+- **`acceptsChildren`** — a `Snippet`-typed `children` prop, template use of children, or a
+  legacy component's default slot (`<slot />` or a declared `$$Slots`, via
+  `hasDefaultSlot`). A runes component's `<slot />` and named slots don't count.
+- **`docComment`** — in-script JSDoc at or above `$props()` beats the HTML `@component`
+  comment (`duplicate_comment` warns when both exist); type-only blocks don't count
+  (`hasDocContent`), and `@nodocs` is read from the winner.
+- **Legacy `export let`** (`svelte-legacy.ts` TSDoc) — every prop is `bindable`; type and
+  optionality come from svelte2tsx's props literal or the author's `$$Props` (an
+  `export let` it doesn't declare is dropped), else (JS, or TS whose exports are all untyped
+  and uninitialized) from each binding's JSDoc `@type` and initializer. Accessors and
+  type-only exports aren't props; slots and events aren't modeled. An unrecognized mode or
+  props value yields no props and a `svelte_prop_failed` per export. `docComment` is the
+  HTML comment only.
 
 ### Incremental Analysis (`createAnalysisSession`)
 
-A persistent handle backed by a `ts.LanguageService`, for consumers that re-analyze
-repeatedly (the Vite plugin, a future LSP). `analyze()`/`analyzeFromFiles()` wrap
-single-use sessions. The surface is `setFile`, `setFiles`, `deleteFile`, `has`, `list`,
-`query`, `allIngestDiagnostics`, `getProgram`, and `dispose`. `session.ts` TSDoc is
-authoritative.
+A persistent handle backed by a `ts.LanguageService`, for repeated re-analysis (the Vite
+plugin, a future LSP); `analyze()`/`analyzeFromFiles()` wrap single-use sessions. Methods:
+`setFile`, `setFiles`, `deleteFile`, `has`, `list`, `query`, `allIngestDiagnostics`,
+`getProgram`, `dispose`. `session.ts` TSDoc is authoritative.
 
-- **Caching**
-  - **Owned entries** (`Map<id, OwnedEntry>`) hold content, the svelte2tsx virtual,
-    dependency edges, and ingest diagnostics.
-  - An ingest compares content plus a mode-specific dependency key. A hit is a no-op; a
-    miss re-ingests (svelte2tsx included) and version-bumps the LS.
-  - Ingest is additive; callers remove files with `deleteFile`.
-  - `getProgram()` is reference-stable until a version bumps, and parsed ASTs survive via
-    the document registry.
-- **Dependency resolution**
-  - Lex+resolve is the default: a syntax-only TypeScript parse (`lexImports`) finds import
-    specifiers, type-only ones included, which resolve in parallel.
-  - Pre-resolved is the fast path: `SourceFileInfo.dependencies` (e.g. from Gro's filer)
-    skips both steps, and the session trusts it unchecked.
-  - Resolver cache identity is `ImportResolver.identity`. The default resolver is built
-    lazily from the session's single tsconfig parse.
-  - The session's resolution host sees owned files and the in-flight batch, so in-memory
-    files get dependency edges.
-- **Input order** — `query()` analyzes in sorted file-ID order and owned program roots are
-  sorted, so the same files ingested in any order, in one batch or across many `setFile`
-  calls, give identical output from a fresh session (limits under `compareStrings` above).
+- **Caching** — owned entries hold content, the svelte2tsx virtual, dependency edges, and
+  ingest diagnostics. An ingest compares content plus a mode-specific dependency key: a hit
+  is a no-op, a miss re-ingests and version-bumps the LS. Ingest is additive (`deleteFile`
+  removes). `getProgram()` is reference-stable until a version bumps.
+- **Dependency resolution** — by default `lexImports` finds specifiers (type-only
+  included), resolved in parallel. Pre-resolved `SourceFileInfo.dependencies` (e.g. Gro's
+  filer) skip both steps, trusted unchecked. Resolver cache identity is
+  `ImportResolver.identity`; the default resolver is built lazily from the session's single
+  tsconfig parse, and its host sees owned files and the in-flight batch.
+- **Input order** — the same files ingested in any order or batching give identical output
+  from a fresh session (limits under `postprocess.ts` above).
 - **Context closure** (`contextClosure`, default `true`; `analyze()` passes `false`) — after
-  each batch, the session reads the in-root, analyzable targets it doesn't own from disk
-  and ingests them, transitively. Context files emit nothing and add no edges, but they're
-  version-tracked instead of pinned at their first disk read. That keeps `internal/` edits
-  live, and it's the only way a Svelte dependency the caller didn't supply gets a virtual.
-  So a target is ingested even when it passes `isSource` (a module left out of `exports`,
-  or the rest of the project when one component is handed over), marked `context` on its
-  entry so it still emits nothing. Without it, every type drawn from an unsupplied
-  component is `any`; TS files are walked too because a component can sit behind a barrel.
-  Each ingest call sets the role (`SetFileOptions.context`): by default the files are
-  inputs, so supplying a context file later promotes it, and a consumer forwarding an
-  edit it doesn't mean as an input passes `context: true`.
-- **Deferred resolutions** — a specifier that resolved to nothing isn't final.
-  - When owned-set membership changes, the session calls the resolver's `invalidate()`.
-  - A `setFiles` that adds paths retries the null slots of earlier lex+resolve entries
-    (`healUnresolvedEdges`). This covers the watcher shape, where the created file arrives
-    alone.
+  each batch the session ingests, transitively, the in-root analyzable targets it doesn't
+  own. They emit nothing and add no edges but stay version-tracked, which keeps
+  `internal/` edits live and is the only way an unsupplied Svelte dependency gets a virtual
+  (else its types are `any`). Each ingest call sets the role (`SetFileOptions.context`):
+  inputs by default, so supplying a context file promotes it.
+- **Deferred resolutions** — a specifier that resolved to nothing isn't final. Before the
+  next lex+resolve batch after the owned set changes, the session calls the resolver's
+  `invalidate()`; a `setFiles` that adds paths retries earlier null slots
+  (`healUnresolvedEdges`).
 
 ## Data Model
 
-`ModuleJson[]` → `DeclarationJson[]` → `MemberJson[]`. Members never nest.
+`ModuleJson[]` → `DeclarationJson[]` → `MemberJson[]`; members never nest.
 
 **ModuleJson** — `path` (relative to `sourceRoot`), `declarations`, `moduleComment`,
 `dependencies`, `dependents`, `starExports`, `reExports`, `externalReExports`,
-`externalStarExports`, and `partial` (a placeholder for a Svelte file whose transform
-threw).
+`externalStarExports`, `partial` (a placeholder for a Svelte file whose transform threw).
 
-**DeclarationJson** — `v.variant('kind', …)` over 9 strict variants. Narrow with
-`isKind(decl, 'function')`.
-
-- `DeclarationKind`: `'type' | 'function' | 'variable' | 'class' | 'interface' | 'enum' |
-  'component' | 'snippet' | 'namespace'`.
-- `MemberKind`: `'function' | 'variable' | 'constructor'`.
+**DeclarationJson** — `v.variant('kind', …)` over strict variants, narrowed with
+`isKind(decl, 'function')`. `DeclarationKind`: `'type' | 'function' | 'variable' | 'class' |
+'interface' | 'enum' | 'component' | 'snippet' | 'namespace'`. `MemberKind`:
+`'function' | 'variable' | 'constructor'`.
 
 **Shared fields** (all variants and members): `name`, `kind`, `docComment`,
 `typeSignature`, `modifiers`, `sourceLine`, `genericParams`, `examples`,
-`deprecatedMessage`, `internalMessage`, `seeAlso`, `throws`, `since`, `mutates`, and
+`deprecatedMessage`, `internalMessage`, `seeAlso`, `throws`, `since`, `mutates`,
 `partial`. Top-level only: `alsoExportedFrom`, `aliasOf`.
 
-| Field             | function | variable | class | interface | type | enum | component | snippet | namespace | FunctionMember | VariableMember | ConstructorMember |
-| ----------------- | -------- | -------- | ----- | --------- | ---- | ---- | --------- | ------- | --------- | -------------- | -------------- | ----------------- |
-| parameters        | ✓        |          |       |           |      |      |           | ✓       |           | ✓              |                | ✓                 |
-| returnType        | ✓        |          |       |           |      |      |           |         |           | ✓              |                |                   |
-| returnTypeInfo    | ✓        |          |       |           |      |      |           |         |           | ✓              |                |                   |
-| returnDescription | ✓        |          |       |           |      |      |           |         |           | ✓              |                |                   |
-| overloads         | ✓        |          |       |           |      |      |           |         |           | ✓              |                | ✓                 |
-| members           |          |          | ✓     | ✓         | ✓    | ✓    |           |         |           |                |                |                   |
-| props             |          |          |       |           |      |      | ✓         |         |           |                |                |                   |
-| extends           |          |          | ✓     | ✓         |      |      |           |         |           |                |                |                   |
-| externalTypes     |          |          | ✓     | ✓         | ✓    |      | ✓         |         |           |                |                |                   |
-| implements        |          |          | ✓     |           |      |      |           |         |           |                |                |                   |
-| acceptsChildren   |          |          |       |           |      |      | ✓         |         |           |                |                |                   |
-| lang              |          |          |       |           |      |      | ✓         |         |           |                |                |                   |
-| reactivity        |          | ✓        |       |           |      |      |           |         |           |                | ✓              |                   |
-| typeInfo          |          | ✓        |       |           | ✓    |      |           |         |           |                | ✓              |                   |
-| module            |          |          |       |           |      |      |           |         | ✓         |                |                |                   |
-| optional          |          |          |       |           |      |      |           |         |           | ✓              | ✓              |                   |
-| mergedValue       |          |          |       | ✓         | ✓    |      |           |         |           |                |                |                   |
-| defaultValue      |          | ✓        |       |           |      |      |           |         |           | ✓              | ✓              |                   |
-| alsoExportedFrom  | ✓        | ✓        | ✓     | ✓         | ✓    | ✓    | ✓         | ✓       | ✓         |                |                |                   |
-| aliasOf           | ✓        | ✓        | ✓     | ✓         | ✓    | ✓    | ✓         | ✓       | ✓         |                |                |                   |
+**Per-variant fields**:
 
-`ComponentPropJson`, `ParameterJson`, and `TupleElementJson` also carry `typeInfo`.
-`ComponentPropJson` also carries `parameters` (snippets and callbacks) and
-`returnType`/`returnTypeInfo` (callbacks only).
-`ComponentPropJson` carries the shared doc fields (`docFields` in `types.ts`: `examples`,
-`deprecatedMessage`, `seeAlso`, `throws`, `since`, `internalMessage`, `mutates`) plus
-`description` and `defaultValue`; `ParameterJson` carries none of `docFields`.
+- `function` — `parameters`, `returnType`, `returnTypeInfo`, `returnDescription`,
+  `overloads`
+- `variable` — `reactivity`, `typeInfo`, `defaultValue`
+- `class` — `members`, `extends`, `implements`, `externalTypes`
+- `interface` — `members`, `extends`, `externalTypes`, `mergedValue`
+- `type` — `members`, `externalTypes`, `typeInfo`, `mergedValue`
+- `enum` — `members`
+- `component` — `props`, `externalTypes`, `acceptsChildren`, `lang`
+- `snippet` — `parameters`
+- `namespace` — `module`
+- members: `function` — `parameters`, `returnType`, `returnTypeInfo`, `returnDescription`,
+  `overloads`, `optional`, `defaultValue`; `variable` — `reactivity`, `typeInfo`,
+  `optional`, `defaultValue`; `constructor` — `parameters`, `overloads`
+
+`ComponentPropJson`, `ParameterJson`, and `TupleElementJson` carry `typeInfo`.
+`ComponentPropJson` also carries `parameters` (snippets and callbacks),
+`returnType`/`returnTypeInfo` (callbacks only), `description`, `defaultValue`, and the
+shared doc fields (`docFields` in `types.ts`); `ParameterJson` carries none of `docFields`.
 `OverloadJson` carries `returnTypeInfo`.
 
 **Contracts that span fields** (full statements on the `types.ts` field docs):
 
-- **Flat strings are the checker's rendering, structured fields are normalized.**
-  `typeSignature` keeps the checker's text, truncation included (for alias-lost types it
-  isn't what editor hover shows), and member order, which can differ from the tree's
-  written order. One exception: the checker widens optional properties and parameters with
-  `undefined`, and every member-type position (a property member's `typeSignature`,
-  prop/parameter `type`, `typeInfo`) strips it so `optional: true` carries it alone.
-  - `null` is kept, and so is an `undefined`-only annotation.
-  - Strips are top-level only in flat strings (`signatureToString` can't omit the
-    widening), but happen at every optional position in trees.
-  - Under `exactOptionalPropertyTypes`, property sites don't strip (`optionalWidened`),
-    since every `undefined` there is author-written. Parameters and tuple elements always
-    strip.
-- **`externalTypes`** — contributions from external packages are dropped by *declaration
-  origin* at every granularity: named properties, index signatures, and call/construct
-  signatures, in intersections and through utility wrappers. Declaration-less
-  (checker-synthesized) contributions fail open.
-  - The dropped contributors are labeled by an AST walk of the written type that descends
-    through project-local names (interface `extends`, alias right-hand sides, class
-    chains, indexed access on local containers). Bound type parameters substitute their
-    written arguments, and import renames resolve to exported names.
-  - So `interface Props extends HTMLButtonAttributes` and
-    `type Props = HTMLButtonAttributes & {…}` record the same bag.
-  - Component props the `$props()` destructuring names are the one exception: they're
-    documented (`admitNames` on `filterDocumentedProperties`), and their bag stays listed.
-  - Home: `typescript-extract-shared.ts`. Unit tests: `external-properties.test.ts`,
-    `external-composition.test.ts`.
-- **Type-alias `members`** are enumerated only for object-like shapes
-  (`hasExtractableProperties`): not unions, tuples, or external generic references.
-  Components apply the same filtering unconditionally, so union prop types get
-  `externalTypes` too.
+- **Flat strings are the checker's rendering; structured fields are normalized.**
+  `typeSignature` keeps the checker's text, truncation and member order included (for
+  alias-lost types it isn't what editor hover shows). The one exception: the checker's
+  optional-widening `undefined` is stripped from every member-type position so
+  `optional: true` carries it alone. `null` and an `undefined`-only annotation are kept.
+  Flat strings strip only at top level; trees strip at every optional position. Under
+  `exactOptionalPropertyTypes`, property sites don't strip (`optionalWidened`); parameters
+  and tuple elements always do.
+- **`externalTypes`** (`typescript-extract-shared.ts`) — contributions from external
+  packages are dropped by *declaration origin* at every granularity (named properties,
+  index signatures, call/construct signatures, through intersections and utility
+  wrappers); declaration-less contributions fail open. Dropped bags are labeled by an AST
+  walk that descends through project-local names, so
+  `interface Props extends HTMLButtonAttributes` and
+  `type Props = HTMLButtonAttributes & {…}` record the same bag. Props the `$props()`
+  destructuring names are admitted (`admitNames`), and their bag stays listed. Tests:
+  `external-properties.test.ts`, `external-composition.test.ts`.
+- **Type-alias `members`** — only for object-like shapes (`hasExtractableProperties`), not
+  unions, tuples, or external generic references. Components filter unconditionally, so
+  union prop types get `externalTypes` too.
 - **Interface/class `externalTypes`** come from the heritage walk
-  (`applyHeritageExternalTypes`), which names bags that `members` (own members only) never
-  enumerates. `extends`/`implements` stay verbatim own-clause text; `extends` is always an
-  array.
-- **Class visibility** — public and protected are included; `private` and `#` are excluded.
-  One rule (`isPrivateMemberDeclaration`) serves both the class's own declaration and any
-  structural alias over the class. Getters and setters merge by name.
-- **`defaultValue`** is verbatim author text (the initializer, or the `@default` tag),
-  quotes included.
-- **`sourceLine`** — synthesized aliases carry the local export specifier's line, and Svelte
+  (`applyHeritageExternalTypes`); `extends`/`implements` stay verbatim own-clause text, and
+  `extends` is always an array.
+- **Class visibility** — public and protected in, `private` and `#` out, by one rule
+  (`isPrivateMemberDeclaration`) for the class and any structural alias over it. Getters
+  and setters merge by name.
+- **`defaultValue`** — verbatim author text (initializer or `@default`), quotes included.
+- **`sourceLine`** — synthesized aliases carry the local export specifier's line; Svelte
   `<script module>` lines are remapped to the original source.
 - **Default slot** — `export default …`, `export {x as default}`, and
-  `export {default} from './x'` all carry `name === 'default'`. Renames *out* of the slot
-  carry the new name plus `aliasOf: {module, name: 'default'}`. Svelte components use their
+  `export {default} from './x'` carry `name === 'default'`. Renames out of the slot carry
+  the new name plus `aliasOf: {module, name: 'default'}`. Svelte components use their
   filename-derived name.
-- **Wire format** — array fields default to `[]` and flags to `false`. `compactReplacer`
-  strips empties and `false` (except the `value` key, so a literal `false` node survives),
-  and the parse helpers (`parseAnalyzeResult`, `parseModuleJson`, `parseDiagnostics`)
-  restore them. The helpers are the stable, library-agnostic contract; the raw schemas
-  are exported too. Array defaults are factories (`() => []`), since valibot returns a
-  non-function default as-is and a literal `[]` would be shared across parses. String
-  maps (`mutates`, `propertyDescriptions`) use a local `StringRecord` schema, since
-  `v.record` drops `constructor` and `prototype` keys.
+- **Wire format** — arrays default to `[]`, flags to `false`. `compactReplacer` strips
+  empties and `false` (except under `value`, so a literal `false` node survives); the
+  parse helpers (`parseAnalyzeResult`, `parseModuleJson`, `parseDiagnostics`) restore them
+  and are the stable, library-agnostic contract. Array defaults are factories
+  (`() => []`), since valibot returns a non-function default as-is. String maps
+  (`mutates`, `propertyDescriptions`) use a local `StringRecord`, since `v.record` drops
+  `constructor` and `prototype` keys.
 
 ## Key Design Decisions
 
 ### Module Paths in Printed Type Text
 
-The checker prints module objects as `typeof import("<absolute path>")` in `typeSignature`,
-`returnType`, and `TypeJson` `text`, which would leak local paths and make output
-machine-dependent. `normalizeModulePathsInTypes` (`analyze-core.ts`) rewrites each path by
-tier:
-
-1. an emitted module becomes exactly its `ModuleJson.path`, usable as a lookup key
-2. a package becomes the tail after the last `node_modules/`
-3. anything else becomes `relative(projectRoot, …)` — a `../` prefix means "outside this
-   project"
-
-Only paths naming a file the program loaded are rewritten, so string-literal types are
-safe, and non-type-text keys (`NON_TYPE_TEXT_KEYS`) are skipped. It runs as one
-whole-output pass, so a new printing site can't miss it.
+The checker prints module objects as `typeof import("<absolute path>")`, which would leak
+local paths. `normalizeModulePathsInTypes` (`analyze-core.ts`) rewrites each path: an
+emitted module becomes its `ModuleJson.path` (usable as a lookup key), a package the tail
+after the last `node_modules/`, anything else `relative(projectRoot, …)`. Only paths naming
+a loaded file are rewritten, keys in `NON_TYPE_TEXT_KEYS` are skipped, and it runs as one
+whole-output pass so a new printing site can't miss it.
 
 ### Diagnostic Collection
 
-- **The envelope** — `AnalyzeResultJson` is `{modules, diagnostics}`, both defaulting to
-  `[]`, and round-trips through `JSON.stringify`/`parseAnalyzeResult`. Diagnostics
-  accumulate without halting. A declaration or member whose extraction failed mid-flight
-  carries `partial: true`, so consumers can spot incomplete data without cross-referencing.
-- **`Diagnostic.file`** — project-root-relative, with a `../` form for out-of-root files.
-  - Producers emit the absolute id, and `normalizeDiagnosticPaths` relativizes it.
-  - `message` gets the same path and virtual-suffix scrub.
-  - Virtual positions are remapped to `.svelte` positions first; `finalizeDiagnostics`
-    owns that ordering, and an unmappable position drops its line and column.
-- **Severity** is fixed per kind: `transform_failed` and `module_unreadable` are errors;
-  everything else is a warning. `duplicate_declaration` emits only under the opt-in
-  `onDuplicates`, whose `'warn'` and `'throw'` modes add a log or a throw.
-- **Categories**
-  - **Ingest-time** kinds (`transform_failed`, `source_map_failed`, `import_parse_failed`,
-    `resolver_failed`) come back from `setFile`/`setFiles` and persist on the entry.
-    `allIngestDiagnostics()` is the cumulative view.
-  - **Query-time** kinds are recomputed on every `query()`.
-  - **Discovery-time** (`module_unreadable`) is merged by `analyzeFromFiles`. Session
-    consumers own it; the Vite plugin keeps it in a side channel.
-- **`alias_lost`** fires on an exported type alias whose name the checker dropped and that
-  neither recovery channel heals. It's gated on a registry being present, a loss-capable
-  right-hand side, not being a literal union or brand, and not `@nodocs`. The fix on the
-  author's side is a nominal symbol (`interface Foo extends z.infer<typeof S> {}`).
+- **Envelope** — `AnalyzeResultJson` is `{modules, diagnostics}`, round-tripping through
+  `JSON.stringify`/`parseAnalyzeResult`. Diagnostics accumulate without halting; a
+  declaration or member whose extraction failed mid-flight carries `partial: true`.
+- **`Diagnostic.file`** — project-root-relative (`../` for out-of-root). Producers emit the
+  absolute id; `finalizeDiagnostics` remaps virtual positions to `.svelte` positions (an
+  unmappable one drops line and column), then `normalizeDiagnosticPaths` relativizes `file`
+  and scrubs `message`.
+- **Severity** is fixed per kind: `transform_failed` and `module_unreadable` are errors,
+  everything else a warning. `duplicate_declaration` emits only under `onDuplicates`
+  (`'warn'` adds a log, `'throw'` a throw).
+- **Lifecycles** — *ingest-time* kinds (`transform_failed`, `source_map_failed`,
+  `import_parse_failed`, `resolver_failed`) come back from `setFile`/`setFiles` and persist
+  on the entry (`allIngestDiagnostics()` is the cumulative view). *Query-time* kinds are
+  recomputed every `query()`. *Discovery-time* `module_unreadable` comes from exports
+  discovery only (glob discovery throws on an unreadable file) and is merged by
+  `analyzeFromFiles`; session consumers own it, and the Vite plugin keeps it in a side
+  channel.
+- **`alias_lost`** — an exported alias the checker dropped and neither recovery channel
+  heals. Gated on a registry being present, a loss-capable right-hand side, not a literal
+  union or brand, and not `@nodocs`. The author-side fix is a nominal symbol
+  (`interface Foo extends z.infer<typeof S> {}`).
 
 ### Re-Export Philosophy
 
-The opt-in `findDuplicates` check flags duplicate names across modules by canonical
-identity, after resolving `aliasOf` chains. `@nodocs` exempts a declaration. Encodings
-(mechanics in `typescript-exports.ts` and `postprocess.ts`):
+The opt-in `findDuplicates` flags duplicate names by canonical identity after resolving
+`aliasOf` chains; `@nodocs` exempts. Encodings (mechanics in `typescript-exports.ts` and
+`postprocess.ts`):
 
-- **Same-name** re-export → `alsoExportedFrom` on the canonical, plus the forward edge
-  `ModuleJson.reExports` (`{name, module, typeOnly, sourceLine}`) on the re-exporter.
-  - **Position 3**: if the export statement carries its own JSDoc, an alias is *also*
-    synthesized in the re-exporting module, so the local content has a home.
-- **Renamed** re-export → a synthesized declaration with `aliasOf`: a full re-analysis of
-  the canonical, with `sourceLine` at the local specifier.
-- **Star exports** → `starExports`, when the target emits a module; its projected bindings
-  are never materialized in the projecting module, whatever their kind. A star over a
-  module that emits nothing (gated, or outside the analyzed inputs) has no entry and is
-  read as the named same-name re-exports it stands for (`collectMaterializedStars`), each
-  binding going through the arms below with ES star semantics: no `default`, local
-  exports shadow, names two stars disagree on are excluded, and a name an emitted star
-  also provides stays with that star.
+- **Same-name** → `alsoExportedFrom` on the canonical, plus `ModuleJson.reExports`
+  (`{name, module, typeOnly, sourceLine}`) on the re-exporter. If the statement has its own
+  JSDoc, an alias is *also* synthesized locally, so the local content has a home.
+- **Renamed** → a synthesized declaration with `aliasOf`: a full re-analysis of the
+  canonical, `sourceLine` at the local specifier.
+- **Star** → `starExports` when the target emits a module; its bindings are never
+  materialized. A star over a module that emits nothing is read as the named re-exports it
+  stands for (`collectMaterializedStars`), with ES star semantics.
 - **External** (the immediate target is a package) → `externalReExports` /
-  `externalStarExports`. These are flat statement facts. Import-then-export and indirect
-  chains leave no trace.
-- **Gated canonicals** (project-local but excluded, e.g. `internal/`) → a full alias
-  synthesized even for a same-name re-export, since the canonical emits nothing to link.
-  `aliasOf.module` then dangles by design, and no `reExports` edge is emitted. Any
-  canonical outside the analyzed inputs is treated the same, source-scope or not (a
-  context file, a module left out of `exports`): the predicate is
-  `ExtractContext.isEmittedFile` (`IsEmittedFile`, the emitted set), not `isSource`, so a
-  `reExports` edge never points at a module the output lacks, and neither does a
-  `starExports` entry. A component with no virtual (transform failed, or unsupplied with the closure off)
-  re-exports as a `partial` component (`virtuallessSvelteTarget`, which lists its
-  limits).
-- **Namespace** re-exports (`export * as ns from './x'`) → `NamespaceDeclarationJson` whose
-  `module` points at the projected source. It's detected via `ValueModule` before
-  `analyzeDeclaration`, which would otherwise leak `typeof import(...)`.
-- **Svelte component** re-exports → a `kind: 'component'` placeholder. Phase-2
-  `resolveComponentAliases` fills props and docs from the canonical, filling gaps only;
-  gated canonicals are supplied as lookup-only context. Only the component (the virtual's
-  default export) gets the placeholder: a re-exported `<script module>` function or type
-  is analyzed as what it is.
+  `externalStarExports`, flat statement facts; a star over a component whose transform
+  failed also lands there, under its relative specifier, when the program has the Svelte
+  shims (some other component has a virtual). Indirect chains leave no trace.
+- **Non-emitted canonicals** (gated, a context file, a module left out of `exports`) → a
+  full alias even for a same-name re-export, with `aliasOf.module` dangling by design and
+  no `reExports` edge. The predicate is `ExtractContext.isEmittedFile`, not `isSource`, so
+  no edge or `starExports` entry points at a module the output lacks. A component with no
+  virtual re-exports as a `partial` component (`virtuallessSvelteTarget`).
+- **Namespace** (`export * as ns from './x'`) → `NamespaceDeclarationJson` whose `module`
+  points at the projected source, detected via `ValueModule` before `analyzeDeclaration`
+  (which would leak `typeof import(...)`).
+- **Svelte component** re-exports → a `kind: 'component'` placeholder that phase-2
+  `resolveComponentAliases` fills from the canonical (gaps only; gated canonicals supplied
+  as lookup-only context). Re-exported `<script module>` functions and types analyze as
+  what they are.
 
-Statement-level `@nodocs` suppresses the entry in every encoding. `resolveExportSurface`
-combines all of them into a module's full export surface with ES star semantics (explicit
-beats star, ambiguous stars are excluded, `default` never projects), and it reports
-unresolvable stars instead of guessing.
-
-Lock-in tests: `src/test/analyze.reexport-{edges,namespace,forward,gated}.test.ts` and
+Statement-level `@nodocs` suppresses every encoding. `resolveExportSurface` combines them
+into a module's full export surface with ES star semantics and reports unresolvable stars
+instead of guessing. Lock-in tests:
+`src/test/analyze.reexport-{edges,namespace,forward,gated,star}.test.ts` and
 `postprocess.surface.test.ts`.
 
 ### Not Supported
 
-- Standalone `namespace Foo {}` declarations document as a bare `kind: 'variable'`; the
-  `export * as ns` form is supported. Decorators aren't modeled.
-- `@nodocs` on members (class, interface, type alias, enum) and component props is ignored
-  with no warning; the member and prop extractors never read it.
-- Indirect external re-exports, unresolvable specifiers, type-only-ness of
-  `export type * from`, and the type-only marker on a renamed value
-  (`export type {c as d} from`) are all silently dropped.
-- `ParameterJson` deliberately has no doc fields like `examples`/`since`, unlike
-  `ComponentPropJson`.
-- A script closed with whitespace before the `>` (`</script >`): Svelte and
-  `findScriptTags` accept it, svelte2tsx's tag matcher doesn't, so the virtual doesn't
-  have the instance script as written. A legacy component written that way documents no
-  props, with a `svelte_prop_failed` warning per `export let`.
-- A runes component that renders its children through `<slot />` reports
-  `acceptsChildren: false`; only a legacy component's default slot sets it.
+- Standalone `namespace Foo {}` documents as a bare `kind: 'variable'` (`export * as ns` is
+  supported). Decorators aren't modeled.
+- `@nodocs` on members and component props is ignored with no warning.
+- Silently dropped: indirect external re-exports, unresolvable specifiers, the type-only
+  marker of `export type * from` and of a renamed value (`export type {c as d} from`).
+- `ParameterJson` deliberately has no doc fields, unlike `ComponentPropJson`.
+- `</script >` (whitespace before `>`): Svelte and `findScriptTags` accept it, svelte2tsx
+  doesn't, so a legacy component written that way documents no props and warns
+  `svelte_prop_failed` per `export let`.
+- A runes component's `<slot />` doesn't set `acceptsChildren`.
 - Legacy components: named slots, slot props, and events aren't modeled. Two export forms
-  follow svelte2tsx's props value where it departs from Svelte. A binding exported both
-  directly and through a renaming clause (`export let a; export {a as b}`) keeps only `b`,
-  without the binding's JSDoc; TS reads it as optional, JS by the initializer like any
-  other prop. An export clause written above its binding loses the binding's JSDoc
-  (the type still resolves), and in TS reads as optional.
+  follow svelte2tsx where it departs from Svelte: `export let a; export {a as b}` keeps
+  only `b`, without the binding's JSDoc (TS reads it as optional, JS by the initializer),
+  and an export clause above its binding loses the JSDoc (the type still resolves; in TS it
+  reads as optional).
 
 ## API
 
-- `analyzeFromFiles()` — one-shot, with file discovery from disk
-- `analyze()` — one-shot; you supply `SourceFileInfo[]`
-- `createAnalysisSession()` — incremental (the Vite plugin, LSP-style tools)
-
-All three produce `AnalyzeResultJson`. The CLI and the Vite virtual module emit the same
-shape through `compactReplacer`, so parse through `parseAnalyzeResult` to restore defaults.
-Consumers own package metadata; see `LibraryJson` in `@fuzdev/fuz_util` for the fuz
-pattern.
+`analyzeFromFiles()` (one-shot, discovers files from disk), `analyze()` (one-shot, you
+supply `SourceFileInfo[]`), and `createAnalysisSession()` (incremental) all produce
+`AnalyzeResultJson`. The CLI and the Vite virtual module emit it through
+`compactReplacer`, so parse through `parseAnalyzeResult` to restore defaults. Consumers own
+package metadata; see `LibraryJson` in `@fuzdev/fuz_util` for the fuz pattern.
 
 ### CLI
 
-`npx svelte-docinfo [project-root]` writes compact JSON to stdout; `--pretty` and
-`-o <file>` adjust that. `--tsconfig <path>` picks a config and `--no-tsconfig` analyzes
-without one. The full flag table is in `README.md` and in `cli.ts`, whose help
-text interpolates the defaults.
-
-- `--only <glob>` filters output modules after full analysis; diagnostics aren't filtered.
-- Exit codes: 0 success, 1 analysis errors, 2 CLI errors or a thrown analysis error.
+`npx svelte-docinfo [project-root]` writes compact JSON to stdout (`--pretty`,
+`-o <file>`). The flag table is in `README.md` and `cli.ts`, whose help text interpolates
+the defaults. `--only <glob>` filters output modules after full analysis; diagnostics
+aren't filtered. Exit codes: 0 success, 1 analysis errors, 2 CLI errors or a thrown
+analysis error.
 
 ### Ecosystem Integration
 
@@ -713,31 +536,27 @@ fuz_ui and fuz_css consume `virtual:svelte-docinfo` directly: a hand-written
 
 ## Dependencies
 
-- **Runtime**: `commander`, `tinyglobby`, `picomatch`,
-  `@jridgewell/trace-mapping`, and `valibot` (the output schemas). `valibot` is a regular
-  dependency, not a peer: consumers validating through the parse helpers never import it.
-- **Peers** (required):
-  - `svelte` 5+ and `svelte2tsx`, eagerly imported by every entry, so they're needed even
-    for TS-only analysis.
-  - `typescript` 5.9+ or 6, so consumers don't carry a second TS.
-- **Peers** (optional): `vite` 6+, for the Vite plugin only (it uses `server.environments`).
-- **Not a dependency**: `zod`. Nothing under `src` imports it, and a test in
-  `types.test.ts` guards that, and it doesn't resolve locally.
-  Tests and fixtures that need a real schema library to analyze use `valibot`.
+- **Runtime**: `commander`, `tinyglobby`, `picomatch`, `@jridgewell/trace-mapping`, and
+  `valibot` (the output schemas; a regular dependency, so consumers using the parse
+  helpers never import it).
+- **Peers** (required): `svelte` 5+ and `svelte2tsx` (eagerly imported by every entry, so
+  needed even for TS-only analysis), and `typescript` 5.9+ or 6, so consumers don't carry
+  a second TS.
+- **Peers** (optional): `vite` 6+, for the Vite plugin only.
+- **Not a dependency**: `zod`. Nothing under `src` imports it (a `types.test.ts` guard),
+  and it doesn't resolve locally, so a fixture importing it would silently type as `any`;
+  tests that need a real schema library use `valibot`.
 
 ## Testing
 
 Tests live in `src/test/` and import source via `#lib/*.ts`. Fixtures
 (`src/test/fixtures/{tsdoc,ts,svelte}/`) hold an input plus a generated `expected.json`:
-
-- **tsdoc** captures `parseComment` output.
-- **ts** and **svelte** capture the whole module plus diagnostics. Each fixture runs through
-  `analyzeCore` on its own.
-- **Multi-file** fixtures (siblings beside the entry) capture the whole envelope. `internal/`
-  siblings exercise gated canonicals, and the ts side's `external/` maps to `node_modules/`.
-
-Mapping rules and guards: `src/test/fixtures/CLAUDE.md`. Regenerate with
-`gro src/test/fixtures/update`, or one set with `gro src/test/fixtures/ts/update`.
+**tsdoc** captures `parseComment` output; **ts** and **svelte** capture the module plus
+diagnostics, each fixture run through `analyzeCore` alone. **Multi-file** fixtures
+(siblings beside the entry) capture the whole envelope; `internal/` siblings exercise
+gated canonicals, and the ts side's `external/` maps to `node_modules/`. Rules and guards:
+`src/test/fixtures/CLAUDE.md`. Regenerate with `gro src/test/fixtures/update`, or one set
+with `gro src/test/fixtures/ts/update`.
 
 `examples.test.ts` runs the example scripts and needs `npm run build` and
 `npm run setup-examples` first.
@@ -750,11 +569,10 @@ gro test      # run tests
 gro gen       # run code generators
 ```
 
-`vite.config.ts` imports the plugin from source (`./src/lib/vite.ts`), not via the
-`svelte-docinfo/vite.js` self-reference: Gro resolves the Vite config before building, so a
-`dist/` import breaks `gro check` on a fresh checkout. Vite bundles the config once at startup,
-so restart the dev server to pick up `src/lib` changes. The packaged entry is exercised by the
-examples.
+`vite.config.ts` imports the plugin from source (`./src/lib/vite.ts`), not the
+`svelte-docinfo/vite.js` self-reference: Gro resolves the Vite config before building, so
+a `dist/` import breaks `gro check` on a fresh checkout. Restart the dev server to pick up
+`src/lib` changes. The examples exercise the packaged entry.
 
 **Standards**: TypeScript strict mode, Svelte 5 runes, tabs, 100-char width, tests in
 `src/test/` (not co-located), and real source extensions in imports (`.ts`, `.svelte`; the

@@ -39,7 +39,7 @@ export const tomes: Array<Tome> = [
 		Component: CliPage,
 		related_tomes: ['introduction', 'vite-plugin', 'output-format', 'diagnostics'],
 		related_modules: ['cli.ts'],
-		related_declarations: ['analyzeFromFiles']
+		related_declarations: ['analyzeFromFiles', 'parseAnalyzeResult']
 	},
 	{
 		slug: 'vite-plugin',
@@ -53,6 +53,8 @@ export const tomes: Array<Tome> = [
 			'createAnalysisSession',
 			'OnDuplicates',
 			'VitePluginSvelteDocinfoOptions',
+			'AnalyzeResultJsonWire',
+			'parseAnalyzeResult',
 			'createSourceOptions'
 		]
 	},
@@ -60,9 +62,9 @@ export const tomes: Array<Tome> = [
 		slug: 'architecture',
 		category: 'guide',
 		Component: ArchitecturePage,
-		related_tomes: ['introduction', 'api', 'session', 'vite-plugin'],
-		related_modules: [],
-		related_declarations: []
+		related_tomes: ['introduction', 'api', 'session', 'vite-plugin', 'cli'],
+		related_modules: ['analyze-core.ts'],
+		related_declarations: ['analyzeFromFiles']
 	},
 	{
 		slug: 'session',
@@ -79,7 +81,11 @@ export const tomes: Array<Tome> = [
 			'SetFilesResult',
 			'QueryOptions',
 			'ImportResolver',
-			'ResolveImport'
+			'ResolveImport',
+			'createSourceOptions',
+			'DEFAULT_SOURCE_OPTIONS',
+			'DEFAULT_COMPILER_OPTIONS',
+			'RootFileNames'
 		]
 	},
 	{
@@ -88,7 +94,14 @@ export const tomes: Array<Tome> = [
 		category: 'guide',
 		Component: BuildToolsPage,
 		related_tomes: ['introduction', 'session', 'vite-plugin', 'api'],
-		related_modules: ['source.ts', 'discovery.ts', 'source-config.ts', 'dep-resolver.ts'],
+		related_modules: [
+			'source.ts',
+			'discovery.ts',
+			'source-config.ts',
+			'dep-resolver.ts',
+			'paths.ts',
+			'concurrency.ts'
+		],
 		related_declarations: [
 			'SourceFileInfo',
 			'discoverSourceFiles',
@@ -100,6 +113,7 @@ export const tomes: Array<Tome> = [
 			'ExcludeOption',
 			'SourceOptionsOverrides',
 			'ImportResolver',
+			'normalizeDiagnosticPaths',
 			'analyze',
 			'analyzeFromFiles'
 		]
@@ -110,7 +124,7 @@ export const tomes: Array<Tome> = [
 		category: 'reference',
 		Component: OutputFormatPage,
 		related_tomes: ['introduction', 'cli', 'api', 'tags', 'diagnostics'],
-		related_modules: ['types.ts', 'declaration-helpers.ts'],
+		related_modules: ['types.ts', 'declaration-helpers.ts', 'postprocess.ts'],
 		related_declarations: [
 			'AnalyzeResultJson',
 			'ModuleJson',
@@ -123,6 +137,10 @@ export const tomes: Array<Tome> = [
 			'GenericParamJson',
 			'TypeJson',
 			'compactReplacer',
+			'parseAnalyzeResult',
+			'parseModuleJson',
+			'resolveExportSurface',
+			'generateImport',
 			'typeJsonToTokens',
 			'typeJsonToText',
 			'TypeJsonToken'
@@ -140,12 +158,13 @@ export const tomes: Array<Tome> = [
 		slug: 'diagnostics',
 		category: 'reference',
 		Component: DiagnosticsPage,
-		related_tomes: ['output-format', 'tags', 'api', 'cli', 'vite-plugin', 'session'],
+		related_tomes: ['output-format', 'tags', 'api', 'cli', 'vite-plugin', 'session', 'build-tools'],
 		related_modules: ['diagnostics.ts'],
 		related_declarations: [
 			'Diagnostic',
 			'DiagnosticKind',
 			'DiagnosticSeverity',
+			'parseDiagnostics',
 			'hasErrors',
 			'hasWarnings',
 			'errorsOf',

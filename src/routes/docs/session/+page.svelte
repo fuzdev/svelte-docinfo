@@ -24,7 +24,9 @@
 			by a TypeScript <code>LanguageService</code>. Use it when the same source set is re-analyzed
 			repeatedly (Vite plugin, LSP-style tools): parsed ASTs, svelte2tsx output, and the dependency
 			graph are reused across cycles. The one-shot <DeclarationLink name="analyze" /> and
-			<DeclarationLink name="analyzeFromFiles" /> wrap single-use sessions.
+			<DeclarationLink name="analyzeFromFiles" /> wrap single-use sessions; if you analyze once
+			(CLI, CI, one-off generation), use them instead. The full type definitions are in
+			<ModuleLink module_path="session.ts">session.ts</ModuleLink>.
 		</p>
 	</section>
 
@@ -117,9 +119,9 @@ const session = createAnalysisSession({
 				<tr>
 					<td class="white-space:nowrap"><code>query(opts?)</code></td>
 					<td>
-						Analyze the owned set. Files outside <code>sourcePaths</code> or matching
-						<code>exclude</code> inform type resolution but emit no module. Returns
-						<DeclarationLink name="AnalyzeResultJson" />
+						Analyze the owned set. Files outside <code>sourcePaths</code>, matching
+						<code>exclude</code>, or held as context inform type resolution but emit no module.
+						Returns <DeclarationLink name="AnalyzeResultJson" />
 					</td>
 				</tr>
 				<tr>
@@ -142,8 +144,9 @@ const session = createAnalysisSession({
 		</table>
 		<p>
 			<strong>Concurrency.</strong> The session isn't safe for overlapping calls, so serialize them.
-			<code>setFile</code> / <code>setFiles</code> are async (resolvers may await I/O);
-			<code>query</code> is sync and reads the current owned set, so await pending ingests first.
+			<code>setFile</code>, <code>setFiles</code>, and <code>deleteFile</code> are async (resolvers
+			may await I/O); <code>query</code> is sync and reads the current owned set, so await pending
+			ingests first.
 		</p>
 	</TomeSection>
 
@@ -162,7 +165,8 @@ const session = createAnalysisSession({
 				<strong>pre-resolved</strong> (caller supplies <code>SourceFileInfo.dependencies</code>):
 				identical content and an element-wise equal array. A fresh array with the same elements
 				hits, so <code>[...filer.deps.keys()]</code> per call works; any length, element, or order
-				difference misses.
+				difference misses. The dependencies are trusted unchecked; see
+				<TomeLink slug="build-tools" hash="Trust-contract">trust contract</TomeLink>.
 			</li>
 		</ul>
 		<p>Switching a file between modes always misses.</p>
@@ -177,7 +181,8 @@ const session = createAnalysisSession({
 		</p>
 		<p>
 			On a hit, <code>SetFileResult.changed</code> is <code>false</code> and the cached ingest
-			diagnostics are returned without doing any work.
+			diagnostics are returned without doing any work, unless the call changes the file's role
+			(<code>context</code>), which reports <code>changed: true</code> since the emitted set moves.
 		</p>
 	</TomeSection>
 
@@ -216,18 +221,31 @@ const myResolver: ImportResolver = {
 			When neither <code>AnalysisSessionOptions.resolveImport</code> nor a per-call
 			<DeclarationLink name="SetFileOptions" />.<code>resolveImport</code> is supplied, the session
 			builds a default from TypeScript module resolution and the merged compiler options on first
-			use. It's never built if every file arrives with <code>SourceFileInfo.dependencies</code> and
-			the context closure is off or finds nothing to ingest.
+			use. It sees files that exist only in the session, even in directories absent from disk; a
+			custom resolver must handle in-memory files itself to get dependency edges for them.
 		</p>
 	</TomeSection>
 
 	<TomeSection>
-		<TomeSectionHeader text="Trust mode for pre-resolved dependencies" />
+		<TomeSectionHeader text="Context files" />
 		<p>
-			Supplied <code>SourceFileInfo.dependencies</code> are accepted as-is, so a buggy upstream
-			resolver skews <code>ModuleJson.dependencies</code> / <code>dependents</code> without warning.
-			See <TomeLink slug="build-tools" hash="Trust-contract">build-tool integration</TomeLink> for
-			the trust contract and type-only edges.
+			By default a session also ingests the in-project files its sources import that you didn't
+			supply (transitively, skipping <code>node_modules</code> and dot-directories), so edits to
+			them, like <code>internal/</code> modules, stay live instead of being read from disk once.
+			These context files emit no modules and add no edges. Their imports always go through
+			lex+resolve, so when the closure finds files, even a fully pre-resolved session builds the
+			default resolver (unless you supply <code>resolveImport</code>). <code>analyze()</code> turns
+			the closure off; <code>analyzeFromFiles</code> keeps it on.
+		</p>
+		<p>
+			That includes source files, such as a component left out of <code>package.json</code>
+			<code>exports</code>, or the rest of the project when you hand over one component. The type
+			checker can only read a component through its transformed form, so without the ingest every
+			type drawn from that component would be <code>any</code>. Such a file still emits no module
+			until you supply it yourself. Each <code>setFile</code>/<code>setFiles</code> call sets the
+			role of its files: they're inputs by default, so to forward an edit to a context file without
+			turning it into a module, pass <code>{'{context: true}'}</code>. With the closure off, as in
+			<code>analyze()</code>, pass every component the checker needs.
 		</p>
 	</TomeSection>
 
@@ -239,7 +257,8 @@ const myResolver: ImportResolver = {
 				<strong>Ingest-time</strong> (<code>transform_failed</code>, <code>source_map_failed</code>,
 				<code>import_parse_failed</code>, <code>resolver_failed</code>): returned from
 				<code>setFile</code> / <code>setFiles</code> and kept with the file until it is re-ingested
-				or deleted.
+				or deleted. A <code>resolver_failed</code> also clears once a later batch resolves its
+				specifier.
 			</li>
 			<li>
 				<strong>Query-time</strong> (the rest): recomputed and returned by every <code>query</code>
@@ -294,7 +313,7 @@ await session.setFiles([
 ]);
 
 // Edit: one file changed.
-const {changed, diagnostics: ingest} = await session.setFile({
+const {changed} = await session.setFile({
   id: '/abs/src/lib/a.ts',
   content: '... new content ...',
 });
@@ -313,16 +332,6 @@ session.dispose();`}
 		<p>
 			For HMR and file watchers, pass all changed files to one <code>setFiles</code> call rather
 			than looping <code>setFile</code>: a batch resolves imports in parallel.
-		</p>
-	</TomeSection>
-
-	<TomeSection>
-		<TomeSectionHeader text="When to use one-shot APIs instead" />
-		<p>
-			If you analyze once (CLI, CI, one-off doc generation), use <DeclarationLink name="analyze" />
-			or <DeclarationLink name="analyzeFromFiles" />; a session only pays off across repeated calls.
-			See <ModuleLink module_path="session.ts">session.ts</ModuleLink> for the full type definitions
-			and <TomeLink slug="diagnostics" /> for the diagnostic kinds.
 		</p>
 	</TomeSection>
 </TomeContent>

@@ -23,7 +23,7 @@ npx svelte-docinfo ../api --pretty
 ```
 
 You'll get back JSON describing the example's source files (abridged — the
-real output has eight modules plus a `diagnostics` array carrying the
+real output has every module plus a `diagnostics` array carrying the
 deliberate `unknown_param` warning from `has-issues.ts`):
 
 ```json
@@ -55,7 +55,7 @@ Control which files are analyzed and how output is formatted:
 
 ```bash
 npx svelte-docinfo -i "src/**/*.ts"   # custom include pattern (forces glob discovery)
-npx svelte-docinfo -e "**/*.test.ts"  # exclude files matching a pattern
+npx svelte-docinfo -e "**/*.gen.ts"   # exclude a pattern (replaces the default test/spec/internal excludes)
 npx svelte-docinfo --discovery glob   # skip package.json exports, use glob instead
 npx svelte-docinfo --discovery exports  # strict — fail if package.json exports is missing or resolves to no files
 npx svelte-docinfo --no-resolve-dependencies  # skip dependency graph resolution
@@ -89,24 +89,10 @@ glob, so glob fallback discovers files in each directory.
 # paths come out like 'lib/foo.ts', 'routes/page.svelte'
 npx svelte-docinfo --source-dir src/lib --source-dir src/routes --discovery glob
 
-# No common prefix — pass `--source-root .` to keep module paths project-relative.
-# Module paths come out like 'src/lib/foo.ts', 'lib/utils/bar.ts'.
-npx svelte-docinfo \
-  --source-dir src/lib \
-  --source-dir lib/utils \
-  --source-root . \
-  --discovery glob
+# No common prefix — module paths come out project-relative,
+# like 'src/lib/foo.ts', 'lib/utils/bar.ts'
+npx svelte-docinfo --source-dir src/lib --source-dir lib/utils --discovery glob
 ```
-
-## Output streams
-
-Info messages print to stderr; only JSON goes to stdout. The terminal shows them
-interleaved, but `>` and `|` capture clean JSON. Use `-q` to suppress info
-(warnings and errors still print to stderr).
-
-`-o -` (and `--output -`) explicitly routes JSON to stdout — same as omitting
-`-o` entirely, but useful for scripts where the output path is parameterized:
-`svelte-docinfo -o "$OUT"` works whether `$OUT` is a file path or `-`.
 
 ## Piping with jq
 
@@ -125,10 +111,7 @@ npx svelte-docinfo | jq '.modules[].declarations[]
   | select(.kind == "function") | {name, params: [.parameters[]?.name]}'
 ```
 
-## Exit codes
+## More
 
-| Code | Meaning         |
-| ---- | --------------- |
-| 0    | Success         |
-| 1    | Analysis errors |
-| 2    | CLI errors or a thrown analysis error (missing or unloadable `tsconfig.json`) |
+The [CLI docs](https://svelte-docinfo.fuz.dev/docs/cli) cover every flag, the
+stdout/stderr split, and exit codes.

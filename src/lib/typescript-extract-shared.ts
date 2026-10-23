@@ -10,6 +10,8 @@
  *   `typescript-extract-class.ts` for the per-declaration extractors that
  *   build on these helpers
  *
+ * @internal
+ *
  * @module
  */
 

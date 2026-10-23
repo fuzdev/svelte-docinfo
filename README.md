@@ -28,6 +28,7 @@ installs them automatically), plus an optional `vite` 6+ for the Vite plugin.
 - [Features](#features)
 - [Documentation](#documentation)
 - [Credits](#credits)
+- [Contributing](#contributing)
 - [License](#license)
 
 svelte-docinfo is largely inspired by [`sveld`](https://github.com/carbon-design-system/sveld),
@@ -53,11 +54,10 @@ which was more limited, lacking the fancy TS compiler usage, and grew slowly ove
 
 ## Quick start
 
-Given a project with a `tsconfig.json` (at or above the project root) and a couple of files in `src/lib/`:
+Given a project with a `tsconfig.json` (at or above the project root) and two files,
+`src/lib/math.ts`:
 
 ```ts
-// src/lib/math.ts
-
 /**
  * Add two numbers.
  * @param a - first number
@@ -67,9 +67,9 @@ Given a project with a `tsconfig.json` (at or above the project root) and a coup
 export const add = (a: number, b: number): number => a + b;
 ```
 
-```svelte
-<!-- src/lib/Calculator.svelte -->
+and `src/lib/Calculator.svelte`:
 
+```svelte
 <!--
 	@component
 	Calculator component for demonstrating Svelte analysis.
@@ -96,6 +96,8 @@ Three ways to integrate `svelte-docinfo`:
 
 ```ts
 // vite.config.ts
+import { defineConfig } from 'vite';
+import { sveltekit } from '@sveltejs/kit/vite';
 import svelteDocinfo from 'svelte-docinfo/vite.js';
 
 export default defineConfig({ plugins: [sveltekit(), svelteDocinfo()] });
@@ -117,7 +119,8 @@ import { analyzeFromFiles } from 'svelte-docinfo';
 const { modules } = await analyzeFromFiles({ projectRoot: process.cwd() });
 ```
 
-All three produce the same JSON shape:
+All three produce the same `AnalyzeResultJson` data. The CLI emits it compacted, as shown
+here (the Vite module compacts `modules` only); the API returns it with defaults filled in:
 
 ```json
 {
@@ -186,9 +189,9 @@ All three produce the same JSON shape:
 }
 ```
 
-Defaulted fields are left out of the JSON: empty arrays and `false` flags. To restore them
-and validate the shape, parse it with `parseAnalyzeResult` (`parseModuleJson` for one module,
-`parseDiagnostics` for diagnostics alone):
+The compact form leaves out defaulted fields: empty arrays (like `diagnostics` here) and
+`false` flags. To restore them and validate the shape, parse it with `parseAnalyzeResult`
+(`parseModuleJson` for one module, `parseDiagnostics` for diagnostics alone):
 
 ```ts
 import { parseAnalyzeResult } from 'svelte-docinfo';
@@ -245,19 +248,19 @@ Plugin options:
 | `resolveDependencies` | `true`                                               | Resolve import dependencies. When `false`, `dependencies`/`dependents` stay empty.                                                                                                                                     |
 | `hmrDebounceMs`       | `100`                                                | Dev re-analysis debounce delay in milliseconds.                                                                                                                                                                        |
 | `onDuplicates`        | —                                                    | Opt-in check that names are unique across modules, for packages with a flat export namespace: `'diagnostic'` \| `'warn'` \| `'throw'`. Off by default.                                                                |
-| `tsconfig`            | `'tsconfig.json'`                                    | Path to the tsconfig, relative to `projectRoot`, or `false` to analyze without one (built-in strict options, with `compilerOptions` merged on top). |
+| `tsconfig`            | `'tsconfig.json'`                                    | Path to the tsconfig, relative to `projectRoot` and searched upward from it, or `false` to analyze without one (built-in strict options, with `compilerOptions` merged on top). |
 | `compilerOptions`     | —                                                    | Compiler options merged over the tsconfig's, per key. |
 | `rootFileNames`       | the tsconfig's roots                                 | The program's root files in place of the tsconfig's: a list, or a function over the tsconfig's roots (`declarationFileRoots`, from `svelte-docinfo/typescript-program.js`, keeps the declaration files). Narrowing speeds up cold analysis; an ambient type declared in a dropped root resolves to `any`. |
 
 Source-scope notes (shared with the [CLI](#cli) and `analyzeFromFiles`):
 
-- Explicit `include` patterns **widen the source scope**: each pattern's static base joins `sourceOptions.sourcePaths`, so include-discovered files emit modules (with paths relative to the widened set's common root) and the dev-mode watcher tracks them. A pattern with no base (`'**/*.ts'`, a literal root file) scopes the whole project root as source and logs an info line naming it.
-- An **always-on baseline** applies beneath any `exclude`: `node_modules` and dot-directories below a matched source path are never source. It's matched relative to the matched source path — an explicit dot-directory source path (`sourcePaths: ['.hidden/src']`) still works — and is independent of `exclude` overrides. `dist`/`build`/`coverage` are ordinary names and stay in.
-- The **`src/lib/internal/` convention**: `internal/` directories are excluded by default (the `**/internal/**` default pattern) — internal modules ship in the package for public modules to import but aren't documented. Packages typically pair the directory with an `"./internal/*": null` package.json exports entry blocking consumer imports; exports-based discovery honors null-target keys with Node's best-match resolution semantics, so blocked subpaths are never discovered. Internal modules stay live in dev: the analysis session owns them as watched context files, so editing an internal type re-analyzes the public modules that use it. A public re-export of an internal symbol (`export { x } from './internal/helper.js'`) documents at the re-export site as a full synthesized declaration. Re-include internal modules wholesale with the exclude callback: `exclude: (defaults) => defaults.filter((p) => p !== '**/internal/**')`.
-- Paths and patterns resolve against `projectRoot`: absolute entries inside the root are accepted (stored root-relative), and anything resolving outside the root **throws** at options creation instead of silently emitting nothing — a root-anchored `'/src/lib'` is filesystem-absolute, not shorthand for `'src/lib'`.
+- `include` **widens the source scope**: each pattern's static base joins `sourceOptions.sourcePaths`, so the files it finds emit modules (with paths relative to the widened set's common root) and the dev watcher tracks them. A pattern with no base (`'**/*.ts'`, a literal root file) makes the whole project root source and logs an info line.
+- Beneath any `exclude`, `node_modules` and dot-directories below a source path are never source. The rule is relative to the source path, so an explicit dot-directory source path (`sourcePaths: ['.hidden/src']`) still works. `dist`, `build`, and `coverage` are ordinary names.
+- **`src/lib/internal/`** holds modules that ship for public modules to import but aren't documented, excluded by the default `**/internal/**` pattern. Packages typically block consumer imports with an `"./internal/*": null` exports entry, which exports discovery honors with Node's best-match semantics. Internal modules stay live in dev: editing one re-analyzes the public modules that use it. A public re-export of an internal symbol documents as a full declaration at the re-export site. To document them anyway: `exclude: (defaults) => defaults.filter((p) => p !== '**/internal/**')`.
+- Paths and patterns resolve against `projectRoot`. Absolute entries inside the root are accepted, and anything outside it **throws** at options creation instead of silently emitting nothing. `'/src/lib'` is filesystem-absolute, not shorthand for `'src/lib'`.
 
 The options interface is `VitePluginSvelteDocinfoOptions` from `svelte-docinfo/vite.js` (not re-exported from the main barrel).
-See the [docs site](https://svelte-docinfo.fuz.dev/) and [examples/vite/](examples/vite/README.md) for more.
+See the [Vite plugin docs](https://svelte-docinfo.fuz.dev/docs/vite-plugin) and [examples/vite/](examples/vite/README.md) for more.
 
 > If TypeScript reports `Cannot find module 'virtual:svelte-docinfo'`, ensure the `/// <reference>` line is in your `app.d.ts`.
 
@@ -297,18 +300,20 @@ All CLI options:
 | `--only <pattern>`          | Glob filter applied to module paths in output (repeatable). Full project is still analyzed (re-exports/dependents stay correct); diagnostics aren't filtered                                  |
 | `--no-resolve-dependencies` | Disable dependency resolution                                                                                                                                                                 |
 | `--pretty`                  | Pretty-print JSON output (default: compact)                                                                                                                                                   |
-| `--tsconfig <path>`         | Path to the tsconfig, relative to project root (default: `tsconfig.json`, searched upward from project root) |
+| `--tsconfig <path>`         | Path to the tsconfig, relative to project root and searched upward from it (default: `tsconfig.json`) |
 | `--no-tsconfig`             | Analyze without a tsconfig, using built-in strict compiler options |
 | `-q, --quiet`               | Suppress info messages on stderr (warnings and errors still print)                                                                                                                            |
 | `--on-duplicates <mode>`    | Opt-in check that names are unique across modules, for packages with a flat export namespace: `diagnostic` \| `warn` \| `throw` (default: off)                                                |
 | `-V, --version`             | Show version number                                                                                                                                                                           |
+| `-h, --help`                | Show help                                                                                                                                                                                     |
 
-The [Vite plugin](#vite-plugin)'s source-scope notes apply here too: explicit `--include` patterns widen the source scope (module paths become relative to the widened root, and a pattern with no base scopes the whole project root and logs an info line); `node_modules` and dot-directories below a source dir are always excluded regardless of `--exclude`; absolute paths and patterns inside the project root are accepted, and out-of-root ones fail loudly.
+The [Vite plugin](#vite-plugin)'s source-scope notes apply here too, with `--include`, `--exclude`, and `--source-dir` in place of the options. `--exclude` always replaces the defaults (there's no callback form), so to document `internal/`, re-list the others: `-e '**/*.test.ts' -e '**/*.spec.ts'`.
 
-Exit codes: 0 (success), 1 (analysis errors), 2 (CLI errors or a thrown analysis error, like a
-missing or unloadable `tsconfig.json`).
+Exit codes: 0 (success), 1 (analysis errors), 2 (a usage error, like an unknown flag or a
+missing or invalid option value, or a thrown analysis error, like a missing or unloadable
+`tsconfig.json`).
 
-See [examples/cli/](examples/cli/README.md) for more usage patterns.
+See the [CLI docs](https://svelte-docinfo.fuz.dev/docs/cli) and [examples/cli/](examples/cli/README.md) for more.
 
 ## API
 
@@ -338,7 +343,8 @@ For just the discovery step (without running analysis), use
 
 For long-lived consumers (a Vite plugin reacting to file edits, an LSP-style tool),
 `createAnalysisSession` returns a persistent handle that reuses parsed ASTs across calls
-— see [examples/api/analyze-session.js](examples/api/analyze-session.js).
+— see the [session docs](https://svelte-docinfo.fuz.dev/docs/session) and
+[examples/api/analyze-session.js](examples/api/analyze-session.js).
 
 See [examples/api/](examples/api/README.md) for more patterns
 including custom discovery, diagnostics, sessions, and error handling.
@@ -349,30 +355,28 @@ See the [API docs](https://svelte-docinfo.fuz.dev/docs/api) for the full referen
 
 ## Features
 
-- **Full type resolution**: infers complex types without manual annotations, including generics, imported types, and inferred return types
-- **Structured types**: an optional `typeInfo` tree (`TypeJson`) beside the flat type strings on props, parameters, return types (`returnTypeInfo`, overloads included), members, and variable/type declarations — union and intersection members (alias names kept), reference type arguments, and array/tuple elements, so a union alias documents more than its own name. Absent wherever the flat string already says everything; `typeJsonToTokens`/`typeJsonToText` render it
-- **TSDoc/JSDoc parsing**: the common doc tags (`@param`, `@returns`, `@throws`, `@example`, `@deprecated`, `@internal`, `@see`, `@since`, `@default`) plus `@nodocs`, `@mutates`, and `@module` for file-level comments; divergent spellings parse as synonyms (`@return`, `@defaultValue`). `@internal` marks unstable API (`internalMessage`) but stays documented — `@nodocs` is the exclusion. Dotted `@param obj.prop` tags fill `propertyDescriptions`, and inline `{@link}` survives in extracted text
-- **Alias-lost name recovery**: TypeScript drops the name of an alias over an indexed access or conditional (`type Foo = z.infer<typeof S>`, or valibot's `v.InferOutput<typeof S>`) and expands its structure at every use. `typeInfo` recovers it as `{kind: 'reference', name}`, from the written annotation where there is one and otherwise from a registry of the project's exported aliases (those references also carry `module` for exact linking). Losses nothing recovers surface as `alias_lost` warnings
-- **Merged value+type symbols**: `export const Foo = z.strictObject({...})` + `export type Foo = z.infer<typeof Foo>` documents the type meaning (structure and members), with `mergedValue: true` marking the name as also a runtime value; JSDoc falls back to the const's docs, and `generateImport` emits a value import
-- **Svelte 5 component props**: extracts prop types, descriptions, defaults, and bindability via svelte2tsx, in source order (destructured external props follow, in destructuring order); generic components carry `genericParams`, and JS components (no `lang="ts"`) are supported — props come from the JSDoc `@type` on `$props()` or are inferred from untyped destructuring
-- **External types**: props and members contributed by external packages (e.g. `HTMLButtonAttributes`) are filtered out and named in `externalTypes` — on components, type aliases, interfaces, and classes, including bags reached through local base types. A component prop named in the `$props()` destructuring (`let {type = 'button', ...rest} = $props()`) is documented anyway, since the component handles it
-- **Svelte 5 snippets**: `kind: 'snippet'` for template snippets (with structured parameters), `acceptsChildren` on components
-- **Svelte 5 reactivity runes**: detects `$state`, `$state.raw`, `$derived`, `$derived.by` on variables and class fields (`reactivity` field) — syntactic detection, surfaces wherever the rune pattern appears
-- **Class members**: public + protected fields, methods, constructors, getters/setters, generics; private (`private` and `#field`) excluded
-- **Enums**: regular and const, with member values and per-member JSDoc
-- **Function overloads**: all public overload signatures with per-overload JSDoc
-- **Dependency graphs**: tracks imports between modules and computes dependents
-- **Re-export tracking**: `alsoExportedFrom` arrays on canonical declarations plus the forward view `ModuleJson.reExports` (so barrels are self-describing), `aliasOf` for renames, `starExports` for `export * from './x'`, and `externalReExports`/`externalStarExports` for direct re-exports from packages — with `resolveExportSurface()` to combine them all into a module's full export surface using ES star semantics
-- **Namespace re-exports**: `export * as ns from './x'` synthesized as `kind: 'namespace'`
-- **Source locations**: file and line for every declaration
-- **Build-tool agnostic**: works with any source: file system, build pipeline, or in-memory
-- **Diagnostic collection**: accumulates warnings and errors without halting; `partial: true` flags incomplete declarations
+- **Full type resolution**: generics, imported types, and inferred return types, without manual annotations
+- **Structured types**: an optional `typeInfo` tree (`TypeJson`) beside the flat type strings, with union and intersection members (alias names kept), type arguments, and array/tuple elements. Absent where the flat string says everything; `typeJsonToTokens`/`typeJsonToText` render it
+- **Alias-lost name recovery**: TypeScript drops the name of an alias over an indexed access or conditional (`z.infer<typeof S>`, valibot's `v.InferOutput<typeof S>`) and expands it at every use. `typeInfo` recovers it as `{kind: 'reference', name}`, from the written annotation or from a registry of the project's exported aliases. Losses nothing recovers surface as `alias_lost` warnings
+- **TSDoc/JSDoc**: `@param`, `@returns`, `@throws`, `@example`, `@deprecated`, `@internal`, `@see`, `@since`, `@default`, `@module`, plus the custom `@nodocs` (exclude from docs) and `@mutates`; `@return` and `@defaultValue` parse as synonyms. `@internal` is a marker (`internalMessage`), not an exclusion. Inline `{@link}` survives in the text
+- **Merged value+type symbols**: `const Foo = z.strictObject({...})` + `type Foo = z.infer<typeof Foo>` documents the type, with `mergedValue: true` marking the name as also a runtime value; JSDoc falls back to the const's
+- **Svelte 5 components**: prop types, descriptions, defaults, bindability, and callback signatures via svelte2tsx, plus generics and `acceptsChildren`. JS components take props from the JSDoc `@type` on `$props()` or infer them from the destructuring
+- **External types**: props and members from external packages (`HTMLButtonAttributes`) are filtered out and named in `externalTypes` (on components, type aliases, interfaces, and classes, including bags reached through local base types), unless the `$props()` destructuring names them
+- **Svelte 5 snippets**: `kind: 'snippet'` for snippets exported from `<script module>`, with structured parameters
+- **Runes**: `$state`, `$state.raw`, `$derived`, and `$derived.by` on variables and class fields (`reactivity`), detected syntactically in any file
+- **Classes, enums, and overloads**: public and protected class members (`private` and `#` excluded), regular and const enums with member values, and every public overload signature with its own JSDoc
+- **Re-exports**: `alsoExportedFrom` on canonical declarations and `ModuleJson.reExports` on barrels, `aliasOf` for renames, `starExports`, `kind: 'namespace'` for `export * as ns`, and external re-exports, with `resolveExportSurface()` combining them using ES star semantics
+- **Dependency graphs**: imports between modules and the computed dependents
+- **Source locations**: the source line of every declaration
+- **Build-tool agnostic**: files can come from disk, a build pipeline, or memory
+- **Diagnostics**: warnings and errors accumulate without halting; `partial: true` flags incomplete declarations
 
 Known gaps:
 
-- context tracking (transitive detection of common patterns seems tractable)
-- standalone `namespace Foo {}` declarations and decorators are not yet supported
-- legacy `export let` components document their props (all `bindable`), and a legacy component's default `<slot />` sets `acceptsChildren`, but named slots, slot props, events, and `$$restProps` aren't modeled — Svelte 5 snippets and callback props replace most of them
+- Svelte context (`setContext`/`getContext`) isn't captured yet; investigation is planned, and
+  a [request](https://github.com/fuzdev/svelte-docinfo/discussions) would bump its priority
+- standalone `namespace Foo {}` declarations document as a bare variable with no members, and decorators aren't modeled
+- legacy `export let` components document their props (all `bindable`), and a legacy component's default `<slot />` sets `acceptsChildren` (a runes component's is ignored), but named slots, slot props, events, and `$$restProps` aren't modeled
 - `@nodocs` applies to declarations and export statements only; on a member or component prop it's ignored without a warning
 
 [Issues](https://github.com/fuzdev/svelte-docinfo/issues) for bugs and

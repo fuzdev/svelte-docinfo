@@ -4,6 +4,7 @@
 	import TomeSectionHeader from '@fuzdev/fuz_ui/TomeSectionHeader.svelte';
 	import TomeLink from '@fuzdev/fuz_ui/TomeLink.svelte';
 	import DeclarationLink from '@fuzdev/fuz_ui/DeclarationLink.svelte';
+	import ModuleLink from '@fuzdev/fuz_ui/ModuleLink.svelte';
 	import { tome_get_by_slug } from '@fuzdev/fuz_ui/tome.ts';
 
 	import DependencyGraph from './DependencyGraph.svelte';
@@ -22,8 +23,8 @@
 	<section>
 		<p>
 			svelte-docinfo analyzes its own source and draws the result below. Each node is one module
-			under <code>src/lib/</code>; each arrow is an internal import. Hover any module to isolate its
-			immediate neighbors; click to jump to its API page.
+			under <code>src/lib/</code> (the <code>index.ts</code> barrel left out); each arrow is an
+			internal import. Click a module to open its API page.
 		</p>
 
 		<DependencyGraph />
@@ -51,13 +52,13 @@
 		<TomeSection>
 			<TomeSectionHeader text="What the layers say" />
 			<p>
-				The bottom rows are the primitives that import nothing else in the library: path
-				normalization, types, concurrency caps, the diagnostics schema. The middle rows are the
-				per-kind TypeScript extractors and the file-system helpers. The top rows are the
-				orchestrators: the persistent <TomeLink slug="session" /> on top of
-				<TomeLink slug="api">core analysis</TomeLink>, then the one-shot wrappers and the
-				<TomeLink slug="vite-plugin" /> (both built directly on the session), then the
-				<TomeLink slug="cli" />.
+				The bottom row is the modules that import nothing else in the library: path and error
+				helpers, concurrency caps, logging, the schema helpers, and the Svelte script scanners. The
+				middle rows are the per-kind TypeScript extractors and the file-system helpers. The top rows
+				are the orchestrators: the persistent <TomeLink slug="session" /> on top of
+				<ModuleLink module_path="analyze-core.ts">core analysis</ModuleLink>, then the one-shot
+				wrappers and the <TomeLink slug="vite-plugin" /> (both built directly on the session), then
+				the <TomeLink slug="cli" /> and its <code>main.ts</code> entry.
 			</p>
 			<p>
 				Across {dependency_graph.nodes.length} modules and {dependency_graph.edges.length} internal
@@ -72,7 +73,7 @@
 				calls <DeclarationLink name="analyzeFromFiles" /> on this project and runs a Sugiyama-style
 				layered layout: longest-path-from-sink for layer assignment, dummy nodes on long edges,
 				median-heuristic crossing reduction. The result is a small JSON sibling the Svelte component
-				renders to SVG. No layout libraries — a few hundred lines, end to end.
+				renders to SVG. No layout libraries, just a few hundred lines of layout code.
 			</p>
 		</TomeSection>
 	</section>

@@ -67,7 +67,7 @@ try {
 		JSON.stringify({ modules: cold.modules }, compactReplacer, '\t')
 	);
 
-	// === Cycle 2: single-file edit (the δ shape an LSP/HMR consumer drives) ==
+	// === Cycle 2: single-file edit (the shape an LSP or watcher drives) ===
 	// Simulate an editor saving math.ts with a tweaked docstring. Only that one
 	// entry is dirty — `setFile` returns `{changed: true}` for it, and parsed
 	// ASTs for the other files survive untouched.

@@ -12,6 +12,8 @@
  * @see `typescript-extract-shared.ts` for shared helpers
  * @see `typescript-extract-type.ts` for the dispatcher
  *
+ * @internal
+ *
  * @module
  */
 

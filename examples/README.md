@@ -6,7 +6,7 @@ Three examples showing different ways to use svelte-docinfo:
 
 | Directory          | Description                                                        |
 | ------------------ | ------------------------------------------------------------------ |
-| [`vite/`](./vite/) | Vite plugin with HMR — recommended for Vite and SvelteKit projects |
+| [`vite/`](./vite/) | Vite plugin with live reload in dev — recommended for Vite and SvelteKit projects |
 | [`api/`](./api/)   | Direct API usage — standalone scripts and build tool integration   |
 | [`cli/`](./cli/)   | CLI usage — quick analysis from the command line                   |
 

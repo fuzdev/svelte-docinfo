@@ -14,7 +14,7 @@
 </script>
 
 <svelte:head>
-	<title>build-tool integration - svelte-docinfo</title>
+	<title>build tools - svelte-docinfo</title>
 </svelte:head>
 
 <TomeContent {tome}>
@@ -26,25 +26,26 @@
 			<TomeLink slug="vite-plugin">Vite plugin</TomeLink> doesn't fit.
 		</p>
 		<p>
-			The analyzer reads the disk only for the tsconfig, for type-checker context you don't supply,
-			and, except in <code>analyze()</code>, for the in-project files your inputs import that you
-			didn't supply (<a href="#Context-files">context files</a>).
+			Apart from discovery in <code>analyzeFromFiles</code>, the analyzer reads the disk only for
+			the tsconfig, for type-checker context you don't supply, and, except in
+			<code>analyze()</code>, for the in-project files your inputs import that you didn't supply
+			(<TomeLink slug="session" hash="Context-files">context files</TomeLink>).
 		</p>
 	</section>
 
 	<TomeSection>
 		<TomeSectionHeader text="SourceFileInfo" />
 		<p>
-			Every entry point takes <DeclarationLink name="SourceFileInfo" />, including
 			<DeclarationLink name="analyze" /> and the session's <code>setFile</code> /
-			<code>setFiles</code>; <DeclarationLink name="discoverSourceFiles" /> returns it:
+			<code>setFiles</code> take <DeclarationLink name="SourceFileInfo" />, and
+			<DeclarationLink name="discoverSourceFiles" /> returns it:
 		</p>
 		<Code
 			lang="ts"
 			content={`interface SourceFileInfo {
   id: string;                  // absolute path (native ok at boundary)
   content: string;             // file contents
-  dependencies?: string[];     // optional: pre-resolved deps (opt-in)
+  dependencies?: ReadonlyArray<string>; // optional: pre-resolved deps
 }`}
 		/>
 		<ul>
@@ -131,7 +132,7 @@ const {files, diagnostics} = await discoverSourceFiles({
 			<code>package.json</code> exports and falls back to glob, <code>'exports'</code> is strict
 			(throws if exports is missing or resolves to no files), and <code>'glob'</code> skips exports.
 			Passing <code>include</code> under <code>'auto'</code> goes straight to glob, so the filter is
-			never silently ignored.
+			never silently ignored; combining it with <code>'exports'</code> throws.
 		</p>
 		<p>
 			Unlike <code>analyzeFromFiles</code> and the Vite plugin, standalone discovery doesn't widen
@@ -222,66 +223,18 @@ await session.setFiles(files);`}
 	</TomeSection>
 
 	<TomeSection>
-		<TomeSectionHeader text="ImportResolver (lex+resolve path)" />
+		<TomeSectionHeader text="Custom import resolution" />
 		<p>
 			Without pre-resolved dependencies, the session parses import specifiers from
-			<code>content</code> and resolves them through an <DeclarationLink name="ImportResolver" />.
-			Wire in your own so resolution matches the rest of your build:
-		</p>
-		<Code
-			lang="ts"
-			content={`import {createAnalysisSession, createSourceOptions} from 'svelte-docinfo';
-import type {ImportResolver} from 'svelte-docinfo';
-
-const resolver: ImportResolver = {
-  identity: 'my-bundler@v1',
-  resolve: (specifier, fromFile) => bundler.resolve(specifier, fromFile),
-};
-
-const session = createAnalysisSession({
-  sourceOptions: createSourceOptions(process.cwd()),
-  resolveImport: resolver,
-});`}
-		/>
-		<p>
-			<code>identity</code> is a stable cache token; see the <TomeLink slug="session" /> guide.
-			Without a resolver, the session uses a default built on TypeScript module resolution and your
-			tsconfig.
-		</p>
-		<p>
-			Implement the optional <code>invalidate()</code> if your resolver caches failed lookups: the
-			session calls it before a batch whenever files were added to or removed from the session,
-			since a specifier that resolved to nothing may resolve now. The default resolver also sees
-			files that exist only in the session (even in directories absent from disk); a custom resolver
-			must handle in-memory files itself to get dependency edges for them.
+			<code>content</code> and resolves them with TypeScript module resolution and your tsconfig. To
+			match the rest of your build instead, pass an <DeclarationLink name="ImportResolver" /> as
+			<code>resolveImport</code>; see the
+			<TomeLink slug="session" hash="ImportResolver-and-identity">session</TomeLink> guide.
 		</p>
 	</TomeSection>
 
 	<TomeSection>
-		<TomeSectionHeader text="Context files" />
-		<p>
-			By default a session also ingests the in-project files its sources import that you didn't
-			supply (transitively, skipping <code>node_modules</code> and dot-directories), so edits to
-			them, like <code>internal/</code> modules, stay live instead of being read from disk once.
-			These context files emit no modules and add no edges. Their imports always go through
-			lex+resolve, so when the closure finds files, even a fully pre-resolved session builds the
-			default resolver (unless you supply <code>resolveImport</code>). <code>analyze()</code> turns
-			the closure off; <code>analyzeFromFiles</code> keeps it on.
-		</p>
-		<p>
-			That includes source files, such as a component left out of <code>package.json</code>
-			<code>exports</code>, or the rest of the project when you hand over one component. The type
-			checker can only read a component through its transformed form, so without the ingest every
-			type drawn from that component would be <code>any</code>. Such a file still emits no module
-			until you supply it yourself. Each <code>setFile</code>/<code>setFiles</code> call sets the
-			role of its files: they're inputs by default, so to forward an edit to a context file without
-			turning it into a module, pass <code>{'{context: true}'}</code>. With the closure off, as in
-			<code>analyze()</code>, pass every component the checker needs.
-		</p>
-	</TomeSection>
-
-	<TomeSection>
-		<TomeSectionHeader text="Source options and the source root" />
+		<TomeSectionHeader text="Source scope" />
 		<p>
 			<DeclarationLink name="createSourceOptions" /> builds the
 			<DeclarationLink name="ModuleSourceOptions" /> the session needs. Customize for non-default
@@ -317,7 +270,20 @@ const customOpts = createSourceOptions(process.cwd(), {
 			callback form extends them. Independent of <code>exclude</code>, <code>node_modules</code> and
 			dot-directories below a source path are never source. That rule is relative to the source
 			path, so an explicit dot-directory source path (<code>sourcePaths: ['.hidden/src']</code>)
-			still works.
+			still works; <code>dist</code>, <code>build</code>, and <code>coverage</code> are ordinary
+			names.
+		</p>
+		<p>
+			<code>include</code> patterns (in <code>analyzeFromFiles</code>, the CLI, and the Vite plugin)
+			widen the scope: each pattern's static base joins <code>sourcePaths</code>, and module paths
+			become relative to the widened root. A pattern with no base (<code>**/*.ts</code>, a root
+			file) makes the whole project root source and logs an info line.
+		</p>
+		<p>
+			Exports discovery skips subpaths blocked by <code>null</code> exports entries
+			(<code>"./internal/*": null</code>), using Node's best-match rules. To document
+			<code>internal/</code> modules anyway, extend the defaults with
+			<code>{`exclude: (defaults) => defaults.filter((p) => p !== '**/internal/**')`}</code>.
 		</p>
 		<p>
 			<code>sourcePaths</code> and <code>sourceRoot</code> are relative to the project root.

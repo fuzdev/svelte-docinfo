@@ -4,6 +4,7 @@
 	import TomeSection from '@fuzdev/fuz_ui/TomeSection.svelte';
 	import TomeSectionHeader from '@fuzdev/fuz_ui/TomeSectionHeader.svelte';
 	import TomeLink from '@fuzdev/fuz_ui/TomeLink.svelte';
+	import DeclarationLink from '@fuzdev/fuz_ui/DeclarationLink.svelte';
 	import { tome_get_by_slug } from '@fuzdev/fuz_ui/tome.ts';
 
 	const LIBRARY_ITEM_NAME = 'cli';
@@ -19,7 +20,8 @@
 	<section>
 		<p>
 			Run in a project with TypeScript or Svelte source and a <code>tsconfig.json</code> at or above
-			its root. The CLI prints JSON describing the project's exports to stdout.
+			its root (or pass <code>--no-tsconfig</code>). The CLI prints JSON describing the project's
+			exports to stdout.
 		</p>
 
 		<TomeSection>
@@ -41,7 +43,12 @@ npx svelte-docinfo --pretty           # pretty-print the JSON output`}
 				repeatable for monorepos). <code>--source-root</code> sets the base of output module paths
 				(default: the single source dir, or the longest common prefix of several).
 			</p>
-			<p>Compact JSON pairs well with <code>jq</code>:</p>
+			<p>
+				Output is
+				<TomeLink slug="output-format" hash="Compact-JSON-and-absent-as-false">compact</TomeLink>:
+				empty arrays and <code>false</code> flags are omitted, so treat absent as empty, or parse
+				with <DeclarationLink name="parseAnalyzeResult" />. It pairs well with <code>jq</code>:
+			</p>
 			<Code
 				lang="bash"
 				content={`npx svelte-docinfo | jq '.modules | length'                  # count modules
@@ -132,8 +139,8 @@ npx svelte-docinfo | jq -r '.modules[].declarations[].name'  # list all exported
 					<tr>
 						<td class="white-space:nowrap"><code>--tsconfig &lt;path&gt;</code></td>
 						<td>
-							path to the tsconfig, relative to the project root (default:
-							<code>tsconfig.json</code>, searched upward from the project root)
+							path to the tsconfig, relative to the project root and searched upward from it
+							(default: <code>tsconfig.json</code>)
 						</td>
 					</tr>
 					<tr>
@@ -160,29 +167,22 @@ npx svelte-docinfo | jq -r '.modules[].declarations[].name'  # list all exported
 						<td><code>-V, --version</code></td>
 						<td>show version number</td>
 					</tr>
+					<tr>
+						<td><code>-h, --help</code></td>
+						<td>show help</td>
+					</tr>
 				</tbody>
 			</table>
 			<p>
-				<code>--include</code> patterns widen the source scope: each pattern's static base joins the
-				source dirs, and module paths become relative to the widened root. A pattern with no base
-				(<code>**/*.ts</code>, a root file) makes the whole project root source and logs an info
-				line.
-			</p>
-			<p>
-				Regardless of <code>--exclude</code>, <code>node_modules</code> and dot-directories below a
-				source dir are never source. The default excludes cover tests and the
-				<code>src/lib/internal/</code> convention (<code>**/internal/**</code>). Exports discovery
-				also skips subpaths blocked by <code>null</code> exports entries
-				(<code>"./internal/*": null</code>), using Node's best-match rules.
-			</p>
-			<p>
-				Absolute paths and patterns inside the project root are accepted; ones outside it are an
-				error.
+				<code>--include</code>, <code>--exclude</code>, and <code>--source-dir</code> follow the
+				<TomeLink slug="build-tools" hash="Source-scope">source scope</TomeLink> rules.
+				<code>--exclude</code> always replaces the defaults; there's no form that extends them.
 			</p>
 			<p>
 				Exit codes: <strong>0</strong> success, <strong>1</strong> analysis errors,
-				<strong>2</strong> CLI errors or a thrown analysis error (a missing or unloadable
-				<code>tsconfig.json</code>, strict exports discovery failing).
+				<strong>2</strong> CLI errors (an unknown flag, a missing or invalid option value) or a
+				thrown analysis error (a missing or unloadable <code>tsconfig.json</code>, strict exports
+				discovery failing).
 			</p>
 		</TomeSection>
 

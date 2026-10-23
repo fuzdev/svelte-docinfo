@@ -659,7 +659,7 @@ export const isSvelteShimPath = (fileName: string): boolean =>
  * - **Order** — a fixed list, so the language service's root-list comparison
  *   still reuses the program when nothing changed. Resolving the helpers can
  *   move when the checker first creates a type, which reorders an origin-less
- *   union printed elsewhere (see `compareStrings` on input order).
+ *   union printed elsewhere (see "Input order" on `AnalysisSession`).
  *
  * @internal Shared by both program paths and the test-side program helpers;
  *   not a stable API.

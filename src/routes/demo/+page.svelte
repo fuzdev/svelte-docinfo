@@ -22,10 +22,9 @@
 			The extraction demo analyzes the
 			<a href="https://github.com/fuzdev/svelte-docinfo/tree/main/examples/api">
 				examples/api corpus
-			</a>
-			with Svelte components with snippet props, classes, enums, overloads, runes, re-export forms,
-			and one intentional doc mistake. See also the
-			<a href="{resolve('/docs/output-format')}#Examples">example docs</a>.
+			</a>, which covers Svelte components with snippet props, classes, enums, overloads, runes,
+			re-export forms, and one intentional doc mistake. See also the
+			<a href="{resolve('/docs/output-format')}#Examples">output format examples</a>.
 		</blockquote>
 	</section>
 	<footer class="mt_xl4">

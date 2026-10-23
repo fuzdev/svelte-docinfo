@@ -1,6 +1,6 @@
 # API Examples
 
-Six scripts showing different ways to use the API,
+Scripts showing different ways to use the API,
 from a single function call to full control over file discovery and diagnostics.
 
 | Script                        | When to use                                                                |
@@ -23,7 +23,7 @@ remaining peer, `typescript`, resolves through the linked package's own
 
 ```bash
 npm i
-npm run analyze          # run all six examples
+npm run analyze          # run all the examples
 npm run analyze:simple   # run just the simple example
 ```
 

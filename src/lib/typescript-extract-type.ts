@@ -15,6 +15,8 @@
  * @see `typescript-extract-shared.ts` for shared helpers
  * @see `typescript-extract-type-properties.ts` for type-alias property walking
  *
+ * @internal
+ *
  * @module
  */
 
