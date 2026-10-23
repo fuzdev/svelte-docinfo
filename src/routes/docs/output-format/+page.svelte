@@ -502,7 +502,14 @@ if (declaration.typeInfo) typeJsonToTokens(declaration.typeInfo);
 
 		<TomeSection>
 			<TomeSectionHeader text="Re-exports" />
-			<p>Re-exports are encoded by shape:</p>
+			<p>
+				Re-exports are encoded by shape. An imported binding exported again
+				(<code>{`import {foo as bar} from './x'; export {bar}`}</code>, a default or namespace
+				import, <code>export default X</code> over an import) is encoded like the
+				<code>export ... from</code> statement it stands for
+				(<code>{`export {foo as bar} from './x'`}</code>), with <code>sourceLine</code> at the
+				export, except that an imported package binding records nothing:
+			</p>
 			<ul>
 				<li>
 					<strong>Same-name</strong>: the canonical declaration's <code>alsoExportedFrom</code>

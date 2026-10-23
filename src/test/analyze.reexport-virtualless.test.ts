@@ -13,7 +13,8 @@
  * unrelated valid component; the default documents as a `partial` component
  * (export-from, `export {default}`, and import-then-export alike); a
  * namespace documents as a `partial` namespace; the default slot keeps the
- * valid path's naming (`default` except for `export {default} from`); a
+ * valid path's naming (the component's name for `export {default} from` and
+ * an import exported into the default slot); a
  * chain through other modules takes the valid chain's shape (an edge to an
  * emitting same-name hop, else a synthesized alias); a star over the failed
  * component's placeholder is a `starExports` entry that
@@ -157,13 +158,13 @@ describe('re-exports of a component that failed to transform', () => {
 		assertNoEdges(index);
 	});
 
-	test('`export default X` over an import documents as a partial `default`', async () => {
+	test('`export default X` over an import documents under the component name', async () => {
 		const { index } = await analyzeBothWays(
 			`import Bad from './Bad.svelte';\n/** The bad one. */\nexport default Bad;`
 		);
 		assert.deepStrictEqual(summarize(index), [
 			{
-				name: 'default',
+				name: 'Bad',
 				kind: 'component',
 				partial: true,
 				aliasOf: { module: 'Bad.svelte', name: 'Bad' }
@@ -173,13 +174,13 @@ describe('re-exports of a component that failed to transform', () => {
 		assertNoEdges(index);
 	});
 
-	test('renaming into the default slot keeps the name `default`', async () => {
+	test('renaming an import into the default slot documents under the component name', async () => {
 		const { index } = await analyzeBothWays(
 			`import Bad from './Bad.svelte';\nexport { Bad as default };`
 		);
 		assert.deepStrictEqual(summarize(index), [
 			{
-				name: 'default',
+				name: 'Bad',
 				kind: 'component',
 				partial: true,
 				aliasOf: { module: 'Bad.svelte', name: 'Bad' }
@@ -230,6 +231,43 @@ describe('re-exports of a component that failed to transform', () => {
 		]);
 		// the edge resolves to `c.ts`'s partial component
 		assert.deepStrictEqual(c.declarations[0]!.alsoExportedFrom, ['index.ts']);
+	});
+
+	test('a default-slot chain links to the module that declares the component', async () => {
+		for (const c of [
+			`export { default } from './Bad.svelte';`,
+			`import X from './Bad.svelte';\nexport default X;`
+		]) {
+			const { index, result } = await analyzeBothWays(`export { default } from './c.ts';`, {
+				'src/lib/c.ts': c
+			});
+			const cModule = result.modules.find((m) => m.path === 'c.ts');
+			assert.ok(cModule);
+			assert.deepStrictEqual(
+				cModule.declarations.map((d) => [d.name, d.kind, d.partial]),
+				[['Bad', 'component', true]]
+			);
+			assert.deepStrictEqual(summarize(index), []);
+			assert.deepStrictEqual(
+				index.reExports.map((e) => [e.name, e.module]),
+				[['Bad', 'c.ts']]
+			);
+		}
+	});
+
+	test('an import renamed back to its exported name links like the export-from form', async () => {
+		const extra = { 'src/lib/c.ts': `export { default as X } from './Bad.svelte';` };
+		const imported = await analyzeBothWays(
+			`import { X as Y } from './c.ts';\nexport { Y as X };`,
+			extra
+		);
+		const exportFrom = await analyzeBothWays(`\nexport { X } from './c.ts';`, extra);
+		assert.deepStrictEqual(imported.result, exportFrom.result);
+		assert.deepStrictEqual(summarize(imported.index), []);
+		assert.deepStrictEqual(
+			imported.index.reExports.map((e) => [e.name, e.module]),
+			[['X', 'c.ts']]
+		);
 	});
 
 	test("a chain through a valid component's `<script module>` reaches the failed one", async () => {

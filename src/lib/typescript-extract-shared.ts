@@ -205,7 +205,8 @@ export const isDeclaredInFile = (symbol: ts.Symbol, fileName: string): boolean =
  * The local export statement and binding node for an alias export symbol —
  * `{node, statement}` where `node` is the `ExportSpecifier` (or, for
  * `export * as ns`, the `NamespaceExport`) and `statement` its
- * `ExportDeclaration`.
+ * `ExportDeclaration`, or both are the `ExportAssignment` of an
+ * `export default x`.
  *
  * Returns `undefined` when the statement isn't in `sourceFile`: merged
  * symbols can put a foreign declaration first, and parsing JSDoc or
@@ -219,9 +220,14 @@ export const getLocalExportStatement = (
 	sourceFile: ts.SourceFile
 ):
 	| { node: ts.ExportSpecifier | ts.NamespaceExport; statement: ts.ExportDeclaration }
+	| { node: ts.ExportAssignment; statement: ts.ExportAssignment }
 	| undefined => {
 	const node = exportSymbol.declarations?.[0];
 	if (!node) return undefined;
+	if (ts.isExportAssignment(node)) {
+		if (node.getSourceFile() !== sourceFile) return undefined;
+		return { node, statement: node };
+	}
 	if (ts.isExportSpecifier(node)) {
 		const statement = node.parent.parent;
 		if (statement.getSourceFile() !== sourceFile) return undefined;

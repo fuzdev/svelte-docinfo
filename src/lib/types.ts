@@ -739,7 +739,8 @@ export type MemberKind = v.InferOutput<typeof MemberKind>;
 const declarationSharedFields = {
 	/**
 	 * The exported name. Always populated. The default-export slot is named
-	 * `'default'` — that's the symbol's actual name in JS
+	 * `'default'`, except a Svelte component, which takes its filename-derived
+	 * name (`'X'` for `X.svelte`) — `'default'` is the symbol's actual name in JS
 	 * (`import {default as X}` and `ns.default` both expose it directly), and
 	 * `import X from 'mod'` is sugar for `import {default as X}`. Consumers
 	 * branch on `name === 'default'` to render the sugar form when desired.
@@ -1374,9 +1375,11 @@ export interface ReExportJsonSchema extends Named<typeof ReExportJsonImpl> {}
  * A same-name re-export edge, from the re-exporting module's side.
  *
  * Each entry on `ModuleJson.reExports` records that the module's source
- * contains `export {name} from ...` where the canonical declaration lives in
- * `module`. This is the forward view of the same fact that
- * `alsoExportedFrom` records on the canonical declaration — consumers
+ * contains `export {name} from ...`, or the import-then-export form it stands
+ * for (`import {name} from ...; export {name}`, `export default X` over a
+ * default import), where the canonical declaration lives in `module`. This
+ * is the forward view of the same fact that `alsoExportedFrom` records on the
+ * canonical declaration — consumers
  * resolve the canonical by `(module, name)`, the same lookup contract as
  * `aliasOf`.
  *
@@ -1393,7 +1396,8 @@ export interface ReExportJsonSchema extends Named<typeof ReExportJsonImpl> {}
  *
  * `module` points at the *canonical* module (multi-hop chains are resolved),
  * not the immediate specifier in the export statement. For Svelte default-slot
- * re-exports (`export {default} from './X.svelte'`), `name` is the component
+ * re-exports (`export {default} from './X.svelte'`, or `import X from
+ * './X.svelte'; export default X`), `name` is the component
  * name derived from the filename (`'X'`), matching the canonical declaration's
  * name — the same exception documented on `aliasOf`. Because of that
  * re-keying, two entries in one module can share a `name` (a re-keyed

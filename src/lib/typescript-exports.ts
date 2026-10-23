@@ -107,30 +107,69 @@ export const analyzeTypescriptModule = (
 	};
 };
 
+/** Whether `symbol` is a local import binding: a default, named, or namespace import. */
+const isImportBinding = (symbol: ts.Symbol): boolean => {
+	const decl = symbol.declarations?.[0];
+	return (
+		!!decl && (ts.isImportClause(decl) || ts.isImportSpecifier(decl) || ts.isNamespaceImport(decl))
+	);
+};
+
 /**
- * Walk the immediate-alias chain while names match, returning the deepest
- * symbol whose name still equals `exportSymbol.name`. Used by both the
- * namespace classifier and the standard alias path in `analyzeExports` to
- * locate the canonical-for-this-name (which may be an upstream alias
- * declaration, not the deeply-resolved root — relevant when a chain renames
- * partway through).
+ * The next export hop behind `symbol`: its immediate alias, stepping through
+ * import bindings to the binding the imported module exports (for a
+ * namespace import, the module symbol itself). `undefined` for a non-alias.
+ *
+ * An import binding is a local name, not a re-export — `import {foo as bar}
+ * from './x'; export {bar}` takes `foo` from `x` as `export {foo as bar}
+ * from './x'` does — so rename detection and the same-name walk compare
+ * against the name past it, and each import-then-export form documents like
+ * its export-from twin.
+ */
+const nextExportHop = (symbol: ts.Symbol, checker: ts.TypeChecker): ts.Symbol | undefined => {
+	let hop: ts.Symbol = symbol;
+	// bounded: an alias cycle is a type error, but must not hang the walk
+	for (let i = 0; i < 64; i++) {
+		if ((hop.flags & ts.SymbolFlags.Alias) === 0) return undefined;
+		const next = checker.getImmediateAliasedSymbol(hop);
+		if (!next || !isImportBinding(next)) return next;
+		hop = next;
+	}
+	return undefined;
+};
+
+/**
+ * Whether an export hop is a module itself rather than an export of one —
+ * what `nextExportHop` reaches past a namespace import.
+ */
+const isModuleHop = (hop: ts.Symbol): boolean =>
+	(hop.flags & ts.SymbolFlags.Alias) === 0 && (hop.flags & ts.SymbolFlags.ValueModule) !== 0;
+
+/**
+ * Walk the export-hop chain (`nextExportHop`, so import bindings are stepped
+ * through) while names match, returning the deepest symbol whose name still
+ * equals `exportSymbol.name`. Used by both the namespace classifier and the
+ * standard alias path in `analyzeExports` to locate the canonical-for-this-name
+ * (which may be an upstream alias declaration, not the deeply-resolved root —
+ * relevant when a chain renames partway through).
  *
  * `getImmediateAliasedSymbol` asserts on non-alias symbols, so the walk also
- * stops when the chain reaches a real declaration.
+ * stops when the chain reaches a real declaration. It also stops at the hop
+ * declared by `stopAt`, past which the chain can't be read (a `.svelte` file
+ * with no virtual, where the checker may resolve the `svelte` package's
+ * ambient module, depending on unrelated files).
  */
 const walkSameNameCanonical = (
 	exportSymbol: ts.Symbol,
-	immediateAlias: ts.Symbol | undefined,
-	checker: ts.TypeChecker
+	checker: ts.TypeChecker,
+	stopAt?: ts.Node
 ): ts.Symbol => {
 	let canonical: ts.Symbol = exportSymbol;
-	let next: ts.Symbol | undefined = immediateAlias;
+	let next = nextExportHop(exportSymbol, checker);
 	while (next && next.name === exportSymbol.name) {
 		canonical = next;
-		next =
-			(next.flags & ts.SymbolFlags.Alias) !== 0
-				? checker.getImmediateAliasedSymbol(next)
-				: undefined;
+		if (stopAt && next.declarations?.[0] === stopAt) break;
+		next = nextExportHop(next, checker);
 	}
 	return canonical;
 };
@@ -140,7 +179,8 @@ const walkSameNameCanonical = (
  * forwarding re-exports of such bindings.
  *
  * Three shapes:
- * - **origination** — this file declares the namespace via `export * as ns from './x'`.
+ * - **origination** — this file declares the namespace via `export * as ns from './x'`,
+ *   or exports a namespace import (`import * as ns from './x'; export {ns}`).
  * - **same-name** — this file forwards an existing namespace by the same name
  *   (`export {ns} from './has-namespace'`, or N-hop chains of such specifiers
  *   where names match). Linked via `alsoExportedFrom`.
@@ -233,29 +273,48 @@ const classifyNamespaceReExport = (
 		return { kind: 'origination', sourceModule: extractPath(sourceModuleFile, options) };
 	}
 
-	// Re-export specifier (`export {ns ...} from`). Use immediate-alias name
-	// comparison for rename detection — this matches the existing non-namespace
-	// rename semantics and stays correct for chains.
-	const immediateAlias = checker.getImmediateAliasedSymbol(exportSymbol);
+	// Re-export specifier (`export {ns ...} from`, or `export {ns}` over an
+	// import). Use next-hop name comparison for rename detection — this
+	// matches the non-namespace rename semantics and stays correct for chains.
+	const immediateAlias = nextExportHop(exportSymbol, checker);
 	if (!immediateAlias) return null;
 
+	// A namespace import exported from this file (`import * as ns from './x';
+	// export {ns}`, under any name) originates the namespace here, as
+	// `export * as ns from './x'` does: the hop past the import is the module
+	// itself, not an export of it. Declared in another file, it's a binding
+	// materialized from a star, classified like a foreign `NamespaceExport`
+	// above.
+	if (isModuleHop(immediateAlias)) {
+		const definingFile = exportDecl && stripVirtualSuffix(exportDecl.getSourceFile().fileName);
+		if (definingFile && definingFile !== currentFileName) {
+			if (!starProjected || isExternalPath(definingFile)) return null;
+			return {
+				kind: 'same-name',
+				canonicalModule: extractPath(definingFile, options),
+				sourceModule: extractPath(sourceModuleFile, options),
+				canonicalGated: !isEmittedFile(definingFile)
+			};
+		}
+		return { kind: 'origination', sourceModule: extractPath(sourceModuleFile, options) };
+	}
+
 	if (exportSymbol.name !== immediateAlias.name) {
-		// Renamed: walk forward until we hit the canonical NamespaceExport.
+		// Renamed: walk forward until we hit the canonical — a NamespaceExport,
+		// or the export of a namespace import (the hop past it is the module).
 		// That's the namespace-defining file (where the binding originates).
 		let cursor: ts.Symbol | undefined = immediateAlias;
 		let namespaceDefiningFile: string | undefined;
 		let canonicalName: string | undefined;
 		while (cursor) {
 			const decl = cursor.declarations?.[0];
-			if (decl && ts.isNamespaceExport(decl)) {
+			const next = nextExportHop(cursor, checker);
+			if (decl && (ts.isNamespaceExport(decl) || (next && isModuleHop(next)))) {
 				namespaceDefiningFile = stripVirtualSuffix(decl.getSourceFile().fileName);
 				canonicalName = cursor.name;
 				break;
 			}
-			cursor =
-				(cursor.flags & ts.SymbolFlags.Alias) !== 0
-					? checker.getImmediateAliasedSymbol(cursor)
-					: undefined;
+			cursor = next;
 		}
 		if (!namespaceDefiningFile || !canonicalName) return null;
 		if (isExternalPath(namespaceDefiningFile)) return null;
@@ -269,7 +328,7 @@ const classifyNamespaceReExport = (
 
 	// Same-name: the canonical-for-this-name may be an upstream renamed alias
 	// declaration, not the original NamespaceExport.
-	const canonical = walkSameNameCanonical(exportSymbol, immediateAlias, checker);
+	const canonical = walkSameNameCanonical(exportSymbol, checker);
 	const canonicalDecl = canonical.declarations?.[0];
 	if (!canonicalDecl) return null;
 	const canonicalFile = stripVirtualSuffix(canonicalDecl.getSourceFile().fileName);
@@ -308,13 +367,15 @@ const getPrimaryDeclarationFile = (symbol: ts.Symbol): string | undefined => {
 /**
  * Whether a local export statement/specifier pair is type-only — either
  * statement-level (`export type {…} from`) or specifier-level
- * (`export {type A} from`). Type-only names are erased at runtime.
+ * (`export {type A} from`). Type-only names are erased at runtime. An
+ * `export default x` never is.
  */
 const isTypeOnlyLocalExport = (local: {
-	node: ts.ExportSpecifier | ts.NamespaceExport;
-	statement: ts.ExportDeclaration;
+	node: ExportNode;
+	statement: ts.ExportDeclaration | ts.ExportAssignment;
 }): boolean =>
-	local.statement.isTypeOnly || (ts.isExportSpecifier(local.node) && local.node.isTypeOnly);
+	ts.isExportDeclaration(local.statement) &&
+	(local.statement.isTypeOnly || (ts.isExportSpecifier(local.node) && local.node.isTypeOnly));
 
 /**
  * Public name for a cross-file re-export: `default` re-keys to the
@@ -436,6 +497,11 @@ const virtuallessSvelteReExport = (
 		if (ts.isExportSpecifier(decl) || ts.isNamespaceExport(decl) || ts.isExportAssignment(decl)) {
 			const slot = hop.name === 'default' && !!specifier && importedName === 'default';
 			declaring = { file: hopFile, node: decl, name: hop.name, slot };
+		} else if (declaring?.file === hopFile && declaring.name === 'default') {
+			// an import binding exported into the default slot (`import X from
+			// './X.svelte'; export default X`) is `export {default} from` (see
+			// `nextExportHop`)
+			declaring.slot = importedName === 'default';
 		}
 		const file = relativeSvelteSpecifierFile(specifier, hopFile);
 		const status = file === undefined ? undefined : ctx.svelteFileStatus(file);
@@ -638,6 +704,8 @@ const collectMaterializedStars = (
  * Handles re-exports by:
  * - Same-name re-exports: tracked in `reExports` for `alsoExportedFrom` building
  * - Renamed re-exports: included as new declarations with `aliasOf` metadata
+ * - Import-then-export (`import {foo as bar} from './x'; export {bar}`): encoded as its
+ *   export-from twin, since rename detection steps through import bindings (`nextExportHop`)
  * - Star exports (`export * from`): tracked in `starExports` for namespace-level info
  * - Direct external re-exports: tracked in `externalReExports`/`externalStarExports`
  *   (specifier as written; import-then-export and source-chained forms stay silent)
@@ -764,12 +832,14 @@ export const analyzeExports = (
 						const module = extractPath(file, options);
 						const direct = declaring.file === currentFileName;
 						// Through another module, a same-name re-export links to the
-						// module that declares the name when it emits, like any chain
-						const immediate = checker.getImmediateAliasedSymbol(exportSymbol);
+						// module that declares the name when it emits, like any chain;
+						// the walk ends at the declaring hop, since what the checker
+						// resolves past it turns on unrelated files
+						const immediate = nextExportHop(exportSymbol, checker);
 						let name = direct ? declaring.declaredName : exportSymbol.name;
 						let link: string | undefined;
 						if (!direct && immediate?.name === exportSymbol.name) {
-							const canonicalDecl = walkSameNameCanonical(exportSymbol, immediate, checker)
+							const canonicalDecl = walkSameNameCanonical(exportSymbol, checker, declaring.node)
 								.declarations?.[0];
 							const canonicalFile =
 								canonicalDecl && stripVirtualSuffix(canonicalDecl.getSourceFile().fileName);
@@ -967,13 +1037,12 @@ export const analyzeExports = (
 						// analyzed inputs) takes the synthesizing arm below
 						if (ctx.isEmittedFile(originalFileName)) {
 							const originalModule = extractPath(originalFileName, options);
-							// Use the IMMEDIATE alias (one hop) for rename detection so a
-							// same-name re-export of an intermediate alias is not mistaken
-							// for a rename relative to the deeply-resolved canonical (whose
-							// name may differ from this hop's name).
-							const immediateAlias = isAlias
-								? checker.getImmediateAliasedSymbol(exportSymbol)
-								: undefined;
+							// Use the NEXT HOP (one export hop, through any import binding
+							// — see `nextExportHop`) for rename detection so a same-name
+							// re-export of an intermediate alias is not mistaken for a
+							// rename relative to the deeply-resolved canonical (whose name
+							// may differ from this hop's name).
+							const immediateAlias = isAlias ? nextExportHop(exportSymbol, checker) : undefined;
 							const immediateName = immediateAlias?.name ?? aliasedSymbol.name;
 							const isRenamed = exportSymbol.name !== immediateName;
 
@@ -988,7 +1057,7 @@ export const analyzeExports = (
 								// alias points at that alias's module, not the deeply-resolved
 								// canonical (whose declaration uses the pre-rename name and
 								// wouldn't match in `mergeReExports`).
-								const canonical = walkSameNameCanonical(exportSymbol, immediateAlias, checker);
+								const canonical = walkSameNameCanonical(exportSymbol, checker);
 								const canonicalSource = getPrimaryDeclarationSourceFile(canonical);
 								const canonicalFile = canonicalSource
 									? stripVirtualSuffix(canonicalSource.fileName)
@@ -1081,7 +1150,8 @@ export const analyzeExports = (
 						const immediateExternalFile =
 							immediateExternal && getPrimaryDeclarationFile(immediateExternal);
 						if (!immediateExternalFile || !isExternalPath(immediateExternalFile)) continue;
-						if (!local?.statement.moduleSpecifier) continue;
+						if (!local || !ts.isExportDeclaration(local.statement)) continue;
+						if (!local.statement.moduleSpecifier) continue;
 						if (!ts.isStringLiteral(local.statement.moduleSpecifier)) continue;
 						if (localTsdoc?.nodocs) continue;
 						const originalName = ts.isExportSpecifier(local.node)

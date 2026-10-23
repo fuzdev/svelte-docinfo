@@ -474,6 +474,10 @@ The opt-in `findDuplicates` flags duplicate names by canonical identity after re
 `aliasOf` chains; `@nodocs` exempts. Encodings (mechanics in `typescript-exports.ts` and
 `postprocess.ts`):
 
+- **Import-then-export** (`import {foo as bar} from './x'; export {bar}`, default and
+  namespace imports, `export default X`) → encoded as its export-from twin: rename
+  detection and the same-name walk step through import bindings (`nextExportHop`).
+  `sourceLine` is the export's line. A package import exported again records nothing.
 - **Same-name** → `alsoExportedFrom` on the canonical, plus `ModuleJson.reExports`
   (`{name, module, typeOnly, sourceLine}`) on the re-exporter. If the statement has its own
   JSDoc, an alias is *also* synthesized locally, so the local content has a home.
@@ -508,7 +512,7 @@ The opt-in `findDuplicates` flags duplicate names by canonical identity after re
 Statement-level `@nodocs` suppresses every encoding. `resolveExportSurface` combines them
 into a module's full export surface with ES star semantics and reports unresolvable stars
 instead of guessing. Lock-in tests:
-`src/test/analyze.reexport-{edges,namespace,forward,gated,star}.test.ts` and
+`src/test/analyze.reexport-{edges,namespace,forward,gated,star,import}.test.ts` and
 `postprocess.surface.test.ts`.
 
 ### Not Supported
