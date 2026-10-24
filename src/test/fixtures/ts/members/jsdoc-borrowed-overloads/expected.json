@@ -143,46 +143,6 @@
 			"severity": "warning",
 			"tagName": "example",
 			"functionName": "fn1"
-		},
-		{
-			"kind": "misplaced_tag",
-			"file": "src/lib/input.js",
-			"line": 3,
-			"column": 4,
-			"message": "@example on non-primary overload of \"a\" — place it on the primary signature's JSDoc instead (symbol-scope tags describe the function as a whole)",
-			"severity": "warning",
-			"tagName": "example",
-			"functionName": "a"
-		},
-		{
-			"kind": "misplaced_tag",
-			"file": "src/lib/input.js",
-			"line": 11,
-			"column": 4,
-			"message": "@example on non-primary overload of \"a\" — place it on the primary signature's JSDoc instead (symbol-scope tags describe the function as a whole)",
-			"severity": "warning",
-			"tagName": "example",
-			"functionName": "a"
-		},
-		{
-			"kind": "misplaced_tag",
-			"file": "src/lib/input.js",
-			"line": 3,
-			"column": 4,
-			"message": "@example on non-primary overload of \"a\" — place it on the primary signature's JSDoc instead (symbol-scope tags describe the function as a whole)",
-			"severity": "warning",
-			"tagName": "example",
-			"functionName": "a"
-		},
-		{
-			"kind": "misplaced_tag",
-			"file": "src/lib/input.js",
-			"line": 11,
-			"column": 4,
-			"message": "@example on non-primary overload of \"a\" — place it on the primary signature's JSDoc instead (symbol-scope tags describe the function as a whole)",
-			"severity": "warning",
-			"tagName": "example",
-			"functionName": "a"
 		}
 	]
 }

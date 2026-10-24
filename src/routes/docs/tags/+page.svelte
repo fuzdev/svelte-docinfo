@@ -199,9 +199,9 @@ export function double(n: number | bigint): number | bigint {
 				first overload documents the function, as the first signature does in TS. The
 				implementation's own block is hidden with its signature, as TypeScript reads it, so put the
 				function's prose and symbol-scope tags on the first <code>@overload</code> block, not on the
-				implementation's. Write <code>@template</code> before <code>@overload</code>: TypeScript
-				rejects one between <code>@overload</code> and its <code>@param</code>/<code>@returns</code>
-				tags.
+				implementation's; a documented implementation warns <code>implementation_doc_hidden</code>,
+				in TS too. Write <code>@template</code> before <code>@overload</code>: TypeScript rejects
+				one between <code>@overload</code> and its <code>@param</code>/<code>@returns</code> tags.
 			</p>
 			<Code
 				lang="js"
@@ -386,10 +386,14 @@ A card.
 				<code>docComment</code>: the in-script JSDoc at or above <code>$props()</code>, else the
 				HTML <code>@component</code> comment. The losing source's tags are ignored, as its other
 				tags are, and <code>duplicate_comment</code> flags the pair when the JSDoc carries prose, so
-				put the <code>@cssprop</code> tags in the comment that carries the component's prose; a
-				tags-only JSDoc block still wins, silently. Since the heuristic also lists global design
+				put the <code>@cssprop</code> tags in the comment that carries the component's prose. A
+				JSDoc block above <code>$props()</code> holding only tags still wins over the HTML comment,
+				with no warning, so its tags are the ones read. Since the heuristic also lists global design
 				tokens read with a fallback, a consumer can show only the <code>documented</code> entries of
-				a component that has any.
+				a component that has any (see
+				<TomeLink slug="output-format" hash="ComponentCssPropertyJson">
+					ComponentCssPropertyJson
+				</TomeLink>).
 			</p>
 		</TomeSection>
 

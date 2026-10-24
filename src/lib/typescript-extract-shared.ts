@@ -39,8 +39,10 @@ import {
 	applyToDeclaration,
 	firstJSDocOverloadSignature,
 	jsdocOverloadSignatures,
+	hasDocContent,
 	jsdocParamTagDefault,
 	parseComment,
+	parseHiddenJSDocImplementationComment,
 	type TsdocParsedComment
 } from './tsdoc.ts';
 import {
@@ -787,18 +789,19 @@ export const signatureTypeParameters = (
  * proseless), for a TS overload the declaration itself, so another overload
  * repeating its prose is still non-primary, and the checker's signature order
  * doesn't matter (an interface merged ahead of a class lists its signatures
- * first, though the class's member is the one documented). Borrowed
- * signatures (`m: typeof g`, `@property {typeof g} m`, a property typed by an
- * interface with call signatures) have no primary: the parent's docs are its
- * own, never the lender's, so every overload's symbol-scope tags would be
- * lost. Tags on non-primary overloads are still dropped, but not silently:
- * this function emits `misplaced_tag` for each (tag set and rationale on
- * `MisplacedTagDiagnostic`).
+ * first, though the class's member is the one documented). Tags on
+ * non-primary overloads are dropped, but not silently: this function emits
+ * `misplaced_tag` for each (tag set and rationale on
+ * `MisplacedTagDiagnostic`). Borrowed signatures (`m: typeof g`,
+ * `@property {typeof g} m`, a property typed by an interface with call
+ * signatures) have no primary, since the parent's docs are its own, never the
+ * lender's, and they warn nothing: the tags sit where the lender's author put
+ * them, and the lender's own analysis is where they're checked.
  *
  * @param signatures - all call signatures from the type checker
  * @param ctx - the extraction pass's context
  * @param parentName - parent function/method name (for diagnostic messages)
- * @param primaryDecl - the declaration of the overload the parent's docs come from, or undefined when the signatures are borrowed (`ownsSignatureDeclarations`)
+ * @param primaryDecl - the declaration of the overload the parent's docs come from, or undefined when the signatures are borrowed (`ownsSignatureDeclarations`), which skips the `misplaced_tag` check
  * @returns array of overload info objects
  */
 const extractOverloads = (
@@ -837,12 +840,11 @@ const extractOverloads = (
 		// symbol-scope tags would silently lose them; surface as warnings instead
 		// (`getDeclaration()`'s type omits the `JSDocSignature` an `@overload` declares)
 		const sigDecl = sig.declaration;
-		const isPrimary = primaryDecl
-			? sigDecl && ts.isJSDocSignature(sigDecl) && ts.isJSDocSignature(primaryDecl)
+		const isPrimary =
+			sigDecl && primaryDecl && ts.isJSDocSignature(sigDecl) && ts.isJSDocSignature(primaryDecl)
 				? sigDecl.parent.parent === primaryDecl.parent.parent
-				: sigDecl === primaryDecl
-			: false;
-		if (!isPrimary && tsdoc) {
+				: sigDecl === primaryDecl;
+		if (primaryDecl && !isPrimary && tsdoc) {
 			const misplaced = collectSymbolScopeTags(tsdoc);
 			if (misplaced.length > 0) {
 				const loc = getNodeLocation(decl);
@@ -911,16 +913,66 @@ export const populateCallableMember = (
 	target.parameters = extractSignatureParameters(sig, ctx, tsdoc?.params);
 	validateParamKeys(tsdoc?.params, target.parameters, paramValidationNode, name, ctx.diagnostics);
 
+	const owns = ownsSignatureDeclarations(paramValidationNode, sig, ctx.checker);
 	if (signatures.length > 1) {
 		// the parent's docs are `paramValidationNode`'s, or its first
 		// `@overload`'s when it has them
-		const owns = ownsSignatureDeclarations(paramValidationNode, signatures[0]!, ctx.checker);
 		const primaryDecl = owns
 			? (firstJSDocOverloadSignature(paramValidationNode) ?? paramValidationNode)
 			: undefined;
 		target.overloads = extractOverloads(signatures, ctx, name, primaryDecl);
 	}
+	if (owns) warnHiddenImplementationDoc(paramValidationNode, ctx, name);
 };
+
+/**
+ * Warn `implementation_doc_hidden` when an overloaded function, method, or
+ * constructor's implementation carries docs, which the output hides as the
+ * checker does (only the overloads are public signatures): a JS
+ * implementation's non-`@overload` JSDoc blocks
+ * (`parseHiddenJSDocImplementationComment`), or the JSDoc of a TS
+ * implementation, the bodied declaration among same-kind siblings that
+ * include a bodiless overload. Without the warning its prose and tags
+ * (`@nodocs` included) would vanish silently.
+ *
+ * @param node - the declaration whose docs document the symbol (`paramValidationNode`)
+ * @mutates ctx.diagnostics - adds one `implementation_doc_hidden` per implementation with docs
+ */
+const warnHiddenImplementationDoc = (node: ts.Node, ctx: ExtractContext, name: string): void => {
+	let implementation: ts.Node | undefined;
+	if (parseHiddenJSDocImplementationComment(node)) {
+		implementation = node;
+	} else if (ts.isFunctionLike(node) && !hasBody(node)) {
+		const declName = ts.getNameOfDeclaration(node);
+		// a nameless declaration (a constructor, an `export default function`
+		// overload) pairs with its nameless siblings, as in `ownsSignatureDeclarations`
+		const siblings: ReadonlyArray<ts.Node> = declName
+			? (ctx.checker.getSymbolAtLocation(declName)?.declarations ?? [])
+			: ts.isClassLike(node.parent)
+				? node.parent.members
+				: ts.isSourceFile(node.parent) || ts.isModuleBlock(node.parent)
+					? node.parent.statements.filter((d) => ts.isFunctionDeclaration(d) && !d.name)
+					: [];
+		implementation = siblings.find(
+			(d) => d.kind === node.kind && d.parent === node.parent && hasBody(d)
+		);
+		const tsdoc = implementation && parseComment(implementation);
+		if (!tsdoc || !hasDocContent(tsdoc)) implementation = undefined;
+	}
+	if (!implementation) return;
+	const loc = getNodeLocation(implementation);
+	ctx.diagnostics.push({
+		kind: 'implementation_doc_hidden',
+		file: loc.file,
+		line: loc.line,
+		column: loc.column,
+		message: `JSDoc on the implementation of overloaded "${name}" is hidden — move it to the first overload's JSDoc (only overload signatures are public)`,
+		severity: 'warning',
+		functionName: name
+	});
+};
+
+const hasBody = (node: ts.Node): boolean => 'body' in node && !!node.body;
 
 /**
  * Whether a signature is declared by `node` itself, so `node`'s JSDoc is that
@@ -1122,9 +1174,7 @@ export const isPrivateMemberDeclaration = (decl: ts.Declaration): boolean => {
  * In JavaScript the checker's `valueDeclaration` decides, as the checker
  * enforces the modifier from that declaration only: a property several
  * `this.x = …` assignments declare is hidden by a `@private` on the first in
- * source order, as `collectThisAssignedMembers` reads it on the class, except
- * for a redeclared inherited name the checker reads as the base's, where this
- * sees the base's declaration and the class the redeclaring one. A synthetic
+ * source order, as `collectThisAssignedMembers` reads it on the class. A synthetic
  * property has no `valueDeclaration` (a mapped type's, as in `Readonly<A>` or
  * `Pick<A, 'x'>`, or an intersection's that several constituents declare), so
  * the source property's `valueDeclaration`, reached through its first

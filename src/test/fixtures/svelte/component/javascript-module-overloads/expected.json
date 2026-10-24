@@ -72,6 +72,15 @@
 			"severity": "warning",
 			"tagName": "since",
 			"functionName": "fn"
+		},
+		{
+			"kind": "implementation_doc_hidden",
+			"file": "src/lib/ComponentJavascriptModuleOverloads.svelte",
+			"line": 23,
+			"column": 2,
+			"message": "JSDoc on the implementation of overloaded \"fn\" is hidden — move it to the first overload's JSDoc (only overload signatures are public)",
+			"severity": "warning",
+			"functionName": "fn"
 		}
 	]
 }

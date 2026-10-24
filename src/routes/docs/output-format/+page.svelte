@@ -328,8 +328,24 @@
 				read. Reads in nested rules, <code>:global(…)</code>, <code>@media</code> and other at-rule
 				blocks, and keyframes count. A <code>&lt;style lang="scss"&gt;</code> (any language but CSS)
 				isn't read and warns <code>css_lang_unsupported</code>; a style Svelte's parser rejects
-				warns <code>css_parse_failed</code>. See <TomeLink slug="diagnostics" />.
+				warns <code>css_parse_failed</code>. See <TomeLink slug="diagnostics" />. A
+				<code>var()</code> only script sets (<code>style.setProperty</code>), one inside a dynamic
+				<code>style</code> expression, and one in a <code>&lt;svelte:head&gt;</code> style aren't
+				reads.
 			</p>
+			<p>
+				The heuristic takes a fallback as the sign of a hook, so a global design token read with
+				one, like <code>var(--border_width, 1px)</code>, is listed too. As a component author, drop
+				the fallback when the token always exists, or document the property with
+				<code>@cssprop</code> when consumers really should set it. There's deliberately no option to
+				filter names during analysis: the output keeps every read, and a consumer that wants a
+				narrower list filters it, for example to the documented entries when a component has any:
+			</p>
+			<Code
+				lang="ts"
+				content={`const documented = declaration.cssCustomProperties.filter((p) => p.documented);
+const shown = documented.length > 0 ? documented : declaration.cssCustomProperties;`}
+			/>
 		</TomeSection>
 
 		<TomeSection>

@@ -428,12 +428,6 @@
 			],
 			"members": [
 				{
-					"name": "b",
-					"kind": "variable",
-					"docComment": "Description 10",
-					"typeSignature": "number"
-				},
-				{
 					"name": "d",
 					"kind": "variable",
 					"typeSignature": "number"
@@ -472,22 +466,11 @@
 		{
 			"name": "J",
 			"kind": "class",
-			"sourceLine": 140,
+			"sourceLine": 138,
 			"extends": [
 				"H"
 			],
 			"members": [
-				{
-					"name": "a",
-					"kind": "variable",
-					"typeSignature": "number"
-				},
-				{
-					"name": "b",
-					"kind": "variable",
-					"docComment": "Description 12",
-					"typeSignature": "number"
-				},
 				{
 					"name": "constructor",
 					"kind": "constructor",
@@ -504,7 +487,7 @@
 		{
 			"name": "K",
 			"kind": "class",
-			"sourceLine": 157,
+			"sourceLine": 151,
 			"members": [
 				{
 					"name": "s",
@@ -553,33 +536,11 @@
 		{
 			"name": "L",
 			"kind": "class",
-			"sourceLine": 162,
+			"sourceLine": 156,
 			"extends": [
 				"K"
 			],
 			"members": [
-				{
-					"name": "t",
-					"kind": "variable",
-					"docComment": "Description 14",
-					"typeSignature": "number | undefined",
-					"modifiers": [
-						"static"
-					],
-					"typeInfo": {
-						"kind": "union",
-						"members": [
-							{
-								"kind": "intrinsic",
-								"text": "number"
-							},
-							{
-								"kind": "intrinsic",
-								"text": "undefined"
-							}
-						]
-					}
-				},
 				{
 					"name": "constructor",
 					"kind": "constructor",
@@ -599,7 +560,7 @@
 		{
 			"name": "M",
 			"kind": "class",
-			"sourceLine": 181,
+			"sourceLine": 172,
 			"members": [
 				{
 					"name": "fn1",
@@ -626,7 +587,7 @@
 		{
 			"name": "N",
 			"kind": "class",
-			"sourceLine": 195,
+			"sourceLine": 186,
 			"extends": [
 				"H"
 			],
@@ -638,15 +599,6 @@
 					"returnType": "void"
 				},
 				{
-					"name": "a",
-					"kind": "variable",
-					"docComment": "Description 18",
-					"typeSignature": "number",
-					"modifiers": [
-						"readonly"
-					]
-				},
-				{
 					"name": "constructor",
 					"kind": "constructor",
 					"typeSignature": "(): N"
@@ -656,7 +608,7 @@
 		{
 			"name": "O",
 			"kind": "class",
-			"sourceLine": 210,
+			"sourceLine": 197,
 			"members": [
 				{
 					"name": "a",
@@ -681,7 +633,7 @@
 			"name": "P",
 			"kind": "type",
 			"typeSignature": "O",
-			"sourceLine": 223,
+			"sourceLine": 210,
 			"members": [
 				{
 					"name": "a",
@@ -701,7 +653,7 @@
 			"name": "Ro",
 			"kind": "type",
 			"typeSignature": "Ro<T>",
-			"sourceLine": 225,
+			"sourceLine": 212,
 			"genericParams": [
 				{
 					"name": "T"
@@ -712,7 +664,7 @@
 			"name": "Pk",
 			"kind": "type",
 			"typeSignature": "Pk<T, K>",
-			"sourceLine": 227,
+			"sourceLine": 214,
 			"genericParams": [
 				{
 					"name": "T"
@@ -727,7 +679,7 @@
 			"name": "Q",
 			"kind": "type",
 			"typeSignature": "Ro<O>",
-			"sourceLine": 229,
+			"sourceLine": 216,
 			"typeInfo": {
 				"kind": "reference",
 				"name": "Ro",
@@ -763,7 +715,7 @@
 			"name": "R",
 			"kind": "type",
 			"typeSignature": "R",
-			"sourceLine": 231,
+			"sourceLine": 218,
 			"members": [
 				{
 					"name": "a",
@@ -776,7 +728,7 @@
 		{
 			"name": "S",
 			"kind": "class",
-			"sourceLine": 233,
+			"sourceLine": 220,
 			"members": [
 				{
 					"name": "a",
@@ -796,7 +748,7 @@
 			"name": "T",
 			"kind": "type",
 			"typeSignature": "Ro<S>",
-			"sourceLine": 242,
+			"sourceLine": 229,
 			"typeInfo": {
 				"kind": "reference",
 				"name": "Ro",
@@ -832,7 +784,7 @@
 			"name": "U",
 			"kind": "type",
 			"typeSignature": "U",
-			"sourceLine": 244,
+			"sourceLine": 231,
 			"members": [
 				{
 					"name": "a",
@@ -845,7 +797,7 @@
 		{
 			"name": "V",
 			"kind": "class",
-			"sourceLine": 246,
+			"sourceLine": 233,
 			"members": [
 				{
 					"name": "fn1",
@@ -875,7 +827,7 @@
 		{
 			"name": "W",
 			"kind": "class",
-			"sourceLine": 262,
+			"sourceLine": 249,
 			"members": [
 				{
 					"name": "fn1",

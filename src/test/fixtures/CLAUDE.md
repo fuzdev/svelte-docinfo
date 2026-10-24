@@ -336,14 +336,11 @@ Where each behavior is locked. Unit and behavior-level mechanics live in
   constructor's assignment documenting over an earlier method's, a constructor assignment
   with only `@type` taking a method's docs and a later documented one's over them, a
   method above the constructor supplying `@protected` or `@readonly` (the checker's
-  declaration), for an inherited name the checker reads as the class's own too, a later
+  declaration), a later
   method's `@private` hiding nothing on the class or its alias (only the checker's
   declaration's does),
-  inherited names assigned in a subclass's constructor dropped unless a JSDoc block
-  redeclares them (`@type` alone, or prose with `@type`), a method's block never
-  redeclaring, even beside an undocumented constructor assignment, inherited statics in a
-  static block dropped unless documented and a static method's block not redeclaring nor
-  lending its `@readonly`,
+  inherited names assigned in a subclass's constructor, method, static method, or static
+  block dropped, whatever JSDoc they carry (`@type`, prose, `@readonly`),
   expandos outside the class absent (the alias over it lists `A.prototype.k`), and
   no-constructor order (`members/jsdoc-this-assignments`); a
   `@type {A}` assignment recovering a lost alias, including a method's `@type` above an
@@ -366,7 +363,8 @@ Where each behavior is locked. Unit and behavior-level mechanics live in
   and getter (`types/jsdoc-ignored-in-ts`)
 - JS `@overload`, each beside a `-ts` twin where TS has one: per-overload prose, `@param`, and
   `@returns`, the first overload documenting the symbol and the implementation's block hidden
-  (its `@nodocs` too), symbol-scope tags on a later overload warning `misplaced_tag` (in TS
+  (its `@nodocs` too, warning `implementation_doc_hidden`; a types-only one doesn't),
+  symbol-scope tags on a later overload warning `misplaced_tag` (in TS
   even when it repeats the first's prose), optional, defaulted, and rest overload parameters,
   per-overload `@template` generics, an arrow const, and a lone overload
   (`declarations/function/jsdoc-overloads`); several overloads in one block sharing its prose
@@ -378,10 +376,13 @@ Where each behavior is locked. Unit and behavior-level mechanics live in
   `@overload` tags declare nothing, and in TS an interface merged ahead of a class, its
   method's overload warning rather than the class's (`members/jsdoc-class-method-overloads`);
   a property borrowing an overloaded function's signatures (`@property {typeof fn1} a`,
-  `a: typeof fn1`), every overload's tags warning even when the property repeats the first
-  overload's prose, and in TS a property typed by an interface's call signatures
+  `a: typeof fn1`), its overloads' tags warning nothing (the lender's own analysis checks
+  them), and in TS a property typed by an interface's call signatures
   (`members/jsdoc-borrowed-overloads`); a JS
   `<script module>` function (svelte `component/javascript-module-overloads`)
+- `implementation_doc_hidden` on a TS `export default function` and a named function,
+  reported once though an alias re-analyzes it
+  (`declarations/function/overload-implementation-doc-hidden`)
 - TSDoc placement on declarations and members (`ts/tsdoc/*`), including
   `@default` (`declarations/*/jsdoc-default*`) and `@cssprop` warning
   `misplaced_tag` on a function and a type, not on a member

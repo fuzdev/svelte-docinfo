@@ -99,6 +99,7 @@ export const DiagnosticKind = v.picklist([
 	'duplicate_comment',
 	'component_comment_mismatch',
 	'misplaced_tag',
+	'implementation_doc_hidden',
 	'unknown_param',
 	'unknown_cssprop',
 	'source_map_failed',
@@ -400,6 +401,37 @@ export interface MisplacedTagDiagnosticSchema extends Named<typeof MisplacedTagD
 export const MisplacedTagDiagnostic: MisplacedTagDiagnosticSchema = MisplacedTagDiagnosticImpl;
 export type MisplacedTagDiagnostic = v.InferOutput<typeof MisplacedTagDiagnostic>;
 
+const ImplementationDocHiddenDiagnosticImpl = v.strictObject({
+	kind: v.literal('implementation_doc_hidden'),
+	...baseDiagnosticFields,
+	/** Name of the overloaded function, method, or constructor. */
+	functionName: v.string()
+});
+/** @nodocs */
+export interface ImplementationDocHiddenDiagnosticSchema extends Named<
+	typeof ImplementationDocHiddenDiagnosticImpl
+> {}
+/**
+ * An overloaded function, method, or constructor documents its
+ * implementation, whose JSDoc is hidden.
+ *
+ * Only overload signatures are public, so TypeScript's hover ignores the
+ * implementation's JSDoc, and so does the output: its prose and tags drop,
+ * an implementation `@nodocs` hides nothing, and the symbol's docs come from
+ * its first overload. Fires for a TS implementation (the bodied declaration
+ * after its overloads) and for a JS implementation's JSDoc blocks that host
+ * no `@overload` tag, when they carry doc content; a block of types alone
+ * (`@param {string} a`) doesn't fire. `line`/`column` point at the
+ * implementation. Move the docs to the first overload.
+ *
+ * Always `warning`, query-time category (recomputed each `query()`).
+ */
+export const ImplementationDocHiddenDiagnostic: ImplementationDocHiddenDiagnosticSchema =
+	ImplementationDocHiddenDiagnosticImpl;
+export type ImplementationDocHiddenDiagnostic = v.InferOutput<
+	typeof ImplementationDocHiddenDiagnostic
+>;
+
 const UnknownParamDiagnosticImpl = v.strictObject({
 	kind: v.literal('unknown_param'),
 	...baseDiagnosticFields,
@@ -682,6 +714,7 @@ export const Diagnostic: v.VariantSchema<
 		typeof DuplicateCommentDiagnostic,
 		typeof ComponentCommentMismatchDiagnostic,
 		typeof MisplacedTagDiagnostic,
+		typeof ImplementationDocHiddenDiagnostic,
 		typeof UnknownParamDiagnostic,
 		typeof UnknownCsspropDiagnostic,
 		typeof SourceMapFailedDiagnostic,
@@ -705,6 +738,7 @@ export const Diagnostic: v.VariantSchema<
 	DuplicateCommentDiagnostic,
 	ComponentCommentMismatchDiagnostic,
 	MisplacedTagDiagnostic,
+	ImplementationDocHiddenDiagnostic,
 	UnknownParamDiagnostic,
 	UnknownCsspropDiagnostic,
 	SourceMapFailedDiagnostic,

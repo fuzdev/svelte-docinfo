@@ -1,0 +1,132 @@
+{
+	"path": "input.ts",
+	"declarations": [
+		{
+			"name": "default",
+			"kind": "function",
+			"docComment": "Description 1.",
+			"typeSignature": "(a: string): string",
+			"sourceLine": 2,
+			"parameters": [
+				{
+					"name": "a",
+					"type": "string"
+				}
+			],
+			"overloads": [
+				{
+					"typeSignature": "(a: string): string",
+					"parameters": [
+						{
+							"name": "a",
+							"type": "string"
+						}
+					],
+					"returnType": "string",
+					"docComment": "Description 1."
+				},
+				{
+					"typeSignature": "(a: number): number",
+					"parameters": [
+						{
+							"name": "a",
+							"type": "number"
+						}
+					],
+					"returnType": "number"
+				}
+			],
+			"returnType": "string"
+		},
+		{
+			"name": "fn1",
+			"kind": "function",
+			"typeSignature": "(a: string): string",
+			"sourceLine": 9,
+			"parameters": [
+				{
+					"name": "a",
+					"type": "string"
+				}
+			],
+			"overloads": [
+				{
+					"typeSignature": "(a: string): string",
+					"parameters": [
+						{
+							"name": "a",
+							"type": "string"
+						}
+					],
+					"returnType": "string"
+				},
+				{
+					"typeSignature": "(a: number): number",
+					"parameters": [
+						{
+							"name": "a",
+							"type": "number"
+						}
+					],
+					"returnType": "number"
+				}
+			],
+			"returnType": "string"
+		},
+		{
+			"name": "fn2",
+			"kind": "function",
+			"typeSignature": "(a: string): string",
+			"sourceLine": 9,
+			"parameters": [
+				{
+					"name": "a",
+					"type": "string"
+				}
+			],
+			"overloads": [
+				{
+					"typeSignature": "(a: string): string",
+					"parameters": [
+						{
+							"name": "a",
+							"type": "string"
+						}
+					],
+					"returnType": "string"
+				},
+				{
+					"typeSignature": "(a: number): number",
+					"parameters": [
+						{
+							"name": "a",
+							"type": "number"
+						}
+					],
+					"returnType": "number"
+				}
+			],
+			"returnType": "string"
+		}
+	],
+	"diagnostics": [
+		{
+			"kind": "implementation_doc_hidden",
+			"file": "src/lib/input.ts",
+			"line": 5,
+			"column": 1,
+			"message": "JSDoc on the implementation of overloaded \"default\" is hidden — move it to the first overload's JSDoc (only overload signatures are public)",
+			"severity": "warning",
+			"functionName": "default"
+		},
+		{
+			"kind": "implementation_doc_hidden",
+			"file": "src/lib/input.ts",
+			"line": 12,
+			"column": 1,
+			"message": "JSDoc on the implementation of overloaded \"fn1\" is hidden — move it to the first overload's JSDoc (only overload signatures are public)",
+			"severity": "warning",
+			"functionName": "fn1"
+		}
+	]
+}

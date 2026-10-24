@@ -384,9 +384,8 @@ interface ThisAssignedMember {
 	/**
 	 * The assignment whose JSDoc modifier tags the member carries: the
 	 * checker's own declaration of the property (its `valueDeclaration`, the
-	 * first assignment in source order), else, for an inherited name the
-	 * checker reads as the base's, the redeclaring one, else the constructor's
-	 * first assignment, else the first.
+	 * first assignment in source order), else the constructor's first
+	 * assignment, else the first.
 	 */
 	modified: ts.BinaryExpression;
 	/**
@@ -431,23 +430,13 @@ interface ThisAssignedMember {
  * non-literal key (`this[k] = …`, the checker's `__computed`).
  *
  * An inherited name (a property the base type declares, not the global
- * `Object`'s or `Function`'s) stays the base's, as in a TypeScript twin that
- * assigns it without redeclaring: a method's or static method's assignment
- * the checker resolves to the base's property, and a constructor's or static
- * block's assignment (`this.name = …` in an `Error` subclass) unless one of
- * them carries a JSDoc block, `@type` alone counting: JavaScript's only way
- * to redeclare, as a twin's written field (`declare name: string`) does.
- * This is the twin's reading, not the checker's: the checker takes an
- * undocumented constructor assignment of an inherited name as the class's
- * own property and an `@type`-annotated one as the base's. A method's JSDoc
- * block never redeclares, even where an undocumented constructor assignment
- * of the name has the checker read it as the class's own. A redeclared name's
- * docs come first from the redeclaring assignment, the first declaring one
- * with a JSDoc block, and so do its modifiers when the checker reads the
- * property as the base's (a static method's assignment coming first, or an
- * `@type` on an instance one), as a twin's written field carries its own; when
- * the checker reads it as the class's own, they're the ones it enforces, as
- * for any other name.
+ * `Object`'s or `Function`'s) assigned without a written member stays the
+ * base's (`this.name = …` in an `Error` subclass lists nothing), as in a
+ * TypeScript twin that assigns it without redeclaring. To document it on the
+ * subclass, write a field. This is the twin's reading, not the checker's,
+ * which takes an undocumented constructor assignment of an inherited name as
+ * the class's own property; one rule keeps the class and a type alias over
+ * it agreeing.
  *
  * Order: those the constructor assigns first, each group in source order of
  * its primary assignment. `extractClassInfo` slots them in just ahead of the
@@ -501,24 +490,20 @@ const collectThisAssignedMembers = (
 			);
 			// the checker's own declaration, when it reads the property as the class's
 			const checkerDeclared = assignments.find((a) => a === resolved?.valueDeclaration);
-			let redeclaring: ts.BinaryExpression | undefined;
+			// an inherited name is the base's property
 			if ((isStatic ? inheritedStaticNames : inheritedInstanceNames).has(symbol.escapedName)) {
-				// only a declaring assignment with a JSDoc block redeclares; any other
-				// assignment of an inherited name is the base's property
-				redeclaring = declaring.find((a) => ts.getJSDocCommentsAndTags(a).length > 0);
-				if (!redeclaring) return;
-			} else {
-				// the checker's own property, so a non-literal key (`this[k] = …`, its
-				// `__computed`) and anything it reads as another declaration's drop
-				const resolvedDecls = resolved?.getDeclarations();
-				if (!assignments.some((a) => resolvedDecls?.includes(a))) return;
+				return;
 			}
-			const modified = checkerDeclared ?? redeclaring ?? inConstructor[0] ?? assignments[0]!;
+			// the checker's own property, so a non-literal key (`this[k] = …`, its
+			// `__computed`) and anything it reads as another declaration's drop
+			const resolvedDecls = resolved?.getDeclarations();
+			if (!assignments.some((a) => resolvedDecls?.includes(a))) return;
+			const modified = checkerDeclared ?? inConstructor[0] ?? assignments[0]!;
 			// hidden by the declaration the checker enforces, as modifiers are read
 			if (isPrivateMemberDeclaration(modified)) return;
 			const primary = inConstructor[0] ?? assignments[0]!;
-			let tsdoc = redeclaring && documented(redeclaring);
-			for (const a of tsdoc ? [] : [...declaring, ...assignments]) {
+			let tsdoc: TsdocParsedComment | undefined;
+			for (const a of [...declaring, ...assignments]) {
 				if ((tsdoc = documented(a))) break;
 			}
 			found.push({
@@ -526,7 +511,7 @@ const collectThisAssignedMembers = (
 				primary,
 				modified,
 				writtenNode: firstWrittenType(decls),
-				tsdoc: tsdoc ?? parseComment(redeclaring ?? primary, sourceFile),
+				tsdoc: tsdoc ?? parseComment(primary, sourceFile),
 				isStatic,
 				inConstructor: inConstructor.length > 0
 			});

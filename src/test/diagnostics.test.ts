@@ -731,6 +731,7 @@ describe('diagnostic type discrimination', () => {
 				case 'css_parse_failed':
 				case 'css_lang_unsupported':
 				case 'unknown_cssprop':
+				case 'implementation_doc_hidden':
 					assert.fail('unreachable');
 			}
 		}

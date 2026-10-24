@@ -718,6 +718,9 @@ const ComponentCssPropertyJsonImpl = v.strictObject({
 	 * trimmed, comments included (`var(--a, var(--b, 1px))` gives
 	 * `var(--b, 1px)`). Empty for `var(--a,)`, a fallback of nothing. Absent
 	 * for a documented property no read gives a fallback and no tag a default.
+	 * On a `documented` entry with a tag default, it's the documented value,
+	 * which may differ from what the style falls back to; nothing checks the
+	 * two agree.
 	 */
 	fallback: v.optional(v.string()),
 	/**
@@ -742,6 +745,10 @@ export interface ComponentCssPropertyJsonSchema extends Named<
  * A CSS custom property in a Svelte component's styling API: one a consumer
  * sets on the component (`<A --a_color="red" />`) or on an ancestor, read by
  * the component's `<style>`.
+ *
+ * Maps onto a Custom Elements Manifest `cssProperties` entry field for
+ * field (`name`, `description`, `syntax`, `fallback` as `default`);
+ * `sourceLine` and `documented` have no CEM counterpart.
  *
  * @see `ComponentDeclarationJson.cssCustomProperties` for which reads count
  */
@@ -1340,7 +1347,11 @@ const ComponentDeclarationJsonImpl = v.strictObject({
 	 * directive, or a `--a:` in a `style` attribute on one of its elements.
 	 * A `--a` attribute on a child component doesn't count, since it styles
 	 * the child. A name read only without a fallback isn't listed: bare reads
-	 * are mostly global design tokens.
+	 * are mostly global design tokens. A global token read with a fallback is
+	 * listed too; the author's fix is to drop the fallback or to document the
+	 * property with `@cssprop`. There's deliberately no option to filter
+	 * names at analysis: the output keeps every read, and a consumer that
+	 * wants less filters it (to `documented` entries, say).
 	 *
 	 * `@cssprop --a - Description 1` (or `@cssproperty`) in the component's
 	 * doc comment, the source that wins `docComment` (the in-script JSDoc

@@ -789,7 +789,12 @@ export const analyzeCore = (inputs: AnalyzeCoreInputs): AnalyzeResultJson => {
  * ordering unrepresentable instead of a contract to remember. Omit
  * `virtualFiles` when no Svelte virtuals are in play.
  *
- * @mutates diagnostics - rewrites positions, `file`, and `message`
+ * Last, identical diagnostics collapse to the first: a symbol analyzed more
+ * than once (a renamed re-export's alias re-analyzes its canonical, a type
+ * alias over a class reads its members) re-reports the same warning at the
+ * same position.
+ *
+ * @mutates diagnostics - rewrites positions, `file`, and `message`, and removes duplicates
  */
 export const finalizeDiagnostics = (
 	diagnostics: Array<Diagnostic>,
@@ -799,6 +804,16 @@ export const finalizeDiagnostics = (
 		remapVirtualDiagnosticPositions(diagnostics, options.virtualFiles);
 	}
 	normalizeDiagnosticPaths(diagnostics, options.projectRoot);
+	const seen: Set<string> = new Set();
+	let kept = 0;
+	for (const d of diagnostics) {
+		// every producer builds a kind's fields in one order, so the JSON is a stable key
+		const key = JSON.stringify(d);
+		if (seen.has(key)) continue;
+		seen.add(key);
+		diagnostics[kept++] = d;
+	}
+	diagnostics.length = kept;
 };
 
 /**

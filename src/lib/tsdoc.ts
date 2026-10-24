@@ -640,6 +640,42 @@ export const jsdocOverloadSignatures = (node: ts.Node): Array<ts.JSDocSignature>
 };
 
 /**
+ * The docs `parseComment` hides on a JS function, method, or constructor with
+ * `@overload` tags: the prose and tags of its JSDoc blocks that host no
+ * `@overload` (module and typedef blocks aside), the implementation's, as a
+ * TypeScript implementation signature's JSDoc is hidden. Undefined without
+ * `@overload` tags, or when those blocks carry no doc content
+ * (`hasDocContent`), so a types-only implementation block (`@param {T} a`)
+ * counts as none.
+ */
+export const parseHiddenJSDocImplementationComment = (
+	node: ts.Node,
+	sourceFile: ts.SourceFile = node.getSourceFile()
+): TsdocParsedComment | undefined => {
+	if (jsdocOverloadSignatures(node).length === 0) return undefined;
+	const blocks = ts
+		.getJSDocCommentsAndTags(node)
+		.filter(
+			(c): c is ts.JSDoc =>
+				ts.isJSDoc(c) &&
+				!c.tags?.some(ts.isJSDocOverloadTag) &&
+				!belongsToModuleBlock(c) &&
+				!belongsToTypedefBlock(c)
+		);
+	const texts: Array<string> = [];
+	for (const block of blocks) {
+		const text = block.comment && jsdocCommentText(block.comment, sourceFile);
+		if (text) texts.push(text);
+	}
+	const parsed = parseCommentParts(
+		texts,
+		blocks.flatMap((block) => block.tags ?? []),
+		sourceFile
+	);
+	return hasDocContent(parsed) ? parsed : undefined;
+};
+
+/**
  * The first of `jsdocOverloadSignatures`, the declaration's first public
  * signature, or undefined when it has no `@overload` tags.
  */

@@ -171,6 +171,8 @@ export const generateImport = (
  * The module path a source module ships under: `.ts`, `.tsx`, and `.jsx` →
  * `.js`, `.mts` → `.mjs`, every other extension kept. The inverse of exports
  * discovery's `dist` → source mapping (`mapDistToSource` and its fallbacks).
+ * Assumes JSX is compiled: under `jsx: 'preserve'` a `.tsx` ships as `.jsx`,
+ * which this can't know without the compiler options.
  */
 const toDistModulePath = (modulePath: string): string =>
 	modulePath.replace(/\.(?:tsx?|jsx)$/, '.js').replace(/\.mts$/, '.mjs');

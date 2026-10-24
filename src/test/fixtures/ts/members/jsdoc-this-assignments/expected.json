@@ -326,12 +326,6 @@
 			],
 			"members": [
 				{
-					"name": "b",
-					"kind": "variable",
-					"docComment": "Description 10",
-					"typeSignature": "number"
-				},
-				{
 					"name": "d",
 					"kind": "variable",
 					"typeSignature": "number"
@@ -375,17 +369,6 @@
 				"H"
 			],
 			"members": [
-				{
-					"name": "a",
-					"kind": "variable",
-					"typeSignature": "number"
-				},
-				{
-					"name": "b",
-					"kind": "variable",
-					"docComment": "Description 12",
-					"typeSignature": "number"
-				},
 				{
 					"name": "constructor",
 					"kind": "constructor",
@@ -457,28 +440,6 @@
 			],
 			"members": [
 				{
-					"name": "t",
-					"kind": "variable",
-					"docComment": "Description 14",
-					"typeSignature": "number | undefined",
-					"modifiers": [
-						"static"
-					],
-					"typeInfo": {
-						"kind": "union",
-						"members": [
-							{
-								"kind": "intrinsic",
-								"text": "number"
-							},
-							{
-								"kind": "intrinsic",
-								"text": "undefined"
-							}
-						]
-					}
-				},
-				{
 					"name": "constructor",
 					"kind": "constructor",
 					"typeSignature": "(): L"
@@ -534,15 +495,6 @@
 					"kind": "function",
 					"typeSignature": "(): void",
 					"returnType": "void"
-				},
-				{
-					"name": "a",
-					"kind": "variable",
-					"docComment": "Description 18",
-					"typeSignature": "number",
-					"modifiers": [
-						"readonly"
-					]
 				},
 				{
 					"name": "constructor",

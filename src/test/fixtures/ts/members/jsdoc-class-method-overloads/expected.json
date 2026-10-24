@@ -174,6 +174,15 @@
 	],
 	"diagnostics": [
 		{
+			"kind": "implementation_doc_hidden",
+			"file": "src/lib/input.js",
+			"line": 18,
+			"column": 2,
+			"message": "JSDoc on the implementation of overloaded \"constructor\" is hidden — move it to the first overload's JSDoc (only overload signatures are public)",
+			"severity": "warning",
+			"functionName": "constructor"
+		},
+		{
 			"kind": "misplaced_tag",
 			"file": "src/lib/input.js",
 			"line": 31,
@@ -181,6 +190,15 @@
 			"message": "@example on non-primary overload of \"fn1\" — place it on the primary signature's JSDoc instead (symbol-scope tags describe the function as a whole)",
 			"severity": "warning",
 			"tagName": "example",
+			"functionName": "fn1"
+		},
+		{
+			"kind": "implementation_doc_hidden",
+			"file": "src/lib/input.js",
+			"line": 42,
+			"column": 2,
+			"message": "JSDoc on the implementation of overloaded \"fn1\" is hidden — move it to the first overload's JSDoc (only overload signatures are public)",
+			"severity": "warning",
 			"functionName": "fn1"
 		}
 	]

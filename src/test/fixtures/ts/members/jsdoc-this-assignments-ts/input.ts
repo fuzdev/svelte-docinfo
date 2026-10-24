@@ -119,8 +119,6 @@ export class H {
 }
 
 export class I extends H {
-	/** Description 10 */
-	override b: number;
 	d: number;
 	e: number | undefined;
 
@@ -138,10 +136,6 @@ export class I extends H {
 }
 
 export class J extends H {
-	override a: number;
-	/** Description 12 */
-	override b: number;
-
 	constructor() {
 		super();
 		this.a = 3;
@@ -160,9 +154,6 @@ export class K {
 }
 
 export class L extends K {
-	/** Description 14 */
-	static override t: number | undefined;
-
 	constructor() {
 		super();
 	}
@@ -194,12 +185,8 @@ export class M {
 
 export class N extends H {
 	fn2(): void {
-		// @ts-expect-error readonly outside the constructor
 		this.a = 4;
 	}
-
-	/** Description 18 */
-	override readonly a: number;
 
 	constructor() {
 		super();

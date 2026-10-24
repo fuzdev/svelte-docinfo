@@ -53,17 +53,11 @@ are the tomes in `src/routes/docs/`. Examples: `examples/vite/`, `examples/api/`
   `run?: typeof spawn` stays a `variable`. Class fields stay `variable` even when
   function-typed. Interfaces enumerate own members only. Literal member names are unquoted
   (`memberNameText`); computed names are skipped.
-  - **JS classes** read as the checker does, inherited names aside: modifiers through
-    `ts.getCombinedModifierFlags` (`extractModifiers`; JSDoc `@protected`/`@public`/`@readonly`
-    in JS only, listed in TS's required order), `@implements` and `@extends {Base<T>}` as
-    heritage text, and `this.x = …` assignments as `variable` members
-    (`collectThisAssignedMembers`), slotted ahead of the constructor, typed by the first
-    `@type`, and modified as the checker enforces (its declaration's JSDoc: the first
-    assignment in source order, a `@private` there hiding it); an inherited name stays the
-    base's unless a JSDoc block on a constructor (or static block) assignment redeclares it,
-    the redeclaring assignment then documenting it (the TS twin's reading, not the checker's,
-    which takes an undocumented constructor assignment as the class's own and an `@type`'d one
-    as the base's).
+  - **JS classes** read as the checker does: JSDoc modifiers (`extractModifiers`),
+    `@implements`/`@extends {Base<T>}` heritage, and `this.x = …` assignments as `variable`
+    members (`collectThisAssignedMembers`, whose TSDoc owns typing, modifier, and doc
+    rules). One departure, toward the TS twin: an inherited name assigned without a written
+    field stays the base's.
 - **TSDoc/JSDoc** (`tsdoc.ts`) — `@param`, `@returns`, `@throws`, `@example`,
   `@deprecated`, `@internal`, `@see`, `@since`, `@default`, `@module`, `@nodocs`,
   `@mutates`, `@cssprop`. `@return` is read as `@returns`, `@defaultValue`/`@defaultvalue`
@@ -94,48 +88,27 @@ are the tomes in `src/routes/docs/`. Examples: `examples/vite/`, `examples/api/`
   - `@default` lands on variables, component props, and function/variable members, never
     on top-level functions, overloads, or constructors.
   - Text is kept raw (inline `{@link}` survives); rendering is the consumer's concern.
-- **Overloads** — every public signature with its own JSDoc. `@param`/`@returns` flow to
-  their overload; one overload's JSDoc documents the symbol (the first signature's, or the
-  visited declaration's when merging reorders them), and symbol-scope tags on any other
-  overload emit `misplaced_tag`. A JS `@overload` (`jsdocOverloadSignatures`)
-  documents like a TS overload: its JSDoc is the block hosting the tag, its own
-  `@param`/`@returns` tags nested in its `JSDocSignature` (`parseOverloadSignatureComment`),
-  and the implementation's block is hidden as a TS implementation's JSDoc is. Functions,
-  arrows, methods, and constructors alike; never accessors, which the checker doesn't
-  overload.
-  - The primary overload is the one the member's docs come from, by identity, when the
-    signatures are the parent's own (`ownsSignatureDeclarations`): a JS overload sharing
-    its block, a TS overload that declaration, so another one repeating its prose still
-    warns, and an interface merged ahead of a class doesn't shift it. Signatures borrowed
-    through a type (`m: typeof g`, `@property {typeof g} m`) have no primary (the member's
-    docs are its own, never the lender's), so every overload's tags warn.
+- **Overloads** — every public signature with its own JSDoc (`extractOverloads`);
+  `@param`/`@returns` flow to their overload, and the primary overload (the one the
+  member's docs come from, by identity) documents the symbol. Symbol-scope tags on another
+  overload warn `misplaced_tag`; borrowed signatures (`m: typeof g`) have no primary and
+  warn nothing. A documented implementation is hidden, as TS hides it, and warns
+  `implementation_doc_hidden`. JS `@overload` (`jsdocOverloadSignatures`) documents like a
+  TS overload, on functions, arrows, methods, and constructors, never accessors.
 - **Merged value+type symbols** — `const Foo = z.strictObject(...)` +
   `type Foo = z.infer<typeof Foo>` documents the type (`selectDeclarationNode`), with
   `mergedValue: true` (also a runtime value; `generateImport` emits a value import). When
   the type has no JSDoc, the const's is used. Class+interface merges document the class.
-- **JSDoc type declarations (JS)** — `@typedef`/`@callback` tags are type aliases
-  (`isTypeAliasLike`; `typeAliasTypeNode`/`typeAliasTypeParameters` read the right-hand side
-  and `@template`s), so every alias path treats them like `type A = …`: `@property` members,
-  a `@callback`'s `(call)` member with its `@param`/`@returns` text, written union order, the
-  alias registry, `alias_lost`, and `const A` + `@typedef A` merging with `mergedValue`. Docs
-  follow TypeScript's hover, except as noted: a block declaring a typedef without a
-  `@param`/`@returns` is a typedef block (`isTypedefBlock` in `tsdoc.ts`), which the
-  declaration below skips, prose and tags alike (in `.ts` files too); its typedef takes the
-  prose and tags unless the block declares several (`typedefOwnsBlock`). A function doc block
-  stays the function's, leaving its typedef only the tag's own comment (stricter than hover,
-  as is the several-typedef case). A module comment, a component comment, or the in-script
-  component JSDoc keeps its prose, its typedef tags dropping as unknown ones; a `@typedef` in a
-  component's HTML `@component` comment, which svelte2tsx copies onto the generated component
-  statement, documents nothing and never registers (`isStrayComponentTypedef`, a structural
-  test that fails open if svelte2tsx moves the copy). A `@enum` const is `kind: 'enum'` over
-  its value (`isJSDocEnumSymbol`). TS binds none of these in `.ts` files.
-- **JSDoc annotations (JS)** — read as the checker reads them: `@template` tags are
-  `genericParams` on functions, arrows, function expressions, classes, and methods
-  (`signatureTypeParameters`; an `@overload`-ed implementation's are its first
-  overload's, each overload's its block's), and a `@type`/`@param`/`@property`/`@returns`
-  type is the site's written annotation (`writtenTypeAnnotation`, `writtenReturnTypeNode`,
-  `writtenGetterTypeNode`), feeding written-name recovery and written union order like a TS
-  annotation. A `.ts` file's JSDoc types annotate nothing.
+- **JSDoc type declarations (JS)** — `@typedef`/`@callback` are type aliases on every alias
+  path (`isTypeAliasLike`), `const A` + `@typedef A` merges like `const` + `type`, and an
+  `@enum` const is `kind: 'enum'` (`isJSDocEnumSymbol`). Docs follow TS hover: a typedef
+  block (`isTypedefBlock`, in `.ts` files too) is the typedef's, never the declaration
+  below's; deliberate departures are in the `typedefOwnsBlock` TSDoc. A `@typedef` in a
+  component's HTML comment documents nothing (`isStrayComponentTypedef`).
+- **JSDoc annotations (JS)** — `@template` tags are `genericParams`
+  (`signatureTypeParameters`), and `@type`/`@param`/`@property`/`@returns` types are the
+  site's written annotation (`writtenTypeAnnotation`), feeding name recovery and written
+  union order. A `.ts` file's JSDoc types annotate nothing.
 - **Svelte 5 components** — props, generics, snippets, and `acceptsChildren` via svelte2tsx
   and the checker, including JS components and legacy `export let` components (see Svelte
   Component Analysis).
@@ -524,10 +497,8 @@ shared doc fields (`docFields` in `types.ts`); `ParameterJson` carries none of `
   JS, the `@extends`/`@implements` tag's), and `extends` is always an array.
 - **Class visibility** — public and protected in, `private` (a JS `@private` too) and `#`
   out, by one rule (`isPrivateMemberDeclaration`) for the class and any structural alias
-  over it. In JS, a redeclared inherited name the checker reads as the base's (an `@type`'d
-  constructor assignment) reads the base's visibility, docs, and modifiers through an alias;
-  the class reads the redeclaring assignment. Getters and setters merge by name, and a pair
-  with either side private is out whole.
+  over it. Getters and setters merge by name, and a pair with either side private is out
+  whole.
 - **`defaultValue`** — verbatim author text (initializer, `@default`, or a parameter's
   `@param [b=0]`), quotes included.
 - **`sourceLine`** — synthesized aliases carry the local export specifier's line; Svelte
@@ -642,7 +613,13 @@ semantics and reports unresolvable stars instead of guessing. Lock-in tests:
   checker's own CommonJS reading documents its named exports (`exports.x`,
   `module.exports = {a, b}`), with no warning; a `module.exports =` of a non-object (a
   function, a literal) documents nothing, and alongside a later `module.exports.c = …` the
-  literal's members drop. `.cjs`/`.cts` files aren't analyzed by default.
+  literal's members drop. The warning sees only top-level `module.exports`/`exports.x`
+  assignments: `Object.defineProperty(exports, …)` (tsc's own CommonJS output), UMD
+  wrappers, and assignments nested in a block emit an empty module silently. `.cjs`/`.cts`
+  files aren't analyzed by default.
+- Glob discovery documents same-stem sources side by side (`a.ts` beside `a.tsx` or `a.js`)
+  as separate modules, and `generateImport` gives both the one shipped specifier
+  (`pkg/a.js`); exports discovery picks one per entry, in TypeScript's order.
 - A self-name import through an `exports` entry listing `import`/`default` before `types`
   resolves to the JS target, since `allowJs` is forced on (without it TypeScript tries
   `types` first). List `types` first, as TypeScript recommends.

@@ -222,6 +222,20 @@
 							<strong>Consequence:</strong> the tag is dropped. On an overload, move it to the
 							primary signature; a <code>@cssprop</code> belongs in the component's doc comment. To
 							omit a module, use <code>exclude</code> patterns rather than <code>@nodocs</code>.
+							Overloads a member borrows through its type (<code>m: typeof fn</code>) never warn;
+							the lending function's own analysis checks its tags.
+						</td>
+					</tr>
+					<tr>
+						<td><code>implementation_doc_hidden</code></td>
+						<td>
+							<strong>Trigger:</strong> an overloaded function, method, or constructor documents its
+							implementation: a TS implementation's JSDoc, or in JS a block with no
+							<code>@overload</code> tag beside the ones that have one, carrying prose or doc tags
+							(a block of types alone doesn't fire). <strong>Consequence:</strong> the
+							implementation's docs are hidden, as TypeScript's hover hides them, and an
+							implementation <code>@nodocs</code> hides nothing. Move the docs to the first
+							overload. <code>functionName</code> names the function.
 						</td>
 					</tr>
 					<tr>
