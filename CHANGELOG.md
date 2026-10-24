@@ -1,5 +1,114 @@
 # svelte-docinfo
 
+## 0.16.0
+
+### Minor Changes
+
+- feat: document a Svelte component's styling API as `cssCustomProperties` ([f85df1a](https://github.com/fuzdev/svelte-docinfo/commit/f85df1a))
+
+  - `ComponentDeclarationJson.cssCustomProperties` lists the CSS custom properties a component's styling API offers, the ones a consumer sets as `<Foo --accent="red" />` or on an ancestor, as `ComponentCssPropertyJson` entries (`name`, `description`, `syntax`, `fallback`, `sourceLine`, `documented`). The field defaults to `[]` and is stripped by `compactReplacer`; a renamed component re-export carries its canonical's.
+  - **Fallback reads:** a property the component's `<style>` reads through `var()` with a fallback (`var(--accent, blue)`) and doesn't set itself is listed, with the fallback's verbatim source text and the `sourceLine` of its first read. Only the outermost `var()` counts (`var(--a, var(--b))` lists `--a`), in nested rules, at-rule blocks, `:global`, and keyframes alike. A name drops out when the component declares it in its `<style>` (`--accent: …`) or sets it in its markup (`style:--accent`, `style="--accent: …"` on an element). Bare reads without a fallback, mostly global design tokens, aren't listed unless tagged.
+  - **`@cssprop` tags:** `@cssprop --name - description` in the component's doc comment (the Custom Elements Manifest form; `@cssproperty` is a synonym) lists the property with `documented: true`, whether or not it's read. An optional braced syntax (`@cssprop {<color>} --a`) lands as `syntax`, and an optional bracketed default (`@cssprop [--a=1px]`) as `fallback`, over the read's. A tagged name the component reads (bare, nested in a fallback, set by itself, or in its markup's static style text) takes the read's `sourceLine` and, without a tag default, its `fallback`. The tags come from whichever source wins `docComment` and never reach it.
+  - Documented entries come first, in tag order, then the untagged fallback reads in first-read order. Since the fallback rule also catches global tokens read with a fallback, consumers can show only the `documented` entries of a component that has any.
+  - New `unknown_cssprop` warning (`propertyName`, `componentName`, `line` at the tag): a tagged name the component never reads. The entry stays.
+  - New `css_lang_unsupported` warning: a `<style>` whose `lang` or `type` names a preprocessor language (`scss`, `postcss`, `text/less`) isn't read. New `css_parse_failed` warning: Svelte's parser rejects the component. Either way the component lists only its `@cssprop` entries, and `unknown_cssprop` isn't checked.
+  - `@cssprop` in a module comment, or on an exported declaration other than a component, warns `misplaced_tag` with the new `tagName: 'cssprop'` and is dropped.
+  - The `svelte` peer floor is unchanged: the styling API reads through `parse(…, {modern: true, loose: true})`, whose modern AST Svelte has had since 5.0. Before 5.13, which added `loose`, a template error also warns `css_parse_failed`.
+
+- feat: collapse identical diagnostics ([9d0f927](https://github.com/fuzdev/svelte-docinfo/commit/9d0f927))
+
+  Identical diagnostics now collapse to one: a symbol analyzed more than once (a renamed re-export's alias re-analyzes its canonical, a type alias over a class reads its members) no longer repeats the same warning at the same position.
+
+- feat: analyze `.mts`, `.tsx`, `.mjs`, and `.jsx` modules, and JS without `allowJs` ([29b7e05](https://github.com/fuzdev/svelte-docinfo/commit/29b7e05))
+
+  **Breaking:**
+
+  - The default `exclude` is `['**/*.{test,spec}.{ts,mts,tsx,js,mjs,jsx}', '**/internal/**']`, so test and spec files of every module extension stay out; `.ts` ones are excluded as before.
+  - `allowJs` is always on for the analysis program (below), which changes output for a TS project that imports JS: a relative import of a `.js` file with no declaration file beside it used to type as `any`, and now reads the file's inferred types. A self-name import (`import … from 'own-pkg/x'`) whose `exports` entry lists an `import`/`default` JS target before `types` now resolves to the `.js` file, not the `types` file a `tsc` without `allowJs` picks; list `types` first.
+
+  Changes:
+
+  - `.mts`, `.tsx`, `.mjs`, and `.jsx` files are modules like `.ts` and `.js` (`isTypescript`, `getDefaultAnalyzer`, the derived glob patterns). Exports discovery maps a `dist` `.js` entry to a `.ts` source, then `.tsx`, `.js`, `.jsx`, and a `.mjs` entry to `.mts`, then `.mjs`; a wildcard entry matches the same extensions. `generateImport` names the shipped file (`.ts`/`.tsx`/`.jsx` → `.js`, `.mts` → `.mjs`). `.cjs` and `.cts` stay out.
+  - The analysis program always runs with `allowJs` on, whatever the tsconfig says (`checkJs` stays as configured); `AnalysisLanguageService.getCompilerOptions()` returns the forced options. Under a tsconfig without `allowJs`, `.js` modules used to be skipped with `module_skipped` and every TS import of them typed `any`; they now document, and their importers' types resolve, including JS that only an import reaches. The tsconfig's `include` adds no `.js` roots, and untyped packages stay `any`.
+  - New `commonjs_unsupported` warning: a JS module TypeScript doesn't bind as a module (no ES syntax under `bundler`/`esnext`) that exports through `module.exports`/`exports.x` still emits an empty module, now with a warning saying why. Under `node16`/`nodenext` or `moduleDetection: 'force'` the checker's own CommonJS reading documents its named exports (`exports.x`, `module.exports = {a, b}`), with no warning; a `module.exports =` of a function or literal documents nothing.
+  - `lexImports` takes an optional path, parsing `.tsx`/`.jsx` content as TSX so imports inside JSX markup are found.
+  - Fix: a module dropped with `module_skipped` no longer leaves other modules' `dependencies`/`dependents` naming it.
+
+- feat: document JS classes like their TS twins ([e648e77](https://github.com/fuzdev/svelte-docinfo/commit/e648e77))
+
+  **Breaking:**
+
+  - `@private` on a JS object-literal property no longer hides it in a type alias over the object, since the checker enforces `@private` in classes only.
+  - A getter/setter pair with either side private (`private set`, or a JS `@private` setter) is dropped whole on the class, as on a type alias over it, in TS and JS alike.
+
+  In JS files, a class's JSDoc reads as TypeScript's checker reads it:
+
+  - `@private` hides a member, as `private` does, on the class and on any type alias over it; `@protected`, `@public`, and `@readonly` add `modifiers` like the keywords, listed in the order TypeScript requires them written. `@static` and `@abstract` mark nothing, as for the checker.
+  - `@implements {A}` fills `implements`, and `@extends {Base<T>}` beside an `extends Base` clause makes `extends` `["Base<T>"]`. In a `.ts` file neither tag adds anything.
+  - `this.x = …` assignments in the constructor, a method, or an accessor declare `variable` members (static ones in a static method or block), typed and modified as the checker reads them, and documented by the first documented constructor assignment, else the first documented one anywhere. They slot in just ahead of the constructor, where a TS twin declares its fields. A name the class writes as a field is listed once, by the field. A name a base class already has stays the base's (`this.name = …` in an `Error` subclass lists nothing), whatever JSDoc the assignment carries, as a TS twin that assigns it without redeclaring; to document it on the subclass, write a field.
+  - `@readonly` on a JS object-literal property shows `readonly` in a type alias over it (`@typedef {typeof o} T`), as the checker reads it.
+
+- feat: document JSDoc `@overload` signatures like TS overloads ([8e457b1](https://github.com/fuzdev/svelte-docinfo/commit/8e457b1))
+
+  **Breaking:**
+
+  - A JS function with `@overload` tags no longer takes its docs from the implementation's own JSDoc block, as TypeScript ignores an implementation signature's JSDoc: a `docComment` written only there is gone, and an implementation-block `@nodocs` no longer hides the function. Move them to the first `@overload` block. The new `implementation_doc_hidden` warning points at each such implementation.
+  - In TS, a later overload that repeats the first overload's prose now warns `misplaced_tag` for its symbol-scope tags (the primary overload is told apart by identity, not prose).
+  - Overloads a member borrows through its type (`m: typeof g`, `@property {typeof g} m`) no longer warn `misplaced_tag`: their tags sit where the lender's author put them, and the lender's own analysis checks them.
+
+  In JS files, a function, arrow function, class method, or constructor with `@overload` tags documents each overload as TypeScript reads it:
+
+  - Each overload's `docComment` is the prose of the block holding its `@overload` tag, and its `@param` and `@returns` tags fill `parameters[i].description` and `returnDescription`. Optional (`[b]`, `{T=}`) and defaulted (`[b=0]`) parameters read as on a function's own `@param` tags, and a rest (`{...T}`) parameter is `rest`, though the checker types it `T | undefined`.
+  - The first overload documents the function: its prose and tags give the declaration's `docComment` and tag fields, and its `@template` tags its `genericParams`. Each overload carries its own block's `@template` tags as `genericParams`. A symbol-scope tag on a later overload warns `misplaced_tag`.
+  - A JS constructor's `@overload` tags are its public signatures.
+
+  New `implementation_doc_hidden` warning (`functionName`), in TS and JS alike: an overloaded function, method, or constructor whose implementation carries prose or doc tags, which the output hides. A block of types alone (`@param {string} a`) doesn't fire.
+
+  When an interface merged ahead of a class lists its method's signatures first, the interface's overload warns `misplaced_tag` rather than the class's.
+
+- feat: read JSDoc `@param` optionality, bracket defaults, and nested `{object}` property docs ([a5fe9c8](https://github.com/fuzdev/svelte-docinfo/commit/a5fe9c8))
+
+  **Breaking:**
+
+  - A TS parameter with an initializer (`b = 0`) is now `optional: true`, unless a required parameter follows it, and its `type`/`typeInfo` drop a top-level `undefined` it already held (`b: number | undefined = 0`, or one inferred from the initializer → `number`); a literal `undefined`-only type is kept. Exported snippets with a default (`{#snippet s(a, b = 0)}`) follow, so their synthesized `typeSignature` reads `b?: number`.
+
+  A parameter is now `optional` whenever a caller may omit the argument, by the checker's `isOptionalParameter`, in TS and JS alike. `type` and `typeInfo` drop the optional-widening `undefined` as they already did for `b?: T`.
+
+  - JS `@param {T} [b]`, `@param {T=} b`, and `@param {T} [b=0]` are `optional`, with `type` no longer ending in `| undefined`.
+  - A bracketed default (`@param {number} [b=0]`) fills `defaultValue` when the parameter has no initializer, verbatim with quotes kept. An initializer wins, and a bracket on a parameter a caller can't omit (a TS `b: number`) is ignored.
+  - Property tags under a braced `@param {object} opts` (or `{Object}`, `{object[]}`), which TypeScript nests inside the parent tag, now reach `propertyDescriptions`, in `.ts` files too. An array element's `@param arr[].name` keys as `[].name`, and no longer warns `unknown_param`.
+
+- feat: read JSDoc `@template` generics and JSDoc-annotated types like their TS twins ([2b2f0d5](https://github.com/fuzdev/svelte-docinfo/commit/2b2f0d5))
+
+  In JS files:
+
+  - `@template` tags fill `genericParams` on functions, arrow functions and function expressions (`/** @template T @param {T} a */ export const fn = (a) => a`), classes, and class methods, with constraints (`@template {string} K`) and defaults (`@template [K='k']`), as `<T, K extends string = 'k'>` does. A `@type {<T>(a: T) => T}` on a const reads its generics the same way.
+  - A `@type`, `@param`, `@property`, or `@returns` type is now the written annotation at its site, as `a: T` is in TS: `typeInfo` and `returnTypeInfo` recover the name of an alias TypeScript dropped (`@param {Lost} x` → `{kind: 'reference', name: 'Lost'}`), and union members take their written order (`/** @type {'b' | 'a'} */`). This covers variables, parameters (`{T=}` and `[b]` included), returns, class fields, getters and setters, and a JS component's typedef props.
+
+  In TS and JS files alike, class methods now carry `genericParams` (`fn<U>(a: U): U`), as interface methods and callable type-alias members already did; an overloaded method takes its first overload's.
+
+- feat: document JSDoc `@typedef`, `@callback`, and `@enum` like their TS twins ([4a7984c](https://github.com/fuzdev/svelte-docinfo/commit/4a7984c))
+
+  **Breaking:**
+
+  - An `@enum {T}` const is `kind: 'enum'` (was `kind: 'type'`).
+  - A declaration below a typedef block (a JSDoc block with a `@typedef` or `@callback` and no `@param` or `@returns`) no longer takes that block's prose or tags, in JS and `.ts` files alike, as TypeScript's hover reads it: the block documents its typedef.
+
+  In JS files, `@typedef` and `@callback` declarations now read like `type A = …` aliases on every path:
+
+  - `docComment` and doc tags, read as TypeScript's hover reads them, except as noted: the tag's own comment (`@typedef {number} A - Description`), plus the JSDoc block's prose and tags (`@deprecated`, `@nodocs`, `@see`, `@since`, `@example`) when the block is a typedef block, one with no `@param` or `@returns`. So `/** T. @typedef {string} N @nodocs */ export function f() {}` documents `N` as `@nodocs` and `f` without a description. Module and component comments keep their prose, as does a component's in-script JSDoc above `$props()`, the typedef tag dropping. A block with several typedefs leaves each only its own tag comment, and a function doc block (one with a `@param` or `@returns`) stays the function's, leaving its typedef only its own tag comment (hover would show the block's prose on those typedefs too).
+  - `members`: `@property` tags become members with their descriptions, `optional: true` for `[x]` and `{T=}`; a `@callback` gets a `(call)` member whose parameters carry the `@param` descriptions, optionality, rest, and bracket defaults, with `returnDescription` from `@returns`.
+  - `typeInfo` on the alias, with union members in written order at the alias and at every use site.
+  - `genericParams` from the block's `@template` tags, with constraints (`@template {string} T`) and defaults (`@template [T=D]`). `genericParams` constraints from a `@template` tag drop the braces.
+  - `const A = …` with a same-named `@typedef A` documents the typedef with `mergedValue: true`, falling back to the const's JSDoc, as `const` + `type` does.
+  - The alias registry and `alias_lost` cover typedefs, and `externalTypes` descends through local typedefs (a JS component's `@typedef {HTMLButtonAttributes & {…}} Props`).
+  - Typedefs in a JS `<script module>` carry original-source `sourceLine`s (they read one line off before).
+  - A `@typedef` in a JS component's HTML `@component` comment, which svelte2tsx copies into its generated code, no longer documents a type (it carried a `sourceLine` past the end of the file), names one at use sites, or warns `alias_lost`.
+
+  An `@enum {T}` const (`export const A = {a: 'a'}`) is `kind: 'enum'`, with `typeSignature` the tag's type `T` and a member per property the project declares (a string or array initializer lists none of its library members).
+
+  TypeScript binds none of these tags in `.ts` files.
+
 ## 0.15.0
 
 ### Minor Changes
