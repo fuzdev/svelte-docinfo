@@ -4,7 +4,6 @@
 	import TomeSection from '@fuzdev/fuz_ui/TomeSection.svelte';
 	import TomeSectionHeader from '@fuzdev/fuz_ui/TomeSectionHeader.svelte';
 	import DeclarationLink from '@fuzdev/fuz_ui/DeclarationLink.svelte';
-	import ModuleLink from '@fuzdev/fuz_ui/ModuleLink.svelte';
 	import TomeLink from '@fuzdev/fuz_ui/TomeLink.svelte';
 	import { tome_get_by_slug } from '@fuzdev/fuz_ui/tome.ts';
 
@@ -22,8 +21,8 @@
 		<p>
 			svelte-docinfo is build-tool agnostic: you hand it files as
 			<DeclarationLink name="SourceFileInfo" /> objects, from disk, a build pipeline, or editor
-			buffers. This page covers embedding analysis in a bundler, watcher, or LSP-style tool that the
-			<TomeLink slug="vite-plugin">Vite plugin</TomeLink> doesn't fit.
+			buffers. This page covers embedding analysis in a bundler, watcher, or editor tool, beyond the
+			<TomeLink slug="js-api">JS API</TomeLink> basics.
 		</p>
 		<p>
 			Apart from discovery in <code>analyzeFromFiles</code>, the analyzer reads the disk only for
@@ -51,7 +50,7 @@
 		<ul>
 			<li>
 				<strong><code>id</code></strong>: absolute path. Native Windows paths are accepted (see
-				<a href="#Paths-POSIX-form-contract">Paths</a>).
+				<a href="#Paths">Paths</a>).
 			</li>
 			<li>
 				<strong><code>content</code></strong>: required; inputs are never read from disk.
@@ -63,46 +62,6 @@
 			</li>
 		</ul>
 		<p>Reverse edges (<code>dependents</code>) are always computed by the analyzer.</p>
-	</TomeSection>
-
-	<TomeSection>
-		<TomeSectionHeader text="Three entry points by ownership" />
-		<p>Pick by what your tool already owns:</p>
-		<table>
-			<thead>
-				<tr>
-					<th class="white-space:nowrap">Use</th>
-					<th>When</th>
-				</tr>
-			</thead>
-			<tbody>
-				<tr>
-					<td><DeclarationLink name="analyzeFromFiles" /></td>
-					<td>
-						You own a project root and want everything in one call: file discovery, dependency
-						resolution, analysis. CLI-style.
-					</td>
-				</tr>
-				<tr>
-					<td><DeclarationLink name="analyze" /></td>
-					<td>
-						You already hold file contents in memory (a Rollup/esbuild plugin with files in the
-						bundle graph). Single-pass, one-shot.
-					</td>
-				</tr>
-				<tr>
-					<td><DeclarationLink name="createAnalysisSession" /></td>
-					<td>
-						You re-analyze the same source set across many cycles (Vite, watch mode, LSP). See the
-						<TomeLink slug="session" /> guide.
-					</td>
-				</tr>
-			</tbody>
-		</table>
-		<p>
-			The one-shot APIs are thin wrappers over single-use sessions, with the same diagnostics and
-			output shape.
-		</p>
 	</TomeSection>
 
 	<TomeSection>
@@ -128,11 +87,8 @@ const {files, diagnostics} = await discoverSourceFiles({
 //   but readFile failed on (permission denied, FS error)`}
 		/>
 		<p>
-			The strategies match the CLI and Vite plugin: <code>'auto'</code> tries
-			<code>package.json</code> exports and falls back to glob, <code>'exports'</code> is strict
-			(throws if exports is missing or resolves to no files), and <code>'glob'</code> skips exports.
-			Passing <code>include</code> under <code>'auto'</code> goes straight to glob, so the filter is
-			never silently ignored; combining it with <code>'exports'</code> throws.
+			The strategies are the ones
+			<TomeLink slug="source-files" hash="Discovery">discovery</TomeLink> describes.
 		</p>
 		<p>
 			Unlike <code>analyzeFromFiles</code> and the Vite plugin, standalone discovery doesn't widen
@@ -234,87 +190,12 @@ await session.setFiles(files);`}
 	</TomeSection>
 
 	<TomeSection>
-		<TomeSectionHeader text="Source scope" />
+		<TomeSectionHeader text="Paths" />
 		<p>
-			<DeclarationLink name="createSourceOptions" /> builds the
-			<DeclarationLink name="ModuleSourceOptions" /> the session needs. Customize for non-default
-			layouts:
-		</p>
-		<Code
-			lang="ts"
-			content={`import {createSourceOptions} from 'svelte-docinfo';
-
-// Default: single sourcePaths=['src/lib'], test/spec + internal/ exclude.
-const opts = createSourceOptions(process.cwd());
-
-// Monorepo: multiple source directories, optional explicit sourceRoot.
-const monorepoOpts = createSourceOptions(process.cwd(), {
-  sourcePaths: ['packages/a/src', 'packages/b/src'],
-  // sourceRoot derived as longest common prefix when omitted.
-});
-
-// Extend the default exclude (callback form — the array form replaces).
-const customOpts = createSourceOptions(process.cwd(), {
-  exclude: (defaults) => [...defaults, '**/fixtures/**'],
-});`}
-		/>
-		<p>
-			<code>sourceRoot</code> is the base of <code>ModuleJson.path</code>; pass <code>'.'</code> for
-			project-relative paths.
-		</p>
-		<p>
-			<code>exclude</code> applies at both discovery and analysis, so an excluded file never appears
-			in output however it was found. The defaults cover tests and the
-			<code>src/lib/internal/</code> convention (<code>**/internal/**</code>: internal modules that
-			public modules import but that aren't documented). An array replaces the defaults; the
-			callback form extends them. Independent of <code>exclude</code>, <code>node_modules</code> and
-			dot-directories below a source path are never source. That rule is relative to the source
-			path, so an explicit dot-directory source path (<code>sourcePaths: ['.hidden/src']</code>)
-			still works; <code>dist</code>, <code>build</code>, and <code>coverage</code> are ordinary
-			names.
-		</p>
-		<p>
-			<code>include</code> patterns (in <code>analyzeFromFiles</code>, the CLI, and the Vite plugin)
-			widen the scope: each pattern's static base joins <code>sourcePaths</code>, and module paths
-			become relative to the widened root. A pattern with no base (<code>**/*.ts</code>, a root
-			file) makes the whole project root source and logs an info line.
-		</p>
-		<p>
-			Exports discovery skips subpaths blocked by <code>null</code> exports entries
-			(<code>"./internal/*": null</code>), using Node's best-match rules. To document
-			<code>internal/</code> modules anyway, extend the defaults with
-			<code>{`exclude: (defaults) => defaults.filter((p) => p !== '**/internal/**')`}</code>.
-		</p>
-		<p>
-			<code>sourcePaths</code> and <code>sourceRoot</code> are relative to the project root.
-			Absolute entries inside the root are accepted and stored relative; entries outside it throw
-			when the options are created, since output paths can't represent them. Absolute
-			<code>exclude</code> globs (and <code>include</code> patterns at the discovery entry points)
-			follow the same rule.
-		</p>
-	</TomeSection>
-
-	<TomeSection>
-		<TomeSectionHeader text="Paths: POSIX-form contract" />
-		<p>
-			Native paths are accepted at the API boundary and converted to POSIX form (forward slashes) on
-			ingest, so Windows callers can pass <code>C:\repo\src\lib\foo.ts</code>.
-			<code>ModuleJson.path</code>, <code>Diagnostic.file</code>, and the session's
-			<code>list()</code> always report POSIX form.
-		</p>
-		<p>
-			Drive-letter case (<code>C:\</code> vs <code>c:\</code>) and extended-length <code>\\?\</code>
-			prefixes are not normalized. See <ModuleLink module_path="paths.ts">paths.ts</ModuleLink>.
-		</p>
-	</TomeSection>
-
-	<TomeSection>
-		<TomeSectionHeader text="Concurrency caps" />
-		<p>
-			File reads and resolver calls each run with bounded parallelism
-			(<code>MAX_FILE_CONCURRENCY</code> and <code>MAX_RESOLVE_CONCURRENCY</code> in
-			<ModuleLink module_path="concurrency.ts">concurrency.ts</ModuleLink>), so a custom resolver
-			never sees an unbounded burst of concurrent calls.
+			Native paths are accepted at the API boundary, so Windows callers can pass
+			<code>C:\repo\src\lib\foo.ts</code>. Every path in the output, and the session's
+			<code>list()</code>, is POSIX form (forward slashes). Drive-letter case and <code>\\?\</code>
+			prefixes aren't normalized.
 		</p>
 	</TomeSection>
 </TomeContent>

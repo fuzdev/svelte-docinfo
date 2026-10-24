@@ -52,7 +52,7 @@ import {
  * Extract class information with rich member metadata. Decorators aren't
  * modeled.
  *
- * A JavaScript class reads as the checker reads it, so it documents like its
+ * A JS class reads as the checker reads it, so it documents like its
  * TypeScript twin: JSDoc modifier tags through `extractModifiers` and
  * `isPrivateMemberDeclaration`, `@extends`/`@implements` tags as heritage
  * (`classExtendsType`, `classImplementsTypes`), and `this.x = …` assignments
@@ -372,7 +372,7 @@ export const extractClassInfo = (
 };
 
 /**
- * A JavaScript class member that only `this.x = …` assignments declare.
+ * A JS class member that only `this.x = …` assignments declare.
  */
 interface ThisAssignedMember {
 	symbol: ts.Symbol;
@@ -400,7 +400,7 @@ interface ThisAssignedMember {
 }
 
 /**
- * The members a JavaScript class declares by assignment alone, the checker's
+ * The members a JS class declares by assignment alone, the checker's
  * reading: each `this.x = …` (or `this['x'] = …`) in the constructor, a
  * method, an accessor, or an arrow within one declares a property, a static
  * one in a static method or block. They document like the field a
@@ -622,7 +622,7 @@ const isInConstructorOf = (expr: ts.Node, node: ts.ClassDeclaration): boolean =>
 
 /**
  * A class's `extends` entry, the checker's reading: the clause's type, or in
- * JavaScript the `@extends {Base<T>}` (`@augments`) tag's beside a clause, so
+ * JS the `@extends {Base<T>}` (`@augments`) tag's beside a clause, so
  * its type arguments show as a TypeScript `extends Base<T>` writes them. A
  * tag without a clause extends nothing, as for the checker.
  */
@@ -636,7 +636,7 @@ const classExtendsType = (
 };
 
 /**
- * A class's `implements` entries: the clause's types, or in JavaScript the
+ * A class's `implements` entries: the clause's types, or in JS the
  * `@implements {A}` tags', which the checker reads there only.
  */
 const classImplementsTypes = (

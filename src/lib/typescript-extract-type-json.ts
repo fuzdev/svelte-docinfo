@@ -93,7 +93,7 @@ export const typeAliasTypeParameters = (
 		: ts.getEffectiveTypeParameterDeclarations(node);
 
 /**
- * Whether a node was parsed as JavaScript — a `.js` file, or a Svelte virtual
+ * Whether a node was parsed as JS — a `.js` file, or a Svelte virtual
  * with `ScriptKind.JS`. TypeScript reads JSDoc types as annotations only there.
  */
 export const isJavaScriptNode = (node: ts.Node): boolean =>
@@ -102,7 +102,7 @@ export const isJavaScriptNode = (node: ts.Node): boolean =>
 /**
  * The written type annotation of a declaration, the checker's reading
  * (TypeScript's internal `getEffectiveTypeAnnotationNode`): its own `type`,
- * or in JavaScript its JSDoc type — a `@param`/`@property` tag's braced
+ * or in JS its JSDoc type — a `@param`/`@property` tag's braced
  * type, or the `@type` tag's (`ts.getJSDocType`). In a `.ts` file JSDoc
  * types annotate nothing, so they're never read. Every variable, parameter,
  * property, and property-tag site reads its `writtenNode` through it, so a
@@ -126,7 +126,7 @@ export const writtenTypeAnnotation = (
  * The written return type of a signature declaration, the checker's reading
  * (TypeScript's internal `getEffectiveReturnTypeNode`) outside JSDoc
  * signatures, which `applyReturnType` reads itself: its own `type`, or in
- * JavaScript the `@returns` tag's type, else the return type of a function
+ * JS the `@returns` tag's type, else the return type of a function
  * type its `@type` tag writes (`ts.getJSDocReturnType`).
  */
 export const writtenReturnTypeNode = (decl: ts.SignatureDeclaration): ts.TypeNode | undefined => {
@@ -135,7 +135,7 @@ export const writtenReturnTypeNode = (decl: ts.SignatureDeclaration): ts.TypeNod
 };
 
 /**
- * The written type of a getter, the checker's reading: in JavaScript a
+ * The written type of a getter, the checker's reading: in JS a
  * `@type {A}` tag on the getter wins, typing the accessor `A`, then the
  * written return type (`writtenReturnTypeNode`).
  */

@@ -207,7 +207,7 @@ export interface BlankVerbatimContentOptions {
 /**
  * Copy `svelteSource` with the content of its script and style tags
  * overwritten by spaces, newlines kept, so every offset and line still means
- * what it meant. Script content needn't be JavaScript Svelte's parser accepts,
+ * what it meant. Script content needn't be JS that Svelte's parser accepts,
  * and a nested tag's content would be read as template.
  *
  * A style tag that opens inside a script tag is text in that script, and the

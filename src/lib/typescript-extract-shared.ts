@@ -1135,7 +1135,7 @@ const isExternalProperty = (prop: ts.Symbol, isExternalFile: IsExternalFile): bo
 /**
  * Check whether a member declaration is private to the class that declares it —
  * a `#` private identifier name, or a `private` modifier on a class element, a
- * parameter property, or a `this.x = …` assignment. In JavaScript a `@private`
+ * parameter property, or a `this.x = …` assignment. In JS a `@private`
  * tag is the modifier (`ts.getCombinedModifierFlags` reads JSDoc modifier tags
  * in JS files only); in a `.ts` file the tag marks nothing, as for the checker.
  * An object literal's property or method keeps its `@private` member, since the
@@ -1171,7 +1171,7 @@ export const isPrivateMemberDeclaration = (decl: ts.Declaration): boolean => {
  * symbol-side form of `isPrivateMemberDeclaration`, for the checker-backed
  * paths that see properties rather than written members.
  *
- * In JavaScript the checker's `valueDeclaration` decides, as the checker
+ * In JS the checker's `valueDeclaration` decides, as the checker
  * enforces the modifier from that declaration only: a property several
  * `this.x = …` assignments declare is hidden by a `@private` on the first in
  * source order, as `collectThisAssignedMembers` reads it on the class. A synthetic
@@ -2023,7 +2023,7 @@ const MODELED_MODIFIERS: ReadonlyArray<readonly [ts.ModifierFlags, DeclarationMo
  * in the order TypeScript requires them written, so a JS declaration's tags
  * and keywords order like its TS twin's keywords.
  *
- * Read through `ts.getCombinedModifierFlags`, which in JavaScript adds the
+ * Read through `ts.getCombinedModifierFlags`, which in JS adds the
  * JSDoc modifier tags the checker reads (`@public`, `@protected`,
  * `@readonly`; `@private` hides the member, see `isPrivateMemberDeclaration`)
  * and in a `.ts` file reads keywords only. The checker reads no `@static` or

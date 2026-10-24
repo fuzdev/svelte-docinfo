@@ -28,8 +28,8 @@
 		</p>
 		<p>
 			The plugin keeps a persistent <DeclarationLink name="createAnalysisSession" />, so dev
-			re-analysis reuses parsed ASTs and svelte2tsx output. For one-off generation and CI, the
-			<TomeLink slug="cli" /> runs <DeclarationLink name="analyzeFromFiles" /> once.
+			re-analysis reuses parsed ASTs and svelte2tsx output. To write the data to a file instead, use
+			the <TomeLink slug="cli">CLI</TomeLink>.
 		</p>
 	</section>
 
@@ -70,12 +70,11 @@ import data from 'virtual:svelte-docinfo';
 					The data is <DeclarationLink name="AnalyzeResultJson" /> in its wire form
 					(<DeclarationLink name="AnalyzeResultJsonWire" />). <code>modules</code> and
 					<code>diagnostics</code> are always arrays, but entries in <code>modules</code> omit empty
-					arrays and <code>false</code> flags. Pass the data through
-					<DeclarationLink name="parseAnalyzeResult" /> to restore them, or treat absent as empty
-					(see
-					<TomeLink slug="output-format" hash="Compact-JSON-and-absent-as-false">
-						compact JSON
-					</TomeLink>). See <TomeLink slug="diagnostics" /> for <code>diagnostics</code>.
+					arrays and <code>false</code> flags. Treat absent as empty, or restore the defaults per
+					module with <DeclarationLink name="parseModuleJson" /> from
+					<code>svelte-docinfo/types.js</code>, which is light enough for the browser (see
+					<TomeLink slug="output-format" hash="Compact-JSON">compact JSON</TomeLink>). See
+					<TomeLink slug="diagnostics" /> for <code>diagnostics</code>.
 				</p>
 			</li>
 		</ol>
@@ -148,7 +147,7 @@ svelteDocinfo({
 
   // The program's root files, in place of the tsconfig's: a list, or a
   // function over the tsconfig's roots. Default: the tsconfig's roots.
-  // See the session guide for the declarationFileRoots preset and its tradeoff.
+  // See the source files guide for the declarationFileRoots preset and its tradeoff.
   rootFileNames: undefined,
 })`}
 		/>
@@ -159,9 +158,9 @@ svelteDocinfo({
 			<code>paths</code>). <code>hmrDebounceMs</code> only affects the dev watcher.
 		</p>
 		<p>
-			Paths and patterns resolve against <code>projectRoot</code>; see
-			<TomeLink slug="build-tools" hash="Source-scope">source scope</TomeLink> for how
-			<code>include</code>, <code>exclude</code>, and the source paths combine.
+			<TomeLink slug="source-files" /> covers how <code>discovery</code>, <code>include</code>,
+			<code>exclude</code>, <code>sourceOptions</code>, and the tsconfig options decide what's
+			documented.
 		</p>
 	</TomeSection>
 

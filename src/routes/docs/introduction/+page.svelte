@@ -25,9 +25,7 @@
 			<a href="https://github.com/sveltejs/language-tools/tree/master/packages/svelte2tsx">
 				svelte2tsx
 			</a>
-			to resolve types, track exports+imports, and extract semantic details. The
-			<a href="https://www.npmjs.com/package/svelte-docinfo">npm package</a> has a Vite plugin, CLI,
-			and programmatic API.
+			to resolve types, track exports+imports, and extract semantic details.
 		</p>
 		<p>
 			svelte-docinfo is largely inspired by
@@ -58,144 +56,106 @@
 		</p>
 		<TomeSection>
 			<TomeSectionHeader text="Install" />
-			<p>
-				Published as <code>svelte-docinfo</code> to
-				<a href="https://www.npmjs.com/package/svelte-docinfo">npm</a>:
-			</p>
 			<code class="panel p_md mb_lg display:block">npm i -D svelte-docinfo</code>
-		</TomeSection>
-		<TomeSection>
-			<TomeSectionHeader text="Usage" />
-			<p>There are several ways to get the JSON, from most opinionated to most flexible.</p>
 			<p>
-				For SvelteKit and Vite projects, the <TomeLink slug="vite-plugin">Vite plugin</TomeLink> is
-				the recommended path. It runs the analysis at build time and serves the result as a virtual
-				module that stays current in dev:
-			</p>
-			<Code lang="ts" content={`import {modules} from 'virtual:svelte-docinfo';`} />
-			<p>
-				Run the <TomeLink slug="cli">CLI</TomeLink> to inspect a project from the command line:
-			</p>
-			<Code
-				lang="bash"
-				content={`# Analyze the current project and print JSON to stdout
-npx svelte-docinfo
-
-# Analyze a specific directory and write to a file
-npx svelte-docinfo ./packages/my-lib -o docs/library.json`}
-			/>
-			<p>
-				For standalone use or custom build tools, two functions cover most cases.
-				<DeclarationLink name="analyzeFromFiles" /> discovers files for you:
-			</p>
-			<Code
-				lang="ts"
-				content={`import {analyzeFromFiles} from 'svelte-docinfo';
-
-const {modules, diagnostics} = await analyzeFromFiles({
-  projectRoot: process.cwd(),
-});`}
-			/>
-			<p>
-				If your build tool already has file contents in memory, <DeclarationLink name="analyze" />
-				skips discovery. See the <TomeLink slug="build-tools" /> guide:
-			</p>
-			<Code
-				lang="ts"
-				content={`import {analyze, createSourceOptions} from 'svelte-docinfo';
-
-const {modules} = await analyze({
-  // files outside sourcePaths (default src/lib) feed the checker but emit no module
-  sourceFiles: [{id: '/project/src/lib/file.ts', content: '...'}],
-  sourceOptions: createSourceOptions('/project'),
-});`}
-			/>
-			<p>
-				For long-lived consumers that re-analyze the same source set (Vite plugin, LSP-style tools),
-				<DeclarationLink name="createAnalysisSession" /> returns a persistent handle that reuses
-				parsed ASTs and svelte2tsx output across calls. See the <TomeLink slug="session" /> guide.
-			</p>
-			<p>
-				The <TomeLink slug="output-format" /> reference shows example JSON, and the
-				<TomeLink slug="api">API reference</TomeLink> lists every exported function and type.
+				Peer dependencies: <code>svelte</code> 5+, <code>svelte2tsx</code>, and
+				<code>typescript</code> 5.9+ or 6, plus <code>vite</code> 6+ for the Vite plugin.
 			</p>
 		</TomeSection>
 		<TomeSection>
-			<TomeSectionHeader text="Key features" />
+			<TomeSectionHeader text="Three ways to use it" />
+			<p>
+				All three run the same analysis and produce the same data,
+				<DeclarationLink name="AnalyzeResultJson" />: <code>{`{modules, diagnostics}`}</code>.
+			</p>
+			<TomeSection>
+				<TomeSectionHeader text="Vite plugin" />
+				<p>
+					For SvelteKit and Vite projects, the <TomeLink slug="vite-plugin">Vite plugin</TomeLink>
+					analyzes at build time and serves the result as a virtual module that stays current in
+					dev:
+				</p>
+				<Code
+					lang="ts"
+					content={`// vite.config.ts
+import {defineConfig} from 'vite';
+import {sveltekit} from '@sveltejs/kit/vite';
+import svelteDocinfo from 'svelte-docinfo/vite.js';
+
+export default defineConfig({plugins: [sveltekit(), svelteDocinfo()]});
+
+// anywhere in your app
+import {modules} from 'virtual:svelte-docinfo';`}
+				/>
+			</TomeSection>
+			<TomeSection>
+				<TomeSectionHeader text="CLI" />
+				<p>
+					The <TomeLink slug="cli">CLI</TomeLink> inspects a project, writes a JSON file, or feeds a
+					shell pipeline:
+				</p>
+				<Code lang="bash" content="npx svelte-docinfo --pretty -o library.json" />
+			</TomeSection>
+			<TomeSection>
+				<TomeSectionHeader text="JS API" />
+				<p>
+					The <TomeLink slug="js-api">JS API</TomeLink> serves scripts and build tools:
+					<DeclarationLink name="analyzeFromFiles" /> finds the files itself,
+					<DeclarationLink name="analyze" /> takes contents you already have, and
+					<DeclarationLink name="createAnalysisSession" /> re-analyzes incrementally.
+				</p>
+				<Code
+					lang="ts"
+					content={`import {analyzeFromFiles} from 'svelte-docinfo';
+
+const {modules, diagnostics} = await analyzeFromFiles({projectRoot: process.cwd()});`}
+				/>
+			</TomeSection>
+			<p>
+				By default all three document the source files your <code>package.json</code>
+				<code>exports</code> point to, falling back to everything under <code>src/lib</code>; see
+				<TomeLink slug="source-files" />. The <TomeLink slug="output-format" /> reference shows the
+				JSON.
+			</p>
+		</TomeSection>
+		<TomeSection>
+			<TomeSectionHeader text="What it extracts" />
 			<ul>
 				<li>
-					<strong>full type resolution</strong>: infers complex types without manual annotations,
-					including generics, imported types, and inferred return types, with source locations for
-					every declaration
+					<strong>every export</strong> of every documented module, with the checker's types
+					(generics, imported and inferred types, no annotations needed), docs, and source lines
 				</li>
 				<li>
-					<strong><TomeLink slug="tags">TSDoc/JSDoc parsing</TomeLink></strong>: extracts standard
-					tags (<code>@param</code>, <code>@returns</code>, <code>@example</code>,
-					<code>@deprecated</code>, etc.) plus <code>@nodocs</code> to exclude from docs,
-					<code>@internal</code> kept as an <code>internalMessage</code> marker, and
-					<code>@mutates</code> to flag side effects; in JS, <code>@typedef</code> and
-					<code>@callback</code> document like type aliases and an <code>@enum</code> const like an
-					enum
+					<strong><TomeLink slug="tags">TSDoc and JSDoc tags</TomeLink></strong>, plus
+					<code>@nodocs</code> to leave a declaration out and <code>@mutates</code> for side effects
 				</li>
 				<li>
-					<strong>structured types</strong>: <code>typeInfo</code> trees beside the flat type
-					strings, with union members, type arguments, tuple elements, and alias names recovered
-					where TypeScript drops them (<code>z.infer</code>, valibot's <code>v.InferOutput</code>,
-					and friends); see the <TomeLink slug="output-format">output format</TomeLink>
+					<strong><TomeLink slug="structured-types">structured types</TomeLink></strong>:
+					<code>typeInfo</code> trees beside the flat type strings, recovering alias names
+					TypeScript drops (<code>z.infer</code>, <code>v.InferOutput</code>)
 				</li>
 				<li>
-					<strong>merged value+type symbols</strong>: a schema/type pair
-					(<code>{`const Foo = z.strictObject({...})`}</code> +
-					<code>{`type Foo = z.infer<typeof Foo>`}</code>) documents the type with full structure,
-					marked <code>mergedValue</code> since the name is also a runtime value
+					<strong>Svelte 5 components</strong>: props with types, defaults, and bindability, snippet
+					and callback parameters, generics, children, exported snippets, and runes
+					(<code>$state</code>, <code>$derived</code>) in any file
 				</li>
 				<li>
-					<strong>Svelte 5 components</strong>: analyzes components via svelte2tsx, extracting prop
-					types, defaults, bindability, snippet parameters, children detection, and exported
-					template snippets, including JS components (props from the JSDoc <code>@type</code> on
-					<code>$props()</code>)
+					<strong><TomeLink slug="component-styling">component styling</TomeLink></strong>: the CSS
+					custom properties a component's styles read, plus those documented with
+					<code>@cssprop</code>
 				</li>
 				<li>
-					<strong>component styling API</strong>: the CSS custom properties a component's
-					<code>&lt;style&gt;</code> reads with a fallback (<code>var(--accent, blue)</code>) and
-					doesn't set itself, as <code>cssCustomProperties</code>, plus the ones its doc comment
-					documents with <code>@cssprop</code>
+					<strong><TomeLink slug="js">JS modules</TomeLink></strong> documented like their TS twins,
+					from JSDoc types, <code>@typedef</code>s, <code>@template</code>s, and
+					<code>@overload</code>s
 				</li>
 				<li>
-					<strong>Svelte 5 reactivity runes</strong>: detects <code>$state</code>,
-					<code>$state.raw</code>, <code>$derived</code>, and <code>$derived.by</code> on variables
-					and class fields via the <code>reactivity</code> field, in any analyzed file
+					<strong><TomeLink slug="re-exports">re-exports</TomeLink></strong> and the import graph
+					between modules
 				</li>
 				<li>
-					<strong>re-export tracking</strong>: <code>alsoExportedFrom</code> arrays with the forward
-					view on <code>ModuleJson.reExports</code>, <code>aliasOf</code> for renames, default-slot
-					entries named <code>"default"</code>, <code>export * from</code> patterns, direct external
-					re-exports, and <DeclarationLink name="resolveExportSurface" /> to combine them all with
-					ES star semantics
-				</li>
-				<li>
-					<strong>external types</strong>: props and members from packages (like
-					<code>HTMLButtonAttributes</code>) are filtered out and named in
-					<code>externalTypes</code>, unless the <code>$props()</code> destructuring names them
-				</li>
-				<li>
-					<strong>classes and enums</strong>: public and protected class members, and enum members
-					with their values
-				</li>
-				<li>
-					<strong>dependency graphs</strong>: tracks imports between modules and computes dependents
-				</li>
-				<li>
-					<strong>function overloads</strong>: captures all public overload signatures with
-					per-overload JSDoc
-				</li>
-				<li>
-					<strong>build-tool agnostic</strong>: files can come from disk, a build pipeline, or
-					memory
-				</li>
-				<li>
-					<strong><TomeLink slug="diagnostics">diagnostic collection</TomeLink></strong>:
-					accumulates warnings and errors without halting, so you can report problems in batch
+					<strong><TomeLink slug="diagnostics">diagnostics</TomeLink></strong> collected without
+					halting, for doc problems like misplaced tags and stale <code>@param</code>s
 				</li>
 			</ul>
 		</TomeSection>
@@ -203,35 +163,16 @@ const {modules} = await analyze({
 			<TomeSectionHeader text="Limitations" />
 			<ul>
 				<li>
-					Standalone <code>namespace Foo {`{}`}</code> declarations document as a bare variable with
-					no members (<code>export * as ns</code> re-exports <em>are</em> supported). Decorators
-					aren't modeled.
+					Svelte 4 slots and events aren't modeled, nor context (<code>setContext</code>); a
+					<a href="https://github.com/fuzdev/svelte-docinfo/discussions">request</a> would bump
+					context's priority. Legacy <code>export let</code> components document their props.
 				</li>
 				<li>
-					Legacy <code>export let</code> components are partly supported: their props are
-					documented, all <code>bindable</code>, and a default <code>&lt;slot /&gt;</code> sets
-					<code>acceptsChildren</code> (a runes component's <code>&lt;slot /&gt;</code> is ignored).
-					Named slots, slot props, events, and <code>$$restProps</code> aren't modeled.
+					Standalone <code>namespace Foo {`{}`}</code> declarations document as a bare variable
+					(<code>export * as ns</code> works), and decorators aren't modeled.
 				</li>
 				<li>
-					Modules are <code>.ts</code>, <code>.mts</code>, <code>.tsx</code>, <code>.js</code>,
-					<code>.mjs</code>, and <code>.jsx</code> files (JS documents under a tsconfig without
-					<code>allowJs</code> too). CommonJS isn't modeled: where TypeScript doesn't bind a JS file
-					as a module (no ES syntax under <code>bundler</code>/<code>esnext</code>), its
-					<code>module.exports</code>/<code>exports.x</code> exports document nothing and warn
-					<code>commonjs_unsupported</code>; under <code>node16</code>/<code>nodenext</code> or
-					<code>moduleDetection: 'force'</code> the checker's own CommonJS reading documents its
-					named exports (<code>exports.x</code>, <code>module.exports = {'{'}a, b{'}'}</code>).
-					<code>.cjs</code>/<code>.cts</code> files aren't analyzed by default.
-				</li>
-				<li>
-					<code>@nodocs</code> applies to declarations and export statements; on a member or
-					component prop it's ignored.
-				</li>
-				<li>
-					Svelte context usage isn't captured yet. Investigation is planned, and a
-					<a href="https://github.com/fuzdev/svelte-docinfo/discussions">request</a> would bump its
-					priority.
+					CommonJS isn't modeled (see <TomeLink slug="js" hash="CommonJS">CommonJS</TomeLink>).
 				</li>
 			</ul>
 		</TomeSection>
@@ -245,10 +186,6 @@ const {modules} = await analyze({
 				in TypeScript components without <code>@type</code> annotations. It also analyzes TypeScript
 				modules, not just <code>.svelte</code> files, tracks re-exports across modules, computes
 				dependency graphs, and records source locations.
-			</p>
-			<p>
-				svelte-docinfo doesn't model Svelte 4's slots and events, which Svelte 5 replaces with
-				snippets and callback props (see <a href="#Limitations">Limitations</a>).
 			</p>
 		</TomeSection>
 	</section>

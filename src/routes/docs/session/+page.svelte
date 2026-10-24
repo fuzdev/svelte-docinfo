@@ -21,11 +21,11 @@
 	<section>
 		<p>
 			<DeclarationLink name="createAnalysisSession" /> returns a persistent analysis handle backed
-			by a TypeScript <code>LanguageService</code>. Use it when the same source set is re-analyzed
-			repeatedly (Vite plugin, LSP-style tools); it reuses parsed ASTs, svelte2tsx output, and the
-			dependency graph across cycles. The one-shot <DeclarationLink name="analyze" /> and
-			<DeclarationLink name="analyzeFromFiles" /> wrap single-use sessions; if you analyze once
-			(CLI, CI, one-off generation), use them instead. The full type definitions are in
+			by a TypeScript <code>LanguageService</code>, for re-analyzing the same files as they change
+			(the Vite plugin, watchers, editor tools). It reuses parsed ASTs, svelte2tsx output, and the
+			dependency graph across queries. To analyze once, use the one-shot
+			<DeclarationLink name="analyze" /> or <DeclarationLink name="analyzeFromFiles" /> (see
+			<TomeLink slug="js-api" />), which wrap single-use sessions. The full types are in
 			<ModuleLink module_path="session.ts">session.ts</ModuleLink>.
 		</p>
 	</section>
@@ -60,22 +60,9 @@ const session = createAnalysisSession({
 			<DeclarationLink name="DEFAULT_SOURCE_OPTIONS" />. The session applies no further defaults.
 		</p>
 		<p>
-			The tsconfig (the <code>tsconfig</code> option, or the project's) is parsed once, at
-			construction. <code>compilerOptions</code> merge over it per key, and the type checker and
-			default resolver both see the merged result. The tsconfig file is required and its whole
-			<code>extends</code> chain must load, unless you pass <code>tsconfig: false</code>, which
-			skips the file and uses built-in strict options
-			(<DeclarationLink name="DEFAULT_COMPILER_OPTIONS" />) under your <code>compilerOptions</code>.
-			Later edits to the tsconfig aren't picked up; create a new session.
-		</p>
-		<p>
-			By default every file the tsconfig includes is a root of the program, so a session fed a few
-			files of a large project still loads all of it. <code>rootFileNames</code> replaces those
-			roots with a list, or filters them with a function. The files you ingest and everything they
-			import are always loaded, so narrowing changes output only for types that arrive through no
-			import: ambient declarations in a file nothing imports resolve to <code>any</code> once that
-			file stops being a root. Keeping the <code>.d.ts</code> roots, as above, covers the usual
-			case; see <DeclarationLink name="RootFileNames" />.
+			The tsconfig is parsed once, at construction, so a later edit to it needs a new session. The
+			<code>tsconfig</code>, <code>compilerOptions</code>, and <code>rootFileNames</code> options
+			work as <TomeLink slug="source-files" hash="tsconfig">source files</TomeLink> describes.
 		</p>
 	</TomeSection>
 

@@ -13,7 +13,8 @@ local `toErrorMessage` and `mapConcurrent`.
 
 **This file is the map.** Behavioral policy lives in TSDoc beside the code; each section
 points to the TSDoc that owns it, so read that before changing behavior. User-facing docs
-are the tomes in `src/routes/docs/`. Examples: `examples/vite/`, `examples/api/`,
+are the tomes in `src/routes/docs/` (guides for the Vite plugin, CLI, and JS API, then
+topic guides and references; `tomes.ts` orders them). Examples: `examples/vite/`, `examples/api/`,
 `examples/cli/`.
 
 ## Capabilities
@@ -676,7 +677,7 @@ package metadata; see `LibraryJson` in `@fuzdev/fuz_util` for the fuz pattern.
 ### CLI
 
 `npx svelte-docinfo [project-root]` writes compact JSON to stdout (`--pretty`,
-`-o <file>`). The flag table is in `README.md` and `cli.ts`, whose help text interpolates
+`-o <file>`). The flag table is in the CLI tome and `cli.ts`, whose help text interpolates
 the defaults. `--only <glob>` filters output modules after full analysis; diagnostics
 aren't filtered. Exit codes: 0 success, 1 analysis errors, 2 CLI errors or a thrown
 analysis error.

@@ -20,8 +20,8 @@
 	<section>
 		<p>
 			Run in a project with TypeScript or Svelte source and a <code>tsconfig.json</code> at or above
-			its root (or pass <code>--no-tsconfig</code>). The CLI prints JSON describing the project's
-			exports to stdout.
+			its root (or pass <code>--no-tsconfig</code>). The CLI runs
+			<DeclarationLink name="analyzeFromFiles" /> once and prints the JSON to stdout.
 		</p>
 
 		<TomeSection>
@@ -34,20 +34,14 @@ npx svelte-docinfo -o output.json     # write to a file instead
 npx svelte-docinfo --pretty           # pretty-print the JSON output`}
 			/>
 			<p>
-				Files are discovered from <code>package.json</code> exports, falling back to glob.
-				<code>-i</code> supplies explicit patterns, <code>--discovery glob</code> skips exports, and
-				<code>--discovery exports</code> fails when exports is missing or resolves to no files.
+				It documents the files <code>package.json</code> <code>exports</code> point to, falling back
+				to everything under <code>src/lib</code>; <TomeLink slug="source-files" /> covers the flags
+				that change that.
 			</p>
 			<p>
-				<code>--source-dir</code> sets the source directory (default <code>src/lib</code>,
-				repeatable for monorepos). <code>--source-root</code> sets the base of output module paths
-				(default: the single source dir, or the longest common prefix of several).
-			</p>
-			<p>
-				Output is
-				<TomeLink slug="output-format" hash="Compact-JSON-and-absent-as-false">compact</TomeLink>:
-				empty arrays and <code>false</code> flags are omitted, so treat absent as empty, or parse
-				with <DeclarationLink name="parseAnalyzeResult" />. It pairs well with <code>jq</code>:
+				Output is <TomeLink slug="output-format" hash="Compact-JSON">compact</TomeLink>: empty
+				arrays and <code>false</code> flags are omitted, so treat absent as empty, or parse with
+				<DeclarationLink name="parseAnalyzeResult" />. It pairs well with <code>jq</code>:
 			</p>
 			<Code
 				lang="bash"
@@ -174,8 +168,8 @@ npx svelte-docinfo | jq -r '.modules[].declarations[].name'  # list all exported
 				</tbody>
 			</table>
 			<p>
-				<code>--include</code>, <code>--exclude</code>, and <code>--source-dir</code> follow the
-				<TomeLink slug="build-tools" hash="Source-scope">source scope</TomeLink> rules.
+				<code>--include</code>, <code>--exclude</code>, <code>--source-dir</code>, and the discovery
+				and tsconfig flags work as <TomeLink slug="source-files" /> describes.
 				<code>--exclude</code> always replaces the defaults; there's no form that extends them.
 			</p>
 			<p>
@@ -187,8 +181,9 @@ npx svelte-docinfo | jq -r '.modules[].declarations[].name'  # list all exported
 		</TomeSection>
 
 		<p>
-			For SvelteKit and Vite projects where the analysis feeds into your app bundle, see the
-			<TomeLink slug="vite-plugin">Vite plugin</TomeLink>.
+			To use the data in a SvelteKit or Vite app, see the
+			<TomeLink slug="vite-plugin">Vite plugin</TomeLink>; from code, the
+			<TomeLink slug="js-api">JS API</TomeLink>.
 		</p>
 	</section>
 </TomeContent>

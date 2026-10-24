@@ -1370,7 +1370,7 @@ const ComponentDeclarationJsonImpl = v.strictObject({
 	 * (`css_parse_failed`); tagged properties are listed even then.
 	 */
 	cssCustomProperties: v.optional(v.array(ComponentCssPropertyJson), () => []),
-	/** Script language. `undefined` means TypeScript (default), `'js'` for JavaScript-only components. */
+	/** Script language. `undefined` means TypeScript (default), `'js'` for JS-only components. */
 	lang: v.optional(v.picklist(['js']))
 });
 /** @nodocs */

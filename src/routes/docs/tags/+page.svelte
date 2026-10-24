@@ -22,7 +22,9 @@
 		<p>
 			svelte-docinfo extracts TSDoc/JSDoc tags from source comments into structured fields on the
 			<TomeLink slug="output-format">output</TomeLink>. This page lists every parsed tag, where its
-			value lands, and which symbol receives it.
+			value lands, and which symbol receives it. JSDoc's type tags (<code>@type</code>,
+			<code>@typedef</code>, <code>@template</code>, <code>@overload</code>) are covered in
+			<TomeLink slug="js" />.
 		</p>
 		<p>
 			The set is the common tags of <a href="https://jsdoc.app/">JSDoc</a> and the
@@ -137,8 +139,8 @@
 						<td>
 							A Svelte component's CSS custom property, in
 							<DeclarationLink name="ComponentDeclarationJson" />.<code>cssCustomProperties</code>
-							(see <a href="#cssprop">@cssprop</a>). Read from the component's doc comment only; on
-							any other declaration or in a <code>@module</code> comment it warns
+							(see <TomeLink slug="component-styling" />). Read from the component's doc comment
+							only; on any other declaration or in a <code>@module</code> comment it warns
 							<code>misplaced_tag</code> and is dropped. <code>@cssproperty</code> parses
 							identically
 						</td>
@@ -173,9 +175,11 @@
 				</li>
 			</ul>
 			<p>
-				A symbol-scope tag on a non-primary overload emits <code>misplaced_tag</code> and is
-				dropped. Put these tags on the first overload signature: its JSDoc documents the symbol,
-				while JSDoc on a later overload documents only that overload.
+				Put symbol-scope tags on the first overload: its JSDoc documents the symbol, while JSDoc on
+				a later overload documents only that overload, and a symbol-scope tag there warns
+				<code>misplaced_tag</code>. JSDoc on the implementation is hidden and warns
+				<code>implementation_doc_hidden</code>. For JS <code>@overload</code> tags, see
+				<TomeLink slug="js" hash="overload">JS and JSDoc</TomeLink>.
 			</p>
 			<Code
 				lang="ts"
@@ -189,54 +193,6 @@ export function double(n: number | bigint): number | bigint {
   return (n as any) * 2;
 }`}
 			/>
-		</TomeSection>
-
-		<TomeSection>
-			<TomeSectionHeader text="@overload blocks" />
-			<p>
-				In JS, each <code>@overload</code> tag declares a signature, and its JSDoc is the block the
-				tag sits in, with the <code>@param</code> and <code>@returns</code> tags that follow it. The
-				first overload documents the function, as the first signature does in TS. The
-				implementation's own block is hidden with its signature, as TypeScript reads it, so put the
-				function's prose and symbol-scope tags on the first <code>@overload</code> block, not on the
-				implementation's; a documented implementation warns <code>implementation_doc_hidden</code>,
-				in TS too. Write <code>@template</code> before <code>@overload</code>: TypeScript rejects
-				one between <code>@overload</code> and its <code>@param</code>/<code>@returns</code> tags.
-			</p>
-			<Code
-				lang="js"
-				content={`/**
- * Doubles a number or a bigint.
- * @overload
- * @param {number} n - the number to double
- * @returns {number}
- * @example double(2) // 4
- */
-/**
- * @overload
- * @param {bigint} n - the bigint to double
- * @returns {bigint}
- */
-/** @param {number | bigint} n */
-export function double(n) {
-  return /** @type {any} */ (n) * 2;
-}`}
-			/>
-		</TomeSection>
-
-		<TomeSection>
-			<TomeSectionHeader text="@typedef blocks" />
-			<p>
-				In JS, a block that declares a <code>@typedef</code> or <code>@callback</code> and has no
-				<code>@param</code> or <code>@returns</code> of its own documents the typedef, not the
-				declaration below it, as TypeScript's hover reads it. A <code>@module</code> block keeps its
-				prose for the module, and a component's JSDoc above <code>$props()</code> for the component;
-				the typedef gets no prose of its own. A <code>@typedef</code> in a component's HTML
-				<code>@component</code> comment documents nothing. Declare a component's props typedef in
-				its own block, and put the prose on the <code>@type</code> block above
-				<code>$props()</code>: svelte2tsx copies that block into its generated code, so svelte-check
-				reports a typedef there as a duplicate identifier.
-			</p>
 		</TomeSection>
 
 		<TomeSection>
@@ -345,55 +301,10 @@ export function double(n) {
 		<TomeSection>
 			<TomeSectionHeader text="@cssprop" />
 			<p>
-				<code>@cssprop</code> documents a CSS custom property a Svelte component reads, the styling
-				API a consumer sets as <code>&lt;Card --card_width="20rem" /&gt;</code> or on an ancestor.
-				It follows the
-				<a href="https://custom-elements-manifest.open-wc.org/">Custom Elements Manifest</a> form,
-				with <code>@cssproperty</code> as a synonym:
-			</p>
-			<Code
-				lang="svelte"
-				content={`<!--
-@component
-A card.
-
-@cssprop --card_width - the card's width
-@cssprop {<color>} --card_bg - the background color
-@cssprop [--card_padding=var(--space_lg)] - the inner padding
--->`}
-			/>
-			<p>
-				An optional braced syntax before the name lands as <code>syntax</code>, verbatim and
-				unvalidated, and an optional bracketed default (<code>[--a=1px]</code>) as
-				<code>fallback</code>, over any the style gives. The description follows, its leading
-				<code>-</code> dropped. A tag that names no <code>--</code> property is dropped, and a
-				second tag naming the same property is ignored. The tags never reach
-				<code>docComment</code>.
-			</p>
-			<p>
-				Each tag is an entry in <code>cssCustomProperties</code> with <code>documented: true</code>
-				and its <code>description</code>, listed first in tag order, ahead of the properties the
-				fallback-read heuristic finds alone. That catches the API the heuristic can't: a bare read
-				(<code>width: var(--card_width)</code>), one nested in another read's fallback, or one in
-				the markup's static style text. A tagged name the style also reads merges into one entry,
-				taking the read's <code>sourceLine</code> and, without a tag default, its
-				<code>fallback</code>. A tagged name the component never reads stays, at the tag's line, and
-				warns <code>unknown_cssprop</code>: usually a typo, sometimes a property left to its
-				children.
-			</p>
-			<p>
-				The tags come from the component's doc comment, whichever source wins
-				<code>docComment</code>: the in-script JSDoc at or above <code>$props()</code>, else the
-				HTML <code>@component</code> comment. The losing source's tags are ignored, as its other
-				tags are, and <code>duplicate_comment</code> flags the pair when the JSDoc carries prose, so
-				put the <code>@cssprop</code> tags in the comment that carries the component's prose. A
-				JSDoc block above <code>$props()</code> holding only tags still wins over the HTML comment,
-				with no warning, so its tags are the ones read. Since the heuristic also lists global design
-				tokens read with a fallback, a consumer can show only the <code>documented</code> entries of
-				a component that has any (see
-				<TomeLink slug="output-format" hash="ComponentCssPropertyJson">
-					ComponentCssPropertyJson
-				</TomeLink>).
+				<code>@cssprop {'{<syntax>}'} [--name=default] - description</code> documents a CSS custom
+				property in a Svelte component's doc comment, in the Custom Elements Manifest form; the
+				syntax and brackets are optional. A tag naming no <code>--</code> property is dropped, and a
+				second tag for the same name is ignored. See <TomeLink slug="component-styling" />.
 			</p>
 		</TomeSection>
 
@@ -427,28 +338,25 @@ A card.
 export function add_days(d: Date, n: number): Date { /* ... */ }`}
 			/>
 			<p>
-				Svelte files have three module-comment sources, in priority order: a JSDoc
-				<code>@module</code> in the instance <code>&lt;script&gt;</code>, one in
-				<code>&lt;script module&gt;</code>, and the first HTML <code>&lt;!-- --&gt;</code> comment
-				with <code>@module</code> at a line start. The highest-priority source wins, and more than
-				one emits <code>duplicate_comment</code> (<code>commentType: "module_comment"</code>). A
-				source whose comment holds only dropped tags yields to a lower one that documents the
-				module. An HTML comment's lines parse like a script comment's, with their common indentation
-				removed, so its tags and examples work the same way. A comment that's only
-				<code>@module</code> isn't a source. Likewise, an HTML <code>@component</code> comment plus
-				in-script component JSDoc emits it with <code>commentType: "doc_comment"</code>, and the
-				JSDoc wins. The HTML <code>@component</code> comment follows the <code>@module</code> rule:
-				the first comment with <code>@component</code> at a line start, parsed the same way, so a
-				passing mention doesn't count. svelte2tsx, which editor hover uses, takes the last comment
-				containing <code>@component</code> anywhere instead, and
-				<code>component_comment_mismatch</code> warns when the two disagree.
+				A Svelte file's module comment comes from the first of: a JSDoc <code>@module</code> in the
+				instance <code>&lt;script&gt;</code>, one in <code>&lt;script module&gt;</code>, and an HTML
+				comment with <code>@module</code> at a line start. More than one warns
+				<code>duplicate_comment</code>.
+			</p>
+			<p>
+				A component's doc comment is its JSDoc above <code>$props()</code>, else its HTML
+				<code>@component</code> comment, the first with <code>@component</code> at a line start. A
+				JSDoc with prose beside an HTML comment warns <code>duplicate_comment</code>. Editor hover
+				takes the last comment containing <code>@component</code> anywhere, so
+				<code>component_comment_mismatch</code> warns when the two picks differ.
 			</p>
 		</TomeSection>
 
 		<TomeSection>
 			<TomeSectionHeader text="Tag-related diagnostics" />
 			<p>
-				Tag problems surface as warnings: <code>misplaced_tag</code>, <code>unknown_param</code>,
+				Tag problems surface as warnings: <code>misplaced_tag</code>,
+				<code>implementation_doc_hidden</code>, <code>unknown_param</code>,
 				<code>unknown_cssprop</code>, and <code>duplicate_comment</code>, described in the sections
 				above and in <TomeLink slug="diagnostics" />. The parser is
 				<ModuleLink module_path="tsdoc.ts">tsdoc.ts</ModuleLink>.

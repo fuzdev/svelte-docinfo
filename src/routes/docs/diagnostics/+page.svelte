@@ -264,7 +264,7 @@
 							(<code>aliasName</code>) whose right-hand side is an indexed access or conditional,
 							like <code>z.infer&lt;typeof S&gt;</code> or valibot's
 							<code>v.InferOutput&lt;typeof S&gt;</code>, and svelte-docinfo can't
-							<TomeLink slug="output-format" hash="Structured-types-typeInfo">recover it</TomeLink>.
+							<TomeLink slug="structured-types" hash="Lost-alias-names">recover it</TomeLink>.
 							Literal-only unions (<code>z.enum</code>, <code>v.picklist</code>) and brand
 							intersections don't warn, since they read fine expanded, and neither do
 							<code>@nodocs</code> aliases. <strong>Consequence:</strong> unannotated positions
