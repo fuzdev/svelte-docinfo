@@ -27,8 +27,8 @@ import { test, assert, describe } from 'vitest';
 import ts from 'typescript';
 
 import { analyze, analyzeFromFiles } from '#lib/analyze.ts';
-import { analyzeCore } from '#lib/analyze-core.ts';
-import { byKind } from '#lib/diagnostics.ts';
+import { analyzeCore, finalizeDiagnostics } from '#lib/analyze-core.ts';
+import { byKind, type Diagnostic } from '#lib/diagnostics.ts';
 import { createSourceOptions } from '#lib/source-config.ts';
 import { SVELTE_VIRTUAL_SUFFIX } from '#lib/source.ts';
 import type { SvelteVirtualFile } from '#lib/svelte.ts';
@@ -400,5 +400,49 @@ describe('module_skipped, the sites no pipeline test reaches', () => {
 		for (const d of diagnostics) {
 			assert.notInclude(d.message, root, `${d.kind} leaked the project root`);
 		}
+	});
+});
+
+describe('identical diagnostics collapse', () => {
+	const warning = (line: number): Diagnostic => ({
+		kind: 'unknown_param',
+		file: '/p/src/lib/a.ts',
+		line,
+		column: 1,
+		message: 'm',
+		severity: 'warning',
+		paramName: 'b',
+		functionName: 'fn'
+	});
+
+	test('finalizeDiagnostics keeps the first of identical entries, in order', () => {
+		const diagnostics = [warning(1), warning(2), warning(1), warning(3), warning(2)];
+		finalizeDiagnostics(diagnostics, { projectRoot: '/p' });
+		assert.deepStrictEqual(
+			diagnostics.map((d) => d.line),
+			[1, 2, 3]
+		);
+	});
+
+	test('a symbol analyzed again through a renamed re-export warns once', async () => {
+		const root = '/virtual/dedupe';
+		const { diagnostics } = await analyze({
+			sourceFiles: [
+				{
+					id: `${root}/src/lib/a.ts`,
+					content: `export function fn(a: string): string;
+export function fn(a: number): number;
+/** Hidden. */
+export function fn(a: string | number): string | number {
+	return a;
+}
+export {fn as fn2};
+`
+				}
+			],
+			sourceOptions: createSourceOptions(root),
+			tsconfig: false
+		});
+		assert.strictEqual(byKind(diagnostics, 'implementation_doc_hidden').length, 1);
 	});
 });

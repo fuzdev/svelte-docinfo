@@ -22,6 +22,7 @@
 		<p>
 			Analysis accumulates errors and warnings without halting, as an array of
 			<DeclarationLink name="Diagnostic" /> entries alongside <code>modules</code> in the result.
+			Identical diagnostics are reported once.
 		</p>
 
 		<TomeSection>

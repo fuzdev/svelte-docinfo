@@ -38,6 +38,7 @@ import {
 import {
 	applyToDeclaration,
 	firstJSDocOverloadSignature,
+	functionInitializer,
 	jsdocOverloadSignatures,
 	hasDocContent,
 	jsdocParamTagDefault,
@@ -303,14 +304,7 @@ export const inferDeclarationKind = (symbol: ts.Symbol, node: ts.Node): Declarat
 	if (ts.isInterfaceDeclaration(node)) return 'interface';
 	if (isTypeAliasLike(node)) return 'type';
 	if (ts.isEnumDeclaration(node)) return 'enum';
-	if (ts.isVariableDeclaration(node)) {
-		// Check if it's a function-valued variable
-		const init = node.initializer;
-		if (init && (ts.isArrowFunction(init) || ts.isFunctionExpression(init))) {
-			return 'function';
-		}
-		return 'variable';
-	}
+	if (ts.isVariableDeclaration(node)) return functionInitializer(node) ? 'function' : 'variable';
 
 	return 'variable';
 };
@@ -373,7 +367,7 @@ export const selectDeclarationNode = (symbol: ts.Symbol): ts.Declaration | undef
  * fails open: the typedef documents again, with a `sourceLine` past the end of
  * the original source.
  */
-export const isStrayComponentTypedefTag = (node: ts.Node): boolean => {
+const isStrayComponentTypedefTag = (node: ts.Node): boolean => {
 	if (!ts.isJSDocTypedefTag(node) && !ts.isJSDocCallbackTag(node)) return false;
 	const host = node.parent.parent;
 	return (
@@ -936,6 +930,8 @@ export const populateCallableMember = (
  * (`@nodocs` included) would vanish silently.
  *
  * @param node - the declaration whose docs document the symbol (`paramValidationNode`)
+ * @param ctx - the extraction pass's context
+ * @param name - the function's name, for the message
  * @mutates ctx.diagnostics - adds one `implementation_doc_hidden` per implementation with docs
  */
 const warnHiddenImplementationDoc = (node: ts.Node, ctx: ExtractContext, name: string): void => {
@@ -943,17 +939,8 @@ const warnHiddenImplementationDoc = (node: ts.Node, ctx: ExtractContext, name: s
 	if (parseHiddenJSDocImplementationComment(node)) {
 		implementation = node;
 	} else if (ts.isFunctionLike(node) && !hasBody(node)) {
-		const declName = ts.getNameOfDeclaration(node);
-		// a nameless declaration (a constructor, an `export default function`
-		// overload) pairs with its nameless siblings, as in `ownsSignatureDeclarations`
-		const siblings: ReadonlyArray<ts.Node> = declName
-			? (ctx.checker.getSymbolAtLocation(declName)?.declarations ?? [])
-			: ts.isClassLike(node.parent)
-				? node.parent.members
-				: ts.isSourceFile(node.parent) || ts.isModuleBlock(node.parent)
-					? node.parent.statements.filter((d) => ts.isFunctionDeclaration(d) && !d.name)
-					: [];
-		implementation = siblings.find(
+		// same kind and parent, so a class method's interface-merged twin doesn't count
+		implementation = overloadSiblings(node, ctx.checker).find(
 			(d) => d.kind === node.kind && d.parent === node.parent && hasBody(d)
 		);
 		const tsdoc = implementation && parseComment(implementation);
@@ -975,15 +962,31 @@ const warnHiddenImplementationDoc = (node: ts.Node, ctx: ExtractContext, name: s
 const hasBody = (node: ts.Node): boolean => 'body' in node && !!node.body;
 
 /**
+ * The declarations that overload `node` with it: its symbol's declarations
+ * (all of a TS function's or method's overloads, merged across declarations),
+ * or, for a nameless declaration (a constructor, an `export default function`
+ * overload), its nameless siblings of the same kind.
+ */
+const overloadSiblings = (node: ts.Node, checker: ts.TypeChecker): ReadonlyArray<ts.Node> => {
+	const name = ts.getNameOfDeclaration(node as ts.Declaration);
+	if (name) return checker.getSymbolAtLocation(name)?.declarations ?? [];
+	const container: ReadonlyArray<ts.Node> = ts.isClassLike(node.parent)
+		? node.parent.members
+		: ts.isSourceFile(node.parent) || ts.isModuleBlock(node.parent)
+			? node.parent.statements
+			: [];
+	return container.filter(
+		(d) => d.kind === node.kind && !ts.getNameOfDeclaration(d as ts.Declaration)
+	);
+};
+
+/**
  * Whether a signature is declared by `node` itself, so `node`'s JSDoc is that
  * signature's, rather than borrowed through its type (`m: typeof g`,
  * `@property {typeof g} m`, `m: I` for an interface `I` with call
  * signatures). A JS `@overload`'s signature is `node`'s when it is one of
- * `node`'s own `jsdocOverloadSignatures`. Any other is `node`'s when it is
- * one of the declarations of `node`'s symbol (all of a TS function's or
- * method's overloads, merged across declarations) or, for a nameless
- * declaration (a constructor, an `export default function` overload), a
- * nameless sibling of the same kind.
+ * `node`'s own `jsdocOverloadSignatures`, and any other when it's one of
+ * `overloadSiblings`.
  */
 const ownsSignatureDeclarations = (
 	node: ts.Node,
@@ -995,12 +998,7 @@ const ownsSignatureDeclarations = (
 	if (!decl) return false;
 	if (ts.isJSDocSignature(decl)) return jsdocOverloadSignatures(node).includes(decl);
 	// every caller's `node` is the parent declaration (`paramValidationNode`)
-	const name = ts.getNameOfDeclaration(node as ts.Declaration);
-	if (!name) {
-		return decl.kind === node.kind && decl.parent === node.parent && !ts.getNameOfDeclaration(decl);
-	}
-	const symbol = checker.getSymbolAtLocation(name);
-	return !!symbol?.declarations?.includes(decl);
+	return overloadSiblings(node, checker).includes(decl);
 };
 
 /**

@@ -18,7 +18,7 @@ import ts from 'typescript';
 
 import type { DeclarationJsonBuild } from './declaration-build.ts';
 import { toErrorMessage } from './error.ts';
-import type { TsdocParsedComment } from './tsdoc.ts';
+import { functionInitializer, type TsdocParsedComment } from './tsdoc.ts';
 import { resolveTypeInfo, writtenTypeAnnotation } from './typescript-extract-type-json.ts';
 import {
 	detectReactivity,
@@ -83,14 +83,12 @@ export const extractFunctionInfo = (
 			// it) — generics on the type annotation. Annotation wins over
 			// initializer when both carry generics: it's the public type.
 			typeParameters = annotation.typeParameters;
-		} else if (
-			node.initializer &&
-			(ts.isArrowFunction(node.initializer) || ts.isFunctionExpression(node.initializer))
-		) {
+		} else {
 			// `export const foo = <T>(x: T) => x` — generics live on the initializer,
 			// not the variable. In JS the statement's `@template` tags are the
 			// initializer's
-			typeParameters = signatureTypeParameters(node.initializer);
+			const initializer = functionInitializer(node);
+			if (initializer) typeParameters = signatureTypeParameters(initializer);
 		}
 	}
 	if (typeParameters?.length) {

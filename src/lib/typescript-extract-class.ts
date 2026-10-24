@@ -412,7 +412,7 @@ interface ThisAssignedMember {
  * declaration, its first assignment in source order, so a method written
  * above the constructor can supply them. Docs come from the first documented
  * assignment in the constructor (a static block, for a static), else the
- * first documented one anywhere, else the primary's (`ThisAssignedMember`).
+ * first documented one anywhere.
  * Hover joins every assignment's prose instead; one block keeps `docComment`
  * a single author statement.
  *
@@ -480,8 +480,13 @@ const collectThisAssignedMembers = (
 			if (!assignments.length) return;
 			// the written member lists it, even when an assignment above it bound first
 			if (decls.some((d) => ts.isClassElement(d) && d.parent === node)) return;
+			// an inherited name is the base's property
+			if ((isStatic ? inheritedStaticNames : inheritedInstanceNames).has(symbol.escapedName)) {
+				return;
+			}
 			const inConstructor = assignments.filter((a) => isInConstructorOf(a, node));
-			const declaring = isStatic
+			// where docs are looked for first: the constructor, or for a static a static block
+			const preferredDocSites = isStatic
 				? assignments.filter((a) => isInStaticBlockOf(a, node))
 				: inConstructor;
 			const resolved = checker.getPropertyOfType(
@@ -490,10 +495,6 @@ const collectThisAssignedMembers = (
 			);
 			// the checker's own declaration, when it reads the property as the class's
 			const checkerDeclared = assignments.find((a) => a === resolved?.valueDeclaration);
-			// an inherited name is the base's property
-			if ((isStatic ? inheritedStaticNames : inheritedInstanceNames).has(symbol.escapedName)) {
-				return;
-			}
 			// the checker's own property, so a non-literal key (`this[k] = …`, its
 			// `__computed`) and anything it reads as another declaration's drop
 			const resolvedDecls = resolved?.getDeclarations();
@@ -503,7 +504,7 @@ const collectThisAssignedMembers = (
 			if (isPrivateMemberDeclaration(modified)) return;
 			const primary = inConstructor[0] ?? assignments[0]!;
 			let tsdoc: TsdocParsedComment | undefined;
-			for (const a of [...declaring, ...assignments]) {
+			for (const a of [...preferredDocSites, ...assignments]) {
 				if ((tsdoc = documented(a))) break;
 			}
 			found.push({
@@ -511,7 +512,7 @@ const collectThisAssignedMembers = (
 				primary,
 				modified,
 				writtenNode: firstWrittenType(decls),
-				tsdoc: tsdoc ?? parseComment(primary, sourceFile),
+				tsdoc,
 				isStatic,
 				inConstructor: inConstructor.length > 0
 			});

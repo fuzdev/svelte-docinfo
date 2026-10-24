@@ -163,7 +163,8 @@ const {modules, diagnostics} = await analyzeFromFiles({projectRoot: process.cwd(
 			<TomeSectionHeader text="Limitations" />
 			<ul>
 				<li>
-					Svelte 4 slots and events aren't modeled, nor context (<code>setContext</code>); a
+					Svelte 4 named slots, slot props, and events aren't modeled, nor context
+					(<code>setContext</code>); a
 					<a href="https://github.com/fuzdev/svelte-docinfo/discussions">request</a> would bump
 					context's priority. Legacy <code>export let</code> components document their props.
 				</li>

@@ -21,7 +21,7 @@ topic guides and references; `tomes.ts` orders them). Examples: `examples/vite/`
 
 - **Type resolution** — imported types, generics, inferred types. Every member type is
   checker-backed.
-- **Structured types** — optional `typeInfo` (`TypeJson`, a recursive 10-kind valibot
+- **Structured types** — optional `typeInfo` (`TypeJson`, a recursive valibot
   schema) beside the flat type strings, on variables, type aliases, variable members,
   component props, parameters, and tuple elements; `returnTypeInfo` on functions, function
   members, and overloads. Policy: the `TypeJson` schema TSDoc (`types.ts`) and
@@ -536,6 +536,8 @@ whole-output pass so a new printing site can't miss it.
   absolute id; `finalizeDiagnostics` remaps virtual positions to `.svelte` positions (an
   unmappable one drops line and column), then `normalizeDiagnosticPaths` relativizes `file`
   and scrubs `message`.
+- **Dedupe** — `finalizeDiagnostics` collapses identical diagnostics last, since a symbol
+  analyzed twice (a renamed alias, a type alias over a class) re-reports at one position.
 - **Severity** is fixed per kind: `transform_failed` and `module_unreadable` are errors,
   everything else a warning. `duplicate_declaration` emits only under `onDuplicates`
   (`'warn'` adds a log, `'throw'` a throw).

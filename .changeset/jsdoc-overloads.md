@@ -18,6 +18,4 @@ In JS files, a function, arrow function, class method, or constructor with `@ove
 
 New `implementation_doc_hidden` warning (`functionName`), in TS and JS alike: an overloaded function, method, or constructor whose implementation carries prose or doc tags, which the output hides. A block of types alone (`@param {string} a`) doesn't fire.
 
-Identical diagnostics now collapse to one: a symbol analyzed more than once (a renamed re-export's alias, a type alias over a class) no longer repeats the same warning at the same position.
-
 When an interface merged ahead of a class lists its method's signatures first, the interface's overload warns `misplaced_tag` rather than the class's.

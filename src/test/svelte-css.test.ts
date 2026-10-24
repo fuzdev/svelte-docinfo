@@ -260,7 +260,7 @@ describe('documentCssProperties', () => {
 			{ name: '--a', fallback: 'blue', sourceLine: 2, documented: true },
 			{ name: '--c', fallback: '1px', sourceLine: 2 }
 		]);
-		assert.deepEqual(unread, [{ name: '--x', description: 'd1' }]);
+		assert.deepEqual(unread, [{ name: '--x', description: 'd1', sourceLine: 9, documented: true }]);
 	});
 
 	test('without tags, the heuristic list as is', () => {

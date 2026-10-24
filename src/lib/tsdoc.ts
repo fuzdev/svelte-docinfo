@@ -626,12 +626,7 @@ const parseCallbackSignatureComment = (
  */
 export const jsdocOverloadSignatures = (node: ts.Node): Array<ts.JSDocSignature> => {
 	if (!(node.flags & ts.NodeFlags.JavaScriptFile)) return [];
-	const host =
-		ts.isVariableDeclaration(node) &&
-		node.initializer &&
-		(ts.isArrowFunction(node.initializer) || ts.isFunctionExpression(node.initializer))
-			? node.initializer
-			: node;
+	const host = functionInitializer(node) ?? node;
 	if (!ts.isFunctionLike(host) || ts.isJSDocSignature(host) || ts.isAccessor(host)) return [];
 	return ts
 		.getJSDocTags(host)
@@ -674,6 +669,20 @@ export const parseHiddenJSDocImplementationComment = (
 	);
 	return hasDocContent(parsed) ? parsed : undefined;
 };
+
+/**
+ * A variable's arrow-function or function-expression initializer, which
+ * carries the variable's function signature (and, in JS, its statement's
+ * JSDoc), or undefined for any other node.
+ */
+export const functionInitializer = (
+	node: ts.Node
+): ts.ArrowFunction | ts.FunctionExpression | undefined =>
+	ts.isVariableDeclaration(node) &&
+	node.initializer &&
+	(ts.isArrowFunction(node.initializer) || ts.isFunctionExpression(node.initializer))
+		? node.initializer
+		: undefined;
 
 /**
  * The first of `jsdocOverloadSignatures`, the declaration's first public

@@ -713,7 +713,6 @@ const collectMaterializedStars = (
  */
 const findCommonjsExport = (sourceFile: ts.SourceFile): ts.Expression | undefined => {
 	if (!isJavaScriptNode(sourceFile)) return undefined;
-	if (bindsCommonjsName(sourceFile)) return undefined;
 	for (const statement of sourceFile.statements) {
 		if (!ts.isExpressionStatement(statement)) continue;
 		const expression = statement.expression;
@@ -722,7 +721,8 @@ const findCommonjsExport = (sourceFile: ts.SourceFile): ts.Expression | undefine
 			expression.operatorToken.kind === ts.SyntaxKind.EqualsToken &&
 			isCommonjsExportTarget(expression.left)
 		) {
-			return expression.left;
+			// checked only on a hit: a file's own `exports` or `module` makes it ordinary code
+			return bindsCommonjsName(sourceFile) ? undefined : expression.left;
 		}
 	}
 	return undefined;

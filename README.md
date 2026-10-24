@@ -224,7 +224,7 @@ You may also want to browse the [test fixtures](https://github.com/fuzdev/svelte
 - **[Diagnostics](https://svelte-docinfo.fuz.dev/docs/diagnostics)** collected without halting, for doc problems like misplaced tags and stale `@param`s
 - **Build-tool agnostic**: files can come from disk, a build pipeline, or memory
 
-Svelte 4 slots and events, Svelte context, and CommonJS aren't modeled; see the
+Svelte 4 named slots, slot props, and events, Svelte context, and CommonJS aren't modeled; see the
 [limitations](https://svelte-docinfo.fuz.dev/docs/introduction#Limitations).
 [Issues](https://github.com/fuzdev/svelte-docinfo/issues) for bugs and
 [discussions](https://github.com/fuzdev/svelte-docinfo/discussions) are welcome!

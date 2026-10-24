@@ -277,6 +277,17 @@ const collectStyleAttributeProperties = (attribute: AST.Attribute, names: Set<st
 const textPartsOf = (value: AST.StyleDirective['value']): Array<AST.Text> =>
 	Array.isArray(value) ? value.filter((part): part is AST.Text => part.type === 'Text') : [];
 
+/** Keep the first read of `name`, filling a fallback it lacks from a later read's. */
+const recordRead = <T extends { fallback?: string | undefined }>(
+	reads: Map<string, T>,
+	name: string,
+	read: T
+): void => {
+	const first = reads.get(name);
+	if (!first) reads.set(name, read);
+	else if (first.fallback === undefined) first.fallback = read.fallback;
+};
+
 /** Record every `var()` read in the source range, nested ones included, into `reads`. */
 const collectAllReads = (
 	svelteSource: string,
@@ -285,9 +296,7 @@ const collectAllReads = (
 	reads: Map<string, FirstRead>
 ): void => {
 	for (const read of scanCssVarReads(svelteSource, start, end)) {
-		const first = reads.get(read.name);
-		if (!first) reads.set(read.name, { offset: read.offset, fallback: read.fallback });
-		else if (first.fallback === undefined) first.fallback = read.fallback;
+		recordRead(reads, read.name, { offset: read.offset, fallback: read.fallback });
 		if (read.fallbackRange) {
 			collectAllReads(svelteSource, read.fallbackRange[0], read.fallbackRange[1], reads);
 		}
@@ -368,9 +377,7 @@ const collectStylesheet = (
 				node.start + node.property.length,
 				node.end
 			)) {
-				const first = reads.get(read.name);
-				if (!first) reads.set(read.name, { offset: read.offset, fallback: read.fallback });
-				else if (first.fallback === undefined) first.fallback = read.fallback;
+				recordRead(reads, read.name, { offset: read.offset, fallback: read.fallback });
 				if (read.fallbackRange) {
 					collectAllReads(svelteSource, read.fallbackRange[0], read.fallbackRange[1], nestedReads);
 				}
@@ -468,14 +475,13 @@ export const analyzeComponentCss = (svelteSource: string): ComponentCss => {
 	const properties: Array<ComponentCssPropertyJsonInput> = [];
 	const allReads: Map<string, ComponentCssRead> = new Map();
 	for (const [name, { offset, fallback }] of reads) {
-		allReads.set(name, { line: lineAt(lineStarts, offset), fallback });
+		const line = lineAt(lineStarts, offset);
+		allReads.set(name, { line, fallback });
 		if (fallback === undefined || defined.has(name) || setInMarkup.has(name)) continue;
-		properties.push({ name, fallback, sourceLine: lineAt(lineStarts, offset) });
+		properties.push({ name, fallback, sourceLine: line });
 	}
 	for (const [name, { offset, fallback }] of otherReads) {
-		const outermost = allReads.get(name);
-		if (!outermost) allReads.set(name, { line: lineAt(lineStarts, offset), fallback });
-		else if (outermost.fallback === undefined) outermost.fallback = fallback;
+		recordRead(allReads, name, { line: lineAt(lineStarts, offset), fallback });
 	}
 	return { properties, reads: allReads };
 };
@@ -484,8 +490,8 @@ export const analyzeComponentCss = (svelteSource: string): ComponentCss => {
 export interface DocumentedComponentCss {
 	/** The styling API with the documented properties merged in. */
 	properties: Array<ComponentCssPropertyJsonInput>;
-	/** The documented names the component never reads, in tag order. */
-	unread: Array<TsdocCssProperty>;
+	/** The documented entries the component never reads, at their tags' lines, in tag order. */
+	unread: Array<ComponentCssPropertyJsonInput>;
 }
 
 /**
@@ -515,22 +521,23 @@ export const documentCssProperties = (
 	if (tags.length === 0) return { properties: css.properties, unread: [] };
 	const listed = new Map(css.properties.map((property) => [property.name, property]));
 	const properties: Array<ComponentCssPropertyJsonInput> = [];
-	const unread: Array<TsdocCssProperty> = [];
+	const unread: Array<ComponentCssPropertyJsonInput> = [];
 	for (const tag of tags) {
 		const entry = listed.get(tag.name);
 		const read = entry
 			? { line: entry.sourceLine, fallback: entry.fallback }
 			: css.reads?.get(tag.name);
-		if (!read && css.reads) unread.push(tag);
 		const fallback = tag.fallback ?? read?.fallback;
-		properties.push({
+		const property: ComponentCssPropertyJsonInput = {
 			name: tag.name,
 			...(tag.description !== undefined && { description: tag.description }),
 			...(tag.syntax !== undefined && { syntax: tag.syntax }),
 			...(fallback !== undefined && { fallback }),
 			sourceLine: read ? read.line : tagLineOf(tag.name),
 			documented: true
-		});
+		};
+		properties.push(property);
+		if (!read && css.reads) unread.push(property);
 	}
 	const documented = new Set(tags.map(({ name }) => name));
 	for (const property of css.properties) {
@@ -572,7 +579,12 @@ export const findCsspropTagLine = (
 	const text = svelteSource.slice(start, end);
 	for (const match of text.matchAll(CSSPROP_TAG)) {
 		if (parseCsspropTagText(match[1]!)?.name === name) {
-			return lineAt(lineStartsOf(svelteSource), start + match.index);
+			// one lookup, so count newlines rather than index every line start
+			let line = 1;
+			for (let i = start + match.index; i-- > 0;) {
+				if (svelteSource.charCodeAt(i) === 10 /* \n */) line++;
+			}
+			return line;
 		}
 	}
 	return undefined;

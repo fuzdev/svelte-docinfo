@@ -2015,11 +2015,11 @@ export const analyzeSvelteModule = (
 	if (css.problem) {
 		diagnostics.push({ ...css.problem, file: diagnosticFile, severity: 'warning' });
 	}
-	for (const { name } of documentedCss.unread) {
+	for (const { name, sourceLine } of documentedCss.unread) {
 		diagnostics.push({
 			kind: 'unknown_cssprop',
 			file: diagnosticFile,
-			line: tagLineOf(name),
+			line: sourceLine,
 			message: `@cssprop "${name}" on "${componentName}" names a custom property the component never reads (typo, or one it leaves to its children?)`,
 			severity: 'warning',
 			propertyName: name,
