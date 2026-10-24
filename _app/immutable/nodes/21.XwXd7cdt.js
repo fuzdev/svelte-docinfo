@@ -1,1 +1,0 @@
-export{t as component}from"../chunks/BrDY25_6.js";
