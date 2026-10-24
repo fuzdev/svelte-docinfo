@@ -117,8 +117,7 @@ describe('DEFAULT_SOURCE_OPTIONS', () => {
 
 	test('has expected default exclude globs', () => {
 		assert.deepStrictEqual(DEFAULT_SOURCE_OPTIONS.exclude, [
-			'**/*.test.ts',
-			'**/*.spec.ts',
+			'**/*.{test,spec}.{ts,mts,tsx,js,mjs,jsx}',
 			'**/internal/**'
 		]);
 	});
@@ -155,8 +154,7 @@ describe('createSourceOptions', () => {
 				exclude: (defaults) => [...defaults, '**/*.gen.ts']
 			});
 			assert.deepStrictEqual(options.exclude, [
-				'**/*.test.ts',
-				'**/*.spec.ts',
+				'**/*.{test,spec}.{ts,mts,tsx,js,mjs,jsx}',
 				'**/internal/**',
 				'**/*.gen.ts'
 			]);
@@ -166,7 +164,7 @@ describe('createSourceOptions', () => {
 			const options = createSourceOptions('/my/project', {
 				exclude: (defaults) => defaults.filter((p) => p !== '**/internal/**')
 			});
-			assert.deepStrictEqual(options.exclude, ['**/*.test.ts', '**/*.spec.ts']);
+			assert.deepStrictEqual(options.exclude, ['**/*.{test,spec}.{ts,mts,tsx,js,mjs,jsx}']);
 		});
 
 		test('array form replaces the defaults wholesale', () => {
@@ -201,8 +199,7 @@ describe('createSourceOptions', () => {
 				}
 			});
 			assert.deepStrictEqual(DEFAULT_SOURCE_OPTIONS.exclude, [
-				'**/*.test.ts',
-				'**/*.spec.ts',
+				'**/*.{test,spec}.{ts,mts,tsx,js,mjs,jsx}',
 				'**/internal/**'
 			]);
 		});
@@ -262,6 +259,29 @@ describe('isSource', () => {
 
 		test('excludes test files', () => {
 			assert.isFalse(isSource('/home/user/project/src/lib/foo.test.ts', testMockOptions()));
+		});
+
+		test('excludes test and spec files of every module extension', () => {
+			for (const name of [
+				'a.spec.ts',
+				'x.test.tsx',
+				'y.spec.js',
+				'z.test.mts',
+				'b.test.mjs',
+				'c.spec.jsx'
+			]) {
+				assert.isFalse(isSource(`/home/user/project/src/lib/${name}`, testMockOptions()), name);
+			}
+			// only a `.test`/`.spec` segment right before the extension counts
+			for (const name of [
+				'test.ts',
+				'spec.js',
+				'a.test-utils.ts',
+				'a.tests.tsx',
+				'a.test.svelte'
+			]) {
+				assert.isTrue(isSource(`/home/user/project/src/lib/${name}`, testMockOptions()), name);
+			}
 		});
 
 		test('excludes internal/ directories at any depth (default pattern)', () => {

@@ -121,7 +121,8 @@ export const getDisplayName = (declaration: DeclarationJson | MemberJson): strin
  *   synthesized JS binding).
  *
  * @param declaration - the `DeclarationJson` to generate an import for
- * @param modulePath - module path relative to source root (e.g., `foo.ts`)
+ * @param modulePath - module path relative to source root (e.g., `foo.ts`); the
+ *   specifier names the file it ships as (`.ts`, `.tsx`, `.jsx` → `.js`, `.mts` → `.mjs`)
  * @param libraryName - package name for the import specifier (e.g., `@pkg/lib`)
  * @returns formatted import statement string
  *
@@ -139,8 +140,7 @@ export const generateImport = (
 	modulePath: string,
 	libraryName: string
 ): string => {
-	const jsPath = modulePath.replace(/\.ts$/, '.js');
-	const specifier = `${libraryName}/${jsPath}`;
+	const specifier = `${libraryName}/${toDistModulePath(modulePath)}`;
 
 	// Default-slot entries — derive the import binding from the module path.
 	if (declaration.name === 'default') {
@@ -167,8 +167,16 @@ export const generateImport = (
 	return `${typeOnly ? 'import type' : 'import'} {${declaration.name}} from '${specifier}';`;
 };
 
+/**
+ * The module path a source module ships under: `.ts`, `.tsx`, and `.jsx` →
+ * `.js`, `.mts` → `.mjs`, every other extension kept. The inverse of exports
+ * discovery's `dist` → source mapping (`mapDistToSource` and its fallbacks).
+ */
+const toDistModulePath = (modulePath: string): string =>
+	modulePath.replace(/\.(?:tsx?|jsx)$/, '.js').replace(/\.mts$/, '.mjs');
+
 const pascalCaseFromModulePath = (modulePath: string): string => {
-	const moduleName = modulePath.replace(/\.(js|ts|svelte)$/, '');
+	const moduleName = modulePath.replace(/\.(?:[mc]?[jt]sx?|svelte)$/, '');
 	return moduleName
 		.split(/[-_/]/)
 		.map((part) => part.charAt(0).toUpperCase() + part.slice(1))

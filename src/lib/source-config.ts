@@ -130,7 +130,7 @@ export interface ModuleSourceOptions {
 	 * `normalizeSourceOptions` (which returns a fresh object) or otherwise build a
 	 * new options object to apply changes.
 	 *
-	 * @default `['**\/*.test.ts', '**\/*.spec.ts', '**\/internal/**']`
+	 * @default `['**\/*.{test,spec}.{ts,mts,tsx,js,mjs,jsx}', '**\/internal/**']`
 	 */
 	exclude: Array<string>;
 	/**
@@ -220,7 +220,7 @@ export type SourceOptionsOverrides = Omit<Partial<SourceOptionsDefaults>, 'exclu
  */
 export const DEFAULT_SOURCE_OPTIONS: SourceOptionsDefaults = {
 	sourcePaths: ['src/lib'],
-	exclude: ['**/*.test.ts', '**/*.spec.ts', '**/internal/**'],
+	exclude: ['**/*.{test,spec}.{ts,mts,tsx,js,mjs,jsx}', '**/internal/**'],
 	getAnalyzerType: getDefaultAnalyzer
 };
 

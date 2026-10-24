@@ -189,12 +189,13 @@ export const captureFixtureProject = async (
 	const emittedIds = new Set(sourceFiles.map((f) => f.id));
 	const ingestDiagnostics: Array<Diagnostic> = [];
 	const withDependencies: Array<SourceFileInfo> = sourceFiles.map(({ id, content }) => {
-		const contentToLex = svelteVirtualFiles?.get(id)?.content ?? content;
+		const virtualContent = svelteVirtualFiles?.get(id)?.content;
 		// the session's phase-1 shape (`import_parse_failed`) — lexer-rejected
 		// content is a capturable diagnostic, not a batch crash
 		let specifiers: Array<string> = [];
 		try {
-			specifiers = lexImports(contentToLex);
+			specifiers =
+				virtualContent !== undefined ? lexImports(virtualContent) : lexImports(content, id);
 		} catch (err) {
 			ingestDiagnostics.push({
 				kind: 'import_parse_failed',

@@ -24,7 +24,7 @@ Layout:
   `types`, `reexports`, `errors`
 - **ts** — `ts/<category>/[<sub>/]<case>/`, categories
   `declarations/{class,enum,function,interface,type,variable}`, `generics`,
-  `members`, `module/comment`, `parameters`, `reexports`, `tsdoc`, `types`
+  `members`, `module/{comment,commonjs}`, `parameters`, `reexports`, `tsdoc`, `types`
 - **tsdoc** — flat `tsdoc/<tag>-<feature>/` (kebab-case): `comment`, `tags`,
   `param`, `returns`, `throws`, `example`, `deprecated`, `internal`, `link`,
   `see`, `since`, `mutates`, `nodocs`, plus the standalone `no-jsdoc`
@@ -270,7 +270,9 @@ Where each behavior is locked. Unit and behavior-level mechanics live in
   `@param {object}`-nested docs with TS twins: `parameters/jsdoc-*`), module
   comments (`module/comment/*`: tags to module fields, tag-only, bare tags,
   multi-line `@see`, unknown tags, and declaration-only tags warning
-  `misplaced_tag`)
+  `misplaced_tag`); a JS CommonJS module warning `commonjs_unsupported` and
+  documenting nothing but its module comment, and an ES module's
+  `module.exports` assignment staying ordinary code (`module/commonjs/*`)
 - Structured types and name recovery: `types/type-info*`,
   `declarations/*/type-info-recovery`, `declarations/*/alias-lost-*`; merged
   value+type symbols: `declarations/*/merged-value-*`; union members in

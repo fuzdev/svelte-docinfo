@@ -1,5 +1,6 @@
 /**
- * Tests for `loadTsconfig` and `createAnalysisLanguageService` handle behavior.
+ * Tests for `loadTsconfig` and `createAnalysisLanguageService` handle behavior,
+ * and for the options both program paths run with (`allowJs` forced on).
  *
  * The program-integration paths (virtual files, `.svelte` resolution) are
  * covered in `svelte-program.test.ts`; this file covers the module's own
@@ -12,6 +13,7 @@ import { test, assert, describe } from 'vitest';
 import {
 	DEFAULT_COMPILER_OPTIONS,
 	createAnalysisLanguageService,
+	createAnalysisProgram,
 	createOwnedDirIndex,
 	declarationFileRoots,
 	loadTsconfig
@@ -502,6 +504,21 @@ describe('createAnalysisLanguageService', () => {
 			});
 		});
 
+		test('forces allowJs on, leaving checkJs as configured', async () => {
+			// the test tsconfig sets neither
+			await withTestProject({}, async (projectRoot) => {
+				const ls = createAnalysisLanguageService({ projectRoot });
+				try {
+					const options = ls.getCompilerOptions();
+					assert.strictEqual(options.allowJs, true);
+					assert.strictEqual(options.checkJs, undefined);
+					assert.strictEqual(ls.getProgram().getCompilerOptions(), options);
+				} finally {
+					ls.dispose();
+				}
+			});
+		});
+
 		test('reference-stable across calls', async () => {
 			await withTestProject({}, async (projectRoot) => {
 				const ls = createAnalysisLanguageService({ projectRoot });
@@ -575,6 +592,39 @@ describe('createAnalysisLanguageService', () => {
 					}
 				}
 			);
+		});
+	});
+});
+
+describe('createAnalysisProgram', () => {
+	// the test tsconfig sets no `allowJs`
+	test('serves a JS virtual file under a tsconfig without allowJs', async () => {
+		await withTestProject({}, async (projectRoot) => {
+			const jsPath = join(projectRoot, 'src/lib/a.js');
+			const tsPath = join(projectRoot, 'src/lib/b.ts');
+			const program = createAnalysisProgram({
+				projectRoot,
+				virtualFiles: new Map([
+					[jsPath, { content: '/** @param {number} x */\nexport const fa = (x) => x + 1;' }],
+					[tsPath, { content: "import {fa} from './a.js';\nexport const fb = fa;" }]
+				])
+			});
+			assert.strictEqual(program.getCompilerOptions().allowJs, true);
+			assert.ok(program.getSourceFile(jsPath), 'the JS file is in the program');
+			const b = program.getSourceFile(tsPath);
+			assert.ok(b);
+			const checker = program.getTypeChecker();
+			const fb = checker.getExportsOfModule(checker.getSymbolAtLocation(b)!)[0]!;
+			assert.strictEqual(
+				checker.typeToString(checker.getTypeOfSymbol(fb)),
+				'(x: number) => number'
+			);
+		});
+	});
+
+	test('forces allowJs without virtual files too', async () => {
+		await withTestProject({}, async (projectRoot) => {
+			assert.strictEqual(createAnalysisProgram({ projectRoot }).getCompilerOptions().allowJs, true);
 		});
 	});
 });

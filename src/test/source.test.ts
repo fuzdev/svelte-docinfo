@@ -41,8 +41,17 @@ describe('module type predicates', () => {
 			// .js files
 			['foo.js', true],
 			['path/to/bar.js', true],
+			// ES module and JSX variants
+			['foo.mts', true],
+			['foo.tsx', true],
+			['foo.mjs', true],
+			['foo.jsx', true],
+			// CommonJS variants (excluded)
+			['foo.cts', false],
+			['foo.cjs', false],
 			// .d.ts declaration files (excluded)
 			['types.d.ts', false],
+			['types.d.mts', false],
 			['path/to/global.d.ts', false],
 			['index.d.ts', false],
 			// Other extensions

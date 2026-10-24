@@ -104,7 +104,8 @@ export const DiagnosticKind = v.picklist([
 	'duplicate_declaration',
 	'transform_failed',
 	'resolver_failed',
-	'alias_lost'
+	'alias_lost',
+	'commonjs_unsupported'
 ]);
 export type DiagnosticKind = v.InferOutput<typeof DiagnosticKind>;
 
@@ -543,6 +544,35 @@ export interface AliasLostDiagnosticSchema extends Named<typeof AliasLostDiagnos
 export const AliasLostDiagnostic: AliasLostDiagnosticSchema = AliasLostDiagnosticImpl;
 export type AliasLostDiagnostic = v.InferOutput<typeof AliasLostDiagnostic>;
 
+const CommonjsUnsupportedDiagnosticImpl = v.strictObject({
+	kind: v.literal('commonjs_unsupported'),
+	...baseDiagnosticFields
+});
+/** @nodocs */
+export interface CommonjsUnsupportedDiagnosticSchema extends Named<
+	typeof CommonjsUnsupportedDiagnosticImpl
+> {}
+/**
+ * A JS module exports through CommonJS (`module.exports = …`,
+ * `exports.x = …`), which isn't modeled.
+ *
+ * The module still emits, with no declarations; `line`/`column` point at the
+ * first export assignment. Fires only when the checker gives the file no
+ * module symbol (no ES syntax under `bundler`/`esnext`) and a top-level
+ * statement assigns to `module.exports` or `exports`. A file with ES syntax is
+ * an ES module, its assignments ordinary code; under `node16`/`nodenext` or
+ * `moduleDetection: 'force'` the checker binds the CommonJS exports itself,
+ * and its named exports (`exports.x`, `module.exports = {a, b}`) document,
+ * with no warning; a `module.exports =` of a non-object documents nothing. A script with no exports
+ * either way (`require` calls alone), or one whose own top-level declaration
+ * binds `exports` or `module`, doesn't fire.
+ *
+ * Always `warning`, query-time category (recomputed each `query()`).
+ */
+export const CommonjsUnsupportedDiagnostic: CommonjsUnsupportedDiagnosticSchema =
+	CommonjsUnsupportedDiagnosticImpl;
+export type CommonjsUnsupportedDiagnostic = v.InferOutput<typeof CommonjsUnsupportedDiagnostic>;
+
 /**
  * Discriminated union of all diagnostic variants. Ingest-time kinds:
  * `transform_failed`, `source_map_failed`, `import_parse_failed`, and
@@ -570,7 +600,8 @@ export const Diagnostic: v.VariantSchema<
 		typeof DuplicateDeclarationDiagnostic,
 		typeof TransformFailedDiagnostic,
 		typeof ResolverFailedDiagnostic,
-		typeof AliasLostDiagnostic
+		typeof AliasLostDiagnostic,
+		typeof CommonjsUnsupportedDiagnostic
 	],
 	undefined
 > = v.variant('kind', [
@@ -589,7 +620,8 @@ export const Diagnostic: v.VariantSchema<
 	DuplicateDeclarationDiagnostic,
 	TransformFailedDiagnostic,
 	ResolverFailedDiagnostic,
-	AliasLostDiagnostic
+	AliasLostDiagnostic,
+	CommonjsUnsupportedDiagnostic
 ]);
 export type Diagnostic = v.InferOutput<typeof Diagnostic>;
 

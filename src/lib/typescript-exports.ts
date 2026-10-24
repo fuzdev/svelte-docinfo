@@ -55,6 +55,7 @@ import {
 	isAliasLostType,
 	isBrandLikeIntersection,
 	isLiteralOnlyUnion,
+	isJavaScriptNode,
 	isTypeAliasLike,
 	typeAliasTypeNode,
 	type TypeAliasLike
@@ -699,6 +700,74 @@ const collectMaterializedStars = (
 };
 
 /**
+ * The first CommonJS export assignment in a JS file with no module symbol
+ * (no ES `import`/`export`; with one, TypeScript reads the assignments as
+ * ordinary code) — its left side, a top-level `module.exports = …`,
+ * `module.exports.x = …`, or `exports.x = …` (bracket access included) — or
+ * `undefined`, always for TypeScript. Syntactic, like TypeScript's own
+ * CommonJS detection, and narrower: assignments nested in blocks or functions
+ * (a UMD wrapper) and `Object.defineProperty(exports, …)` aren't looked for.
+ * A script whose own top-level declaration binds `exports` or `module`
+ * (`const exports = {}`, `var module = {exports: {}}`) assigns to its own
+ * object, so it has none.
+ */
+const findCommonjsExport = (sourceFile: ts.SourceFile): ts.Expression | undefined => {
+	if (!isJavaScriptNode(sourceFile)) return undefined;
+	if (bindsCommonjsName(sourceFile)) return undefined;
+	for (const statement of sourceFile.statements) {
+		if (!ts.isExpressionStatement(statement)) continue;
+		const expression = statement.expression;
+		if (
+			ts.isBinaryExpression(expression) &&
+			expression.operatorToken.kind === ts.SyntaxKind.EqualsToken &&
+			isCommonjsExportTarget(expression.left)
+		) {
+			return expression.left;
+		}
+	}
+	return undefined;
+};
+
+const COMMONJS_NAMES = new Set(['exports', 'module']);
+
+/**
+ * Whether a top-level variable, function, or class declaration binds
+ * `exports` or `module`, destructuring included. Import bindings never reach
+ * here, since an `import` makes the file an ES module.
+ */
+const bindsCommonjsName = (sourceFile: ts.SourceFile): boolean => {
+	const bindsName = (name: ts.BindingName): boolean =>
+		ts.isIdentifier(name)
+			? COMMONJS_NAMES.has(name.text)
+			: name.elements.some(
+					(element) => !ts.isOmittedExpression(element) && bindsName(element.name)
+				);
+	return sourceFile.statements.some((statement) => {
+		if (ts.isVariableStatement(statement)) {
+			return statement.declarationList.declarations.some((d) => bindsName(d.name));
+		}
+		if (ts.isFunctionDeclaration(statement) || ts.isClassDeclaration(statement)) {
+			return statement.name !== undefined && COMMONJS_NAMES.has(statement.name.text);
+		}
+		return false;
+	});
+};
+
+/** `module.exports`, or a property of it or of `exports`, in dot or bracket form. */
+const isCommonjsExportTarget = (node: ts.Expression): boolean => {
+	if (isModuleExports(node)) return true;
+	if (!ts.isPropertyAccessExpression(node) && !ts.isElementAccessExpression(node)) return false;
+	const object = node.expression;
+	return isModuleExports(object) || (ts.isIdentifier(object) && object.text === 'exports');
+};
+
+const isModuleExports = (node: ts.Expression): boolean =>
+	ts.isPropertyAccessExpression(node) &&
+	ts.isIdentifier(node.expression) &&
+	node.expression.text === 'module' &&
+	node.name.text === 'exports';
+
+/**
  * Analyze all exports from a TypeScript source file.
  *
  * Extracts the module-level comment via `extractModuleComment` (skipped for
@@ -768,8 +837,18 @@ export const analyzeExports = (
 	const lineOf = (node: ts.Node): number =>
 		sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile)).line + 1;
 
-	// Get all exported symbols
+	// Get all exported symbols. A file with no ES syntax has no module symbol,
+	// so a CommonJS module documents nothing, with a warning saying why.
 	const symbol = checker.getSymbolAtLocation(sourceFile);
+	const commonjsExport = symbol || isVirtual ? undefined : findCommonjsExport(sourceFile);
+	if (commonjsExport) {
+		diagnostics.push({
+			kind: 'commonjs_unsupported',
+			...getNodeLocation(commonjsExport),
+			message: `CommonJS module (unsupported): \`${commonjsExport.getText(sourceFile)}\` and any other CommonJS exports document nothing`,
+			severity: 'warning'
+		});
+	}
 	if (symbol) {
 		const exports = checker.getExportsOfModule(symbol);
 		const materializedStars = collectMaterializedStars(

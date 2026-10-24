@@ -310,6 +310,27 @@ describe('generateImport', () => {
 			"import Helper from '@my/lib/helper.js';"
 		],
 		[
+			'default from a .mts file',
+			'function',
+			'my-helper.mts',
+			'@my/lib',
+			"import MyHelper from '@my/lib/my-helper.mjs';"
+		],
+		[
+			'default from a .tsx file',
+			'function',
+			'my-view.tsx',
+			'@my/lib',
+			"import MyView from '@my/lib/my-view.js';"
+		],
+		[
+			'default from a .jsx file',
+			'function',
+			'my-view.jsx',
+			'@my/lib',
+			"import MyView from '@my/lib/my-view.js';"
+		],
+		[
 			'PascalCase from nested path',
 			'variable',
 			'utils/helpers.ts',
@@ -326,6 +347,38 @@ describe('generateImport', () => {
 			'utils.ts',
 			'@my/lib',
 			"import {foo} from '@my/lib/utils.js';"
+		],
+		[
+			'converts .tsx to .js',
+			'foo',
+			'function',
+			'view.tsx',
+			'@my/lib',
+			"import {foo} from '@my/lib/view.js';"
+		],
+		[
+			'converts .jsx to .js',
+			'foo',
+			'function',
+			'view.jsx',
+			'@my/lib',
+			"import {foo} from '@my/lib/view.js';"
+		],
+		[
+			'converts .mts to .mjs',
+			'foo',
+			'function',
+			'utils.mts',
+			'@my/lib',
+			"import {foo} from '@my/lib/utils.mjs';"
+		],
+		[
+			'preserves .mjs',
+			'foo',
+			'function',
+			'utils.mjs',
+			'@my/lib',
+			"import {foo} from '@my/lib/utils.mjs';"
 		],
 		[
 			'handles nested paths',

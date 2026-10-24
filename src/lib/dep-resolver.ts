@@ -142,15 +142,19 @@ export const normalizeResolveImport = (
  * the raw `.svelte` source.
  *
  * @param content - prepared file content (TS/JS, or svelte2tsx virtual)
+ * @param path - the file's path, when its extension should pick the parse:
+ *   `.tsx` and `.jsx` content parses as TSX, since the TS parse reads JSX
+ *   markup as type assertions and can lose the imports inside it; any other
+ *   path, or none, parses as TS
  * @returns specifiers in source order
  */
-export const lexImports = (content: string): Array<string> => {
+export const lexImports = (content: string, path?: string): Array<string> => {
 	const sourceFile = ts.createSourceFile(
 		'lex.ts',
 		content,
 		ts.ScriptTarget.Latest,
 		false,
-		ts.ScriptKind.TS
+		path !== undefined && /\.[jt]sx$/.test(path) ? ts.ScriptKind.TSX : ts.ScriptKind.TS
 	);
 	const found: Array<{ pos: number; text: string }> = [];
 	const add = (node: ts.Node | undefined): void => {

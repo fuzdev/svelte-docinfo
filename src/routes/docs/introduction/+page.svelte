@@ -208,6 +208,17 @@ const {modules} = await analyze({
 					Named slots, slot props, events, and <code>$$restProps</code> aren't modeled.
 				</li>
 				<li>
+					Modules are <code>.ts</code>, <code>.mts</code>, <code>.tsx</code>, <code>.js</code>,
+					<code>.mjs</code>, and <code>.jsx</code> files (JS documents under a tsconfig without
+					<code>allowJs</code> too). CommonJS isn't modeled: where TypeScript doesn't bind a JS file
+					as a module (no ES syntax under <code>bundler</code>/<code>esnext</code>), its
+					<code>module.exports</code>/<code>exports.x</code> exports document nothing and warn
+					<code>commonjs_unsupported</code>; under <code>node16</code>/<code>nodenext</code> or
+					<code>moduleDetection: 'force'</code> the checker's own CommonJS reading documents its
+					named exports (<code>exports.x</code>, <code>module.exports = {'{'}a, b{'}'}</code>).
+					<code>.cjs</code>/<code>.cts</code> files aren't analyzed by default.
+				</li>
+				<li>
 					<code>@nodocs</code> applies to declarations and export statements; on a member or
 					component prop it's ignored.
 				</li>

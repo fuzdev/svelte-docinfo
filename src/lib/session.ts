@@ -754,8 +754,7 @@ export const createAnalysisSession = (options: AnalysisSessionOptions): Analysis
 			(analyzer === 'typescript' || analyzer === 'svelte')
 		) {
 			try {
-				const contentToLex = virtual ? virtual.content : file.content;
-				specifiers = lexImports(contentToLex);
+				specifiers = virtual ? lexImports(virtual.content) : lexImports(file.content, file.id);
 			} catch (err) {
 				ingestDiagnostics.push({
 					kind: 'import_parse_failed',
@@ -1323,7 +1322,8 @@ export const createAnalysisSession = (options: AnalysisSessionOptions): Analysis
 		// re-export resolution, and dependents all see only the emitted set.
 		// Dependency edges were already `isSource`-filtered at ingest; filtering
 		// against the emitted set here makes the invariant local — output never
-		// references a module it doesn't contain.
+		// references a module it doesn't contain. (`analyzeCore` drops the edges
+		// to a file it skips, `module_skipped`, which this set can't know.)
 		const log = opts?.log ?? options.log;
 		const emittedIds = new Set<string>();
 		for (const [id, entry] of owned) {

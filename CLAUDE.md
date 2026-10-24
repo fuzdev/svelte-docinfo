@@ -156,6 +156,11 @@ are the tomes in `src/routes/docs/`. Examples: `examples/vite/`, `examples/api/`
     `--tsconfig`/`--no-tsconfig`).
   - `createIsExternalFile`/`createIsExternalPath`: outside the root, under `node_modules`,
     or a `.d.ts` outside the source root. A different axis from `isSource`.
+  - `allowJs` is always forced on (`withAllowJs`, in both program paths; `checkJs` stays as
+    configured), so `.js`/`.mjs`/`.jsx` modules document, and type their TS importers, under
+    a tsconfig without it. Unconditional, so output is a function of the file set;
+    `getCompilerOptions` returns the forced options, so the default resolver matches the
+    program on self-name imports, the one resolution path that reads `allowJs`.
   - Virtual files are `VirtualFileEntry` (`{content, scriptKind?}`). Both hosts answer
     `directoryExists` from served files (`createOwnedDirIndex`), so in-memory files in
     directories absent from disk resolve.
@@ -201,14 +206,16 @@ are the tomes in `src/routes/docs/`. Examples: `examples/vite/`, `examples/api/`
   `scanScriptTags`, `isModuleScript`, `findHtmlComments` (skips script and style text).
 - `svelte-legacy.ts` (`@internal`, not in the barrel) — `scanLegacyExports`,
   `resolveLegacyPropsAnchor`.
-- `source.ts` — `SourceFileInfo`, file-type predicates, virtual-path helpers
+- `source.ts` — `SourceFileInfo`, file-type predicates (`isTypescript`: `.ts`, `.mts`,
+  `.tsx`, `.js`, `.mjs`, `.jsx`; not `.cjs`/`.cts` or `.d.ts`/`.d.mts`), virtual-path helpers
   (`stripVirtualSuffix`, `SVELTE_VIRTUAL_SUFFIX`), `isSvelte2tsxGeneratedExport`,
   `getDefaultAnalyzer`.
 - `paths.ts` — `toPosixPath`, `isAbsolutePosixPath`. Every stored, compared, or keyed path
   is POSIX; native paths are accepted at public boundaries.
 - `dep-resolver.ts` — `ImportResolver` (`{resolve, identity, invalidate?}`),
   `ResolveImport`, `normalizeResolveImport`, `createDefaultResolver` (TS resolution plus a
-  `.svelte` fallback), `lexImports` (syntax-only parse), `noDepsResolver`.
+  `.svelte` fallback), `lexImports` (syntax-only parse, TSX for a `.tsx`/`.jsx` path),
+  `noDepsResolver`.
 - `concurrency.ts` — `MAX_FILE_CONCURRENCY`, `MAX_RESOLVE_CONCURRENCY`, `mapConcurrent`.
 - `error.ts` — `toErrorMessage`.
 - `schema.ts` (not in the barrel) — `parseWithSummary` (the `parse*` helpers throw through
@@ -276,8 +283,10 @@ expose every module's full API.
 
 `analyzeCore` runs, in order:
 
-0. **Alias-registry pre-pass** — `buildAliasRegistry` over the emitted set, Svelte modules
-   read through their virtuals.
+0. **Pre-passes** — a file the dispatch would skip (`findModuleSkip`, `module_skipped`)
+   leaves the emitted set with every edge naming it, so output never references a module
+   it lacks; then `buildAliasRegistry` over the emitted set, Svelte modules read through
+   their virtuals.
 1. **Module analysis** — dispatch by file type (TS, Svelte, CSS, JSON), collecting
    declarations and re-export facts; a Svelte file whose transform failed gets a `partial`
    placeholder.
@@ -309,11 +318,14 @@ expose every module's full API.
   `'exports'` (strict: throws when exports is missing or resolves to no source files, or
   when several `sourcePaths` share no common prefix), `'glob'`. `include` collapses
   `'auto'` to glob; combining it with `'exports'` throws.
+- **Extensions** — exports discovery maps a `dist` `.js` to `.ts`, then `.tsx`, `.js`,
+  `.jsx` sources, and `.mjs` to `.mts`, then `.mjs` (`SOURCE_EXTENSION_VARIANTS`);
+  `generateImport` inverts it. Globs take every `isTypescript` extension.
 - **Include widening** — each include pattern's static base joins `sourcePaths`
   (`createSourceOptionsWithInclude`, shared by `analyzeFromFiles` and the Vite plugin). A
   root-crossing pattern makes the whole project root source, and logs it.
 - **`exclude`** — one field, applied at discovery and at `isSource`. Default
-  `['**/*.test.ts', '**/*.spec.ts', '**/internal/**']`; an array replaces it, a
+  `['**/*.{test,spec}.{ts,mts,tsx,js,mjs,jsx}', '**/internal/**']`; an array replaces it, a
   `(defaults) => patterns` callback extends it.
 - **`src/lib/internal/`** — modules that ship for public modules to import but aren't
   documented, usually paired with an `"./internal/*": null` exports key, which exports
@@ -523,6 +535,10 @@ whole-output pass so a new printing site can't miss it.
   discovery only (glob discovery throws on an unreadable file) and is merged by
   `analyzeFromFiles`; session consumers own it, and the Vite plugin keeps it in a side
   channel.
+- **`commonjs_unsupported`** — a JS file the checker gives no module symbol, assigning
+  `module.exports`/`exports.x` at top level (`findCommonjsExport`; not when a top-level
+  declaration of its own binds `exports` or `module`): the module emits empty, with the
+  warning.
 - **`alias_lost`** — an exported alias the checker dropped and neither recovery channel
   heals. Gated on a registry being present, a loss-capable right-hand side, not a literal
   union or brand, and not `@nodocs`. The author-side fix is a nominal symbol
@@ -578,6 +594,16 @@ semantics and reports unresolvable stars instead of guessing. Lock-in tests:
 
 ### Not Supported
 
+- CommonJS isn't modeled. Where TypeScript doesn't bind a JS file as a module (no ES syntax under
+  `bundler`/`esnext`), its `module.exports`/`exports.x` exports document nothing and
+  `commonjs_unsupported` warns; under `node16`/`nodenext` or `moduleDetection: 'force'` the
+  checker's own CommonJS reading documents its named exports (`exports.x`,
+  `module.exports = {a, b}`), with no warning; a `module.exports =` of a non-object (a
+  function, a literal) documents nothing, and alongside a later `module.exports.c = …` the
+  literal's members drop. `.cjs`/`.cts` files aren't analyzed by default.
+- A self-name import through an `exports` entry listing `import`/`default` before `types`
+  resolves to the JS target, since `allowJs` is forced on (without it TypeScript tries
+  `types` first). List `types` first, as TypeScript recommends.
 - A same-name `@typedef {import('./a.js').A} A` documents as an alias over the import, as its
   TS twin `type A = import('./a.js').A` does, never as a re-export edge. A `@property` after a
   non-`@property` tag has left the typedef's property list and drops silently.

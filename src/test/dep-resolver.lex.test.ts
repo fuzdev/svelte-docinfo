@@ -95,4 +95,25 @@ describe('lexImports', () => {
 		].join('\n');
 		assert.deepEqual(lexImports(content), ['./a.ts', './b.ts']);
 	});
+
+	test('parses .tsx and .jsx paths as TSX, keeping imports inside JSX markup', () => {
+		const content = [
+			"import a from './a.ts';",
+			"export const C = () => <p>{a} / {import('./b.ts')}</p>;",
+			"import('./c.ts');"
+		].join('\n');
+		for (const path of ['/p/src/lib/c.tsx', '/p/src/lib/c.jsx']) {
+			assert.deepEqual(lexImports(content, path), ['./a.ts', './b.ts', './c.ts']);
+		}
+	});
+
+	test('parses other paths as TS, where a generic arrow and an assertion read as such', () => {
+		const content = [
+			"import a from './a.ts';",
+			"export const f = <T>(x: T): T => (<T>import('./b.ts'), x);"
+		].join('\n');
+		for (const path of [undefined, '/p/src/lib/c.ts', '/p/src/lib/c.mts', '/p/src/lib/c.js']) {
+			assert.deepEqual(lexImports(content, path), ['./a.ts', './b.ts']);
+		}
+	});
 });

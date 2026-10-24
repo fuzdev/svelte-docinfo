@@ -1,0 +1,14 @@
+{
+	"path": "input.js",
+	"moduleComment": "A module comment.",
+	"diagnostics": [
+		{
+			"kind": "commonjs_unsupported",
+			"file": "src/lib/input.js",
+			"line": 8,
+			"column": 1,
+			"message": "CommonJS module (unsupported): `module.exports.a` and any other CommonJS exports document nothing",
+			"severity": "warning"
+		}
+	]
+}

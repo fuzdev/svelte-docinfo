@@ -121,7 +121,7 @@ export const declarationFileRoots = (tsconfigRoots: Array<string>): Array<string
  * version, and before TypeScript 6 they are non-strict: without
  * `strictNullChecks` a `string | null` prop prints as `string`.
  * `allowJs`/`checkJs` type the imports of JS-lang components and `.js`
- * modules.
+ * modules (`allowJs` is forced on under any options; see `withAllowJs`).
  */
 export const DEFAULT_COMPILER_OPTIONS: ts.CompilerOptions = {
 	strict: true,
@@ -133,6 +133,25 @@ export const DEFAULT_COMPILER_OPTIONS: ts.CompilerOptions = {
 	skipLibCheck: true,
 	noEmit: true
 };
+
+/**
+ * `compilerOptions` with `allowJs` on, the same reference when it already is.
+ *
+ * Both program paths (`createAnalysisProgram`, `createAnalysisLanguageService`)
+ * always run with these options, whatever the tsconfig says: without
+ * `allowJs` the program leaves a JS file out, so it documents nothing
+ * (`module_skipped`) and every TypeScript import of it types as `any`.
+ * Forcing it unconditionally, rather than while a JS file is served, keeps
+ * output a function of the file set: the language service reuses its program
+ * when the roots don't change, so a settings flip wouldn't reach a JS file
+ * that's already a root, and JS reached only through imports (an out-of-root
+ * file, a `.cjs`) would type by whether some unrelated JS file was owned.
+ * `checkJs` stays as configured; it adds type errors, not types. The
+ * tsconfig's own roots are fixed when it's parsed, so a JS file the analysis
+ * doesn't serve joins the program only through an import.
+ */
+const withAllowJs = (compilerOptions: ts.CompilerOptions): ts.CompilerOptions =>
+	compilerOptions.allowJs ? compilerOptions : { ...compilerOptions, allowJs: true };
 
 /**
  * A host-served file entry: content plus optional parser treatment.
@@ -349,6 +368,14 @@ export interface AnalysisLanguageService {
 	 * Cheap accessor over the construction-time `loadTsconfig` result; prefer
 	 * it over `getProgram().getCompilerOptions()` when only the options are
 	 * needed — `getProgram()` forces the LS to sync and parse every root file.
+	 * `allowJs` is forced on (see `withAllowJs`), so these are the options the
+	 * program runs with. Module resolution reads `allowJs` only for a package's
+	 * self-name imports through its `exports`, so a resolver built from the
+	 * unforced options would resolve the same otherwise; the session's default
+	 * resolver is built from these, matching the program there too. There,
+	 * output can differ from the project's own `tsc` without `allowJs`: an
+	 * `exports` entry listing `import`/`default` before `types` resolves to the
+	 * JS target.
 	 *
 	 * Treat the returned object as read-only: it is the same reference the LS
 	 * host serves via `getCompilationSettings`, so mutating it would desync
@@ -714,7 +741,8 @@ export const createAnalysisProgram = (
 	options?: AnalysisProgramOptions,
 	log?: AnalysisLog
 ): ts.Program => {
-	const { compilerOptions, rootFileNames } = loadTsconfig(options, log);
+	const { compilerOptions: configured, rootFileNames } = loadTsconfig(options, log);
+	const compilerOptions = withAllowJs(configured);
 	const virtualFiles = options?.virtualFiles;
 
 	if (!virtualFiles || virtualFiles.size === 0) {
@@ -763,7 +791,8 @@ export const createAnalysisLanguageService = (
 	log?: AnalysisLog
 ): AnalysisLanguageService => {
 	const projectRoot = options?.projectRoot ?? process.cwd();
-	const { compilerOptions, rootFileNames } = loadTsconfig(options, log);
+	const { compilerOptions: configured, rootFileNames } = loadTsconfig(options, log);
+	const compilerOptions = withAllowJs(configured);
 	const documentRegistry = options?.documentRegistry ?? ts.createDocumentRegistry();
 
 	interface OwnedFile extends VirtualFileEntry {

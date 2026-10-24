@@ -727,6 +727,7 @@ describe('diagnostic type discrimination', () => {
 				case 'transform_failed':
 				case 'resolver_failed':
 				case 'alias_lost':
+				case 'commonjs_unsupported':
 					assert.fail('unreachable');
 			}
 		}

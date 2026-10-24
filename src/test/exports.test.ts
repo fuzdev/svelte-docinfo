@@ -188,6 +188,11 @@ describe('mapDistToSource', () => {
 		assert.strictEqual(result, 'src/lib/index.ts');
 	});
 
+	test('maps .mjs to .mts', () => {
+		const result = mapDistToSource('./dist/utils/helpers.mjs', 'default', defaults);
+		assert.strictEqual(result, 'src/lib/utils/helpers.mts');
+	});
+
 	test('maps nested .js to .ts', () => {
 		const result = mapDistToSource('./dist/utils/helpers.js', 'default', defaults);
 		assert.strictEqual(result, 'src/lib/utils/helpers.ts');
@@ -327,6 +332,29 @@ describe('condition priority via mapDistToSource', () => {
 	});
 });
 
+/**
+ * Write `files` plus a package.json carrying `exports`, run discovery, and
+ * return the discovered ids dir-relative and sorted.
+ */
+const discoverWith = async (
+	files: Record<string, string>,
+	exports: Record<string, unknown>
+): Promise<Array<string>> => {
+	let discovered: Array<string> = [];
+	await withTestDir(async (dir) => {
+		for (const [relPath, content] of Object.entries(files)) {
+			const absPath = join(dir, relPath);
+			await mkdir(join(absPath, '..'), { recursive: true });
+			await writeFile(absPath, content);
+		}
+		await writeFile(join(dir, 'package.json'), JSON.stringify({ exports }));
+		const result = await discoverFromExports({ projectRoot: dir });
+		assert.ok(result.files);
+		discovered = result.files.map((f) => f.id.slice(dir.length + 1)).sort();
+	});
+	return discovered;
+};
+
 describe('discoverFromExports', () => {
 	test('discovers concrete exports', async () => {
 		await withTestDir(async (dir) => {
@@ -432,29 +460,6 @@ describe('discoverFromExports', () => {
 	});
 
 	describe('null-target blocking (Node best-match semantics)', () => {
-		/**
-		 * Write `files` plus a package.json carrying `exports`, run discovery,
-		 * and return the discovered ids dir-relative and sorted.
-		 */
-		const discoverWith = async (
-			files: Record<string, string>,
-			exports: Record<string, unknown>
-		): Promise<Array<string>> => {
-			let discovered: Array<string> = [];
-			await withTestDir(async (dir) => {
-				for (const [relPath, content] of Object.entries(files)) {
-					const absPath = join(dir, relPath);
-					await mkdir(join(absPath, '..'), { recursive: true });
-					await writeFile(absPath, content);
-				}
-				await writeFile(join(dir, 'package.json'), JSON.stringify({ exports }));
-				const result = await discoverFromExports({ projectRoot: dir });
-				assert.ok(result.files);
-				discovered = result.files.map((f) => f.id.slice(dir.length + 1)).sort();
-			});
-			return discovered;
-		};
-
 		test('a null wildcard key blocks the subpaths broader wildcards would expose', async () => {
 			// The `src/lib/internal/` convention's exports shape: generic
 			// wildcards plus `"./internal/*": null`. Node refuses to resolve
@@ -762,6 +767,82 @@ describe('discoverFromExports', () => {
 			const { files } = await discoverFromExports({ projectRoot: dir });
 			assert.ok(files);
 			assert.strictEqual(files.length, 1);
+		});
+	});
+
+	describe('source extensions', () => {
+		test('a concrete .js entry falls back through .tsx, .js, and .jsx, in that order', async () => {
+			const entry = { '.': { types: './dist/index.d.ts', default: './dist/index.js' } };
+			assert.deepStrictEqual(
+				await discoverWith({ 'src/lib/index.tsx': '', 'src/lib/index.js': '' }, entry),
+				['src/lib/index.tsx']
+			);
+			assert.deepStrictEqual(
+				await discoverWith({ 'src/lib/index.js': '', 'src/lib/index.jsx': '' }, entry),
+				['src/lib/index.js']
+			);
+			assert.deepStrictEqual(await discoverWith({ 'src/lib/index.jsx': '' }, entry), [
+				'src/lib/index.jsx'
+			]);
+			// the mapped .ts wins over every fallback
+			assert.deepStrictEqual(
+				await discoverWith({ 'src/lib/index.ts': '', 'src/lib/index.tsx': '' }, entry),
+				['src/lib/index.ts']
+			);
+		});
+
+		test('a concrete .mjs entry maps to .mts, falling back to .mjs', async () => {
+			const entry = { '.': { types: './dist/index.d.mts', default: './dist/index.mjs' } };
+			assert.deepStrictEqual(
+				await discoverWith({ 'src/lib/index.mts': '', 'src/lib/index.ts': '' }, entry),
+				['src/lib/index.mts']
+			);
+			assert.deepStrictEqual(
+				await discoverWith({ 'src/lib/index.mjs': '', 'src/lib/index.js': '' }, entry),
+				['src/lib/index.mjs']
+			);
+		});
+
+		test('a .js wildcard matches .tsx and .jsx sources, a .mjs one .mts and .mjs', async () => {
+			const files = {
+				'src/lib/a.ts': '',
+				'src/lib/b.tsx': '',
+				'src/lib/c.js': '',
+				'src/lib/d.jsx': '',
+				'src/lib/e.mts': '',
+				'src/lib/f.mjs': ''
+			};
+			assert.deepStrictEqual(
+				await discoverWith(files, {
+					'./*.js': { types: './dist/*.d.ts', default: './dist/*.js' }
+				}),
+				['src/lib/a.ts', 'src/lib/b.tsx', 'src/lib/c.js', 'src/lib/d.jsx']
+			);
+			assert.deepStrictEqual(
+				await discoverWith(files, {
+					'./*.mjs': { types: './dist/*.d.mts', default: './dist/*.mjs' }
+				}),
+				['src/lib/e.mts', 'src/lib/f.mjs']
+			);
+		});
+
+		test('a null key blocks .tsx and .mts sources under it', async () => {
+			assert.deepStrictEqual(
+				await discoverWith(
+					{
+						'src/lib/a.tsx': '',
+						'src/lib/b.mts': '',
+						'src/lib/internal/c.tsx': '',
+						'src/lib/internal/d.mts': ''
+					},
+					{
+						'./*.js': { default: './dist/*.js' },
+						'./*.mjs': { default: './dist/*.mjs' },
+						'./internal/*': null
+					}
+				),
+				['src/lib/a.tsx', 'src/lib/b.mts']
+			);
 		});
 	});
 

@@ -86,7 +86,7 @@ export interface SourceFileInfo {
  * Default analyzer resolver based on file extension.
  *
  * - `.svelte` → `'svelte'`
- * - `.ts` (not `.d.ts`), `.js` → `'typescript'`
+ * - `.ts`, `.mts`, `.tsx` (not `.d.ts`/`.d.mts`), `.js`, `.mjs`, `.jsx` → `'typescript'`
  * - `.css` → `'css'`
  * - `.json` → `'json'`
  * - Other extensions → `null` (skip)
@@ -111,14 +111,24 @@ export const getDefaultAnalyzer = (path: string): AnalyzerType | null => {
 export const getComponentName = (modulePath: string): string =>
 	modulePath.replace(/^.*\//, '').replace(/\.svelte$/, '');
 
+const TYPESCRIPT_EXTENSIONS = ['.ts', '.mts', '.tsx'];
+const JAVASCRIPT_EXTENSIONS = ['.js', '.mjs', '.jsx'];
+
 /**
- * Check if a path is a TypeScript or JS file.
+ * Check if a path is a TypeScript or JS file: `.ts`, `.mts`, `.tsx`, `.js`,
+ * `.mjs`, or `.jsx`.
  *
- * Includes both `.ts` and `.js` files since JS files are valid in TS projects.
- * Excludes `.d.ts` declaration files — use a custom `getAnalyzerType` to include them.
+ * JS files count since JS is valid in TS projects; the analysis program reads
+ * them with `allowJs` forced on (see `createAnalysisLanguageService`).
+ * CommonJS extensions (`.cjs`, `.cts`) are left out, since CommonJS exports
+ * aren't modeled (`commonjs_unsupported`). Excludes `.d.ts` and `.d.mts`
+ * declaration files — use a custom `getAnalyzerType` to include them.
  */
 export const isTypescript = (path: string): boolean =>
-	(path.endsWith('.ts') && !path.endsWith('.d.ts')) || path.endsWith('.js');
+	JAVASCRIPT_EXTENSIONS.some((ext) => path.endsWith(ext)) ||
+	(TYPESCRIPT_EXTENSIONS.some((ext) => path.endsWith(ext)) &&
+		!path.endsWith('.d.ts') &&
+		!path.endsWith('.d.mts'));
 
 /** Check if a path is a Svelte component file. */
 export const isSvelte = (path: string): boolean => path.endsWith('.svelte');

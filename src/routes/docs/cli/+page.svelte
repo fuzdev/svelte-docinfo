@@ -85,7 +85,7 @@ npx svelte-docinfo | jq -r '.modules[].declarations[].name'  # list all exported
 						<td class="white-space:nowrap"><code>-e, --exclude &lt;pattern&gt;</code></td>
 						<td>
 							exclude glob, applied at discovery and analysis (repeatable). Replaces the defaults
-							<code>**/*.test.ts</code>, <code>**/*.spec.ts</code>, <code>**/internal/**</code>
+							<code>{'**/*.{test,spec}.{ts,mts,tsx,js,mjs,jsx}'}</code>, <code>**/internal/**</code>
 							entirely
 						</td>
 					</tr>

@@ -108,7 +108,7 @@ svelteDocinfo({
   include: ['src/**/*.ts', 'src/**/*.svelte'],
 
   // Exclude globs. An array replaces the default
-  // ['**/*.test.ts', '**/*.spec.ts', '**/internal/**']; a callback extends
+  // ['**/*.{test,spec}.{ts,mts,tsx,js,mjs,jsx}', '**/internal/**']; a callback extends
   // it. Replaces sourceOptions.exclude when both are set. node_modules and
   // dot-directories below a source path are never source.
   exclude: (defaults) => [...defaults, '**/*.gen.ts'],

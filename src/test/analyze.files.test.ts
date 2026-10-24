@@ -207,13 +207,17 @@ let {label}: {label: string} = $props();
 		});
 
 		test('applies default exclude globs at discovery when no exclude provided', async () => {
-			// Without explicit exclude, **/*.test.ts and **/*.spec.ts should be filtered
+			// Without explicit exclude, test and spec files of every module extension
+			// (`**/*.{test,spec}.{ts,mts,tsx,js,mjs,jsx}`) should be filtered
 			// at discovery time (not just analysis time) — verifies defaulting at both
 			// the exports-based and glob-based call sites.
 			const { projectRoot, cleanup } = await createTestProject({
 				'src/lib/foo.ts': 'export const foo = 1;',
 				'src/lib/foo.test.ts': 'test("foo", () => {});',
 				'src/lib/bar.spec.ts': 'test("bar", () => {});',
+				'src/lib/x.test.tsx': 'test("x", () => {});',
+				'src/lib/y.spec.js': 'test("y", () => {});',
+				'src/lib/z.test.mts': 'test("z", () => {});',
 				'src/lib/baz.ts': 'export const baz = 2;'
 			});
 
@@ -238,6 +242,8 @@ let {label}: {label: string} = $props();
 				'src/lib/foo.ts': 'export const foo = 1;',
 				'src/lib/foo.test.ts': 'test("foo", () => {});',
 				'src/lib/bar.spec.ts': 'test("bar", () => {});',
+				'src/lib/x.test.tsx': 'test("x", () => {});',
+				'src/lib/y.spec.js': 'test("y", () => {});',
 				'package.json': JSON.stringify({
 					name: 'test-pkg',
 					exports: {

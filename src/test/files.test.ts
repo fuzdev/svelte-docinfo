@@ -343,11 +343,11 @@ describe('globFiles baseline exclusions', () => {
 describe('deriveIncludePatterns', () => {
 	test('builds one glob per source path', () => {
 		assert.deepStrictEqual(deriveIncludePatterns(['packages/foo']), [
-			'packages/foo/**/*.{ts,js,svelte,css,json}'
+			'packages/foo/**/*.{ts,mts,tsx,js,mjs,jsx,svelte,css,json}'
 		]);
 		assert.deepStrictEqual(deriveIncludePatterns(['src/lib', 'src/routes']), [
-			'src/lib/**/*.{ts,js,svelte,css,json}',
-			'src/routes/**/*.{ts,js,svelte,css,json}'
+			'src/lib/**/*.{ts,mts,tsx,js,mjs,jsx,svelte,css,json}',
+			'src/routes/**/*.{ts,mts,tsx,js,mjs,jsx,svelte,css,json}'
 		]);
 	});
 
@@ -359,6 +359,8 @@ describe('deriveIncludePatterns', () => {
 		// a leading slash would make tinyglobby treat the pattern as absolute
 		// from the filesystem root — `sourcePaths: ['']` (or a normalized `'.'`)
 		// must glob the project root instead
-		assert.deepStrictEqual(deriveIncludePatterns(['']), ['**/*.{ts,js,svelte,css,json}']);
+		assert.deepStrictEqual(deriveIncludePatterns(['']), [
+			'**/*.{ts,mts,tsx,js,mjs,jsx,svelte,css,json}'
+		]);
 	});
 });

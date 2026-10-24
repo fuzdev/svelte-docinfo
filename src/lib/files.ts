@@ -51,13 +51,13 @@ export const loadFile = async (path: string, projectRoot: string): Promise<Sourc
  * `getDefaultAnalyzer` in `source.ts` — keep in sync if a new analyzable
  * extension is added there.
  */
-const SOURCE_FILE_EXTENSIONS = 'ts,js,svelte,css,json';
+const SOURCE_FILE_EXTENSIONS = 'ts,mts,tsx,js,mjs,jsx,svelte,css,json';
 
 /**
  * Build an include pattern array from source paths.
  *
- * Each path becomes a `<path>/**\/*.{ts,js,svelte,css,json}` glob. Used by
- * `discoverSourceFiles` to derive a default `include` from
+ * Each path becomes a `<path>/**\/*.{ts,mts,tsx,js,mjs,jsx,svelte,css,json}`
+ * glob. Used by `discoverSourceFiles` to derive a default `include` from
  * `sourceOptions.sourcePaths` when no explicit pattern is supplied — keeps
  * the glob fallback consistent with custom `sourcePaths` instead of silently
  * defaulting to `src/lib`.
@@ -70,7 +70,10 @@ const SOURCE_FILE_EXTENSIONS = 'ts,js,svelte,css,json';
  * @example
  * ```ts
  * deriveIncludePatterns(['packages/foo', 'packages/bar'])
- * // => ['packages/foo/**\/*.{ts,js,svelte,css,json}', 'packages/bar/**\/*.{ts,js,svelte,css,json}']
+ * // => [
+ * //   'packages/foo/**\/*.{ts,mts,tsx,js,mjs,jsx,svelte,css,json}',
+ * //   'packages/bar/**\/*.{ts,mts,tsx,js,mjs,jsx,svelte,css,json}'
+ * // ]
  * ```
  */
 export const deriveIncludePatterns = (sourcePaths: ReadonlyArray<string>): Array<string> =>

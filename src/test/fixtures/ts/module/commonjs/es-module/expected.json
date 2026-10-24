@@ -1,0 +1,12 @@
+{
+	"path": "input.js",
+	"declarations": [
+		{
+			"name": "a",
+			"kind": "variable",
+			"docComment": "Docs on a.",
+			"typeSignature": "1",
+			"sourceLine": 2
+		}
+	]
+}

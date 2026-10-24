@@ -245,6 +245,23 @@
 						</td>
 					</tr>
 					<tr>
+						<td><code>commonjs_unsupported</code></td>
+						<td>
+							<strong>Trigger:</strong> a JS module that TypeScript doesn't bind as a module (no
+							<code>import</code>/<code>export</code> under
+							<code>bundler</code>/<code>esnext</code>) exports through CommonJS
+							(<code>module.exports = …</code>, <code>exports.x = …</code>), which isn't modeled.
+							Under <code>node16</code>/<code>nodenext</code> or
+							<code>moduleDetection: 'force'</code> the checker binds CommonJS exports itself, and
+							its named exports (<code>exports.x</code>,
+							<code>module.exports = {'{'}a, b{'}'}</code>) document without this warning; a
+							<code>module.exports =</code> of a function or literal documents nothing.
+							<strong>Consequence:</strong> the module is in <code>modules[]</code> with no
+							declarations; its module comment still reads. Converting it to ES exports documents
+							it.
+						</td>
+					</tr>
+					<tr>
 						<td><code>duplicate_declaration</code></td>
 						<td>
 							<strong>Trigger:</strong> a declaration name appears in more than one module, and the

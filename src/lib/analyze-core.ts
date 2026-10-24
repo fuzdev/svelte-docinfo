@@ -41,7 +41,7 @@ import * as v from 'valibot';
 import { ModuleJson, parseModuleJson, type ModuleJsonInput } from './types.ts';
 import { parseWithSummary, type Named } from './schema.ts';
 import type { ModuleAnalysis } from './declaration-build.ts';
-import { Diagnostic } from './diagnostics.ts';
+import { Diagnostic, type ModuleSkippedDiagnostic } from './diagnostics.ts';
 import type { AnalysisLog } from './log.ts';
 import { analyzeTypescriptModule } from './typescript-exports.ts';
 import { toModuleDocFields } from './tsdoc.ts';
@@ -322,8 +322,8 @@ const toModuleJson = (raw: ModuleAnalysis): ModuleJson => {
  * - Svelte → `module_skipped: requires_program` (callers using session API
  *   should not reach this path; the session pre-handles Svelte)
  *
- * Returns `undefined` when the file is skipped; the diagnostic is added to
- * `diagnostics` so the caller can keep iterating.
+ * Returns `undefined` when the file is skipped (see `findModuleSkip`); the
+ * diagnostic is added to `diagnostics` so the caller can keep iterating.
  *
  * `alsoExportedFrom` on returned declarations is always empty from this path —
  * cross-module re-export resolution requires all modules (`mergeReExports`
@@ -351,42 +351,25 @@ export const analyzeModule = (
 	fileExists?: FileExists
 ): ModuleJson | undefined => {
 	const checker = program.getTypeChecker();
-	const modulePath = extractPath(sourceFile.id, options);
 	// diagnostics carry the absolute id (see the `Diagnostic.file` schema doc);
 	// the returned `ModuleJson` keeps `modulePath`, a different base
-	const diagnosticFile = toPosixPath(sourceFile.id);
-	const analyzerType = options.getAnalyzerType(sourceFile.id);
+	const modulePath = extractPath(sourceFile.id, options);
 
-	let raw: ModuleAnalysis | undefined;
-
-	if (analyzerType === 'svelte') {
-		diagnostics.push({
-			kind: 'module_skipped',
-			file: diagnosticFile,
-			message:
-				'Svelte files require program integration. Use createAnalysisSession or analyze()/analyzeFromFiles() instead.',
-			severity: 'warning',
-			reason: 'requires_program'
-		});
-		log?.warn(`Svelte file skipped in analyzeModule: ${sourceFile.id}`);
+	const skip = findModuleSkip(sourceFile, program, options);
+	if (skip) {
+		diagnostics.push(skip);
+		// the raw id, unlike the diagnostic: logs are for developers, diagnostics ship
+		log?.warn(`Module skipped (${skip.reason}): ${sourceFile.id}`);
 		return undefined;
-	} else if (analyzerType === 'typescript') {
-		const tsSourceFile = program.getSourceFile(sourceFile.id);
-		if (!tsSourceFile) {
-			diagnostics.push({
-				kind: 'module_skipped',
-				file: diagnosticFile,
-				// interpolating the same id as `file` keeps the two from naming the
-				// file differently — the message gets the same project-root scrub.
-				// The log line below keeps the raw id: logs are for developers,
-				// diagnostics ship.
-				message: `Could not get source file from program: ${diagnosticFile}`,
-				severity: 'warning',
-				reason: 'not_in_program'
-			});
-			log?.warn(`Could not get source file from program: ${sourceFile.id}`);
-			return undefined;
-		}
+	}
+
+	// past the skip, a TypeScript file is in the program, and anything else is CSS or JSON
+	let raw: ModuleAnalysis;
+	const tsSourceFile =
+		options.getAnalyzerType(sourceFile.id) === 'typescript'
+			? program.getSourceFile(sourceFile.id)
+			: undefined;
+	if (tsSourceFile) {
 		// the pass-scoped extraction context — constructed here because the
 		// dispatcher is where the program is in hand (see `analyzeExports`)
 		const ctx = createExtractContext(
@@ -405,7 +388,7 @@ export const analyzeModule = (
 		for (const d of raw.declarations) {
 			if (d.declaration.aliasOf) reclassifySnippetDeclaration(d.declaration);
 		}
-	} else if (analyzerType === 'css' || analyzerType === 'json') {
+	} else {
 		const { dependencies, dependents } = extractDependencies(sourceFile, options);
 		raw = {
 			path: modulePath,
@@ -417,19 +400,75 @@ export const analyzeModule = (
 			externalReExports: [],
 			externalStarExports: []
 		};
-	} else {
-		diagnostics.push({
-			kind: 'module_skipped',
-			file: diagnosticFile,
-			message: `No analyzer for file type: ${diagnosticFile}`,
-			severity: 'warning',
-			reason: 'no_analyzer'
-		});
-		log?.warn(`No analyzer for file: ${sourceFile.id}`);
-		return undefined;
 	}
 
 	return toModuleJson(raw);
+};
+
+/**
+ * `sourceFiles` less the `removed` ids, with the remaining files' dependency
+ * edges to them dropped.
+ */
+const withoutModules = (
+	sourceFiles: ReadonlyArray<SourceFileInfo & { dependents?: ReadonlyArray<string> }>,
+	removed: ReadonlySet<string>
+): Array<SourceFileInfo & { dependents?: ReadonlyArray<string> }> => {
+	const kept = (ids: ReadonlyArray<string> | undefined): Array<string> | undefined =>
+		ids?.filter((id) => !removed.has(toPosixPath(id)));
+	return sourceFiles
+		.filter((f) => !removed.has(toPosixPath(f.id)))
+		.map((f) => ({ ...f, dependencies: kept(f.dependencies), dependents: kept(f.dependents) }));
+};
+
+/**
+ * The `module_skipped` diagnostic the module dispatch gives a file, or
+ * `undefined` when it analyzes: a Svelte file without its virtual (only the
+ * session API transforms one), a TS/JS file or a Svelte virtual the program
+ * lacks, or a file with no analyzer. `analyzeCore` asks before analyzing
+ * anything, so a skipped file leaves the emitted set before any module can
+ * link to it; `analyzeModule` asks for its direct callers.
+ */
+const findModuleSkip = (
+	sourceFile: SourceFileInfo,
+	program: ts.Program,
+	options: ModuleSourceOptions,
+	virtualFile?: SvelteVirtualFile
+): ModuleSkippedDiagnostic | undefined => {
+	// interpolating the same id as `file` keeps the two from naming the file
+	// differently — the message gets the same project-root scrub
+	const file = toPosixPath(sourceFile.id);
+	const skip = (
+		reason: ModuleSkippedDiagnostic['reason'],
+		message: string
+	): ModuleSkippedDiagnostic => ({
+		kind: 'module_skipped',
+		file,
+		message,
+		severity: 'warning',
+		reason
+	});
+	if (virtualFile) {
+		// `virtualPath` would leak the svelte2tsx suffix
+		return program.getSourceFile(virtualFile.virtualPath)
+			? undefined
+			: skip('not_in_program', `Virtual file not found in program: ${file}`);
+	}
+	switch (options.getAnalyzerType(sourceFile.id)) {
+		case 'svelte':
+			return skip(
+				'requires_program',
+				'Svelte files require program integration. Use createAnalysisSession or analyze()/analyzeFromFiles() instead.'
+			);
+		case 'typescript':
+			return program.getSourceFile(sourceFile.id)
+				? undefined
+				: skip('not_in_program', `Could not get source file from program: ${file}`);
+		case 'css':
+		case 'json':
+			return undefined;
+		default:
+			return skip('no_analyzer', `No analyzer for file type: ${file}`);
+	}
 };
 
 // Core two-phase loop
@@ -548,7 +587,6 @@ const analyzeContextComponents = (
  */
 export const analyzeCore = (inputs: AnalyzeCoreInputs): AnalyzeResultJson => {
 	const {
-		sourceFiles,
 		sourceOptions,
 		program,
 		svelteVirtualFiles,
@@ -561,15 +599,36 @@ export const analyzeCore = (inputs: AnalyzeCoreInputs): AnalyzeResultJson => {
 	const checker = program.getTypeChecker();
 	const diagnostics: Array<Diagnostic> = [];
 
-	// The emitted set is exactly the files handed in. `isSource` can't stand
-	// in for it: a source file left out of the set emits nothing (see
-	// `IsEmittedFile`), and the re-export arms must tell a canonical they can
-	// link to from one they have to document in place.
+	// Skip pre-pass: a file the module dispatch would skip (`module_skipped`)
+	// leaves the emitted set before anything is analyzed, and the edges naming
+	// it go with it, so output never references a module it doesn't contain.
+	const skippedIds = new Set<string>();
+	for (const sourceFile of inputs.sourceFiles) {
+		if (transformFailedIds?.has(sourceFile.id)) continue;
+		const skip = findModuleSkip(
+			sourceFile,
+			program,
+			sourceOptions,
+			svelteVirtualFiles.get(sourceFile.id)
+		);
+		if (!skip) continue;
+		diagnostics.push(skip);
+		log?.warn(`Module skipped (${skip.reason}): ${sourceFile.id}`);
+		skippedIds.add(toPosixPath(sourceFile.id));
+	}
+	const sourceFiles = skippedIds.size
+		? withoutModules(inputs.sourceFiles, skippedIds)
+		: inputs.sourceFiles;
+
+	// The emitted set is exactly the files handed in, less the skipped ones.
+	// `isSource` can't stand in for it: a source file left out of the set
+	// emits nothing (see `IsEmittedFile`), and the re-export arms must tell a
+	// canonical they can link to from one they have to document in place.
 	const emittedIds = new Set(sourceFiles.map((f) => toPosixPath(f.id)));
 	const isEmittedFile: IsEmittedFile = (file) => emittedIds.has(file);
 	// Existence for `SvelteFileStatus`: the caller's answer, else the files
-	// handed in (in-memory content counts) plus the disk.
-	const knownIds = new Set(emittedIds);
+	// handed in (in-memory content counts, skipped ones too) plus the disk.
+	const knownIds = new Set([...emittedIds, ...skippedIds]);
 	for (const f of contextSvelteFiles ?? []) knownIds.add(toPosixPath(f.id));
 	const fileExists: FileExists =
 		inputs.fileExists ?? ((file) => knownIds.has(file) || ts.sys.fileExists(file));

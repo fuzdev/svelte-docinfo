@@ -1,10 +1,15 @@
 import { test, assert, describe } from 'vitest';
 
+import { join } from 'node:path';
+
 import { analyzeModule } from '#lib/analyze-core.ts';
-import { type ModuleSourceOptions } from '#lib/source-config.ts';
+import { analyze } from '#lib/analyze.ts';
+import { type ModuleSourceOptions, createSourceOptions } from '#lib/source-config.ts';
+import { getDefaultAnalyzer } from '#lib/source.ts';
 import { byKind, hasErrors, hasWarnings, warningsOf, type Diagnostic } from '#lib/diagnostics.ts';
 
 import { createTestSourceOptions, createVirtualFileProgram } from './test-module-helpers.ts';
+import { withTestProject } from './test-helpers.ts';
 
 describe('analyzeModule', { timeout: 10_000 }, () => {
 	const options: ModuleSourceOptions = createTestSourceOptions('/project', {
@@ -435,5 +440,39 @@ export function fn(): string { return 'test'; }
 		// Valid code should produce no diagnostics
 		assert.strictEqual(diagnostics.length, 0);
 		assert.strictEqual(hasErrors(diagnostics), false);
+	});
+});
+
+describe('analyzeCore skips', { timeout: 15_000 }, () => {
+	test('a skipped module leaves the output, and so do the edges naming it', async () => {
+		// a `.txt` file the custom analyzer calls TypeScript is source, but no
+		// program takes it: `module_skipped` (`not_in_program`)
+		await withTestProject({}, async (projectRoot) => {
+			const a = join(projectRoot, 'src/lib/a.ts');
+			const b = join(projectRoot, 'src/lib/b.txt');
+			const c = join(projectRoot, 'src/lib/c.ts');
+			const result = await analyze({
+				sourceFiles: [
+					{ id: a, content: 'export const a = 1;', dependencies: [b, c] },
+					{ id: b, content: 'export const b = 1;', dependencies: [c] },
+					{ id: c, content: 'export const c = 1;', dependencies: [] }
+				],
+				sourceOptions: createSourceOptions(projectRoot, {
+					getAnalyzerType: (path) =>
+						path.endsWith('.txt') ? 'typescript' : getDefaultAnalyzer(path)
+				})
+			});
+			assert.deepStrictEqual(
+				result.modules.map((m) => [m.path, m.dependencies, m.dependents]),
+				[
+					['a.ts', ['c.ts'], []],
+					['c.ts', [], ['a.ts']]
+				]
+			);
+			assert.deepStrictEqual(
+				result.diagnostics.map((d) => [d.kind, d.file, d.kind === 'module_skipped' && d.reason]),
+				[['module_skipped', 'src/lib/b.txt', 'not_in_program']]
+			);
+		});
 	});
 });
