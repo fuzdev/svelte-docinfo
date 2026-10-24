@@ -1,0 +1,24 @@
+{
+	"path": "CssLegacy.svelte",
+	"declarations": [
+		{
+			"name": "CssLegacy",
+			"kind": "component",
+			"sourceLine": 3,
+			"props": [
+				{
+					"name": "prop1",
+					"type": "string",
+					"bindable": true
+				}
+			],
+			"cssCustomProperties": [
+				{
+					"name": "--a",
+					"fallback": "red",
+					"sourceLine": 11
+				}
+			]
+		}
+	]
+}

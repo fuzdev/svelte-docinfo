@@ -351,6 +351,7 @@ export const resolveComponentAliases = (
 				...decl,
 				props: canonical.props,
 				acceptsChildren: canonical.acceptsChildren,
+				cssCustomProperties: canonical.cssCustomProperties,
 				externalTypes: canonical.externalTypes,
 				genericParams: canonical.genericParams
 			};

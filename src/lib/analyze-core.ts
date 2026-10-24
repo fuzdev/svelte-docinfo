@@ -933,6 +933,7 @@ const QUOTED_ABSOLUTE_PATH_RE = /"((?:\/|[A-Za-z]:\/)[^"\n]*)"/g;
  * resolution check, not this list, is the real guard.
  */
 const NON_TYPE_TEXT_KEYS: ReadonlySet<string> = new Set([
+	'cssCustomProperties',
 	'dependencies',
 	'dependents',
 	'deprecatedMessage',

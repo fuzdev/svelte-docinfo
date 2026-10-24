@@ -1,0 +1,28 @@
+{
+	"path": "CssCommentsStrings.svelte",
+	"declarations": [
+		{
+			"name": "CssCommentsStrings",
+			"kind": "component",
+			"sourceLine": 1,
+			"cssCustomProperties": [
+				{
+					"name": "--b",
+					"fallback": "/* fallback */ red",
+					"sourceLine": 6
+				},
+				{
+					"name": "--e",
+					"fallback": "blue",
+					"sourceLine": 8
+				},
+				{
+					"name": "--f",
+					"fallback": "'a, b', serif",
+					"sourceLine": 9
+				}
+			],
+			"lang": "js"
+		}
+	]
+}

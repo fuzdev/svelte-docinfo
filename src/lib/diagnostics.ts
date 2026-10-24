@@ -105,7 +105,9 @@ export const DiagnosticKind = v.picklist([
 	'transform_failed',
 	'resolver_failed',
 	'alias_lost',
-	'commonjs_unsupported'
+	'commonjs_unsupported',
+	'css_parse_failed',
+	'css_lang_unsupported'
 ]);
 export type DiagnosticKind = v.InferOutput<typeof DiagnosticKind>;
 
@@ -573,6 +575,54 @@ export const CommonjsUnsupportedDiagnostic: CommonjsUnsupportedDiagnosticSchema 
 	CommonjsUnsupportedDiagnosticImpl;
 export type CommonjsUnsupportedDiagnostic = v.InferOutput<typeof CommonjsUnsupportedDiagnostic>;
 
+const CssParseFailedDiagnosticImpl = v.strictObject({
+	kind: v.literal('css_parse_failed'),
+	...baseDiagnosticFields
+});
+/** @nodocs */
+export interface CssParseFailedDiagnosticSchema extends Named<
+	typeof CssParseFailedDiagnosticImpl
+> {}
+/**
+ * Svelte's parser rejected a component that has a `<style>`, so its styling
+ * API (`ComponentDeclarationJson.cssCustomProperties`) isn't read.
+ *
+ * Usually malformed CSS; also any template error under a Svelte that predates
+ * loose parsing (5.13). The component
+ * still emits, without `cssCustomProperties`. `line`/`column` are the
+ * parser's, in the original `.svelte` source.
+ *
+ * Always `warning`, query-time category (reported each `query()` from the reading cached at
+ * transform).
+ */
+export const CssParseFailedDiagnostic: CssParseFailedDiagnosticSchema =
+	CssParseFailedDiagnosticImpl;
+export type CssParseFailedDiagnostic = v.InferOutput<typeof CssParseFailedDiagnostic>;
+
+const CssLangUnsupportedDiagnosticImpl = v.strictObject({
+	kind: v.literal('css_lang_unsupported'),
+	...baseDiagnosticFields,
+	/** The style tag's `lang` (or `type`) value, as written (`scss`, `text/postcss`). */
+	lang: v.string()
+});
+/** @nodocs */
+export interface CssLangUnsupportedDiagnosticSchema extends Named<
+	typeof CssLangUnsupportedDiagnosticImpl
+> {}
+/**
+ * A component's `<style>` names a preprocessor language (`lang="scss"`,
+ * `type="text/postcss"`), which isn't read: its styling API
+ * (`ComponentDeclarationJson.cssCustomProperties`) is left empty. Only
+ * `lang="css"` and `type="text/css"` read as CSS. `line`/`column` point at
+ * the style tag.
+ *
+ * Always `warning`, query-time category (reported each `query()` from the reading cached at
+ * transform).
+ */
+export const CssLangUnsupportedDiagnostic: CssLangUnsupportedDiagnosticSchema =
+	CssLangUnsupportedDiagnosticImpl;
+export type CssLangUnsupportedDiagnostic = v.InferOutput<typeof CssLangUnsupportedDiagnostic>;
+
 /**
  * Discriminated union of all diagnostic variants. Ingest-time kinds:
  * `transform_failed`, `source_map_failed`, `import_parse_failed`, and
@@ -601,7 +651,9 @@ export const Diagnostic: v.VariantSchema<
 		typeof TransformFailedDiagnostic,
 		typeof ResolverFailedDiagnostic,
 		typeof AliasLostDiagnostic,
-		typeof CommonjsUnsupportedDiagnostic
+		typeof CommonjsUnsupportedDiagnostic,
+		typeof CssParseFailedDiagnostic,
+		typeof CssLangUnsupportedDiagnostic
 	],
 	undefined
 > = v.variant('kind', [
@@ -621,7 +673,9 @@ export const Diagnostic: v.VariantSchema<
 	TransformFailedDiagnostic,
 	ResolverFailedDiagnostic,
 	AliasLostDiagnostic,
-	CommonjsUnsupportedDiagnostic
+	CommonjsUnsupportedDiagnostic,
+	CssParseFailedDiagnostic,
+	CssLangUnsupportedDiagnostic
 ]);
 export type Diagnostic = v.InferOutput<typeof Diagnostic>;
 

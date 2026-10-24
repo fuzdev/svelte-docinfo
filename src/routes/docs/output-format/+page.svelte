@@ -124,7 +124,8 @@
 				<li><code>"enum"</code>: adds <code>members</code> (enum values)</li>
 				<li>
 					<code>"component"</code>: adds <code>props</code>, <code>externalTypes</code>,
-					<code>acceptsChildren</code>, <code>lang</code> (Svelte components)
+					<code>acceptsChildren</code>, <code>cssCustomProperties</code>, <code>lang</code> (Svelte
+					components)
 				</li>
 				<li>
 					<code>"snippet"</code>: adds <code>parameters</code> (exported Svelte template snippets)
@@ -283,6 +284,37 @@
 					declares what the component writes into the object or array it's handed
 				</li>
 			</ul>
+		</TomeSection>
+
+		<TomeSection>
+			<TomeSectionHeader text="ComponentCssPropertyJson" />
+			<p>
+				A component's styling API is its <code>cssCustomProperties</code> array of
+				<DeclarationLink name="ComponentCssPropertyJson" /> entries: the CSS custom properties a
+				consumer can set, on the component (<code>&lt;Foo --accent="red" /&gt;</code>) or on an
+				ancestor. They're read from the component's <code>&lt;style&gt;</code>: each name read
+				through <code>var()</code> with a fallback, like <code>var(--accent, blue)</code>, unless
+				the component sets the property itself, with a <code>--accent: …</code> declaration in its
+				own <code>&lt;style&gt;</code>, a <code>style:--accent</code> directive, or a
+				<code>style="--accent: …"</code> attribute. Bare reads like <code>var(--color_a_5)</code>
+				are usually global design tokens, so they're left out. Each entry has:
+			</p>
+			<ul>
+				<li><code>name</code>: the property as written, <code>--</code> included</li>
+				<li>
+					<code>fallback</code>: the fallback's source text, verbatim
+					(<code>var(--accent, var(--color_a_5))</code> gives <code>var(--color_a_5)</code>; the
+					nested <code>--color_a_5</code> isn't an entry of its own)
+				</li>
+				<li><code>sourceLine</code>: the line of the property's first read</li>
+			</ul>
+			<p>
+				Entries are in the order of each name's first read. Reads in nested rules,
+				<code>:global(…)</code>, <code>@media</code> and other at-rule blocks, and keyframes count.
+				A <code>&lt;style lang="scss"&gt;</code> (any language but CSS) isn't read and warns
+				<code>css_lang_unsupported</code>; a style Svelte's parser rejects warns
+				<code>css_parse_failed</code>. See <TomeLink slug="diagnostics" />.
+			</p>
 		</TomeSection>
 
 		<TomeSection>

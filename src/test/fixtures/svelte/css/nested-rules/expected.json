@@ -1,0 +1,58 @@
+{
+	"path": "CssNestedRules.svelte",
+	"declarations": [
+		{
+			"name": "CssNestedRules",
+			"kind": "component",
+			"sourceLine": 1,
+			"cssCustomProperties": [
+				{
+					"name": "--a",
+					"fallback": "red",
+					"sourceLine": 5
+				},
+				{
+					"name": "--b",
+					"fallback": "red",
+					"sourceLine": 7
+				},
+				{
+					"name": "--c",
+					"fallback": "red",
+					"sourceLine": 10
+				},
+				{
+					"name": "--d",
+					"fallback": "red",
+					"sourceLine": 13
+				},
+				{
+					"name": "--e",
+					"fallback": "red",
+					"sourceLine": 18
+				},
+				{
+					"name": "--f",
+					"fallback": "red",
+					"sourceLine": 23
+				},
+				{
+					"name": "--g",
+					"fallback": "0",
+					"sourceLine": 28
+				},
+				{
+					"name": "--h",
+					"fallback": "red",
+					"sourceLine": 32
+				},
+				{
+					"name": "--i",
+					"fallback": "red",
+					"sourceLine": 36
+				}
+			],
+			"lang": "js"
+		}
+	]
+}

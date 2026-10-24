@@ -1,0 +1,22 @@
+{
+	"path": "CssLangPostcss.svelte",
+	"declarations": [
+		{
+			"name": "CssLangPostcss",
+			"kind": "component",
+			"sourceLine": 1,
+			"lang": "js"
+		}
+	],
+	"diagnostics": [
+		{
+			"kind": "css_lang_unsupported",
+			"message": "The <style> is \"postcss\", not CSS, so the styling API isn't read.",
+			"lang": "postcss",
+			"line": 3,
+			"column": 1,
+			"file": "src/lib/CssLangPostcss.svelte",
+			"severity": "warning"
+		}
+	]
+}

@@ -1,0 +1,45 @@
+{
+	"path": "CssSetInMarkup.svelte",
+	"declarations": [
+		{
+			"name": "CssSetInMarkup",
+			"kind": "component",
+			"sourceLine": 1,
+			"props": [
+				{
+					"name": "prop1",
+					"type": "string"
+				},
+				{
+					"name": "prop2",
+					"type": "Component<{}, {}, string>",
+					"typeInfo": {
+						"kind": "reference",
+						"name": "Component",
+						"typeArgs": [
+							{
+								"kind": "object",
+								"text": "{}"
+							},
+							{
+								"kind": "object",
+								"text": "{}"
+							},
+							{
+								"kind": "intrinsic",
+								"text": "string"
+							}
+						]
+					}
+				}
+			],
+			"cssCustomProperties": [
+				{
+					"name": "--f",
+					"fallback": "1px",
+					"sourceLine": 20
+				}
+			]
+		}
+	]
+}

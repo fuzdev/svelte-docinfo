@@ -39,6 +39,7 @@ export {
 	TupleElementJson,
 	ParameterJson,
 	ComponentPropJson,
+	ComponentCssPropertyJson,
 	OverloadJson,
 	FunctionMemberJson,
 	VariableMemberJson,

@@ -1,0 +1,23 @@
+{
+	"path": "CssFirstRead.svelte",
+	"declarations": [
+		{
+			"name": "CssFirstRead",
+			"kind": "component",
+			"sourceLine": 1,
+			"cssCustomProperties": [
+				{
+					"name": "--a",
+					"fallback": "red",
+					"sourceLine": 5
+				},
+				{
+					"name": "--b",
+					"fallback": "1px",
+					"sourceLine": 6
+				}
+			],
+			"lang": "js"
+		}
+	]
+}

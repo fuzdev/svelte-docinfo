@@ -156,6 +156,11 @@ const {modules} = await analyze({
 					<code>$props()</code>)
 				</li>
 				<li>
+					<strong>component styling API</strong>: the CSS custom properties a component's
+					<code>&lt;style&gt;</code> reads with a fallback (<code>var(--accent, blue)</code>) and
+					doesn't set itself, as <code>cssCustomProperties</code>
+				</li>
+				<li>
 					<strong>Svelte 5 reactivity runes</strong>: detects <code>$state</code>,
 					<code>$state.raw</code>, <code>$derived</code>, and <code>$derived.by</code> on variables
 					and class fields via the <code>reactivity</code> field, in any analyzed file

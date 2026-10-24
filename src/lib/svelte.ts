@@ -92,6 +92,7 @@ import { type Diagnostic } from './diagnostics.ts';
 import { toErrorMessage } from './error.ts';
 import { toPosixPath } from './paths.ts';
 import { resolveLegacyPropsAnchor, scanLegacyExports } from './svelte-legacy.ts';
+import { analyzeComponentCss, type ComponentCss } from './svelte-css.ts';
 import {
 	findHtmlComments,
 	findScriptTags,
@@ -135,6 +136,15 @@ export interface SvelteVirtualFile {
 	 * then locates them in the source it's given.
 	 */
 	scriptTags?: ReadonlyArray<SvelteScriptTag>;
+	/**
+	 * The component's styling API as `analyzeComponentCss` reads it from the
+	 * original source, read once at transform like `scriptTags`, plus the
+	 * problem `analyzeSvelteModule` reports when the style wasn't read.
+	 *
+	 * Optional so a virtual built by hand needs none: `analyzeSvelteModule`
+	 * then reads it from the source it's given.
+	 */
+	css?: ComponentCss;
 }
 
 /**
@@ -233,7 +243,8 @@ export const transformSvelteSource = (sourceFile: SourceFileInfo): TransformResu
 			content: tsResult.code,
 			sourceMap,
 			scriptKind: isTsFile ? ts.ScriptKind.TS : ts.ScriptKind.JS,
-			scriptTags
+			scriptTags,
+			css: analyzeComponentCss(sourceFile.content)
 		},
 		diagnostics
 	};
@@ -1651,8 +1662,9 @@ const extractPropsViaChecker = (
  *    `$props()` declaration, else `resolveExportLetPropsAnchor` for a legacy
  *    component's exports), `acceptsChildren` from a `Snippet`-typed `children`
  *    prop, template use (`__sveltets_2_ensureSnippet`) or, failing those, a
- *    legacy component's default slot (`hasDefaultSlot`), plus generics, doc
- *    comment, and source line from the landmarks `findComponentNodes` locates
+ *    legacy component's default slot (`hasDefaultSlot`), the styling API read
+ *    at transform (`SvelteVirtualFile.css`), plus generics, doc comment, and
+ *    source line from the landmarks `findComponentNodes` locates
  * 4. the module comment is read from the original source
  * 5. declarations combine, component first
  * 6. dependencies are extracted
@@ -1945,6 +1957,14 @@ export const analyzeSvelteModule = (
 		(renderMode === 'legacy' && hasDefaultSlot(componentNodes, checker));
 	if (acceptsChildren) {
 		componentDecl.acceptsChildren = true;
+	}
+
+	// The styling API, read at transform; its problem reports here, each query,
+	// like the other per-component warnings
+	const css = virtualFile.css ?? analyzeComponentCss(sourceFile.content);
+	if (css.properties.length) componentDecl.cssCustomProperties = css.properties;
+	if (css.problem) {
+		diagnostics.push({ ...css.problem, file: diagnosticFile, severity: 'warning' });
 	}
 
 	// Extract generic params

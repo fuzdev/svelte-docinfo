@@ -21,7 +21,7 @@ tested; the content stays minimal so the structure is what you see.
 Layout:
 
 - **svelte** — `svelte/<category>/<case>/`, categories `component`, `props`,
-  `types`, `reexports`, `errors`
+  `types`, `css`, `reexports`, `errors`
 - **ts** — `ts/<category>/[<sub>/]<case>/`, categories
   `declarations/{class,enum,function,interface,type,variable}`, `generics`,
   `members`, `module/{comment,commonjs}`, `parameters`, `reexports`, `tsdoc`, `types`
@@ -251,6 +251,18 @@ Where each behavior is locked. Unit and behavior-level mechanics live in
   - cross-module: `props/cross-module`, `types/cross-module-external`. Deeper
     rename/package variants are in `analyze.props-cross-module.test.ts`, and
     walk internals in `external-properties.test.ts` (synthetic externality)
+- Styling API (`css/*`): fallback reads kept and bare reads, a bare read
+  before a fallback one, and `var(--a,)` (`fallback`, `first-read`); only the
+  outermost `var()`, in `calc()` and comma lists, `VAR(` (`nested-var`); names
+  the style declares, under `:global(:root)` too (`defined-locally`); names set
+  by `style:--a` and `style="--a: …"` on elements and `<svelte:element>` in
+  blocks, and a child component's `--a` attribute not counting
+  (`set-in-markup`); reads in nested rules, `&`, `@media`, `@container`,
+  `@supports`, keyframes, and `:global` (`nested-rules`); comments and strings
+  (`comments-strings`); a legacy component (`legacy`), a template-only one
+  (`template-only`); a preprocessor `lang` warning `css_lang_unsupported`
+  (`lang-postcss`). Sources Svelte rejects (`css_parse_failed`) and scanner
+  edges are in `svelte-css.test.ts`, since svelte-check type-checks fixtures
 - Re-exports (`reexports/*`): component rename with phase-2 fill
   (`component-renamed`), same-name re-key via a ts barrel's bare
   `export {default}` (`component-same-name`), `<script module>` links /

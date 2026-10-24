@@ -133,6 +133,8 @@ are the tomes in `src/routes/docs/`. Examples: `examples/vite/`, `examples/api/`
 - **Svelte 5 components** — props, generics, snippets, and `acceptsChildren` via svelte2tsx
   and the checker, including JS components and legacy `export let` components (see Svelte
   Component Analysis).
+- **Component styling API** — `cssCustomProperties`: the CSS custom properties a component's
+  `<style>` reads with a fallback and doesn't set itself (see Svelte Component Analysis).
 - **Runes** — `$state`, `$state.raw`, `$derived`, `$derived.by`, detected syntactically in
   every file (`reactivity`).
 
@@ -203,9 +205,13 @@ are the tomes in `src/routes/docs/`. Examples: `examples/vite/`, `examples/api/`
   (`resolveRunesPropsAnchor`, `resolveExportLetPropsAnchor`); snippet helpers;
   `remapVirtualDiagnosticPositions`.
 - `svelte-scripts.ts` (`@internal`, not in the barrel) — `findScriptTags`,
-  `scanScriptTags`, `isModuleScript`, `findHtmlComments` (skips script and style text).
+  `scanScriptTags`, `isModuleScript`, `findHtmlComments` (skips script and style text),
+  `blankVerbatimContent`.
 - `svelte-legacy.ts` (`@internal`, not in the barrel) — `scanLegacyExports`,
   `resolveLegacyPropsAnchor`.
+- `svelte-css.ts` (`@internal`, not in the barrel) — `analyzeComponentCss` (the styling
+  API, read at transform onto `SvelteVirtualFile.css`), `scanCssVarReads` (outermost
+  `var()` reads in CSS text).
 - `source.ts` — `SourceFileInfo`, file-type predicates (`isTypescript`: `.ts`, `.mts`,
   `.tsx`, `.js`, `.mjs`, `.jsx`; not `.cjs`/`.cts` or `.d.ts`/`.d.mts`), virtual-path helpers
   (`stripVirtualSuffix`, `SVELTE_VIRTUAL_SUFFIX`), `isSvelte2tsxGeneratedExport`,
@@ -378,6 +384,17 @@ The workflow is in the `analyzeSvelteModule` TSDoc; the policies:
   module comment (`parseHtmlComponentComment`). svelte2tsx, and so editor hover, takes the
   last comment containing `@component` anywhere; when the two picks differ and in-script
   JSDoc doesn't supply the doc, `component_comment_mismatch` warns.
+- **Styling API** (`cssCustomProperties`; `svelte-css.ts` and the `types.ts` field doc) —
+  outermost `var(--x, fallback)` reads in the top-level `<style>`, at any depth (nested
+  rules, at-rule blocks, `:global`, keyframes), minus names the component sets itself: a
+  `--x:` declaration in its style, a `style:--x` directive, or `--x:` in an element's
+  `style` attribute (a child component's `--x` attribute doesn't count). Bare reads are
+  left out. One entry per name (`name`, `fallback` verbatim, `sourceLine` of the first
+  read), in first-read order. One Svelte `parse` (`modern`, `loose`) over the source with
+  script content blanked (`blankVerbatimContent`), at transform; a source without `<style`
+  isn't parsed. A non-CSS `lang`/`type` warns `css_lang_unsupported`, a rejected parse
+  `css_parse_failed`; either way the component emits without the field. Legacy components
+  read the same.
 - **Legacy `export let`** (`svelte-legacy.ts` TSDoc) — every prop is `bindable`; type and
   optionality come from svelte2tsx's props literal or the author's `$$Props` (an
   `export let` it doesn't declare is dropped), else (JS, or TS whose exports are all untyped
@@ -444,7 +461,8 @@ placeholder for a Svelte file whose transform threw).
 - `interface` — `members`, `extends`, `externalTypes`, `mergedValue`
 - `type` — `members`, `externalTypes`, `typeInfo`, `mergedValue`
 - `enum` — `members`
-- `component` — `props`, `externalTypes`, `acceptsChildren`, `lang`
+- `component` — `props`, `externalTypes`, `acceptsChildren`, `cssCustomProperties`
+  (`ComponentCssPropertyJson`: `name`, `fallback`, `sourceLine`), `lang`
 - `snippet` — `parameters`
 - `namespace` — `module`
 - members: `function` — `parameters`, `returnType`, `returnTypeInfo`, `returnDescription`,
@@ -626,6 +644,10 @@ semantics and reports unresolvable stars instead of guessing. Lock-in tests:
 - `</script >` (whitespace before `>`): Svelte and `findScriptTags` accept it, svelte2tsx
   doesn't, so a legacy component written that way documents no props and warns
   `svelte_prop_failed` per `export let`.
+- Styling API: a preprocessor-language `<style>` (`css_lang_unsupported`); custom
+  properties set from script (`style.setProperty`), a dynamic `style={…}` value, or an
+  expression in a `style` attribute's property position (`style="{a}: 1"`) count as unset,
+  so their fallback reads stay listed.
 - A runes component's `<slot />` doesn't set `acceptsChildren`.
 - Legacy components: named slots, slot props, and events aren't modeled. Two export forms
   follow svelte2tsx where it departs from Svelte: `export let a; export {a as b}` keeps

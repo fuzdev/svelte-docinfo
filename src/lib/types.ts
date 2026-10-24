@@ -701,6 +701,35 @@ export const ComponentPropJson: ComponentPropJsonSchema = ComponentPropJsonImpl;
 export type ComponentPropJson = v.InferOutput<typeof ComponentPropJson>;
 export type ComponentPropJsonInput = v.InferInput<typeof ComponentPropJson>;
 
+const ComponentCssPropertyJsonImpl = v.strictObject({
+	/** The custom property's name as written, `--` included (`--a_color`); case-sensitive, as in CSS. */
+	name: v.string(),
+	/**
+	 * The fallback of the first `var()` read with one: the verbatim source text
+	 * after the comma, trimmed, comments included (`var(--a, var(--b, 1px))`
+	 * gives `var(--b, 1px)`). Empty for `var(--a,)`, a fallback of nothing.
+	 * Optional so an entry can describe a property no read gives a fallback.
+	 */
+	fallback: v.optional(v.string()),
+	/** 1-based line of the property's first `var()` read in the original `.svelte` source. */
+	sourceLine: v.pipe(v.number(), v.safeInteger(), v.minValue(1))
+});
+/** @nodocs */
+export interface ComponentCssPropertyJsonSchema extends Named<
+	typeof ComponentCssPropertyJsonImpl
+> {}
+/**
+ * A CSS custom property in a Svelte component's styling API: one a consumer
+ * sets on the component (`<A --a_color="red" />`) or on an ancestor, read by
+ * the component's `<style>`.
+ *
+ * @see `ComponentDeclarationJson.cssCustomProperties` for which reads count
+ */
+export const ComponentCssPropertyJson: ComponentCssPropertyJsonSchema =
+	ComponentCssPropertyJsonImpl;
+export type ComponentCssPropertyJson = v.InferOutput<typeof ComponentCssPropertyJson>;
+export type ComponentCssPropertyJsonInput = v.InferInput<typeof ComponentCssPropertyJson>;
+
 const OverloadJsonImpl = v.strictObject({
 	/** Full TypeScript type signature for this overload. */
 	typeSignature: v.string(),
@@ -1275,6 +1304,27 @@ const ComponentDeclarationJsonImpl = v.strictObject({
 	 * set it, and neither does a named slot alone.
 	 */
 	acceptsChildren: v.optional(v.boolean(), false),
+	/**
+	 * The component's styling API: the CSS custom properties its `<style>`
+	 * reads with a fallback (`var(--a, 1px)`) and leaves for a consumer to set.
+	 * One entry per name, in the order of each name's first read.
+	 *
+	 * A read counts when it's an outermost `var()`, not one in another
+	 * `var()`'s fallback: `var(--a, var(--b))` reads `--a`, with `--b` the
+	 * fallback chain's global token. Reads anywhere in the stylesheet count,
+	 * in `:global(…)` rules, nested rules, `@media`/`@container`/`@supports`
+	 * blocks, and keyframes alike. A name drops out when the component sets
+	 * it itself: a `--a: …` declaration in its `<style>`, a `style:--a`
+	 * directive, or a `--a:` in a `style` attribute on one of its elements.
+	 * A `--a` attribute on a child component doesn't count, since it styles
+	 * the child. A name read only without a fallback isn't listed: bare reads
+	 * are mostly global design tokens.
+	 *
+	 * Empty when the component has no `<style>`, when its style's `lang` (or
+	 * `type`) names a preprocessor language (`css_lang_unsupported`), or when
+	 * Svelte's parser rejects the component (`css_parse_failed`).
+	 */
+	cssCustomProperties: v.optional(v.array(ComponentCssPropertyJson), () => []),
 	/** Script language. `undefined` means TypeScript (default), `'js'` for JavaScript-only components. */
 	lang: v.optional(v.picklist(['js']))
 });
@@ -1282,7 +1332,10 @@ const ComponentDeclarationJsonImpl = v.strictObject({
 export interface ComponentDeclarationJsonSchema extends Named<
 	typeof ComponentDeclarationJsonImpl
 > {}
-/** A Svelte component declaration. Has `props`, `externalTypes`, `acceptsChildren`. */
+/**
+ * A Svelte component declaration. Has `props`, `externalTypes`, `acceptsChildren`,
+ * `cssCustomProperties`.
+ */
 export const ComponentDeclarationJson: ComponentDeclarationJsonSchema =
 	ComponentDeclarationJsonImpl;
 export type ComponentDeclarationJson = v.InferOutput<typeof ComponentDeclarationJson>;

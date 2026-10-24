@@ -1,0 +1,19 @@
+{
+	"path": "CssTemplateOnly.svelte",
+	"declarations": [
+		{
+			"name": "CssTemplateOnly",
+			"kind": "component",
+			"docComment": "Description 1",
+			"sourceLine": 1,
+			"cssCustomProperties": [
+				{
+					"name": "--a",
+					"fallback": "red",
+					"sourceLine": 6
+				}
+			],
+			"lang": "js"
+		}
+	]
+}

@@ -262,6 +262,26 @@
 						</td>
 					</tr>
 					<tr>
+						<td><code>css_parse_failed</code></td>
+						<td>
+							<strong>Trigger:</strong> Svelte's parser rejects a component that has a
+							<code>&lt;style&gt;</code>: malformed CSS, two top-level styles, or markup its loose
+							parsing can't absorb. <strong>Consequence:</strong> the component emits without
+							<code>cssCustomProperties</code>; <code>line</code>/<code>column</code> are the
+							parser's.
+						</td>
+					</tr>
+					<tr>
+						<td><code>css_lang_unsupported</code></td>
+						<td>
+							<strong>Trigger:</strong> a component's <code>&lt;style&gt;</code> names a
+							preprocessor language (<code>lang="scss"</code>, <code>lang="postcss"</code>,
+							<code>type="text/less"</code>), carried in <code>lang</code>.
+							<strong>Consequence:</strong> the style isn't read, so the component emits without
+							<code>cssCustomProperties</code>.
+						</td>
+					</tr>
+					<tr>
 						<td><code>duplicate_declaration</code></td>
 						<td>
 							<strong>Trigger:</strong> a declaration name appears in more than one module, and the

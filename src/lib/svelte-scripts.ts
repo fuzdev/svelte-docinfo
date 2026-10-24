@@ -51,9 +51,12 @@ export interface ScannedScriptTag extends SvelteScriptTag {
 const SCRIPT_TAG_MATCHER =
 	/<!--[^]*?-->|<script((?:\s+[^=>'"/\s]+=(?:"[^"]*"|'[^']*'|[^>\s]+)|\s+[^=>'"/\s]+)*\s*)(?:\/>|>([^]*?)<\/script\s*>)/dg;
 
-/** `SCRIPT_TAG_MATCHER` for style tags, whose content is blanked before parsing. */
+/**
+ * `SCRIPT_TAG_MATCHER` for style tags, whose content `blankVerbatimContent`
+ * blanks: attributes in group 1, content in group 2.
+ */
 const STYLE_TAG_MATCHER =
-	/<!--[^]*?-->|<style(?:\s+[^=>'"/\s]+=(?:"[^"]*"|'[^']*'|[^>\s]+)|\s+[^=>'"/\s]+)*\s*>([^]*?)<\/style\s*>/dg;
+	/<!--[^]*?-->|<style((?:\s+[^=>'"/\s]+=(?:"[^"]*"|'[^']*'|[^>\s]+)|\s+[^=>'"/\s]+)*\s*)>([^]*?)<\/style\s*>/dg;
 
 /**
  * Matches, left to right, an HTML comment (its content captured), a script
@@ -192,6 +195,15 @@ const parseAttributes = (attrs: string): Map<string, string | true> => {
 export const isModuleScript = (attributes: Map<string, string | true>): boolean =>
 	attributes.has('module') || attributes.get('context') === 'module';
 
+/** Options for `blankVerbatimContent`. */
+export interface BlankVerbatimContentOptions {
+	/**
+	 * Whether to keep a style tag's content as written, by its opening-tag
+	 * attributes. Every style's content is blanked when absent.
+	 */
+	keepStyle?: (attributes: Map<string, string | true>) => boolean;
+}
+
 /**
  * Copy `svelteSource` with the content of its script and style tags
  * overwritten by spaces, newlines kept, so every offset and line still means
@@ -202,10 +214,16 @@ export const isModuleScript = (attributes: Map<string, string | true>): boolean 
  * search for styles resumes after the script. A leading byte-order mark
  * becomes a space too: Svelte's `parse` strips one, which would shift every
  * offset it reports.
+ *
+ * @param svelteSource - the full Svelte source code
+ * @param scripts - the source's scanned script tags (`scanScriptTags`), nested ones included
+ * @param options - which style tags keep their content
+ * @returns the source with the verbatim content blanked, the same length
  */
-const blankVerbatimContent = (
+export const blankVerbatimContent = (
 	svelteSource: string,
-	scripts: ReadonlyArray<ScannedScriptTag>
+	scripts: ReadonlyArray<ScannedScriptTag>,
+	options?: BlankVerbatimContentOptions
 ): string => {
 	const ranges: Array<[start: number, end: number]> = scripts.map((tag) => [
 		tag.start,
@@ -214,7 +232,7 @@ const blankVerbatimContent = (
 	STYLE_TAG_MATCHER.lastIndex = 0;
 	let match;
 	while ((match = STYLE_TAG_MATCHER.exec(svelteSource)) !== null) {
-		const range = match.indices![1];
+		const range = match.indices![2];
 		// the comment alternative captures no content
 		if (!range) continue;
 		const open = match.index;
@@ -223,6 +241,7 @@ const blankVerbatimContent = (
 			STYLE_TAG_MATCHER.lastIndex = enclosing.end;
 			continue;
 		}
+		if (options?.keepStyle?.(parseAttributes(match[1]!))) continue;
 		ranges.push(range);
 	}
 	// a style's content can hold a matched script, so ranges can overlap: each

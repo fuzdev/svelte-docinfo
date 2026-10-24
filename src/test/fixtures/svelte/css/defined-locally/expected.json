@@ -1,0 +1,18 @@
+{
+	"path": "CssDefinedLocally.svelte",
+	"declarations": [
+		{
+			"name": "CssDefinedLocally",
+			"kind": "component",
+			"sourceLine": 1,
+			"cssCustomProperties": [
+				{
+					"name": "--b",
+					"fallback": "3px",
+					"sourceLine": 7
+				}
+			],
+			"lang": "js"
+		}
+	]
+}

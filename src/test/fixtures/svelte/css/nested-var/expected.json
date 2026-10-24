@@ -1,0 +1,43 @@
+{
+	"path": "CssNestedVar.svelte",
+	"declarations": [
+		{
+			"name": "CssNestedVar",
+			"kind": "component",
+			"sourceLine": 1,
+			"cssCustomProperties": [
+				{
+					"name": "--a",
+					"fallback": "var(--b, red)",
+					"sourceLine": 5
+				},
+				{
+					"name": "--c",
+					"fallback": "1px",
+					"sourceLine": 6
+				},
+				{
+					"name": "--e",
+					"fallback": "1px",
+					"sourceLine": 8
+				},
+				{
+					"name": "--f",
+					"fallback": "var(--g)",
+					"sourceLine": 8
+				},
+				{
+					"name": "--h",
+					"fallback": "2px",
+					"sourceLine": 9
+				},
+				{
+					"name": "--i",
+					"fallback": "blue",
+					"sourceLine": 10
+				}
+			],
+			"lang": "js"
+		}
+	]
+}

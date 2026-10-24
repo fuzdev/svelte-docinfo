@@ -20,6 +20,7 @@ import type {
 	MemberKind,
 	ParameterJsonInput,
 	OverloadJsonInput,
+	ComponentCssPropertyJsonInput,
 	ComponentPropJsonInput,
 	Reactivity,
 	ReExportJsonInput,
@@ -102,6 +103,7 @@ export interface DeclarationJsonBuild {
 	members?: Array<MemberJsonBuild>;
 	props?: Array<ComponentPropJsonInput>;
 	acceptsChildren?: boolean;
+	cssCustomProperties?: Array<ComponentCssPropertyJsonInput>;
 	lang?: 'js';
 	alsoExportedFrom?: Array<string>;
 	aliasOf?: { module: string; name: string };

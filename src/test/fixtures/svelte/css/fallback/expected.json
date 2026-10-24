@@ -1,0 +1,38 @@
+{
+	"path": "CssFallback.svelte",
+	"declarations": [
+		{
+			"name": "CssFallback",
+			"kind": "component",
+			"sourceLine": 1,
+			"props": [
+				{
+					"name": "prop1",
+					"type": "string"
+				}
+			],
+			"cssCustomProperties": [
+				{
+					"name": "--a",
+					"fallback": "red",
+					"sourceLine": 9
+				},
+				{
+					"name": "--c",
+					"fallback": "1px",
+					"sourceLine": 11
+				},
+				{
+					"name": "--d",
+					"fallback": "2px",
+					"sourceLine": 11
+				},
+				{
+					"name": "--e",
+					"fallback": "",
+					"sourceLine": 12
+				}
+			]
+		}
+	]
+}
