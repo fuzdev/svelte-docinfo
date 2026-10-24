@@ -46,6 +46,11 @@ export class C {
 	set d(x) {
 		void x;
 	}
+
+	constructor() {
+		/** @type {A} */
+		this.e = 'a';
+	}
 }
 
 /**
@@ -67,4 +72,26 @@ export class C {
 export function fn2(x, y) {
 	void y;
 	return x;
+}
+
+export class D {
+	fn1() {
+		/** @type {A} */
+		this.a = 'a';
+	}
+
+	constructor() {
+		this.a = 'b';
+	}
+}
+
+export class E {
+	constructor() {
+		this.a = 'b';
+	}
+
+	fn1() {
+		/** @type {A} */
+		this.a = 'a';
+	}
 }

@@ -1,0 +1,878 @@
+{
+	"path": "input.js",
+	"declarations": [
+		{
+			"name": "A",
+			"kind": "class",
+			"sourceLine": 1,
+			"members": [
+				{
+					"name": "a",
+					"kind": "variable",
+					"docComment": "Description 1",
+					"typeSignature": "number"
+				},
+				{
+					"name": "c",
+					"kind": "variable",
+					"docComment": "Description 2",
+					"typeSignature": "number"
+				},
+				{
+					"name": "e",
+					"kind": "variable",
+					"typeSignature": "string",
+					"modifiers": [
+						"protected",
+						"readonly"
+					]
+				},
+				{
+					"name": "f",
+					"kind": "variable",
+					"typeSignature": "string | null",
+					"typeInfo": {
+						"kind": "union",
+						"members": [
+							{
+								"kind": "intrinsic",
+								"text": "string"
+							},
+							{
+								"kind": "intrinsic",
+								"text": "null"
+							}
+						]
+					}
+				},
+				{
+					"name": "g",
+					"kind": "variable",
+					"typeSignature": "number"
+				},
+				{
+					"name": "i",
+					"kind": "variable",
+					"docComment": "Description 3",
+					"typeSignature": "boolean | undefined",
+					"typeInfo": {
+						"kind": "union",
+						"members": [
+							{
+								"kind": "intrinsic",
+								"text": "boolean"
+							},
+							{
+								"kind": "intrinsic",
+								"text": "undefined"
+							}
+						]
+					}
+				},
+				{
+					"name": "j",
+					"kind": "variable",
+					"docComment": "Description 4",
+					"typeSignature": "number | undefined",
+					"modifiers": [
+						"static"
+					],
+					"typeInfo": {
+						"kind": "union",
+						"members": [
+							{
+								"kind": "intrinsic",
+								"text": "number"
+							},
+							{
+								"kind": "intrinsic",
+								"text": "undefined"
+							}
+						]
+					}
+				},
+				{
+					"name": "constructor",
+					"kind": "constructor",
+					"typeSignature": "(x: number): A",
+					"parameters": [
+						{
+							"name": "x",
+							"type": "number"
+						}
+					]
+				},
+				{
+					"name": "fn1",
+					"kind": "function",
+					"typeSignature": "(): number",
+					"returnType": "number"
+				},
+				{
+					"name": "fn2",
+					"kind": "function",
+					"typeSignature": "(): void",
+					"modifiers": [
+						"static"
+					],
+					"returnType": "void"
+				}
+			]
+		},
+		{
+			"name": "B",
+			"kind": "class",
+			"sourceLine": 52,
+			"genericParams": [
+				{
+					"name": "T"
+				}
+			],
+			"members": [
+				{
+					"name": "a",
+					"kind": "variable",
+					"typeSignature": "T"
+				},
+				{
+					"name": "constructor",
+					"kind": "constructor",
+					"typeSignature": "<T>(x: T): B<T>",
+					"parameters": [
+						{
+							"name": "x",
+							"type": "T"
+						}
+					]
+				}
+			]
+		},
+		{
+			"name": "D",
+			"kind": "class",
+			"sourceLine": 62,
+			"members": [
+				{
+					"name": "fn1",
+					"kind": "function",
+					"typeSignature": "(): void",
+					"returnType": "void"
+				},
+				{
+					"name": "a",
+					"kind": "variable",
+					"typeSignature": "number | undefined",
+					"typeInfo": {
+						"kind": "union",
+						"members": [
+							{
+								"kind": "intrinsic",
+								"text": "number"
+							},
+							{
+								"kind": "intrinsic",
+								"text": "undefined"
+							}
+						]
+					}
+				},
+				{
+					"name": "b",
+					"kind": "variable",
+					"typeSignature": "number",
+					"modifiers": [
+						"getter"
+					]
+				}
+			]
+		},
+		{
+			"name": "E",
+			"kind": "class",
+			"sourceLine": 72,
+			"members": [
+				{
+					"name": "fn1",
+					"kind": "function",
+					"typeSignature": "(): void",
+					"returnType": "void"
+				},
+				{
+					"name": "a",
+					"kind": "variable",
+					"docComment": "Description 6",
+					"typeSignature": "number"
+				},
+				{
+					"name": "b",
+					"kind": "variable",
+					"typeSignature": "number"
+				},
+				{
+					"name": "d",
+					"kind": "variable",
+					"typeSignature": "number"
+				},
+				{
+					"name": "c",
+					"kind": "variable",
+					"typeSignature": "number | undefined",
+					"typeInfo": {
+						"kind": "union",
+						"members": [
+							{
+								"kind": "intrinsic",
+								"text": "number"
+							},
+							{
+								"kind": "intrinsic",
+								"text": "undefined"
+							}
+						]
+					}
+				},
+				{
+					"name": "constructor",
+					"kind": "constructor",
+					"typeSignature": "(): E"
+				}
+			]
+		},
+		{
+			"name": "F",
+			"kind": "class",
+			"sourceLine": 90,
+			"members": [
+				{
+					"name": "fn1",
+					"kind": "function",
+					"typeSignature": "(): void",
+					"returnType": "void"
+				},
+				{
+					"name": "a",
+					"kind": "variable",
+					"docComment": "Description 7",
+					"typeSignature": "number",
+					"modifiers": [
+						"protected"
+					]
+				},
+				{
+					"name": "b",
+					"kind": "variable",
+					"docComment": "Description 9",
+					"typeSignature": "number"
+				},
+				{
+					"name": "constructor",
+					"kind": "constructor",
+					"typeSignature": "(): F"
+				}
+			]
+		},
+		{
+			"name": "H",
+			"kind": "class",
+			"sourceLine": 110,
+			"members": [
+				{
+					"name": "a",
+					"kind": "variable",
+					"typeSignature": "number"
+				},
+				{
+					"name": "b",
+					"kind": "variable",
+					"typeSignature": "number"
+				},
+				{
+					"name": "c",
+					"kind": "variable",
+					"typeSignature": "number | undefined",
+					"typeInfo": {
+						"kind": "union",
+						"members": [
+							{
+								"kind": "intrinsic",
+								"text": "number"
+							},
+							{
+								"kind": "intrinsic",
+								"text": "undefined"
+							}
+						]
+					}
+				},
+				{
+					"name": "constructor",
+					"kind": "constructor",
+					"typeSignature": "(): H"
+				},
+				{
+					"name": "fn1",
+					"kind": "function",
+					"typeSignature": "(): void",
+					"returnType": "void"
+				}
+			]
+		},
+		{
+			"name": "I",
+			"kind": "class",
+			"sourceLine": 121,
+			"extends": [
+				"H"
+			],
+			"members": [
+				{
+					"name": "b",
+					"kind": "variable",
+					"docComment": "Description 10",
+					"typeSignature": "number"
+				},
+				{
+					"name": "d",
+					"kind": "variable",
+					"typeSignature": "number"
+				},
+				{
+					"name": "e",
+					"kind": "variable",
+					"typeSignature": "number | undefined",
+					"typeInfo": {
+						"kind": "union",
+						"members": [
+							{
+								"kind": "intrinsic",
+								"text": "number"
+							},
+							{
+								"kind": "intrinsic",
+								"text": "undefined"
+							}
+						]
+					}
+				},
+				{
+					"name": "constructor",
+					"kind": "constructor",
+					"typeSignature": "(): I"
+				},
+				{
+					"name": "fn1",
+					"kind": "function",
+					"typeSignature": "(): void",
+					"returnType": "void"
+				}
+			]
+		},
+		{
+			"name": "J",
+			"kind": "class",
+			"sourceLine": 138,
+			"extends": [
+				"H"
+			],
+			"members": [
+				{
+					"name": "a",
+					"kind": "variable",
+					"typeSignature": "number"
+				},
+				{
+					"name": "b",
+					"kind": "variable",
+					"docComment": "Description 12",
+					"typeSignature": "number"
+				},
+				{
+					"name": "constructor",
+					"kind": "constructor",
+					"typeSignature": "(): J"
+				},
+				{
+					"name": "fn2",
+					"kind": "function",
+					"typeSignature": "(): void",
+					"returnType": "void"
+				}
+			]
+		},
+		{
+			"name": "K",
+			"kind": "class",
+			"sourceLine": 157,
+			"members": [
+				{
+					"name": "s",
+					"kind": "variable",
+					"typeSignature": "number | undefined",
+					"modifiers": [
+						"static"
+					],
+					"typeInfo": {
+						"kind": "union",
+						"members": [
+							{
+								"kind": "intrinsic",
+								"text": "number"
+							},
+							{
+								"kind": "intrinsic",
+								"text": "undefined"
+							}
+						]
+					}
+				},
+				{
+					"name": "t",
+					"kind": "variable",
+					"typeSignature": "number | undefined",
+					"modifiers": [
+						"static"
+					],
+					"typeInfo": {
+						"kind": "union",
+						"members": [
+							{
+								"kind": "intrinsic",
+								"text": "number"
+							},
+							{
+								"kind": "intrinsic",
+								"text": "undefined"
+							}
+						]
+					}
+				}
+			]
+		},
+		{
+			"name": "L",
+			"kind": "class",
+			"sourceLine": 164,
+			"extends": [
+				"K"
+			],
+			"members": [
+				{
+					"name": "t",
+					"kind": "variable",
+					"docComment": "Description 14",
+					"typeSignature": "number | undefined",
+					"modifiers": [
+						"static"
+					],
+					"typeInfo": {
+						"kind": "union",
+						"members": [
+							{
+								"kind": "intrinsic",
+								"text": "number"
+							},
+							{
+								"kind": "intrinsic",
+								"text": "undefined"
+							}
+						]
+					}
+				},
+				{
+					"name": "constructor",
+					"kind": "constructor",
+					"typeSignature": "(): L"
+				},
+				{
+					"name": "fn1",
+					"kind": "function",
+					"typeSignature": "(): void",
+					"modifiers": [
+						"static"
+					],
+					"returnType": "void"
+				}
+			]
+		},
+		{
+			"name": "M",
+			"kind": "class",
+			"sourceLine": 186,
+			"members": [
+				{
+					"name": "fn1",
+					"kind": "function",
+					"typeSignature": "(): void",
+					"returnType": "void"
+				},
+				{
+					"name": "a",
+					"kind": "variable",
+					"docComment": "Description 17",
+					"typeSignature": "number",
+					"modifiers": [
+						"readonly"
+					]
+				},
+				{
+					"name": "constructor",
+					"kind": "constructor",
+					"typeSignature": "(): M"
+				}
+			]
+		},
+		{
+			"name": "N",
+			"kind": "class",
+			"sourceLine": 199,
+			"extends": [
+				"H"
+			],
+			"members": [
+				{
+					"name": "fn2",
+					"kind": "function",
+					"typeSignature": "(): void",
+					"returnType": "void"
+				},
+				{
+					"name": "a",
+					"kind": "variable",
+					"docComment": "Description 18",
+					"typeSignature": "number",
+					"modifiers": [
+						"readonly"
+					]
+				},
+				{
+					"name": "constructor",
+					"kind": "constructor",
+					"typeSignature": "(): N"
+				}
+			]
+		},
+		{
+			"name": "O",
+			"kind": "class",
+			"sourceLine": 213,
+			"members": [
+				{
+					"name": "a",
+					"kind": "variable",
+					"docComment": "Description 19",
+					"typeSignature": "number"
+				},
+				{
+					"name": "constructor",
+					"kind": "constructor",
+					"typeSignature": "(): O"
+				},
+				{
+					"name": "fn1",
+					"kind": "function",
+					"typeSignature": "(): void",
+					"returnType": "void"
+				}
+			]
+		},
+		{
+			"name": "S",
+			"kind": "class",
+			"sourceLine": 242,
+			"members": [
+				{
+					"name": "fn1",
+					"kind": "function",
+					"typeSignature": "(): void",
+					"returnType": "void"
+				},
+				{
+					"name": "a",
+					"kind": "variable",
+					"docComment": "Description 20",
+					"typeSignature": "number"
+				}
+			]
+		},
+		{
+			"name": "V",
+			"kind": "class",
+			"sourceLine": 256,
+			"members": [
+				{
+					"name": "fn1",
+					"kind": "function",
+					"typeSignature": "(): void",
+					"returnType": "void"
+				},
+				{
+					"name": "constructor",
+					"kind": "constructor",
+					"typeSignature": "(): V"
+				},
+				{
+					"name": "a",
+					"kind": "variable",
+					"docComment": "Description 21",
+					"typeSignature": "number"
+				},
+				{
+					"name": "b",
+					"kind": "variable",
+					"docComment": "Description 22",
+					"typeSignature": "number"
+				}
+			]
+		},
+		{
+			"name": "W",
+			"kind": "class",
+			"sourceLine": 272,
+			"members": [
+				{
+					"name": "fn1",
+					"kind": "function",
+					"typeSignature": "(): void",
+					"modifiers": [
+						"static"
+					],
+					"returnType": "void"
+				},
+				{
+					"name": "a",
+					"kind": "variable",
+					"docComment": "Description 23",
+					"typeSignature": "number",
+					"modifiers": [
+						"static"
+					]
+				}
+			]
+		},
+		{
+			"name": "C",
+			"kind": "type",
+			"typeSignature": "A",
+			"sourceLine": 60,
+			"members": [
+				{
+					"name": "a",
+					"kind": "variable",
+					"docComment": "Description 1",
+					"typeSignature": "number"
+				},
+				{
+					"name": "c",
+					"kind": "variable",
+					"docComment": "Description 2",
+					"typeSignature": "number"
+				},
+				{
+					"name": "e",
+					"kind": "variable",
+					"typeSignature": "string",
+					"modifiers": [
+						"readonly"
+					]
+				},
+				{
+					"name": "f",
+					"kind": "variable",
+					"typeSignature": "string | null",
+					"typeInfo": {
+						"kind": "union",
+						"members": [
+							{
+								"kind": "intrinsic",
+								"text": "string"
+							},
+							{
+								"kind": "intrinsic",
+								"text": "null"
+							}
+						]
+					}
+				},
+				{
+					"name": "g",
+					"kind": "variable",
+					"typeSignature": "number"
+				},
+				{
+					"name": "fn1",
+					"kind": "function",
+					"typeSignature": "(): number",
+					"returnType": "number"
+				},
+				{
+					"name": "i",
+					"kind": "variable",
+					"docComment": "Description 3",
+					"typeSignature": "boolean | undefined",
+					"typeInfo": {
+						"kind": "union",
+						"members": [
+							{
+								"kind": "intrinsic",
+								"text": "boolean"
+							},
+							{
+								"kind": "intrinsic",
+								"text": "undefined"
+							}
+						]
+					}
+				},
+				{
+					"name": "k",
+					"kind": "variable",
+					"typeSignature": "number"
+				}
+			]
+		},
+		{
+			"name": "P",
+			"kind": "type",
+			"typeSignature": "O",
+			"sourceLine": 225,
+			"members": [
+				{
+					"name": "a",
+					"kind": "variable",
+					"docComment": "Description 19",
+					"typeSignature": "number"
+				},
+				{
+					"name": "fn1",
+					"kind": "function",
+					"typeSignature": "(): void",
+					"returnType": "void"
+				}
+			]
+		},
+		{
+			"name": "Ro",
+			"kind": "type",
+			"typeSignature": "Ro<T>",
+			"sourceLine": 229,
+			"genericParams": [
+				{
+					"name": "T"
+				}
+			]
+		},
+		{
+			"name": "Pk",
+			"kind": "type",
+			"typeSignature": "Pk<T, K>",
+			"sourceLine": 235,
+			"genericParams": [
+				{
+					"name": "T"
+				},
+				{
+					"name": "K",
+					"constraint": "keyof T"
+				}
+			]
+		},
+		{
+			"name": "Q",
+			"kind": "type",
+			"typeSignature": "Ro<O>",
+			"sourceLine": 238,
+			"typeInfo": {
+				"kind": "reference",
+				"name": "Ro",
+				"typeArgs": [
+					{
+						"kind": "reference",
+						"name": "O"
+					}
+				]
+			},
+			"members": [
+				{
+					"name": "a",
+					"kind": "variable",
+					"docComment": "Description 19",
+					"typeSignature": "number",
+					"modifiers": [
+						"readonly"
+					]
+				},
+				{
+					"name": "fn1",
+					"kind": "function",
+					"typeSignature": "(): void",
+					"modifiers": [
+						"readonly"
+					],
+					"returnType": "void"
+				}
+			]
+		},
+		{
+			"name": "R",
+			"kind": "type",
+			"typeSignature": "R",
+			"sourceLine": 240,
+			"members": [
+				{
+					"name": "a",
+					"kind": "variable",
+					"docComment": "Description 19",
+					"typeSignature": "number"
+				}
+			]
+		},
+		{
+			"name": "T",
+			"kind": "type",
+			"typeSignature": "Ro<S>",
+			"sourceLine": 252,
+			"typeInfo": {
+				"kind": "reference",
+				"name": "Ro",
+				"typeArgs": [
+					{
+						"kind": "reference",
+						"name": "S"
+					}
+				]
+			},
+			"members": [
+				{
+					"name": "fn1",
+					"kind": "function",
+					"typeSignature": "(): void",
+					"modifiers": [
+						"readonly"
+					],
+					"returnType": "void"
+				},
+				{
+					"name": "a",
+					"kind": "variable",
+					"typeSignature": "number",
+					"modifiers": [
+						"readonly"
+					]
+				}
+			]
+		},
+		{
+			"name": "U",
+			"kind": "type",
+			"typeSignature": "U",
+			"sourceLine": 254,
+			"members": [
+				{
+					"name": "a",
+					"kind": "variable",
+					"typeSignature": "number"
+				}
+			]
+		}
+	]
+}

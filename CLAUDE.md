@@ -53,6 +53,17 @@ are the tomes in `src/routes/docs/`. Examples: `examples/vite/`, `examples/api/`
   `run?: typeof spawn` stays a `variable`. Class fields stay `variable` even when
   function-typed. Interfaces enumerate own members only. Literal member names are unquoted
   (`memberNameText`); computed names are skipped.
+  - **JS classes** read as the checker does, inherited names aside: modifiers through
+    `ts.getCombinedModifierFlags` (`extractModifiers`; JSDoc `@protected`/`@public`/`@readonly`
+    in JS only, listed in TS's required order), `@implements` and `@extends {Base<T>}` as
+    heritage text, and `this.x = …` assignments as `variable` members
+    (`collectThisAssignedMembers`), slotted ahead of the constructor, typed by the first
+    `@type`, and modified as the checker enforces (its declaration's JSDoc: the first
+    assignment in source order, a `@private` there hiding it); an inherited name stays the
+    base's unless a JSDoc block on a constructor (or static block) assignment redeclares it,
+    the redeclaring assignment then documenting it (the TS twin's reading, not the checker's,
+    which takes an undocumented constructor assignment as the class's own and an `@type`'d one
+    as the base's).
 - **TSDoc/JSDoc** (`tsdoc.ts`) — `@param`, `@returns`, `@throws`, `@example`,
   `@deprecated`, `@internal`, `@see`, `@since`, `@default`, `@module`, `@nodocs`,
   `@mutates`. `@return` is read as `@returns`, and `@defaultValue`/`@defaultvalue` as
@@ -458,11 +469,14 @@ shared doc fields (`docFields` in `types.ts`); `ParameterJson` carries none of `
   unions, tuples, or external generic references. Components filter unconditionally, so
   union prop types get `externalTypes` too.
 - **Interface/class `externalTypes`** come from the heritage walk
-  (`applyHeritageExternalTypes`); `extends`/`implements` stay verbatim own-clause text, and
-  `extends` is always an array.
-- **Class visibility** — public and protected in, `private` and `#` out, by one rule
-  (`isPrivateMemberDeclaration`) for the class and any structural alias over it. Getters
-  and setters merge by name.
+  (`applyHeritageExternalTypes`); `extends`/`implements` stay verbatim own-clause text (in
+  JS, the `@extends`/`@implements` tag's), and `extends` is always an array.
+- **Class visibility** — public and protected in, `private` (a JS `@private` too) and `#`
+  out, by one rule (`isPrivateMemberDeclaration`) for the class and any structural alias
+  over it. In JS, a redeclared inherited name the checker reads as the base's (an `@type`'d
+  constructor assignment) reads the base's visibility, docs, and modifiers through an alias;
+  the class reads the redeclaring assignment. Getters and setters merge by name, and a pair
+  with either side private is out whole.
 - **`defaultValue`** — verbatim author text (initializer, `@default`, or a parameter's
   `@param [b=0]`), quotes included.
 - **`sourceLine`** — synthesized aliases carry the local export specifier's line; Svelte
@@ -569,6 +583,9 @@ semantics and reports unresolvable stars instead of guessing. Lock-in tests:
   non-`@property` tag has left the typedef's property list and drops silently.
 - An `@overload`'s `{...T}` parameter types as `T | undefined` (the checker's own reading;
   signature help prints `T[]`).
+- JS expando assignments outside a class (`A.prototype.x = …`, `A.x = …`) aren't class
+  members, though a type alias over the class lists the instance ones (the checker's
+  property set, `@private` ones included).
 - Standalone `namespace Foo {}` documents as a bare `kind: 'variable'` (`export * as ns` is
   supported). Decorators aren't modeled.
 - `@nodocs` on members and component props is ignored with no warning.

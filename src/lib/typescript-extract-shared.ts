@@ -50,6 +50,7 @@ import {
 	writtenReturnTypeNode,
 	writtenTypeAnnotation,
 	resolveTypeInfo,
+	isJavaScriptNode,
 	typeAliasTypeNode,
 	typeAliasTypeParameters,
 	type AliasRegistry
@@ -1081,7 +1082,14 @@ const isExternalProperty = (prop: ts.Symbol, isExternalFile: IsExternalFile): bo
 
 /**
  * Check whether a member declaration is private to the class that declares it —
- * a `#` private identifier name, or a `private` modifier.
+ * a `#` private identifier name, or a `private` modifier on a class element, a
+ * parameter property, or a `this.x = …` assignment. In JavaScript a `@private`
+ * tag is the modifier (`ts.getCombinedModifierFlags` reads JSDoc modifier tags
+ * in JS files only); in a `.ts` file the tag marks nothing, as for the checker.
+ * An object literal's property or method keeps its `@private` member, since the
+ * checker enforces the tag in classes only. Expandos (`A.prototype.x = …`,
+ * `A.x = …`, `o.x = …`) declare through the assigned property access, so a
+ * `@private` expando hides nothing, though the checker enforces it on a class's.
  *
  * The one visibility rule, shared by the two ways a class's members reach
  * output: `extractClassInfo` walking `node.members` at the class's own
@@ -1099,10 +1107,11 @@ const isExternalProperty = (prop: ts.Symbol, isExternalFile: IsExternalFile): bo
 export const isPrivateMemberDeclaration = (decl: ts.Declaration): boolean => {
 	const { name } = decl as ts.NamedDeclaration;
 	if (name !== undefined && ts.isPrivateIdentifier(name)) return true;
-	return (
-		ts.canHaveModifiers(decl) &&
-		(ts.getModifiers(decl)?.some((m) => m.kind === ts.SyntaxKind.PrivateKeyword) ?? false)
-	);
+	const isClassMember = ts.isClassElement(decl)
+		? ts.isClassLike(decl.parent)
+		: ts.isParameter(decl) || ts.isBinaryExpression(decl);
+	if (!isClassMember) return false;
+	return (ts.getCombinedModifierFlags(decl) & ts.ModifierFlags.Private) !== 0;
 };
 
 /**
@@ -1110,13 +1119,46 @@ export const isPrivateMemberDeclaration = (decl: ts.Declaration): boolean => {
  * symbol-side form of `isPrivateMemberDeclaration`, for the checker-backed
  * paths that see properties rather than written members.
  *
- * Any private declaration hides the symbol: an accessor pair must agree in
- * visibility for TypeScript to accept it, so `some` and `every` can only
- * differ on code that already fails to compile, and hiding is the safe answer
- * there.
+ * In JavaScript the checker's `valueDeclaration` decides, as the checker
+ * enforces the modifier from that declaration only: a property several
+ * `this.x = …` assignments declare is hidden by a `@private` on the first in
+ * source order, as `collectThisAssignedMembers` reads it on the class, except
+ * for a redeclared inherited name the checker reads as the base's, where this
+ * sees the base's declaration and the class the redeclaring one. A synthetic
+ * property has no `valueDeclaration` (a mapped type's, as in `Readonly<A>` or
+ * `Pick<A, 'x'>`, or an intersection's that several constituents declare), so
+ * the source property's `valueDeclaration`, reached through its first
+ * declaration, stands in: the declarations keep binding order, which needn't
+ * put the checker's choice first. In TypeScript any private declaration hides it: TypeScript
+ * requires a property's declarations to agree in modifiers, so the two
+ * readings differ only on code that fails to compile. For an accessor pair,
+ * any private side hides it in either language, so a public getter beside a
+ * `private set` is hidden whole, as `extractClassInfo` drops it on the class.
  */
-const isPrivateProperty = (prop: ts.Symbol): boolean =>
-	prop.getDeclarations()?.some(isPrivateMemberDeclaration) ?? false;
+const isPrivateProperty = (prop: ts.Symbol, checker: ts.TypeChecker): boolean => {
+	const declarations = prop.getDeclarations();
+	// a synthetic property (`Readonly<A>`'s) has no `valueDeclaration`, so read
+	// the source property's through its first declaration
+	const declared = prop.valueDeclaration ?? sourceValueDeclaration(declarations?.[0], checker);
+	const decls =
+		declared && isJavaScriptNode(declared) && !(prop.flags & ts.SymbolFlags.Accessor)
+			? [declared]
+			: declarations;
+	return decls?.some(isPrivateMemberDeclaration) ?? false;
+};
+
+/**
+ * The `valueDeclaration` of the property `decl` declares, read back through its
+ * name, else `decl` itself.
+ */
+const sourceValueDeclaration = (
+	decl: ts.Declaration | undefined,
+	checker: ts.TypeChecker
+): ts.Declaration | undefined => {
+	if (!decl) return undefined;
+	const name = ts.getNameOfDeclaration(decl);
+	return (name && checker.getSymbolAtLocation(name)?.valueDeclaration) ?? decl;
+};
 
 /**
  * Check whether an index signature comes from an external file.
@@ -1767,7 +1809,7 @@ export const filterDocumentedProperties = (
 	const properties: Array<ts.Symbol> = [];
 	const admitted: Array<ts.Symbol> = [];
 	for (const prop of type.getProperties()) {
-		if (isPrivateProperty(prop)) continue;
+		if (isPrivateProperty(prop, checker)) continue;
 		if (!isExternalProperty(prop, isExternalFile)) properties.push(prop);
 		else if (admitNames?.has(prop.name)) admitted.push(prop);
 	}
@@ -1914,25 +1956,39 @@ export const parseGenericParam = (param: ts.TypeParameterDeclaration): GenericPa
 };
 
 /**
- * Extract modifier keywords from a node's modifiers.
+ * The modeled modifiers, each one's flag and output name, in the order
+ * TypeScript requires them written (an accessibility, then `static` or
+ * `abstract`, then `readonly`).
+ */
+const MODELED_MODIFIERS: ReadonlyArray<readonly [ts.ModifierFlags, DeclarationModifier]> = [
+	[ts.ModifierFlags.Public, 'public'],
+	[ts.ModifierFlags.Protected, 'protected'],
+	[ts.ModifierFlags.Static, 'static'],
+	[ts.ModifierFlags.Abstract, 'abstract'],
+	[ts.ModifierFlags.Readonly, 'readonly']
+];
+
+/**
+ * Extract a declaration's modifiers, like `['public', 'static', 'readonly']`,
+ * in the order TypeScript requires them written, so a JS declaration's tags
+ * and keywords order like its TS twin's keywords.
  *
- * Returns an array of modifier strings like `['public', 'readonly', 'static']`.
+ * Read through `ts.getCombinedModifierFlags`, which in JavaScript adds the
+ * JSDoc modifier tags the checker reads (`@public`, `@protected`,
+ * `@readonly`; `@private` hides the member, see `isPrivateMemberDeclaration`)
+ * and in a `.ts` file reads keywords only. The checker reads no `@static` or
+ * `@abstract` tag, so neither does this; `@override` it reads, but `override`
+ * isn't a modeled modifier in either language.
+ *
+ * @param extraFlags - flags the declaration's position implies, like a static
+ *   `this.x = …` member's `Static`
  */
 export const extractModifiers = (
-	modifiers: ReadonlyArray<ts.ModifierLike> | undefined
+	node: ts.Declaration,
+	extraFlags: ts.ModifierFlags = ts.ModifierFlags.None
 ): Array<DeclarationModifier> => {
-	const modifierFlags: Array<DeclarationModifier> = [];
-	if (!modifiers) return modifierFlags;
-
-	for (const mod of modifiers) {
-		if (mod.kind === ts.SyntaxKind.PublicKeyword) modifierFlags.push('public');
-		else if (mod.kind === ts.SyntaxKind.ProtectedKeyword) modifierFlags.push('protected');
-		else if (mod.kind === ts.SyntaxKind.ReadonlyKeyword) modifierFlags.push('readonly');
-		else if (mod.kind === ts.SyntaxKind.StaticKeyword) modifierFlags.push('static');
-		else if (mod.kind === ts.SyntaxKind.AbstractKeyword) modifierFlags.push('abstract');
-	}
-
-	return modifierFlags;
+	const flags = ts.getCombinedModifierFlags(node) | extraFlags;
+	return MODELED_MODIFIERS.filter(([flag]) => flags & flag).map(([, name]) => name);
 };
 
 /**

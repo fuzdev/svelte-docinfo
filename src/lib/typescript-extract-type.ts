@@ -139,7 +139,7 @@ export const extractTypeInfo = (
 				}
 
 				// Extract modifiers
-				const modifierFlags = extractModifiers(ts.getModifiers(member));
+				const modifierFlags = extractModifiers(member);
 				if (modifierFlags.length > 0) {
 					propDeclaration.modifiers = modifierFlags;
 				}
@@ -202,7 +202,7 @@ export const extractTypeInfo = (
 				}
 
 				// Extract modifiers
-				const modifierFlags = extractModifiers(ts.getModifiers(member));
+				const modifierFlags = extractModifiers(member);
 				if (modifierFlags.length > 0) {
 					methodDeclaration.modifiers = modifierFlags;
 				}
@@ -259,7 +259,7 @@ export const extractTypeInfo = (
 					const indexDeclaration: MemberJsonBuild = { name, kind: 'variable' };
 
 					// `readonly [key: string]: T` carries the modifier like a property
-					const indexModifiers = extractModifiers(ts.getModifiers(member));
+					const indexModifiers = extractModifiers(member);
 					if (indexModifiers.length > 0) {
 						indexDeclaration.modifiers = indexModifiers;
 					}

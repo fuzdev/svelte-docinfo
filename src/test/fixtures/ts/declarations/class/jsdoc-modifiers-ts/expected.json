@@ -1,0 +1,284 @@
+{
+	"path": "input.ts",
+	"declarations": [
+		{
+			"name": "A",
+			"kind": "class",
+			"sourceLine": 1,
+			"members": [
+				{
+					"name": "b",
+					"kind": "variable",
+					"typeSignature": "number",
+					"modifiers": [
+						"protected"
+					]
+				},
+				{
+					"name": "c",
+					"kind": "variable",
+					"typeSignature": "number",
+					"modifiers": [
+						"public"
+					]
+				},
+				{
+					"name": "d",
+					"kind": "variable",
+					"typeSignature": "4",
+					"modifiers": [
+						"readonly"
+					]
+				},
+				{
+					"name": "e",
+					"kind": "variable",
+					"docComment": "Description 1",
+					"typeSignature": "5",
+					"modifiers": [
+						"protected",
+						"readonly"
+					]
+				},
+				{
+					"name": "g",
+					"kind": "variable",
+					"typeSignature": "number"
+				},
+				{
+					"name": "h",
+					"kind": "variable",
+					"typeSignature": "number"
+				},
+				{
+					"name": "i",
+					"kind": "variable",
+					"typeSignature": "number"
+				},
+				{
+					"name": "fn2",
+					"kind": "function",
+					"typeSignature": "(): number",
+					"modifiers": [
+						"protected"
+					],
+					"returnType": "number"
+				},
+				{
+					"name": "fn3",
+					"kind": "function",
+					"typeSignature": "(): void",
+					"modifiers": [
+						"protected",
+						"static"
+					],
+					"returnType": "void"
+				},
+				{
+					"name": "t",
+					"kind": "variable",
+					"typeSignature": "1",
+					"modifiers": [
+						"protected",
+						"static",
+						"readonly"
+					]
+				},
+				{
+					"name": "constructor",
+					"kind": "constructor",
+					"typeSignature": "(): A",
+					"modifiers": [
+						"protected"
+					]
+				},
+				{
+					"name": "k",
+					"kind": "variable",
+					"typeSignature": "number",
+					"modifiers": [
+						"getter",
+						"setter",
+						"protected"
+					]
+				}
+			]
+		},
+		{
+			"name": "D",
+			"kind": "class",
+			"sourceLine": 42,
+			"extends": [
+				"A"
+			],
+			"members": [
+				{
+					"name": "i",
+					"kind": "variable",
+					"typeSignature": "number"
+				}
+			]
+		},
+		{
+			"name": "C",
+			"kind": "class",
+			"sourceLine": 50,
+			"members": [
+				{
+					"name": "a",
+					"kind": "variable",
+					"typeSignature": "number"
+				},
+				{
+					"name": "b",
+					"kind": "variable",
+					"typeSignature": "number"
+				},
+				{
+					"name": "c",
+					"kind": "variable",
+					"typeSignature": "number"
+				},
+				{
+					"name": "constructor",
+					"kind": "constructor",
+					"typeSignature": "(d: number, e: number): C",
+					"parameters": [
+						{
+							"name": "d",
+							"type": "number"
+						},
+						{
+							"name": "e",
+							"type": "number"
+						}
+					]
+				}
+			]
+		},
+		{
+			"name": "B",
+			"kind": "type",
+			"typeSignature": "A",
+			"sourceLine": 65,
+			"members": [
+				{
+					"name": "b",
+					"kind": "variable",
+					"typeSignature": "number"
+				},
+				{
+					"name": "c",
+					"kind": "variable",
+					"typeSignature": "number"
+				},
+				{
+					"name": "d",
+					"kind": "variable",
+					"typeSignature": "4",
+					"modifiers": [
+						"readonly"
+					]
+				},
+				{
+					"name": "e",
+					"kind": "variable",
+					"docComment": "Description 1",
+					"typeSignature": "5",
+					"modifiers": [
+						"readonly"
+					]
+				},
+				{
+					"name": "g",
+					"kind": "variable",
+					"typeSignature": "number"
+				},
+				{
+					"name": "h",
+					"kind": "variable",
+					"typeSignature": "number"
+				},
+				{
+					"name": "i",
+					"kind": "variable",
+					"typeSignature": "number"
+				},
+				{
+					"name": "fn2",
+					"kind": "function",
+					"typeSignature": "(): number",
+					"returnType": "number"
+				},
+				{
+					"name": "k",
+					"kind": "variable",
+					"typeSignature": "number"
+				}
+			]
+		},
+		{
+			"name": "F",
+			"kind": "type",
+			"typeSignature": "C",
+			"sourceLine": 67,
+			"members": [
+				{
+					"name": "a",
+					"kind": "variable",
+					"typeSignature": "number"
+				},
+				{
+					"name": "b",
+					"kind": "variable",
+					"typeSignature": "number"
+				},
+				{
+					"name": "c",
+					"kind": "variable",
+					"typeSignature": "number"
+				},
+				{
+					"name": "e",
+					"kind": "variable",
+					"typeSignature": "number"
+				}
+			]
+		},
+		{
+			"name": "o",
+			"kind": "variable",
+			"typeSignature": "{ a: number; b: number; fn1(): number; }",
+			"sourceLine": 69,
+			"typeInfo": {
+				"kind": "reference",
+				"name": "E",
+				"module": "input.ts"
+			}
+		},
+		{
+			"name": "E",
+			"kind": "type",
+			"typeSignature": "{ a: number; b: number; fn1(): number; }",
+			"sourceLine": 80,
+			"members": [
+				{
+					"name": "a",
+					"kind": "variable",
+					"typeSignature": "number"
+				},
+				{
+					"name": "b",
+					"kind": "variable",
+					"typeSignature": "number"
+				},
+				{
+					"name": "fn1",
+					"kind": "function",
+					"typeSignature": "(): number",
+					"returnType": "number"
+				}
+			]
+		}
+	]
+}

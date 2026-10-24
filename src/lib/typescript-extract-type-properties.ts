@@ -183,10 +183,9 @@ const isReadonlyProperty = (prop: ts.Symbol, mappedReadonly: boolean): boolean =
 	const decls = prop.getDeclarations();
 	if (decls) {
 		for (const decl of decls) {
-			if (ts.canHaveModifiers(decl)) {
-				const mods = ts.getModifiers(decl);
-				if (mods?.some((m) => m.kind === ts.SyntaxKind.ReadonlyKeyword)) return true;
-			}
+			// a JS class's `@readonly` field or `this.x` too, as on the class itself
+			// (`extractModifiers`)
+			if (ts.getCombinedModifierFlags(decl) & ts.ModifierFlags.Readonly) return true;
 		}
 	}
 	return mappedReadonly;

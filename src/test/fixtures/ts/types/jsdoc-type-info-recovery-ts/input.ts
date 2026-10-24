@@ -29,6 +29,12 @@ export class C {
 	set d(x: A) {
 		void x;
 	}
+
+	e: A;
+
+	constructor() {
+		this.e = 'a';
+	}
 }
 
 export function fn2(x: A): B;
@@ -36,4 +42,28 @@ export function fn2(x: B, y?: A): A;
 export function fn2(x: any, y?: any): any {
 	void y;
 	return x;
+}
+
+export class D {
+	fn1(): void {
+		this.a = 'a';
+	}
+
+	a: A;
+
+	constructor() {
+		this.a = 'b';
+	}
+}
+
+export class E {
+	a: A;
+
+	constructor() {
+		this.a = 'b';
+	}
+
+	fn1(): void {
+		this.a = 'a';
+	}
 }

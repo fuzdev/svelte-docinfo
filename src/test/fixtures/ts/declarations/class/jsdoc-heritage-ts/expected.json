@@ -1,0 +1,60 @@
+{
+	"path": "input.ts",
+	"declarations": [
+		{
+			"name": "C",
+			"kind": "class",
+			"sourceLine": 9,
+			"genericParams": [
+				{
+					"name": "T"
+				}
+			],
+			"members": [
+				{
+					"name": "c",
+					"kind": "variable",
+					"typeSignature": "T | undefined",
+					"typeInfo": {
+						"kind": "union",
+						"members": [
+							{
+								"kind": "other",
+								"text": "T"
+							},
+							{
+								"kind": "intrinsic",
+								"text": "undefined"
+							}
+						]
+					}
+				}
+			]
+		},
+		{
+			"name": "D",
+			"kind": "class",
+			"docComment": "Description 1",
+			"sourceLine": 18,
+			"extends": [
+				"C<string>"
+			],
+			"implements": [
+				"A",
+				"B"
+			],
+			"members": [
+				{
+					"name": "a",
+					"kind": "variable",
+					"typeSignature": "string"
+				},
+				{
+					"name": "b",
+					"kind": "variable",
+					"typeSignature": "number"
+				}
+			]
+		}
+	]
+}

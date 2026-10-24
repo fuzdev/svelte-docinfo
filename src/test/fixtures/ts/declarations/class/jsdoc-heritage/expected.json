@@ -1,0 +1,106 @@
+{
+	"path": "input.js",
+	"declarations": [
+		{
+			"name": "C",
+			"kind": "class",
+			"sourceLine": 12,
+			"genericParams": [
+				{
+					"name": "T"
+				}
+			],
+			"members": [
+				{
+					"name": "c",
+					"kind": "variable",
+					"typeSignature": "T | undefined",
+					"typeInfo": {
+						"kind": "union",
+						"members": [
+							{
+								"kind": "other",
+								"text": "T"
+							},
+							{
+								"kind": "intrinsic",
+								"text": "undefined"
+							}
+						]
+					}
+				}
+			]
+		},
+		{
+			"name": "D",
+			"kind": "class",
+			"docComment": "Description 1",
+			"sourceLine": 23,
+			"extends": [
+				"C<string>"
+			],
+			"implements": [
+				"A",
+				"B"
+			],
+			"members": [
+				{
+					"name": "a",
+					"kind": "variable",
+					"typeSignature": "string"
+				},
+				{
+					"name": "b",
+					"kind": "variable",
+					"typeSignature": "number"
+				}
+			]
+		},
+		{
+			"name": "E",
+			"kind": "class",
+			"sourceLine": 29
+		},
+		{
+			"name": "F",
+			"kind": "class",
+			"sourceLine": 32,
+			"implements": [
+				"A"
+			],
+			"members": [
+				{
+					"name": "a",
+					"kind": "variable",
+					"typeSignature": "string"
+				}
+			]
+		},
+		{
+			"name": "A",
+			"kind": "type",
+			"typeSignature": "A",
+			"sourceLine": 2,
+			"members": [
+				{
+					"name": "a",
+					"kind": "variable",
+					"typeSignature": "string"
+				}
+			]
+		},
+		{
+			"name": "B",
+			"kind": "type",
+			"typeSignature": "B",
+			"sourceLine": 7,
+			"members": [
+				{
+					"name": "b",
+					"kind": "variable",
+					"typeSignature": "number"
+				}
+			]
+		}
+	]
+}

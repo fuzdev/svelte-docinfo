@@ -297,6 +297,37 @@ Where each behavior is locked. Unit and behavior-level mechanics live in
   members, and an `Object.freeze` and a spread initializer
   (`declarations/enum/jsdoc`); a JS component's typedef props over an
   external bag (svelte `types/jsdoc-typedef-external`)
+- JS classes, each beside a `-ts` twin: `@private`/`@protected`/`@public`/`@readonly` on
+  fields, methods, static methods and fields, accessors, and a constructor, `@static`/
+  `@abstract`/`@override` marking nothing, `@private` hiding through an alias over the class
+  too, a public getter beside a `@private` setter dropping the pair, an object literal's
+  `@private` property and method kept and its `@readonly` property marked through a typedef
+  over it, and in TS the tags marking nothing and a `private` parameter property hidden
+  through an alias (`declarations/class/jsdoc-modifiers`); `@extends {C<string>}`
+  and several `@implements`, and a tag without a clause (`declarations/class/jsdoc-heritage`);
+  `this.x = …` members from a constructor (`@type`, prose, `@protected @readonly`,
+  `this['f']`, arrows), a method, and a static method, a written field assigned once
+  listed, `@private`, a nested function's `this`, and a non-literal `this[k]` dropped, a
+  constructor's assignment documenting over an earlier method's, a constructor assignment
+  with only `@type` taking a method's docs and a later documented one's over them, a
+  method above the constructor supplying `@protected` or `@readonly` (the checker's
+  declaration), for an inherited name the checker reads as the class's own too, a later
+  method's `@private` hiding nothing on the class or its alias (only the checker's
+  declaration's does),
+  inherited names assigned in a subclass's constructor dropped unless a JSDoc block
+  redeclares them (`@type` alone, or prose with `@type`), a method's block never
+  redeclaring, even beside an undocumented constructor assignment, inherited statics in a
+  static block dropped unless documented and a static method's block not redeclaring nor
+  lending its `@readonly`,
+  expandos outside the class absent (the alias over it lists `A.prototype.k`), and
+  no-constructor order (`members/jsdoc-this-assignments`); a
+  `@type {A}` assignment recovering a lost alias, including a method's `@type` above an
+  unannotated constructor assignment (the first `@type` in source order), and below one,
+  where it's not the checker's declaration
+  (`types/jsdoc-type-info-recovery`); a JS
+  `<script module>` class, and an `Error` subclass's `this.name` staying the base's while
+  its `this.toString`, the global `Object`'s, lists as in a base-less class (svelte
+  `component/javascript-module-class`, whose programs load the real lib)
 - JSDoc annotations in JS, each beside a `-ts` twin: `@template` generics with a
   constraint and default on functions, arrows, function expressions, classes, methods, a
   `@type` function type, and a `typeof` member (`generics/jsdoc-template`), an

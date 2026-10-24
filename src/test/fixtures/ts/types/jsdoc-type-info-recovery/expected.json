@@ -44,7 +44,7 @@
 			"name": "fn2",
 			"kind": "function",
 			"typeSignature": "(x: \"a\" | \"b\"): { d: number; }",
-			"sourceLine": 67,
+			"sourceLine": 72,
 			"parameters": [
 				{
 					"name": "x",
@@ -152,6 +152,20 @@
 					}
 				},
 				{
+					"name": "e",
+					"kind": "variable",
+					"typeSignature": "\"a\" | \"b\"",
+					"typeInfo": {
+						"kind": "reference",
+						"name": "A"
+					}
+				},
+				{
+					"name": "constructor",
+					"kind": "constructor",
+					"typeSignature": "(): C"
+				},
+				{
 					"name": "b",
 					"kind": "variable",
 					"typeSignature": "{ d: number; }",
@@ -186,6 +200,60 @@
 						"kind": "reference",
 						"name": "A"
 					}
+				}
+			]
+		},
+		{
+			"name": "D",
+			"kind": "class",
+			"sourceLine": 77,
+			"members": [
+				{
+					"name": "fn1",
+					"kind": "function",
+					"typeSignature": "(): void",
+					"returnType": "void"
+				},
+				{
+					"name": "a",
+					"kind": "variable",
+					"typeSignature": "\"a\" | \"b\"",
+					"typeInfo": {
+						"kind": "reference",
+						"name": "A"
+					}
+				},
+				{
+					"name": "constructor",
+					"kind": "constructor",
+					"typeSignature": "(): D"
+				}
+			]
+		},
+		{
+			"name": "E",
+			"kind": "class",
+			"sourceLine": 88,
+			"members": [
+				{
+					"name": "a",
+					"kind": "variable",
+					"typeSignature": "\"a\" | \"b\"",
+					"typeInfo": {
+						"kind": "reference",
+						"name": "A"
+					}
+				},
+				{
+					"name": "constructor",
+					"kind": "constructor",
+					"typeSignature": "(): E"
+				},
+				{
+					"name": "fn1",
+					"kind": "function",
+					"typeSignature": "(): void",
+					"returnType": "void"
 				}
 			]
 		}

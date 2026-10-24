@@ -1,0 +1,112 @@
+{
+	"path": "ComponentJavascriptModuleClass.svelte",
+	"declarations": [
+		{
+			"name": "ComponentJavascriptModuleClass",
+			"kind": "component",
+			"sourceLine": 45,
+			"lang": "js"
+		},
+		{
+			"name": "A",
+			"kind": "class",
+			"docComment": "Description 1",
+			"sourceLine": 6,
+			"implements": [
+				"B"
+			],
+			"members": [
+				{
+					"name": "b",
+					"kind": "variable",
+					"typeSignature": "number",
+					"modifiers": [
+						"protected"
+					]
+				},
+				{
+					"name": "c",
+					"kind": "variable",
+					"docComment": "Description 2",
+					"typeSignature": "number"
+				},
+				{
+					"name": "e",
+					"kind": "variable",
+					"typeSignature": "number",
+					"modifiers": [
+						"readonly"
+					],
+					"reactivity": "$state"
+				},
+				{
+					"name": "constructor",
+					"kind": "constructor",
+					"typeSignature": "(x: number): A",
+					"parameters": [
+						{
+							"name": "x",
+							"type": "number"
+						}
+					]
+				},
+				{
+					"name": "f",
+					"kind": "variable",
+					"typeSignature": "number",
+					"modifiers": [
+						"getter",
+						"protected"
+					]
+				}
+			]
+		},
+		{
+			"name": "C",
+			"kind": "class",
+			"sourceLine": 31,
+			"extends": [
+				"Error"
+			],
+			"externalTypes": [
+				"Error"
+			],
+			"members": [
+				{
+					"name": "a",
+					"kind": "variable",
+					"typeSignature": "number"
+				},
+				{
+					"name": "toString",
+					"kind": "variable",
+					"typeSignature": "() => string"
+				},
+				{
+					"name": "constructor",
+					"kind": "constructor",
+					"typeSignature": "(x: string): C",
+					"parameters": [
+						{
+							"name": "x",
+							"type": "string"
+						}
+					]
+				}
+			]
+		},
+		{
+			"name": "B",
+			"kind": "type",
+			"typeSignature": "B",
+			"sourceLine": 42,
+			"members": [
+				{
+					"name": "c",
+					"kind": "variable",
+					"typeSignature": "number"
+				}
+			]
+		}
+	]
+}

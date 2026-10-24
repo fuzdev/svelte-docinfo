@@ -1,0 +1,13 @@
+---
+'svelte-docinfo': minor
+---
+
+feat: document JS classes like their TS twins
+
+In JS files, a class's JSDoc reads as TypeScript's checker reads it:
+
+- `@private` hides a member, as `private` does, on the class and on any type alias over it (`@typedef {A} B`), except for a redeclared inherited name the checker reads as the base's (an `@type`'d constructor assignment), where an alias reads the base's visibility, docs, and modifiers and the class the redeclaring assignment's; `@protected`, `@public`, and `@readonly` add `modifiers` like the keywords. Modifiers list in the order TypeScript requires them written (an accessibility, then `static` or `abstract`, then `readonly`), so a JS member's tags and keywords order like its TS twin's keywords. `@static` and `@abstract` mark nothing, as for the checker.
+- `@implements {A}` fills `implements`, and `@extends {Base<T>}` beside an `extends Base` clause makes `extends` `["Base<T>"]`, as a TS `extends Base<T>` writes it. In a `.ts` file neither tag adds anything.
+- `this.x = …` assignments in the constructor, a method, or an accessor declare `variable` members, typed by the checker (the first `@type`, else a constructor's assignments take precedence), modified as the checker enforces (`@readonly`, `@protected` on the first assignment in source order, so a method above the constructor can supply them; `@private` there hides it), and documented by the first documented constructor assignment, else the first documented one anywhere. A static method's or static block's assignments declare `static` members, documented by a static block's first documented one. A name the class also writes as a field is listed once, and a name a base class already has stays the base's (`this.name = …` in an `Error` subclass lists nothing) unless a constructor's (for a static, a static block's) assignment redeclares it with a JSDoc block, `@type` alone counting, which then documents it; a method's JSDoc never redeclares. This follows the TS twin, not the checker, which reads an undocumented constructor assignment of an inherited name as the class's own and an `@type`'d one as the base's. A redeclared name the checker reads as the base's takes its modifiers from the redeclaring assignment. They slot in just ahead of the constructor, where a TS twin declares its fields, constructor assignments first.
+- `@readonly` on a JS object-literal property now shows `readonly` in a type alias over it (`@typedef {typeof o} T`), as the checker reads it; `@private` there hides nothing, since the checker enforces it in classes only.
+- A getter/setter pair with either side private (`private set`, or a JS `@private` setter) is dropped whole on the class, as on a type alias over it, in TS and JS alike.
