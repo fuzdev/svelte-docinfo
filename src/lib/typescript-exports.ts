@@ -1267,7 +1267,18 @@ export const analyzeExports = (
 			// the aliased symbol so that inferDeclarationKind sees the actual declaration
 			// node (e.g., VariableDeclaration with ArrowFunction) instead of the ExportSpecifier.
 			const symbolToAnalyze = isAlias ? checker.getAliasedSymbol(exportSymbol) : exportSymbol;
-			const analysisResult = analyzeDeclaration(symbolToAnalyze, sourceFile, ctx);
+			const analysisResult = analyzeDeclaration(
+				symbolToAnalyze,
+				sourceFile,
+				ctx,
+				// the component svelte2tsx generates carries the HTML `@component`
+				// comment, whose `@cssprop` tags are the component's
+				!(
+					isSvelteVirtualPath(sourceFile.fileName) &&
+					(isSvelte2tsxGeneratedExport(exportSymbol.name) ||
+						isSvelte2tsxGeneratedExport(symbolToAnalyze.name))
+				)
+			);
 			const { declaration } = analysisResult;
 			let { nodocs } = analysisResult;
 			// Preserve the export name for within-file renames (export { x as y }).
@@ -1316,12 +1327,17 @@ export const analyzeExports = (
  * @param symbol - the TypeScript symbol to analyze
  * @param sourceFile - the source file containing the symbol
  * @param ctx - the extraction pass's context (checker, diagnostics, externality predicate, alias registry)
+ * @param warnMisplacedCssprop - whether a `@cssprop` tag in the declaration's
+ *   JSDoc warns `misplaced_tag` (it documents only a component): set by the
+ *   declaring module's own pass, so an alias re-analyzing the canonical
+ *   doesn't repeat the warning
  * @returns complete declaration metadata including docs, types, and parameters, plus nodocs flag
  */
 export const analyzeDeclaration = (
 	symbol: ts.Symbol,
 	sourceFile: ts.SourceFile,
-	ctx: ExtractContext
+	ctx: ExtractContext,
+	warnMisplacedCssprop = false
 ): DeclarationAnalysis => {
 	const declNode = selectDeclarationNode(symbol);
 	// Pass the symbol's name through verbatim. Default-slot symbols
@@ -1364,6 +1380,19 @@ export const analyzeDeclaration = (
 		}
 	}
 	applyToDeclaration(result, tsdoc);
+	if (warnMisplacedCssprop && tsdoc?.cssProperties?.length) {
+		const loc = getNodeLocation(declNode);
+		ctx.diagnostics.push({
+			kind: 'misplaced_tag',
+			file: loc.file,
+			line: loc.line,
+			column: loc.column,
+			message: `@cssprop on "${name}" has no effect — it documents a Svelte component's CSS custom properties, in the component's doc comment`,
+			severity: 'warning',
+			tagName: 'cssprop',
+			functionName: name
+		});
+	}
 
 	// Extract source line — from the selected node, so a merged value+type
 	// symbol points at its type-space declaration
@@ -1527,9 +1556,9 @@ export const extractModuleComment = (sourceFile: ts.SourceFile): TsdocParsedComm
 /**
  * Warn `misplaced_tag` for each tag a module comment carries that only
  * describes a declaration: `@param`, `@returns`, `@mutates`, `@throws`,
- * `@default`, and `@nodocs`. `toModuleDocFields` drops them, so in a module
- * comment they do nothing. `@nodocs` applies to declarations and export
- * statements; to omit a module, use exclude patterns.
+ * `@default`, `@nodocs`, and `@cssprop` (a component's). `toModuleDocFields`
+ * drops them, so in a module comment they do nothing. `@nodocs` applies to
+ * declarations and export statements; to omit a module, use exclude patterns.
  *
  * Reads the parsed comment, so a tag counts when `parseComment` extracted it:
  * a bare `@returns` or `@throws` with no text is dropped without a warning, as
@@ -1563,7 +1592,9 @@ export const warnModuleCommentTags = (
 			message:
 				tagName === 'nodocs'
 					? '@nodocs in a module comment has no effect — it applies to declarations and export statements; to omit a module from analysis, use exclude patterns'
-					: `@${tagName} in a module comment has no effect — it documents a declaration, not a module`,
+					: tagName === 'cssprop'
+						? "@cssprop in a module comment has no effect — it documents a Svelte component's CSS custom properties, in the component's doc comment"
+						: `@${tagName} in a module comment has no effect — it documents a declaration, not a module`,
 			severity: 'warning',
 			tagName
 		});
@@ -1581,6 +1612,7 @@ const collectDeclarationOnlyTags = (
 	if (tsdoc.throws?.length) found.push('throws');
 	if (tsdoc.defaultValue !== undefined) found.push('default');
 	if (tsdoc.nodocs) found.push('nodocs');
+	if (tsdoc.cssProperties?.length) found.push('cssprop');
 	return found;
 };
 

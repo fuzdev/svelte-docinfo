@@ -1,0 +1,21 @@
+{
+	"path": "input.ts",
+	"declarations": [
+		{
+			"name": "a",
+			"kind": "variable",
+			"typeSignature": "1",
+			"sourceLine": 8
+		}
+	],
+	"moduleComment": "Description 1",
+	"diagnostics": [
+		{
+			"kind": "misplaced_tag",
+			"file": "src/lib/input.ts",
+			"message": "@cssprop in a module comment has no effect — it documents a Svelte component's CSS custom properties, in the component's doc comment",
+			"severity": "warning",
+			"tagName": "cssprop"
+		}
+	]
+}

@@ -297,23 +297,38 @@
 				the component sets the property itself, with a <code>--accent: …</code> declaration in its
 				own <code>&lt;style&gt;</code>, a <code>style:--accent</code> directive, or a
 				<code>style="--accent: …"</code> attribute. Bare reads like <code>var(--color_a_5)</code>
-				are usually global design tokens, so they're left out. Each entry has:
+				are usually global design tokens, so they're left out. The component's doc comment adds the
+				properties it documents with <code>@cssprop</code>, read or not (see
+				<TomeLink slug="tags" hash="cssprop">@cssprop</TomeLink>). Each entry has:
 			</p>
 			<ul>
 				<li><code>name</code>: the property as written, <code>--</code> included</li>
 				<li>
-					<code>fallback</code>: the fallback's source text, verbatim
-					(<code>var(--accent, var(--color_a_5))</code> gives <code>var(--color_a_5)</code>; the
-					nested <code>--color_a_5</code> isn't an entry of its own)
+					<code>description</code> and <code>syntax</code>: the <code>@cssprop</code> tag's
+					description and braced syntax (<code>&lt;color&gt;</code>), on documented entries
 				</li>
-				<li><code>sourceLine</code>: the line of the property's first read</li>
+				<li>
+					<code>fallback</code>: a <code>@cssprop</code> tag's default, else the fallback's source
+					text, verbatim (<code>var(--accent, var(--color_a_5))</code> gives
+					<code>var(--color_a_5)</code>; the nested <code>--color_a_5</code> isn't an entry of its
+					own); absent on a documented entry nothing gives one
+				</li>
+				<li>
+					<code>sourceLine</code>: the line of the property's first read, or of the tag for a
+					documented property the component never reads
+				</li>
+				<li>
+					<code>documented</code>: <code>true</code> when a <code>@cssprop</code> tag documents it.
+					The heuristic catches some global tokens read with a fallback too, so a consumer can show
+					only the documented entries of a component that has any
+				</li>
 			</ul>
 			<p>
-				Entries are in the order of each name's first read. Reads in nested rules,
-				<code>:global(…)</code>, <code>@media</code> and other at-rule blocks, and keyframes count.
-				A <code>&lt;style lang="scss"&gt;</code> (any language but CSS) isn't read and warns
-				<code>css_lang_unsupported</code>; a style Svelte's parser rejects warns
-				<code>css_parse_failed</code>. See <TomeLink slug="diagnostics" />.
+				Documented entries come first, in tag order, then the rest in the order of each name's first
+				read. Reads in nested rules, <code>:global(…)</code>, <code>@media</code> and other at-rule
+				blocks, and keyframes count. A <code>&lt;style lang="scss"&gt;</code> (any language but CSS)
+				isn't read and warns <code>css_lang_unsupported</code>; a style Svelte's parser rejects
+				warns <code>css_parse_failed</code>. See <TomeLink slug="diagnostics" />.
 			</p>
 		</TomeSection>
 

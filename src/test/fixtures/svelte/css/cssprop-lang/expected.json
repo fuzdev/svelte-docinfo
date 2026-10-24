@@ -1,0 +1,31 @@
+{
+	"path": "CssCsspropLang.svelte",
+	"declarations": [
+		{
+			"name": "CssCsspropLang",
+			"kind": "component",
+			"sourceLine": 1,
+			"cssCustomProperties": [
+				{
+					"name": "--a",
+					"description": "Description 1",
+					"fallback": "red",
+					"sourceLine": 3,
+					"documented": true
+				}
+			],
+			"lang": "js"
+		}
+	],
+	"diagnostics": [
+		{
+			"kind": "css_lang_unsupported",
+			"message": "The <style> is \"postcss\", not CSS, so the styling API isn't read.",
+			"lang": "postcss",
+			"line": 7,
+			"column": 1,
+			"file": "src/lib/CssCsspropLang.svelte",
+			"severity": "warning"
+		}
+	]
+}

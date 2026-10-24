@@ -7,7 +7,12 @@
 
 import { test, assert, describe } from 'vitest';
 
-import { analyzeComponentCss, scanCssVarReads } from '#lib/svelte-css.ts';
+import {
+	analyzeComponentCss,
+	documentCssProperties,
+	findCsspropTagLine,
+	scanCssVarReads
+} from '#lib/svelte-css.ts';
 
 /** `[name, fallback]` pairs of the reads `scanCssVarReads` returns. */
 const readsOf = (text: string) =>
@@ -76,7 +81,10 @@ describe('scanCssVarReads', () => {
 
 describe('analyzeComponentCss', () => {
 	test('a source without a style reads nothing', () => {
-		assert.deepEqual(analyzeComponentCss('<div style:--a="1"></div>'), { properties: [] });
+		assert.deepEqual(analyzeComponentCss('<div style:--a="1"></div>'), {
+			properties: [],
+			reads: new Map()
+		});
 	});
 
 	test('reads the top-level style only, not a style nested in markup', () => {
@@ -88,7 +96,7 @@ describe('analyzeComponentCss', () => {
 	test('a style tag written inside a script is script text', () => {
 		const source =
 			'<script>\n\tconst a = `<style>a { color: var(--a, 1) }</style>`;\n</script>\n<div></div>';
-		assert.deepEqual(analyzeComponentCss(source), { properties: [] });
+		assert.deepEqual(analyzeComponentCss(source), { properties: [], reads: new Map() });
 	});
 
 	test('script syntax never fails the parse', () => {
@@ -166,5 +174,136 @@ describe('analyzeComponentCss', () => {
 				attribute
 			);
 		}
+	});
+});
+
+describe('analyzeComponentCss reads', () => {
+	/** `[name, line, fallback]` triples of every read a component makes. */
+	const readsOfComponent = (source: string) =>
+		[...(analyzeComponentCss(source).reads ?? [])].map(
+			([name, { line, fallback }]) => [name, line, fallback] as const
+		);
+
+	test('lists every read, nested fallbacks and bare reads included, outermost first', () => {
+		assert.deepEqual(
+			readsOfComponent(
+				'<style>\n\t.a { --c: 1; color: var(--a, var(--b, 1px)); margin: var(--c); }\n\t.b { padding: var(--b, 2px); }\n</style>\n'
+			),
+			[
+				['--a', 2, 'var(--b, 1px)'],
+				['--c', 2, undefined],
+				['--b', 3, '2px']
+			]
+		);
+	});
+
+	test("reads the markup's static style text, without a style", () => {
+		assert.deepEqual(
+			readsOfComponent(
+				'<!-- @component\n@cssprop --a -->\n<div style="color: var(--a, red); --b: {c}" style:margin="var(--d)"></div>\n<C --e="var(--f)" />\n'
+			),
+			[
+				['--a', 3, 'red'],
+				['--d', 3, undefined],
+				['--f', 4, undefined]
+			]
+		);
+	});
+
+	test('a style-less source without a @cssprop mention reads nothing', () => {
+		assert.deepEqual(analyzeComponentCss('<div style="color: var(--a, red)"></div>\n'), {
+			properties: [],
+			reads: new Map()
+		});
+	});
+
+	test('a style-less source with var( only in a script string is never parsed', () => {
+		// duplicate attributes fail the parse, which would warn css_parse_failed
+		const source =
+			'<script lang="ts">\n\tconst s = "var(--x)";\n</script>\n<div a="1" a="2"></div>\n';
+		assert.deepEqual(analyzeComponentCss(source), { properties: [], reads: new Map() });
+	});
+
+	test('a style-less source with a tag but no var( reads nothing, with empty reads', () => {
+		assert.deepEqual(analyzeComponentCss('<!-- @component\n@cssprop --a -->\n<div></div>\n'), {
+			properties: [],
+			reads: new Map()
+		});
+	});
+
+	test('a style that is not read has no reads', () => {
+		const css = analyzeComponentCss(
+			'<style lang="scss">\n\t.a { color: var(--a, red); }\n</style>\n'
+		);
+		assert.strictEqual(css.reads, undefined);
+		assert.strictEqual(css.problem?.kind, 'css_lang_unsupported');
+	});
+});
+
+describe('documentCssProperties', () => {
+	const SOURCE =
+		'<style>\n\t.a { color: var(--a, red); margin: var(--b); padding: var(--c, 1px); }\n</style>\n';
+
+	test('documented entries come first in tag order, then the rest in read order', () => {
+		const { properties, unread } = documentCssProperties(
+			analyzeComponentCss(SOURCE),
+			[
+				{ name: '--x', description: 'd1' },
+				{ name: '--b', syntax: '<length>' },
+				{ name: '--a', fallback: 'blue' }
+			],
+			() => 9
+		);
+		assert.deepEqual(properties, [
+			{ name: '--x', description: 'd1', sourceLine: 9, documented: true },
+			{ name: '--b', syntax: '<length>', sourceLine: 2, documented: true },
+			{ name: '--a', fallback: 'blue', sourceLine: 2, documented: true },
+			{ name: '--c', fallback: '1px', sourceLine: 2 }
+		]);
+		assert.deepEqual(unread, [{ name: '--x', description: 'd1' }]);
+	});
+
+	test('without tags, the heuristic list as is', () => {
+		const css = analyzeComponentCss(SOURCE);
+		assert.deepEqual(
+			documentCssProperties(css, [], () => 1),
+			{
+				properties: css.properties,
+				unread: []
+			}
+		);
+	});
+
+	test('a style that is not read keeps every tag and reports none', () => {
+		const css = analyzeComponentCss(
+			'<style lang="scss">\n\t.a { color: var(--a, red); }\n</style>\n'
+		);
+		assert.deepEqual(
+			documentCssProperties(css, [{ name: '--a' }], () => 4),
+			{ properties: [{ name: '--a', sourceLine: 4, documented: true }], unread: [] }
+		);
+	});
+});
+
+describe('findCsspropTagLine', () => {
+	const SOURCE = '<!--\n@component\n@cssprop --ab - c\n@cssproperty {<color>} [--a=1] - b\n-->\n';
+
+	test('finds the tag naming the property, by its parsed name', () => {
+		assert.strictEqual(findCsspropTagLine(SOURCE, 0, SOURCE.length, '--a'), 4);
+		assert.strictEqual(findCsspropTagLine(SOURCE, 0, SOURCE.length, '--ab'), 3);
+	});
+
+	test('searches only the range', () => {
+		assert.strictEqual(findCsspropTagLine(SOURCE, 0, 20, '--a'), undefined);
+		assert.strictEqual(findCsspropTagLine(SOURCE, 0, SOURCE.length, '--b'), undefined);
+	});
+
+	test('finds line-leading tags only, after a comment opener', () => {
+		const source =
+			'<script>\n\t// see @cssprop --a below\n\t/** @cssprop --b */\n\t/**\n\t * x @cssprop --c\n\t * @cssprop --a - real\n\t */\n</script>\n<!-- @cssprop --d -->\n';
+		assert.strictEqual(findCsspropTagLine(source, 0, source.length, '--a'), 6);
+		assert.strictEqual(findCsspropTagLine(source, 0, source.length, '--b'), 3);
+		assert.strictEqual(findCsspropTagLine(source, 0, source.length, '--c'), undefined);
+		assert.strictEqual(findCsspropTagLine(source, 0, source.length, '--d'), 9);
 	});
 });

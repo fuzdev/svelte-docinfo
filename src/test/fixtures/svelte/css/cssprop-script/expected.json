@@ -1,0 +1,55 @@
+{
+	"path": "CssCsspropScript.svelte",
+	"declarations": [
+		{
+			"name": "CssCsspropScript",
+			"kind": "component",
+			"docComment": "Description 3",
+			"sourceLine": 7,
+			"props": [
+				{
+					"name": "prop1",
+					"type": "string"
+				}
+			],
+			"cssCustomProperties": [
+				{
+					"name": "--a",
+					"description": "Description 4",
+					"fallback": "red",
+					"sourceLine": 21,
+					"documented": true
+				},
+				{
+					"name": "--x",
+					"description": "Description 5",
+					"sourceLine": 12,
+					"documented": true
+				},
+				{
+					"name": "--b",
+					"fallback": "1px",
+					"sourceLine": 22
+				}
+			]
+		}
+	],
+	"diagnostics": [
+		{
+			"kind": "unknown_cssprop",
+			"file": "src/lib/CssCsspropScript.svelte",
+			"line": 12,
+			"message": "@cssprop \"--x\" on \"CssCsspropScript\" names a custom property the component never reads (typo, or one it leaves to its children?)",
+			"severity": "warning",
+			"propertyName": "--x",
+			"componentName": "CssCsspropScript"
+		},
+		{
+			"kind": "duplicate_comment",
+			"commentType": "doc_comment",
+			"file": "src/lib/CssCsspropScript.svelte",
+			"message": "Both HTML @component comment and JSDoc in <script> provide component documentation. Using JSDoc.",
+			"severity": "warning"
+		}
+	]
+}

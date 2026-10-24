@@ -1,0 +1,30 @@
+{
+	"path": "CssCsspropNoStyle.svelte",
+	"declarations": [
+		{
+			"name": "CssCsspropNoStyle",
+			"kind": "component",
+			"sourceLine": 1,
+			"cssCustomProperties": [
+				{
+					"name": "--a",
+					"description": "Description 1",
+					"sourceLine": 3,
+					"documented": true
+				}
+			],
+			"lang": "js"
+		}
+	],
+	"diagnostics": [
+		{
+			"kind": "unknown_cssprop",
+			"file": "src/lib/CssCsspropNoStyle.svelte",
+			"line": 3,
+			"message": "@cssprop \"--a\" on \"CssCsspropNoStyle\" names a custom property the component never reads (typo, or one it leaves to its children?)",
+			"severity": "warning",
+			"propertyName": "--a",
+			"componentName": "CssCsspropNoStyle"
+		}
+	]
+}

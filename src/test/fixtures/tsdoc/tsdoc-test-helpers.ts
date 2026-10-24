@@ -33,7 +33,17 @@ const TsdocParsedCommentJson = v.strictObject({
 	since: v.optional(v.string()),
 	defaultValue: v.optional(v.string()),
 	mutates: v.optional(StringRecord),
-	nodocs: v.optional(v.boolean())
+	nodocs: v.optional(v.boolean()),
+	cssProperties: v.optional(
+		v.array(
+			v.strictObject({
+				name: v.string(),
+				description: v.optional(v.string()),
+				syntax: v.optional(v.string()),
+				fallback: v.optional(v.string())
+			})
+		)
+	)
 });
 
 /**

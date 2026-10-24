@@ -92,7 +92,12 @@ import { type Diagnostic } from './diagnostics.ts';
 import { toErrorMessage } from './error.ts';
 import { toPosixPath } from './paths.ts';
 import { resolveLegacyPropsAnchor, scanLegacyExports } from './svelte-legacy.ts';
-import { analyzeComponentCss, type ComponentCss } from './svelte-css.ts';
+import {
+	analyzeComponentCss,
+	documentCssProperties,
+	findCsspropTagLine,
+	type ComponentCss
+} from './svelte-css.ts';
 import {
 	findHtmlComments,
 	findScriptTags,
@@ -1959,14 +1964,6 @@ export const analyzeSvelteModule = (
 		componentDecl.acceptsChildren = true;
 	}
 
-	// The styling API, read at transform; its problem reports here, each query,
-	// like the other per-component warnings
-	const css = virtualFile.css ?? analyzeComponentCss(sourceFile.content);
-	if (css.properties.length) componentDecl.cssCustomProperties = css.properties;
-	if (css.problem) {
-		diagnostics.push({ ...css.problem, file: diagnosticFile, severity: 'warning' });
-	}
-
 	// Extract generic params
 	const genericParams = extractGenericParams(componentNodes);
 	if (genericParams?.length) {
@@ -1990,6 +1987,45 @@ export const analyzeSvelteModule = (
 		virtualTsSource,
 		virtualFile.sourceMap
 	);
+
+	// The styling API, read at transform, with the doc comment's `@cssprop`
+	// tags merged in; its problem and unread tags report here, each query, like
+	// the other per-component warnings
+	const css = virtualFile.css ?? analyzeComponentCss(sourceFile.content);
+	const csspropTags = componentTsdoc?.tsdoc.cssProperties ?? [];
+	// the winning doc comment's range in the original source, where its tags sit
+	const [docStart, docEnd] =
+		componentTsdoc?.source === 'script'
+			? instanceScript
+				? [instanceScript.start, instanceScript.start + instanceScript.content.length]
+				: [0, 0]
+			: htmlComponentComment
+				? [
+						htmlComponentComment.start,
+						// `<!--`, the content, `-->`
+						htmlComponentComment.start + htmlComponentComment.content.length + 7
+					]
+				: [0, 0];
+	const tagLineOf = (name: string): number =>
+		findCsspropTagLine(sourceFile.content, docStart, docEnd, name) ?? componentDecl.sourceLine ?? 1;
+	const documentedCss = documentCssProperties(css, csspropTags, tagLineOf);
+	if (documentedCss.properties.length) {
+		componentDecl.cssCustomProperties = documentedCss.properties;
+	}
+	if (css.problem) {
+		diagnostics.push({ ...css.problem, file: diagnosticFile, severity: 'warning' });
+	}
+	for (const { name } of documentedCss.unread) {
+		diagnostics.push({
+			kind: 'unknown_cssprop',
+			file: diagnosticFile,
+			line: tagLineOf(name),
+			message: `@cssprop "${name}" on "${componentName}" names a custom property the component never reads (typo, or one it leaves to its children?)`,
+			severity: 'warning',
+			propertyName: name,
+			componentName
+		});
+	}
 
 	// Warn when svelte2tsx (and so editor hover) would document the component
 	// with a different HTML comment than the one read here; moot when in-script

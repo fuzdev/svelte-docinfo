@@ -10,6 +10,9 @@
  * scanned from the original source text (`scanCssVarReads`), since the parser
  * strips comments from them and gives no offsets inside them.
  *
+ * `@cssprop` tags in the component's doc comment merge in afterwards
+ * (`documentCssProperties`), checked against every read the component makes.
+ *
  * @internal
  *
  * @module
@@ -19,7 +22,8 @@ import { parse, type AST } from 'svelte/compiler';
 
 import { toErrorMessage } from './error.ts';
 import { blankVerbatimContent, scanScriptTags } from './svelte-scripts.ts';
-import type { ComponentCssPropertyJson } from './types.ts';
+import { parseCsspropTagText, type TsdocCssProperty } from './tsdoc.ts';
+import type { ComponentCssPropertyJsonInput } from './types.ts';
 
 /** One `var()` read in CSS text. */
 export interface CssVarRead {
@@ -32,6 +36,11 @@ export interface CssVarRead {
 	fallback: string | undefined;
 	/** Offset of the read's `var` within the scanned text. */
 	offset: number;
+	/**
+	 * Offsets of the fallback's text, after the comma up to the closing `)`,
+	 * untrimmed; `undefined` for a read without one.
+	 */
+	fallbackRange: [start: number, end: number] | undefined;
 }
 
 const isNameChar = (code: number): boolean =>
@@ -164,8 +173,13 @@ export const scanCssVarReads = (text: string, start = 0, end = text.length): Arr
 		const name = text.slice(nameStart, nameEnd);
 		if (name === '--') continue;
 		const afterName = skipTrivia(text, nameEnd, close);
-		const fallback = text[afterName] === ',' ? text.slice(afterName + 1, close).trim() : undefined;
-		reads.push({ name, fallback, offset: identStart });
+		const hasFallback = text[afterName] === ',';
+		reads.push({
+			name,
+			fallback: hasFallback ? text.slice(afterName + 1, close).trim() : undefined,
+			offset: identStart,
+			fallbackRange: hasFallback ? [afterName + 1, close] : undefined
+		});
 	}
 	return reads;
 };
@@ -175,10 +189,26 @@ export type ComponentCssProblem =
 	| { kind: 'css_parse_failed'; message: string; line?: number; column?: number }
 	| { kind: 'css_lang_unsupported'; message: string; lang: string; line: number; column: number };
 
+/** A custom property the component reads somewhere, as `documentCssProperties` checks a tag. */
+export interface ComponentCssRead {
+	/** 1-based line of the first read in the original source, preferring an outermost one. */
+	line: number;
+	/** The first fallback any read gives, preferring an outermost one's. */
+	fallback: string | undefined;
+}
+
 /** What `analyzeComponentCss` reads from a component. */
 export interface ComponentCss {
 	/** The styling API, in the order of each name's first read. */
-	properties: Array<ComponentCssPropertyJson>;
+	properties: Array<ComponentCssPropertyJsonInput>;
+	/**
+	 * Every custom property the component reads through `var()`, by name: in
+	 * its `<style>` at any nesting (`var(--a, var(--b))` reads both), and in
+	 * the static text of its markup's `style` attributes, `style:` directives,
+	 * and child components' `--a` attributes. Names the component sets itself
+	 * included. `undefined` when the style wasn't read (`problem`).
+	 */
+	reads?: Map<string, ComponentCssRead>;
 	/** Why the style wasn't read, when it wasn't. */
 	problem?: ComponentCssProblem;
 }
@@ -242,13 +272,42 @@ const collectStyleAttributeProperties = (attribute: AST.Attribute, names: Set<st
 	}
 };
 
+/** The `Text` parts of an attribute or directive value. */
+// `StyleDirective['value']` includes every shape `Attribute['value']` takes
+const textPartsOf = (value: AST.StyleDirective['value']): Array<AST.Text> =>
+	Array.isArray(value) ? value.filter((part): part is AST.Text => part.type === 'Text') : [];
+
+/** Record every `var()` read in the source range, nested ones included, into `reads`. */
+const collectAllReads = (
+	svelteSource: string,
+	start: number,
+	end: number,
+	reads: Map<string, FirstRead>
+): void => {
+	for (const read of scanCssVarReads(svelteSource, start, end)) {
+		const first = reads.get(read.name);
+		if (!first) reads.set(read.name, { offset: read.offset, fallback: read.fallback });
+		else if (first.fallback === undefined) first.fallback = read.fallback;
+		if (read.fallbackRange) {
+			collectAllReads(svelteSource, read.fallbackRange[0], read.fallbackRange[1], reads);
+		}
+	}
+};
+
 /**
  * The custom properties the markup sets on the component's own elements:
  * `style:--a` directives and `--a:` in `style` attributes, on elements and
- * `<svelte:element>`, at any depth. A child component's `--a` attribute
- * styles the child, so it doesn't count.
+ * `<svelte:element>`, at any depth, into `names`. A child component's `--a`
+ * attribute styles the child, so it doesn't count. Also every `var()` the
+ * static text of those attributes, directives, and a child component's `--a`
+ * attributes reads, into `reads`.
  */
-const collectMarkupProperties = (fragment: AST.Fragment, names: Set<string>): void => {
+const collectMarkupProperties = (
+	fragment: AST.Fragment,
+	svelteSource: string,
+	names: Set<string>,
+	reads: Map<string, FirstRead>
+): void => {
 	for (const node of fragment.nodes) {
 		if (node.type === 'RegularElement' || node.type === 'SvelteElement') {
 			for (const attribute of node.attributes) {
@@ -256,6 +315,16 @@ const collectMarkupProperties = (fragment: AST.Fragment, names: Set<string>): vo
 					if (attribute.name.startsWith('--')) names.add(attribute.name);
 				} else if (attribute.type === 'Attribute' && attribute.name.toLowerCase() === 'style') {
 					collectStyleAttributeProperties(attribute, names);
+				} else continue;
+				for (const part of textPartsOf(attribute.value)) {
+					collectAllReads(svelteSource, part.start, part.end, reads);
+				}
+			}
+		} else if (node.type === 'Component' || node.type === 'SvelteComponent') {
+			for (const attribute of node.attributes) {
+				if (attribute.type !== 'Attribute' || !attribute.name.startsWith('--')) continue;
+				for (const part of textPartsOf(attribute.value)) {
+					collectAllReads(svelteSource, part.start, part.end, reads);
 				}
 			}
 		}
@@ -263,7 +332,7 @@ const collectMarkupProperties = (fragment: AST.Fragment, names: Set<string>): vo
 		// `consequent`, `then`, …); expressions are never fragments
 		for (const value of Object.values(node)) {
 			if (value && typeof value === 'object' && (value as { type?: unknown }).type === 'Fragment') {
-				collectMarkupProperties(value as AST.Fragment, names);
+				collectMarkupProperties(value as AST.Fragment, svelteSource, names, reads);
 			}
 		}
 	}
@@ -278,15 +347,17 @@ interface FirstRead {
 }
 
 /**
- * Collect the stylesheet's own custom property declarations into `defined`
- * and its outermost `var()` reads into `reads`, in source order, at every
- * depth: rules, nested rules, and at-rule blocks (`@media`, keyframes, …).
+ * Collect the stylesheet's own custom property declarations into `defined`,
+ * its outermost `var()` reads into `reads`, and the reads nested in their
+ * fallbacks into `nestedReads`, in source order, at every depth: rules,
+ * nested rules, and at-rule blocks (`@media`, keyframes, …).
  */
 const collectStylesheet = (
 	nodes: ReadonlyArray<CssNode>,
 	svelteSource: string,
 	defined: Set<string>,
-	reads: Map<string, FirstRead>
+	reads: Map<string, FirstRead>,
+	nestedReads: Map<string, FirstRead>
 ): void => {
 	for (const node of nodes) {
 		if (node.type === 'Declaration') {
@@ -300,14 +371,23 @@ const collectStylesheet = (
 				const first = reads.get(read.name);
 				if (!first) reads.set(read.name, { offset: read.offset, fallback: read.fallback });
 				else if (first.fallback === undefined) first.fallback = read.fallback;
+				if (read.fallbackRange) {
+					collectAllReads(svelteSource, read.fallbackRange[0], read.fallbackRange[1], nestedReads);
+				}
 			}
 		} else if (node.block) {
-			collectStylesheet(node.block.children, svelteSource, defined, reads);
+			collectStylesheet(node.block.children, svelteSource, defined, reads, nestedReads);
 		}
 	}
 };
 
-const noCss = (): ComponentCss => ({ properties: [] });
+const noCss = (): ComponentCss => ({ properties: [], reads: new Map() });
+
+/** Matches text that may hold a `var()` read, case-insensitively as CSS does. */
+const VAR_CALL = /var\(/i;
+
+/** Matches text that may hold a `@cssprop` tag, the only reason to read a style-less source. */
+const CSSPROP_MENTION = /@css(?:prop|property)\b/;
 
 /**
  * Read a component's styling API: the custom properties its top-level
@@ -318,13 +398,22 @@ const noCss = (): ComponentCss => ({ properties: [] });
  * script content blanked, so script syntax never fails it. A style whose
  * `lang` or `type` names another language is blanked too, and reported as
  * `css_lang_unsupported`. A parse failure reports `css_parse_failed`, with
- * the parser's position. A source with no `<style` text isn't parsed.
+ * the parser's position. A source without `<style` text is parsed only when
+ * it has both `var(` text and a `@cssprop` mention, since its markup's reads
+ * matter only to tags; otherwise it reads nothing, with empty `reads`. Every
+ * read, the ones it doesn't list included, lands in `reads` for
+ * `documentCssProperties`.
  *
  * @param svelteSource - the full Svelte source code
  * @returns the styling API, plus the problem when the style wasn't read
  */
 export const analyzeComponentCss = (svelteSource: string): ComponentCss => {
-	if (!svelteSource.includes('<style')) return noCss();
+	if (
+		!svelteSource.includes('<style') &&
+		!(VAR_CALL.test(svelteSource) && CSSPROP_MENTION.test(svelteSource))
+	) {
+		return noCss();
+	}
 	const blanked = blankVerbatimContent(svelteSource, scanScriptTags(svelteSource), {
 		keepStyle: (attributes) =>
 			styleLanguageOf(attributes.get('lang'), attributes.get('type')) === undefined
@@ -346,17 +435,16 @@ export const analyzeComponentCss = (svelteSource: string): ComponentCss => {
 		return { properties: [], problem };
 	}
 	const { css } = ast;
-	if (!css) return noCss();
-
 	const lineStarts = lineStartsOf(svelteSource);
+
 	let lang: string | true | undefined;
 	let type: string | true | undefined;
-	for (const attribute of css.attributes) {
+	for (const attribute of css?.attributes ?? []) {
 		if (attribute.name === 'lang') lang = attributeText(attribute);
 		else if (attribute.name === 'type') type = attributeText(attribute);
 	}
 	const language = styleLanguageOf(lang, type);
-	if (language !== undefined) {
+	if (css && language !== undefined) {
 		const line = lineAt(lineStarts, css.start);
 		return {
 			properties: [],
@@ -372,15 +460,120 @@ export const analyzeComponentCss = (svelteSource: string): ComponentCss => {
 
 	const defined: Set<string> = new Set();
 	const reads: Map<string, FirstRead> = new Map();
-	collectStylesheet(css.children, svelteSource, defined, reads);
-	if (reads.size === 0) return noCss();
+	const otherReads: Map<string, FirstRead> = new Map();
+	if (css) collectStylesheet(css.children, svelteSource, defined, reads, otherReads);
 	const setInMarkup: Set<string> = new Set();
-	collectMarkupProperties(ast.fragment, setInMarkup);
+	collectMarkupProperties(ast.fragment, svelteSource, setInMarkup, otherReads);
 
-	const properties: Array<ComponentCssPropertyJson> = [];
+	const properties: Array<ComponentCssPropertyJsonInput> = [];
+	const allReads: Map<string, ComponentCssRead> = new Map();
 	for (const [name, { offset, fallback }] of reads) {
+		allReads.set(name, { line: lineAt(lineStarts, offset), fallback });
 		if (fallback === undefined || defined.has(name) || setInMarkup.has(name)) continue;
 		properties.push({ name, fallback, sourceLine: lineAt(lineStarts, offset) });
 	}
-	return { properties };
+	for (const [name, { offset, fallback }] of otherReads) {
+		const outermost = allReads.get(name);
+		if (!outermost) allReads.set(name, { line: lineAt(lineStarts, offset), fallback });
+		else if (outermost.fallback === undefined) outermost.fallback = fallback;
+	}
+	return { properties, reads: allReads };
+};
+
+/** What `documentCssProperties` makes of a component's `@cssprop` tags. */
+export interface DocumentedComponentCss {
+	/** The styling API with the documented properties merged in. */
+	properties: Array<ComponentCssPropertyJsonInput>;
+	/** The documented names the component never reads, in tag order. */
+	unread: Array<TsdocCssProperty>;
+}
+
+/**
+ * Merge a component's `@cssprop` tags into its styling API
+ * (`ComponentDeclarationJson.cssCustomProperties`, whose policy this is).
+ *
+ * Each tag is an entry, `documented: true`, in tag order, ahead of the
+ * listed undocumented reads, which keep their first-read order. A tagged
+ * name the component reads takes the read's `sourceLine` and, unless the
+ * tag gives a default, its `fallback`: the listed entry's when the heuristic
+ * found the name, else the first read's anywhere (`ComponentCss.reads`: a
+ * bare read, one nested in another's fallback, one in the markup's static
+ * style text, or one of a name the component sets itself). A tagged name the
+ * component never reads is kept at its tag's line and reported in `unread`.
+ * When the style wasn't read (`ComponentCss.problem`), every tag is kept at
+ * its tag's line and none is reported.
+ *
+ * @param css - the component's styling API as `analyzeComponentCss` read it
+ * @param tags - the component doc comment's `@cssprop` tags
+ * @param tagLineOf - the 1-based line of a tag in the original source, by name
+ */
+export const documentCssProperties = (
+	css: ComponentCss,
+	tags: ReadonlyArray<TsdocCssProperty>,
+	tagLineOf: (name: string) => number
+): DocumentedComponentCss => {
+	if (tags.length === 0) return { properties: css.properties, unread: [] };
+	const listed = new Map(css.properties.map((property) => [property.name, property]));
+	const properties: Array<ComponentCssPropertyJsonInput> = [];
+	const unread: Array<TsdocCssProperty> = [];
+	for (const tag of tags) {
+		const entry = listed.get(tag.name);
+		const read = entry
+			? { line: entry.sourceLine, fallback: entry.fallback }
+			: css.reads?.get(tag.name);
+		if (!read && css.reads) unread.push(tag);
+		const fallback = tag.fallback ?? read?.fallback;
+		properties.push({
+			name: tag.name,
+			...(tag.description !== undefined && { description: tag.description }),
+			...(tag.syntax !== undefined && { syntax: tag.syntax }),
+			...(fallback !== undefined && { fallback }),
+			sourceLine: read ? read.line : tagLineOf(tag.name),
+			documented: true
+		});
+	}
+	const documented = new Set(tags.map(({ name }) => name));
+	for (const property of css.properties) {
+		if (!documented.has(property.name)) properties.push(property);
+	}
+	return { properties, unread };
+};
+
+/**
+ * A line-leading `@cssprop` (or `@cssproperty`) tag and the rest of its line:
+ * first on its line but for whitespace and a comment opener (`<!--`, `/**`,
+ * or a JSDoc `*`).
+ */
+const CSSPROP_TAG = /^[ \t]*(?:<!--|\/\*\*|\*)?[ \t]*@css(?:prop|property)\b([^\n]*)/gm;
+
+/**
+ * The 1-based line, in the original source, of the first `@cssprop` tag in
+ * a range of it that names `name`: the doc comment the tags came from.
+ *
+ * Tags are matched by text, line-leading only, so a mention later in a line
+ * (a `//` comment citing the tag, or a backticked one in prose) never takes
+ * the tag's place, and a tag written mid-line, which TS still reads, isn't
+ * found, leaving the caller's fallback line. A line-leading mention ahead of
+ * the tag can still take its place. The rest of the line parses as the tag
+ * does (`parseCsspropTagText`), a trailing `*\/` or `-->` aside.
+ *
+ * @param svelteSource - the full Svelte source code
+ * @param start - offset where the comment starts
+ * @param end - offset where the comment ends
+ * @param name - the documented property's name
+ * @returns the line, or `undefined` when no tag in the range names it
+ */
+export const findCsspropTagLine = (
+	svelteSource: string,
+	start: number,
+	end: number,
+	name: string
+): number | undefined => {
+	const text = svelteSource.slice(start, end);
+	for (const match of text.matchAll(CSSPROP_TAG)) {
+		if (parseCsspropTagText(match[1]!)?.name === name) {
+			return lineAt(lineStartsOf(svelteSource), start + match.index);
+		}
+	}
+	return undefined;
 };

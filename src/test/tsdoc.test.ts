@@ -17,6 +17,7 @@ import {
 	jsdocParamTagDefault,
 	parseComment,
 	parseCommentText,
+	parseCsspropTagText,
 	parseModuleComment,
 	toModuleDocFields
 } from '#lib/tsdoc.ts';
@@ -211,12 +212,55 @@ describe('parseComment tag spelling synonyms', () => {
 		}
 	});
 
+	test('`@cssproperty` parses like `@cssprop`, one entry per name across both', () => {
+		const result = parseFirstStatement(
+			'/**\n * Docs.\n *\n * @cssproperty --a - b\n * @cssprop --a - c\n * @cssprop --d\n */\nexport const foo = 1;\n'
+		);
+		assert.ok(result);
+		assert.strictEqual(result.text, 'Docs.');
+		assert.deepEqual(result.cssProperties, [{ name: '--a', description: 'b' }, { name: '--d' }]);
+	});
+
 	test('`@return` (JSDoc synonym) parses like `@returns`', () => {
 		const result = parseFirstStatement(
 			'/**\n * Docs.\n *\n * @return the answer\n */\nexport const foo = (): number => 42;\n'
 		);
 		assert.ok(result);
 		assert.strictEqual(result.returns, 'the answer');
+	});
+});
+
+describe('parseCsspropTagText', () => {
+	test.each([
+		['a bare name', '--a', { name: '--a' }],
+		['a dash-separated description', '--a - b c', { name: '--a', description: 'b c' }],
+		['a description without the dash', '--a b', { name: '--a', description: 'b' }],
+		['a braced syntax', '{<color>} --a - b', { name: '--a', description: 'b', syntax: '<color>' }],
+		['an empty syntax', '{} --a', { name: '--a' }],
+		['a bracketed name', '[--a] - b', { name: '--a', description: 'b' }],
+		['a default', '[--a=1px] - b', { name: '--a', description: 'b', fallback: '1px' }],
+		['a spaced default', '[ --a = 1px 2px ]', { name: '--a', fallback: '1px 2px' }],
+		['an empty default', '[--a=]', { name: '--a' }],
+		[
+			'a default with nested brackets and strings',
+			"[--a=var(--b, [c]) ']'] - d",
+			{ name: '--a', description: 'd', fallback: "var(--b, [c]) ']'" }
+		],
+		['a non-ASCII name', '--é', { name: '--é' }],
+		['a multi-line description', '--a - b\nc', { name: '--a', description: 'b\nc' }]
+	])('%s', (_label, text, expected) => {
+		assert.deepEqual(parseCsspropTagText(text), expected);
+	});
+
+	test.each([
+		['an empty text', ''],
+		['a name without `--`', 'a - b'],
+		['a bare `--`', '-- - b'],
+		['an unclosed brace', '{<color> --a'],
+		['an unclosed bracket', '[--a=1px - b'],
+		['a description only', '- b']
+	])('names nothing: %s', (_label, text) => {
+		assert.strictEqual(parseCsspropTagText(text), undefined);
 	});
 });
 

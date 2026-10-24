@@ -27,9 +27,10 @@
 		<p>
 			The set is the common tags of <a href="https://jsdoc.app/">JSDoc</a> and the
 			<a href="https://tsdoc.org/">TSDoc spec</a>, plus the custom <code>@nodocs</code> and
-			<code>@mutates</code>. Where the standards spell a tag differently, both spellings work
-			(<code>@default</code> / <code>@defaultValue</code>, <code>@return</code> /
-			<code>@returns</code>).
+			<code>@mutates</code>, and the Custom Elements Manifest's <code>@cssprop</code> for a
+			component's CSS custom properties. Where the standards spell a tag differently, both spellings
+			work (<code>@default</code> / <code>@defaultValue</code>, <code>@return</code> /
+			<code>@returns</code>, <code>@cssprop</code> / <code>@cssproperty</code>).
 		</p>
 		<p>
 			Inline tags like <code>{`{@link}`}</code> are kept in the extracted text for the consumer to
@@ -129,6 +130,17 @@
 							<a href="#nodocs">@nodocs</a>). Applies to declarations and export statements only: in
 							a <code>@module</code> comment it warns <code>misplaced_tag</code> and is dropped, and
 							on a member or component prop it silently does nothing
+						</td>
+					</tr>
+					<tr>
+						<td><code>@cssprop</code></td>
+						<td>
+							A Svelte component's CSS custom property, in
+							<DeclarationLink name="ComponentDeclarationJson" />.<code>cssCustomProperties</code>
+							(see <a href="#cssprop">@cssprop</a>). Read from the component's doc comment only; on
+							any other declaration or in a <code>@module</code> comment it warns
+							<code>misplaced_tag</code> and is dropped. <code>@cssproperty</code> parses
+							identically
 						</td>
 					</tr>
 					<tr>
@@ -331,6 +343,57 @@ export function double(n) {
 		</TomeSection>
 
 		<TomeSection>
+			<TomeSectionHeader text="@cssprop" />
+			<p>
+				<code>@cssprop</code> documents a CSS custom property a Svelte component reads, the styling
+				API a consumer sets as <code>&lt;Card --card_width="20rem" /&gt;</code> or on an ancestor.
+				It follows the
+				<a href="https://custom-elements-manifest.open-wc.org/">Custom Elements Manifest</a> form,
+				with <code>@cssproperty</code> as a synonym:
+			</p>
+			<Code
+				lang="svelte"
+				content={`<!--
+@component
+A card.
+
+@cssprop --card_width - the card's width
+@cssprop {<color>} --card_bg - the background color
+@cssprop [--card_padding=var(--space_lg)] - the inner padding
+-->`}
+			/>
+			<p>
+				An optional braced syntax before the name lands as <code>syntax</code>, verbatim and
+				unvalidated, and an optional bracketed default (<code>[--a=1px]</code>) as
+				<code>fallback</code>, over any the style gives. The description follows, its leading
+				<code>-</code> dropped. A tag that names no <code>--</code> property is dropped, and a
+				second tag naming the same property is ignored. The tags never reach
+				<code>docComment</code>.
+			</p>
+			<p>
+				Each tag is an entry in <code>cssCustomProperties</code> with <code>documented: true</code>
+				and its <code>description</code>, listed first in tag order, ahead of the properties the
+				fallback-read heuristic finds alone. That catches the API the heuristic can't: a bare read
+				(<code>width: var(--card_width)</code>), one nested in another read's fallback, or one in
+				the markup's static style text. A tagged name the style also reads merges into one entry,
+				taking the read's <code>sourceLine</code> and, without a tag default, its
+				<code>fallback</code>. A tagged name the component never reads stays, at the tag's line, and
+				warns <code>unknown_cssprop</code>: usually a typo, sometimes a property left to its
+				children.
+			</p>
+			<p>
+				The tags come from the component's doc comment, whichever source wins
+				<code>docComment</code>: the in-script JSDoc at or above <code>$props()</code>, else the
+				HTML <code>@component</code> comment. The losing source's tags are ignored, as its other
+				tags are, and <code>duplicate_comment</code> flags the pair when the JSDoc carries prose, so
+				put the <code>@cssprop</code> tags in the comment that carries the component's prose; a
+				tags-only JSDoc block still wins, silently. Since the heuristic also lists global design
+				tokens read with a fallback, a consumer can show only the <code>documented</code> entries of
+				a component that has any.
+			</p>
+		</TomeSection>
+
+		<TomeSection>
 			<TomeSectionHeader text="@module" />
 			<p>
 				A comment tagged <code>@module</code> documents the file, not the next declaration. Its
@@ -339,11 +402,11 @@ export function double(n) {
 				the same names: <code>examples</code>, <code>deprecatedMessage</code>, <code>seeAlso</code>,
 				<code>since</code>, and <code>internalMessage</code>. Tags that only describe a declaration
 				(<code>@param</code>, <code>@returns</code>, <code>@mutates</code>, <code>@throws</code>,
-				<code>@default</code>, <code>@nodocs</code>) warn <code>misplaced_tag</code> and are
-				dropped, and unknown tags drop silently. A comment of tags alone has no
-				<code>moduleComment</code>. In a module comment only an <code>@</code> that starts a line
-				starts a tag, so a mid-line <code>@</code> stays in the text. The comment counts as a module
-				comment only when a line starts with <code>@module</code> (a one-line
+				<code>@default</code>, <code>@nodocs</code>, <code>@cssprop</code>) warn
+				<code>misplaced_tag</code> and are dropped, and unknown tags drop silently. A comment of
+				tags alone has no <code>moduleComment</code>. In a module comment only an <code>@</code>
+				that starts a line starts a tag, so a mid-line <code>@</code> stays in the text. The comment
+				counts as a module comment only when a line starts with <code>@module</code> (a one-line
 				<code>/** @module */</code> counts); in <code>/** Text @module */</code> the text documents
 				the next declaration instead.
 			</p>
@@ -382,8 +445,8 @@ export function add_days(d: Date, n: number): Date { /* ... */ }`}
 			<TomeSectionHeader text="Tag-related diagnostics" />
 			<p>
 				Tag problems surface as warnings: <code>misplaced_tag</code>, <code>unknown_param</code>,
-				and <code>duplicate_comment</code>, described in the sections above and in
-				<TomeLink slug="diagnostics" />. The parser is
+				<code>unknown_cssprop</code>, and <code>duplicate_comment</code>, described in the sections
+				above and in <TomeLink slug="diagnostics" />. The parser is
 				<ModuleLink module_path="tsdoc.ts">tsdoc.ts</ModuleLink>.
 			</p>
 		</TomeSection>

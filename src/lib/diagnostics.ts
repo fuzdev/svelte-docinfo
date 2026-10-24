@@ -100,6 +100,7 @@ export const DiagnosticKind = v.picklist([
 	'component_comment_mismatch',
 	'misplaced_tag',
 	'unknown_param',
+	'unknown_cssprop',
 	'source_map_failed',
 	'duplicate_declaration',
 	'transform_failed',
@@ -357,12 +358,13 @@ const MisplacedTagDiagnosticImpl = v.strictObject({
 		'default',
 		'nodocs',
 		'param',
-		'returns'
+		'returns',
+		'cssprop'
 	]),
 	/**
 	 * Name of the enclosing symbol: the function or method whose overload
-	 * carries the misplaced tag. Absent for module-comment misplacements (no
-	 * enclosing symbol).
+	 * carries the misplaced tag, or the declaration carrying a `@cssprop`.
+	 * Absent for module-comment misplacements (no enclosing symbol).
 	 */
 	functionName: v.optional(v.string())
 });
@@ -384,11 +386,16 @@ export interface MisplacedTagDiagnosticSchema extends Named<typeof MisplacedTagD
  *   overloads never carry a `defaultValue` or per-overload exclusion: their
  *   presence on a non-primary signature is always a misplacement.
  * - **Module comment** — tags that only describe a declaration (`@param`,
- *   `@returns`, `@mutates`, `@throws`, `@default`, `@nodocs`) have no
- *   module-level meaning, so a `@module` comment's are dropped, one warning
- *   per tag name per comment. `@nodocs` applies to declarations and export
- *   statements; to omit a module from analysis, use `exclude` patterns
+ *   `@returns`, `@mutates`, `@throws`, `@default`, `@nodocs`, `@cssprop`)
+ *   have no module-level meaning, so a `@module` comment's are dropped, one
+ *   warning per tag name per comment. `@nodocs` applies to declarations and
+ *   export statements; to omit a module from analysis, use `exclude` patterns
  *   instead. `@param` and `@returns` occur only here.
+ * - **Non-component declaration** — `@cssprop` (or `@cssproperty`, reported
+ *   as `'cssprop'`) documents a Svelte component's CSS custom properties, so
+ *   on any other exported declaration (a function, a `<script module>` export)
+ *   it's dropped, one warning per declaration. Members, props, and
+ *   parameters drop it silently.
  */
 export const MisplacedTagDiagnostic: MisplacedTagDiagnosticSchema = MisplacedTagDiagnosticImpl;
 export type MisplacedTagDiagnostic = v.InferOutput<typeof MisplacedTagDiagnostic>;
@@ -411,6 +418,36 @@ export interface UnknownParamDiagnosticSchema extends Named<typeof UnknownParamD
  */
 export const UnknownParamDiagnostic: UnknownParamDiagnosticSchema = UnknownParamDiagnosticImpl;
 export type UnknownParamDiagnostic = v.InferOutput<typeof UnknownParamDiagnostic>;
+
+const UnknownCsspropDiagnosticImpl = v.strictObject({
+	kind: v.literal('unknown_cssprop'),
+	...baseDiagnosticFields,
+	/** The custom property the `@cssprop` tag names, `--` included. */
+	propertyName: v.string(),
+	/** Name of the component. */
+	componentName: v.string()
+});
+/** @nodocs */
+export interface UnknownCsspropDiagnosticSchema extends Named<
+	typeof UnknownCsspropDiagnosticImpl
+> {}
+/**
+ * A component's `@cssprop` tag names a custom property the component never
+ * reads through `var()`: not in its `<style>` (nested fallbacks included),
+ * nor in the static text of its markup's `style` attributes, `style:`
+ * directives, or child components' `--a` attributes.
+ *
+ * Usually a typo or a stale tag; it may also be a property the component
+ * leaves for its children to read. The entry stays in
+ * `ComponentDeclarationJson.cssCustomProperties`, `documented: true`, at the
+ * tag's line, which `line` also points at. Not emitted when the style wasn't
+ * read (`css_parse_failed`, `css_lang_unsupported`).
+ *
+ * Always `warning`, query-time category.
+ */
+export const UnknownCsspropDiagnostic: UnknownCsspropDiagnosticSchema =
+	UnknownCsspropDiagnosticImpl;
+export type UnknownCsspropDiagnostic = v.InferOutput<typeof UnknownCsspropDiagnostic>;
 
 const DuplicateDeclarationDiagnosticImpl = v.strictObject({
 	kind: v.literal('duplicate_declaration'),
@@ -646,6 +683,7 @@ export const Diagnostic: v.VariantSchema<
 		typeof ComponentCommentMismatchDiagnostic,
 		typeof MisplacedTagDiagnostic,
 		typeof UnknownParamDiagnostic,
+		typeof UnknownCsspropDiagnostic,
 		typeof SourceMapFailedDiagnostic,
 		typeof DuplicateDeclarationDiagnostic,
 		typeof TransformFailedDiagnostic,
@@ -668,6 +706,7 @@ export const Diagnostic: v.VariantSchema<
 	ComponentCommentMismatchDiagnostic,
 	MisplacedTagDiagnostic,
 	UnknownParamDiagnostic,
+	UnknownCsspropDiagnostic,
 	SourceMapFailedDiagnostic,
 	DuplicateDeclarationDiagnostic,
 	TransformFailedDiagnostic,

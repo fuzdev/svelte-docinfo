@@ -158,7 +158,8 @@ const {modules} = await analyze({
 				<li>
 					<strong>component styling API</strong>: the CSS custom properties a component's
 					<code>&lt;style&gt;</code> reads with a fallback (<code>var(--accent, blue)</code>) and
-					doesn't set itself, as <code>cssCustomProperties</code>
+					doesn't set itself, as <code>cssCustomProperties</code>, plus the ones its doc comment
+					documents with <code>@cssprop</code>
 				</li>
 				<li>
 					<strong>Svelte 5 reactivity runes</strong>: detects <code>$state</code>,

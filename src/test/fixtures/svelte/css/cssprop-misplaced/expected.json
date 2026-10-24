@@ -1,0 +1,45 @@
+{
+	"path": "CssCsspropMisplaced.svelte",
+	"declarations": [
+		{
+			"name": "CssCsspropMisplaced",
+			"kind": "component",
+			"sourceLine": 15,
+			"cssCustomProperties": [
+				{
+					"name": "--a",
+					"fallback": "red",
+					"sourceLine": 21
+				}
+			]
+		},
+		{
+			"name": "fn",
+			"kind": "function",
+			"docComment": "Description 3",
+			"typeSignature": "(): void",
+			"sourceLine": 14,
+			"returnType": "void"
+		}
+	],
+	"moduleComment": "Description 1",
+	"diagnostics": [
+		{
+			"kind": "misplaced_tag",
+			"file": "src/lib/CssCsspropMisplaced.svelte",
+			"line": 14,
+			"column": 15,
+			"message": "@cssprop on \"fn\" has no effect — it documents a Svelte component's CSS custom properties, in the component's doc comment",
+			"severity": "warning",
+			"tagName": "cssprop",
+			"functionName": "fn"
+		},
+		{
+			"kind": "misplaced_tag",
+			"file": "src/lib/CssCsspropMisplaced.svelte",
+			"message": "@cssprop in a module comment has no effect — it documents a Svelte component's CSS custom properties, in the component's doc comment",
+			"severity": "warning",
+			"tagName": "cssprop"
+		}
+	]
+}

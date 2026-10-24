@@ -13,6 +13,7 @@ import { join } from 'node:path';
 import { byKind } from '#lib/diagnostics.ts';
 import { createAnalysisSession } from '#lib/session.ts';
 import { createSourceOptions } from '#lib/source-config.ts';
+import type { ComponentCssPropertyJsonInput } from '#lib/types.ts';
 
 import { findComponent, findModule, withTestProject } from './test-helpers.ts';
 import { analyzeDoctored, analyzeTestProject } from './test-module-helpers.ts';
@@ -70,7 +71,7 @@ describe('cssCustomProperties on re-exports', () => {
 		const alias = findModule(modules, 'index.ts').declarations.find((d) => d.name === 'Renamed');
 		assert(alias?.kind === 'component');
 		assert.deepStrictEqual(alias.cssCustomProperties, [
-			{ name: '--a', fallback: 'red', sourceLine: 4 }
+			{ name: '--a', fallback: 'red', sourceLine: 4, documented: false }
 		]);
 	});
 });
@@ -105,9 +106,50 @@ describe('cssCustomProperties on the virtual', () => {
 			virtual: ({ css: _, ...virtual }) => virtual
 		});
 		assert.ok(component);
-		assert.deepStrictEqual(component.cssCustomProperties, [
-			{ name: '--a', fallback: 'red', sourceLine: 3 }
-		]);
+		assert.deepStrictEqual<Array<ComponentCssPropertyJsonInput> | undefined>(
+			component.cssCustomProperties,
+			[{ name: '--a', fallback: 'red', sourceLine: 3 }]
+		);
+	});
+});
+
+describe('@cssprop warnings', () => {
+	test('a comment mentioning the tag above the doc comment leaves the tag its line', async () => {
+		const { diagnostics } = await analyzeTestProject({
+			'src/lib/Comp.svelte':
+				'<script lang="ts">\n\t// see @cssprop --zz below\n\t/**\n\t * Description 1\n\t *\n\t * @cssprop --zz - Description 2\n\t */\n\tconst {}: {} = $props();\n</script>\n<div></div>\n'
+		});
+		assert.deepStrictEqual(
+			byKind(diagnostics, 'unknown_cssprop').map(({ line, propertyName }) => [line, propertyName]),
+			[[6, '--zz']]
+		);
+	});
+
+	test('a misplaced tag warns once, at the canonical, not again per alias', async () => {
+		const { diagnostics } = await analyzeTestProject({
+			'src/lib/a.ts':
+				'/**\n * Description 1\n *\n * @cssprop --a - Description 2\n */\nexport const fn = (): void => {};\n',
+			'src/lib/index.ts':
+				"export { fn as renamed } from './a.ts';\nimport { fn as imported } from './a.ts';\nexport { imported };\n"
+		});
+		assert.deepStrictEqual(
+			byKind(diagnostics, 'misplaced_tag').map(({ file, line, functionName }) => [
+				file,
+				line,
+				functionName
+			]),
+			[['src/lib/a.ts', 6, 'fn']]
+		);
+	});
+
+	test('an unread tag on the HTML comment line that closes it keeps its line', async () => {
+		const { diagnostics } = await analyzeTestProject({
+			'src/lib/Comp.svelte': '<!--\n@component\nDescription 1\n@cssprop --abcd -->\n<div></div>\n'
+		});
+		assert.deepStrictEqual(
+			byKind(diagnostics, 'unknown_cssprop').map(({ line, propertyName }) => [line, propertyName]),
+			[[4, '--abcd']]
+		);
 	});
 });
 

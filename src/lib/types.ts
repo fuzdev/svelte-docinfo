@@ -704,15 +704,35 @@ export type ComponentPropJsonInput = v.InferInput<typeof ComponentPropJson>;
 const ComponentCssPropertyJsonImpl = v.strictObject({
 	/** The custom property's name as written, `--` included (`--a_color`); case-sensitive, as in CSS. */
 	name: v.string(),
+	/** The `@cssprop` tag's description, raw like `docComment`. Only on a `documented` entry. */
+	description: v.optional(v.string()),
 	/**
-	 * The fallback of the first `var()` read with one: the verbatim source text
-	 * after the comma, trimmed, comments included (`var(--a, var(--b, 1px))`
-	 * gives `var(--b, 1px)`). Empty for `var(--a,)`, a fallback of nothing.
-	 * Optional so an entry can describe a property no read gives a fallback.
+	 * The `@cssprop` tag's braced syntax (`@cssprop {<color>} --a` gives
+	 * `<color>`), verbatim, unvalidated. Only on a `documented` entry.
+	 */
+	syntax: v.optional(v.string()),
+	/**
+	 * The value the property takes when unset: a `@cssprop` tag's bracketed
+	 * default (`@cssprop [--a=1px]` gives `1px`), else the fallback of the
+	 * first `var()` read with one, the verbatim source text after the comma,
+	 * trimmed, comments included (`var(--a, var(--b, 1px))` gives
+	 * `var(--b, 1px)`). Empty for `var(--a,)`, a fallback of nothing. Absent
+	 * for a documented property no read gives a fallback and no tag a default.
 	 */
 	fallback: v.optional(v.string()),
-	/** 1-based line of the property's first `var()` read in the original `.svelte` source. */
-	sourceLine: v.pipe(v.number(), v.safeInteger(), v.minValue(1))
+	/**
+	 * 1-based line in the original `.svelte` source of the property's first
+	 * `var()` read, or for a documented property the component never reads,
+	 * of its `@cssprop` tag.
+	 */
+	sourceLine: v.pipe(v.number(), v.safeInteger(), v.minValue(1)),
+	/**
+	 * Whether a `@cssprop` tag in the component's doc comment documents the
+	 * property, as opposed to the fallback-read heuristic finding it alone.
+	 * A consumer can list only the documented entries when a component has
+	 * any, dropping the global tokens the heuristic also catches.
+	 */
+	documented: v.optional(v.boolean(), false)
 });
 /** @nodocs */
 export interface ComponentCssPropertyJsonSchema extends Named<
@@ -1306,8 +1326,10 @@ const ComponentDeclarationJsonImpl = v.strictObject({
 	acceptsChildren: v.optional(v.boolean(), false),
 	/**
 	 * The component's styling API: the CSS custom properties its `<style>`
-	 * reads with a fallback (`var(--a, 1px)`) and leaves for a consumer to set.
-	 * One entry per name, in the order of each name's first read.
+	 * reads with a fallback (`var(--a, 1px)`) and leaves for a consumer to set,
+	 * plus the ones its doc comment documents with `@cssprop`. One entry per
+	 * name: the documented ones first, in tag order, then the rest in the
+	 * order of each name's first read.
 	 *
 	 * A read counts when it's an outermost `var()`, not one in another
 	 * `var()`'s fallback: `var(--a, var(--b))` reads `--a`, with `--b` the
@@ -1320,9 +1342,21 @@ const ComponentDeclarationJsonImpl = v.strictObject({
 	 * the child. A name read only without a fallback isn't listed: bare reads
 	 * are mostly global design tokens.
 	 *
-	 * Empty when the component has no `<style>`, when its style's `lang` (or
-	 * `type`) names a preprocessor language (`css_lang_unsupported`), or when
-	 * Svelte's parser rejects the component (`css_parse_failed`).
+	 * `@cssprop --a - Description 1` (or `@cssproperty`) in the component's
+	 * doc comment, the source that wins `docComment` (the in-script JSDoc
+	 * over the HTML `@component` comment, the losing one's tags ignored),
+	 * lists `--a` whatever the heuristic makes of it, `documented: true`, with
+	 * the tag's `description`, `syntax`, and default (`fallback`). It merges
+	 * with the read: a bare read, one nested in another's fallback, one the
+	 * component sets itself, or one in its markup's static style text counts,
+	 * giving `sourceLine` and, without a tag default, `fallback`. A name the
+	 * component never reads stays, at the tag's line, and warns
+	 * `unknown_cssprop`.
+	 *
+	 * Without tags, empty when the component has no `<style>`, when its
+	 * style's `lang` (or `type`) names a preprocessor language
+	 * (`css_lang_unsupported`), or when Svelte's parser rejects the component
+	 * (`css_parse_failed`); tagged properties are listed even then.
 	 */
 	cssCustomProperties: v.optional(v.array(ComponentCssPropertyJson), () => []),
 	/** Script language. `undefined` means TypeScript (default), `'js'` for JavaScript-only components. */

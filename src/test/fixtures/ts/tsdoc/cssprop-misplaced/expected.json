@@ -1,0 +1,55 @@
+{
+	"path": "input.ts",
+	"declarations": [
+		{
+			"name": "fn",
+			"kind": "function",
+			"docComment": "Description 1",
+			"typeSignature": "(): void",
+			"sourceLine": 6,
+			"returnType": "void"
+		},
+		{
+			"name": "A",
+			"kind": "class",
+			"docComment": "Description 3",
+			"sourceLine": 11,
+			"members": [
+				{
+					"name": "a",
+					"kind": "variable",
+					"docComment": "Description 4",
+					"typeSignature": "number"
+				}
+			]
+		},
+		{
+			"name": "B",
+			"kind": "type",
+			"typeSignature": "string",
+			"sourceLine": 21
+		}
+	],
+	"diagnostics": [
+		{
+			"kind": "misplaced_tag",
+			"file": "src/lib/input.ts",
+			"line": 6,
+			"column": 14,
+			"message": "@cssprop on \"fn\" has no effect — it documents a Svelte component's CSS custom properties, in the component's doc comment",
+			"severity": "warning",
+			"tagName": "cssprop",
+			"functionName": "fn"
+		},
+		{
+			"kind": "misplaced_tag",
+			"file": "src/lib/input.ts",
+			"line": 21,
+			"column": 1,
+			"message": "@cssprop on \"B\" has no effect — it documents a Svelte component's CSS custom properties, in the component's doc comment",
+			"severity": "warning",
+			"tagName": "cssprop",
+			"functionName": "B"
+		}
+	]
+}

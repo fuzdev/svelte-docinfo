@@ -730,6 +730,7 @@ describe('diagnostic type discrimination', () => {
 				case 'commonjs_unsupported':
 				case 'css_parse_failed':
 				case 'css_lang_unsupported':
+				case 'unknown_cssprop':
 					assert.fail('unreachable');
 			}
 		}

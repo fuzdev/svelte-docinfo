@@ -1,0 +1,77 @@
+{
+	"modules": [
+		{
+			"path": "CssCsspropOtherReads/CssCsspropOtherReads.svelte",
+			"declarations": [
+				{
+					"name": "CssCsspropOtherReads",
+					"kind": "component",
+					"sourceLine": 9,
+					"cssCustomProperties": [
+						{
+							"name": "--b",
+							"description": "Description 1",
+							"fallback": "2px",
+							"sourceLine": 19,
+							"documented": true
+						},
+						{
+							"name": "--c",
+							"description": "Description 2",
+							"fallback": "red",
+							"sourceLine": 13,
+							"documented": true
+						},
+						{
+							"name": "--d",
+							"description": "Description 3",
+							"sourceLine": 20,
+							"documented": true
+						},
+						{
+							"name": "--f",
+							"description": "Description 4",
+							"sourceLine": 14,
+							"documented": true
+						},
+						{
+							"name": "--g",
+							"description": "Description 5",
+							"sourceLine": 13,
+							"documented": true
+						},
+						{
+							"name": "--a",
+							"fallback": "var(--b, 2px)",
+							"sourceLine": 19
+						}
+					]
+				}
+			],
+			"dependencies": [
+				"CssCsspropOtherReads/Other.svelte"
+			]
+		},
+		{
+			"path": "CssCsspropOtherReads/Other.svelte",
+			"declarations": [
+				{
+					"name": "Other",
+					"kind": "component",
+					"sourceLine": 1,
+					"cssCustomProperties": [
+						{
+							"name": "--e",
+							"fallback": "red",
+							"sourceLine": 5
+						}
+					],
+					"lang": "js"
+				}
+			],
+			"dependents": [
+				"CssCsspropOtherReads/CssCsspropOtherReads.svelte"
+			]
+		}
+	]
+}

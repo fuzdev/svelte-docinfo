@@ -216,10 +216,12 @@
 							<code>@nodocs</code>) on a non-primary overload signature, or a tag that only
 							describes a declaration (<code>@param</code>, <code>@returns</code>,
 							<code>@mutates</code>, <code>@throws</code>, <code>@default</code>,
-							<code>@nodocs</code>) in a <code>@module</code> comment (then
-							<code>functionName</code> is absent). <strong>Consequence:</strong> the tag is
-							dropped. On an overload, move it to the primary signature. To omit a module, use
-							<code>exclude</code> patterns rather than <code>@nodocs</code>.
+							<code>@nodocs</code>, <code>@cssprop</code>) in a <code>@module</code> comment (then
+							<code>functionName</code> is absent), or a <code>@cssprop</code> on an exported
+							declaration other than a component (<code>functionName</code> names it).
+							<strong>Consequence:</strong> the tag is dropped. On an overload, move it to the
+							primary signature; a <code>@cssprop</code> belongs in the component's doc comment. To
+							omit a module, use <code>exclude</code> patterns rather than <code>@nodocs</code>.
 						</td>
 					</tr>
 					<tr>
@@ -227,6 +229,18 @@
 						<td>
 							<strong>Trigger:</strong> a <code>@param</code> key matches no parameter (a typo, or a
 							stale doc after a rename). <strong>Consequence:</strong> the description is dropped.
+						</td>
+					</tr>
+					<tr>
+						<td><code>unknown_cssprop</code></td>
+						<td>
+							<strong>Trigger:</strong> a component's <code>@cssprop</code> names a property
+							(<code>propertyName</code>) the component never reads through <code>var()</code>, in
+							its <code>&lt;style&gt;</code> or its markup's static style text: a typo, a stale tag,
+							or a property it leaves for its children. <code>line</code> is the tag's. Not emitted
+							when the style isn't read (<code>css_parse_failed</code>,
+							<code>css_lang_unsupported</code>). <strong>Consequence:</strong> none; the entry
+							stays in <code>cssCustomProperties</code>, <code>documented: true</code>.
 						</td>
 					</tr>
 					<tr>
@@ -267,8 +281,8 @@
 							<strong>Trigger:</strong> Svelte's parser rejects a component that has a
 							<code>&lt;style&gt;</code>: malformed CSS, two top-level styles, or markup its loose
 							parsing can't absorb. <strong>Consequence:</strong> the component emits without
-							<code>cssCustomProperties</code>; <code>line</code>/<code>column</code> are the
-							parser's.
+							<code>cssCustomProperties</code> beyond its <code>@cssprop</code> tags;
+							<code>line</code>/<code>column</code> are the parser's.
 						</td>
 					</tr>
 					<tr>
@@ -278,7 +292,7 @@
 							preprocessor language (<code>lang="scss"</code>, <code>lang="postcss"</code>,
 							<code>type="text/less"</code>), carried in <code>lang</code>.
 							<strong>Consequence:</strong> the style isn't read, so the component emits without
-							<code>cssCustomProperties</code>.
+							<code>cssCustomProperties</code> beyond its <code>@cssprop</code> tags.
 						</td>
 					</tr>
 					<tr>

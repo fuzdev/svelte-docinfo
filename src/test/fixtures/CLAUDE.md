@@ -27,7 +27,7 @@ Layout:
   `members`, `module/{comment,commonjs}`, `parameters`, `reexports`, `tsdoc`, `types`
 - **tsdoc** — flat `tsdoc/<tag>-<feature>/` (kebab-case): `comment`, `tags`,
   `param`, `returns`, `throws`, `example`, `deprecated`, `internal`, `link`,
-  `see`, `since`, `mutates`, `nodocs`, plus the standalone `no-jsdoc`
+  `see`, `since`, `mutates`, `nodocs`, `cssprop`, plus the standalone `no-jsdoc`
 
 Generic content names:
 
@@ -261,8 +261,18 @@ Where each behavior is locked. Unit and behavior-level mechanics live in
   `@supports`, keyframes, and `:global` (`nested-rules`); comments and strings
   (`comments-strings`); a legacy component (`legacy`), a template-only one
   (`template-only`); a preprocessor `lang` warning `css_lang_unsupported`
-  (`lang-postcss`). Sources Svelte rejects (`css_parse_failed`) and scanner
-  edges are in `svelte-css.test.ts`, since svelte-check type-checks fixtures
+  (`lang-postcss`). `@cssprop` tags (`cssprop-*`): in the HTML comment, a
+  bare read, a fallback read merging, `@cssproperty` with a `{<color>}` syntax,
+  a default over the read's fallback, an unread name warning `unknown_cssprop`,
+  and an undocumented read listed after (`cssprop-html`); in the in-script
+  JSDoc, winning over the HTML comment's tags (`cssprop-script`); reads that
+  count only for tags, nested in a fallback, set by the component itself, and
+  in the markup's static style text and a child's `--a` attribute
+  (`cssprop-other-reads`); a component with no style (`cssprop-no-style`) and
+  with an unread one (`cssprop-lang`); in a `<script module>` module comment
+  and on an export, warning `misplaced_tag` (`cssprop-misplaced`). Sources
+  Svelte rejects (`css_parse_failed`) and scanner edges are in
+  `svelte-css.test.ts`, since svelte-check type-checks fixtures
 - Re-exports (`reexports/*`): component rename with phase-2 fill
   (`component-renamed`), same-name re-key via a ts barrel's bare
   `export {default}` (`component-same-name`), `<script module>` links /
@@ -282,9 +292,10 @@ Where each behavior is locked. Unit and behavior-level mechanics live in
   `@param {object}`-nested docs with TS twins: `parameters/jsdoc-*`), module
   comments (`module/comment/*`: tags to module fields, tag-only, bare tags,
   multi-line `@see`, unknown tags, and declaration-only tags warning
-  `misplaced_tag`); a JS CommonJS module warning `commonjs_unsupported` and
-  documenting nothing but its module comment, and an ES module's
-  `module.exports` assignment staying ordinary code (`module/commonjs/*`)
+  `misplaced_tag`, `@cssproperty` among them: `module/comment/cssprop`); a JS
+  CommonJS module warning `commonjs_unsupported` and documenting nothing but its
+  module comment, and an ES module's `module.exports` assignment staying
+  ordinary code (`module/commonjs/*`)
 - Structured types and name recovery: `types/type-info*`,
   `declarations/*/type-info-recovery`, `declarations/*/alias-lost-*`; merged
   value+type symbols: `declarations/*/merged-value-*`; union members in
@@ -372,7 +383,9 @@ Where each behavior is locked. Unit and behavior-level mechanics live in
   (`members/jsdoc-borrowed-overloads`); a JS
   `<script module>` function (svelte `component/javascript-module-overloads`)
 - TSDoc placement on declarations and members (`ts/tsdoc/*`), including
-  `@default` (`declarations/*/jsdoc-default*`)
+  `@default` (`declarations/*/jsdoc-default*`) and `@cssprop` warning
+  `misplaced_tag` on a function and a type, not on a member
+  (`tsdoc/cssprop-misplaced`)
 - Type aliases: object literals, intersections, mapped, unions, tuples,
   conditionals, template literals, index/call/construct signatures, readonly,
   overloads
@@ -389,8 +402,9 @@ Where each behavior is locked. Unit and behavior-level mechanics live in
 `@throws` (braced types incl. unions, bare braced, multiline), `@example`,
 `@deprecated`, `@internal` (prose and bare), `@see` (URL, `{@link}`, text,
 mixed), `@since`, `@mutates` (compound path, multi-word, backtick, bare,
-continuation, list), `@nodocs`, inline `{@link}` in descriptions, empty
-comments, a comprehensive all-tags case, and a `@module` block's tags never
+continuation, list), `@nodocs`, `@cssprop` (every form, `@cssproperty`,
+dropped malformed tags, a duplicate name: `cssprop-*`), inline `{@link}` in
+descriptions, empty comments, a comprehensive all-tags case, and a `@module` block's tags never
 reaching the declaration below it (`module-block-*`).
 
 ## See also

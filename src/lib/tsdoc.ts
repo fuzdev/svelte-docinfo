@@ -33,6 +33,12 @@
  * stripped from the target so `` `a` `` and `a` are one key. Without a separator the first
  * line is a bare target (empty description) and any continuation lines are the description.
  *
+ * Also supports `@cssprop` (the Custom Elements Manifest convention; `@cssproperty` is a
+ * synonym) for documenting a Svelte component's CSS custom properties:
+ * `@cssprop {<syntax>} [--name=default] - description`, where the braced syntax, the
+ * brackets, and the default are optional (`parseCsspropTagText`). It documents only a
+ * component, in its doc comment; elsewhere it warns `misplaced_tag`.
+ *
  * The `@see` tag supports multiple formats: plain URLs (`https://...`), `{@link}` syntax, and module names.
  * Relative/absolute path support in `@see` is TBD.
  *
@@ -116,6 +122,26 @@ export interface TsdocParsedComment {
 	mutates?: Record<string, string>;
 	/** Whether to exclude from documentation. From `@nodocs` tag. */
 	nodocs?: boolean;
+	/**
+	 * CSS custom properties from `@cssprop` (or its `@cssproperty` synonym), in
+	 * tag order, one per name: a later tag naming the same property is ignored.
+	 */
+	cssProperties?: Array<TsdocCssProperty>;
+}
+
+/**
+ * A CSS custom property documented by a `@cssprop` tag
+ * (`@cssprop {<color>} [--a=red] - Description 1`).
+ */
+export interface TsdocCssProperty {
+	/** The property's name as written, `--` included. */
+	name: string;
+	/** The tag's description, without its leading `- ` separator. */
+	description?: string;
+	/** The braced syntax before the name (`<color>`), verbatim without the braces. */
+	syntax?: string;
+	/** The bracketed default after the name (`[--a=red]` → `red`), verbatim and trimmed. */
+	fallback?: string;
 }
 
 /**
@@ -304,6 +330,74 @@ export const jsdocParamTagDefault = (
 	return value || undefined;
 };
 
+/** A custom property name: `--` and at least one name character (CSS's, escapes aside). */
+const CSS_CUSTOM_PROPERTY_NAME = /^--[\w\-\u0080-\uffff]+$/;
+
+/**
+ * Parse a `@cssprop` tag's text (after the tag name), the Custom Elements
+ * Manifest form: an optional braced syntax (`{<color>}`), the name, bare
+ * (`--a`) or bracketed with an optional default (`[--a=red]`), then the
+ * description, its leading `- ` separator dropped. The default runs to the
+ * bracket that closes the name, skipping nested brackets and quoted strings
+ * (`[--a=var(--b, 1px)]`). An empty syntax or default is absent.
+ *
+ * @param text - the tag's comment text
+ * @returns the property, or `undefined` when the text names no custom property
+ *   (a name without `--`, an unclosed brace or bracket)
+ */
+export const parseCsspropTagText = (text: string): TsdocCssProperty | undefined => {
+	let rest = text.trim();
+	let syntax: string | undefined;
+	if (rest.startsWith('{')) {
+		const close = rest.indexOf('}');
+		if (close === -1) return undefined;
+		syntax = rest.slice(1, close).trim() || undefined;
+		rest = rest.slice(close + 1).trimStart();
+	}
+	let name: string;
+	let fallback: string | undefined;
+	if (rest.startsWith('[')) {
+		let depth = 0;
+		let quote: string | undefined;
+		let close = -1;
+		for (let i = 1; i < rest.length; i++) {
+			const char = rest[i]!;
+			if (quote) {
+				if (char === '\\') i++;
+				else if (char === quote) quote = undefined;
+			} else if (char === '"' || char === "'") {
+				quote = char;
+			} else if (char === '[' || char === '(' || char === '{') {
+				depth++;
+			} else if (char === ']' || char === ')' || char === '}') {
+				if (depth === 0) {
+					if (char === ']') close = i;
+					break;
+				}
+				depth--;
+			}
+		}
+		if (close === -1) return undefined;
+		const inner = rest.slice(1, close);
+		const equals = inner.indexOf('=');
+		name = (equals === -1 ? inner : inner.slice(0, equals)).trim();
+		if (equals !== -1) {
+			fallback = inner.slice(equals + 1).trim() || undefined;
+		}
+		rest = rest.slice(close + 1);
+	} else {
+		name = /^\S*/.exec(rest)![0];
+		rest = rest.slice(name.length);
+	}
+	if (!CSS_CUSTOM_PROPERTY_NAME.test(name)) return undefined;
+	const property: TsdocCssProperty = { name };
+	const description = cleanTagDescription(rest);
+	if (description) property.description = description;
+	if (syntax !== undefined) property.syntax = syntax;
+	if (fallback !== undefined) property.fallback = fallback;
+	return property;
+};
+
 /**
  * Parse JSDoc comment from a TypeScript node.
  *
@@ -320,6 +414,7 @@ export const jsdocParamTagDefault = (
  * - `@default` - default value (`@defaultValue`/`@defaultvalue` accepted as synonyms)
  * - `@mutates` - mutation documentation (non-standard)
  * - `@nodocs` - exclusion flag (non-standard)
+ * - `@cssprop` - a component's CSS custom property (`@cssproperty` accepted as a synonym)
  *
  * A JSDoc `@typedef` or `@callback` tag parses to the typedef's docs
  * (`parseTypedefComment`), and a `@callback`'s signature to its parameter and
@@ -615,6 +710,7 @@ const parseCommentParts = (
 	let defaultValue: string | undefined;
 	let mutates: Record<string, string> | undefined;
 	let nodocs: boolean | undefined;
+	let cssProperties: Array<TsdocCssProperty> | undefined;
 
 	for (const tag of tags) {
 		const tagText = jsdocCommentText(tag.comment, sourceFile);
@@ -679,6 +775,11 @@ const parseCommentParts = (
 			}
 		} else if (tagName === 'nodocs') {
 			nodocs = true;
+		} else if ((tagName === 'cssprop' || tagName === 'cssproperty') && tagText) {
+			const property = parseCsspropTagText(tagText);
+			if (property && !cssProperties?.some(({ name }) => name === property.name)) {
+				(cssProperties ??= []).push(property);
+			}
 		}
 	}
 
@@ -694,7 +795,8 @@ const parseCommentParts = (
 		since,
 		defaultValue,
 		mutates,
-		nodocs
+		nodocs,
+		cssProperties
 	};
 };
 
@@ -910,8 +1012,8 @@ export type ModuleDocFields = Partial<
  * Project a parsed module comment onto its `ModuleJson` fields: the prose as
  * `moduleComment` (absent when empty) plus the tags a module can carry. Tags
  * that only describe a declaration (`@param`, `@returns`, `@throws`,
- * `@mutates`, `@default`, `@nodocs`) are dropped; the analyzers warn
- * `misplaced_tag` for each.
+ * `@mutates`, `@default`, `@nodocs`, `@cssprop`) are dropped; the analyzers
+ * warn `misplaced_tag` for each.
  *
  * @param tsdoc - the module comment as `parseModuleComment` returns it
  */

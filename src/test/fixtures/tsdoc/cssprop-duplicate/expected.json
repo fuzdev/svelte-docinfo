@@ -1,0 +1,10 @@
+{
+	"text": "",
+	"params": {},
+	"cssProperties": [
+		{
+			"name": "--a",
+			"description": "Description 1"
+		}
+	]
+}

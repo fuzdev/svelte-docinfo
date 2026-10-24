@@ -1,0 +1,37 @@
+{
+	"text": "Description 1",
+	"params": {},
+	"cssProperties": [
+		{
+			"name": "--a",
+			"description": "Description 2"
+		},
+		{
+			"name": "--b",
+			"description": "Description 3"
+		},
+		{
+			"name": "--c",
+			"description": "Description 4\ncontinued"
+		},
+		{
+			"name": "--d",
+			"description": "Description 5",
+			"syntax": "<color>"
+		},
+		{
+			"name": "--e",
+			"description": "Description 6",
+			"fallback": "1px"
+		},
+		{
+			"name": "--f",
+			"description": "Description 7 with {@link fn}",
+			"syntax": "<length> | auto",
+			"fallback": "var(--g, 2px)"
+		},
+		{
+			"name": "--h"
+		}
+	]
+}
