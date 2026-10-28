@@ -1,5 +1,17 @@
 # svelte-docinfo
 
+## 0.17.0
+
+### Minor Changes
+
+- refine a component's styling API (`cssCustomProperties`) ([24991f0](https://github.com/fuzdev/svelte-docinfo/commit/24991f0))
+
+  - **Breaking:** `ComponentCssPropertyJson.fallback` is now the style's fact only: the first `var()` read's fallback, or an `@property` rule's `initial-value`. A `@cssprop` tag's bracketed default lands in the new `default` field instead of overriding it, so a renderer wanting one value takes `default ?? fallback`. The new `cssprop_default_mismatch` warning (`propertyName`, `componentName`, `default`, `fallback`) reports a tag default the fallback disagrees with, compared as text with whitespace runs collapsed. `TsdocCssProperty.fallback` is renamed `default` to match.
+  - Fallback reads in the markup's static style text now list like the stylesheet's: elements' `style` attributes and `style:` directives, and child components' `style` and `--a` attributes (`<Child --a="var(--b, 1px)" />` lists `--b`), in source order with the stylesheet's reads. A style-less component with such a read emits the field; one with `var(` only in a script string still isn't parsed.
+  - `@property --a {…}` in the component's style lists a bare read of `--a`, with the rule's `syntax` (quotes stripped) as `syntax` and its `initial-value` as `fallback`, which also wins over a read's fallback, since a registered property is never unset; the last rule for a name wins. `syntax` is no longer only on documented entries.
+  - New `malformed_tag` warning (`tagName`, `declarationName`): a `@cssprop` whose text names no custom property, at the tag's line; new `duplicate_tag` warning (`tagName`, `declarationName`, `key`): a `@cssprop` repeating an earlier tag's name. Both tags were dropped silently before. On a non-component declaration a malformed `@cssprop` now warns `misplaced_tag` like a well-formed one. `TsdocParsedComment` carries them as `cssPropertyProblems`, which count as doc content, so a comment of broken tags alone still claims the doc slot (and, beside an HTML `@component` comment, warns `duplicate_comment`).
+  - `duplicate_comment` now fires whenever both the in-script JSDoc and the HTML `@component` comment carry documentation, a JSDoc of tags alone included (it won before with no warning, and the HTML comment's prose was lost); its message changed.
+
 ## 0.16.0
 
 ### Minor Changes
