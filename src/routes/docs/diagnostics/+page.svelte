@@ -47,14 +47,15 @@
 					<code>projectRoot</code>, or <code>sourcePaths</code> not under <code>sourceRoot</code>
 				</li>
 				<li>
-					conflicting options: <code>discovery: 'exports'</code> with <code>include</code>, or
-					<code>resolveImport</code> with <code>resolveDependencies: false</code>
+					conflicting options: <Code lang="ts" inline content="discovery: 'exports'" /> with
+					<code>include</code>, or <code>resolveImport</code> with
+					<Code lang="ts" inline content="resolveDependencies: false" />
 				</li>
 				<li>
-					<code>discovery: 'exports'</code> when <code>exports</code> is missing or resolves to no
-					files, or when the source paths share no common prefix
+					<Code lang="ts" inline content="discovery: 'exports'" /> when <code>exports</code> is
+					missing or resolves to no files, or when the source paths share no common prefix
 				</li>
-				<li>a name collision under <code>onDuplicates: 'throw'</code></li>
+				<li>a name collision under <Code lang="ts" inline content="onDuplicates: 'throw'" /></li>
 			</ul>
 			<p>
 				Wrap <code>analyze</code> / <code>analyzeFromFiles</code>, or
@@ -74,7 +75,10 @@
 			</p>
 			<ul>
 				<li><code>kind</code>: discriminant, one per failure mode (see table below)</li>
-				<li><code>severity</code>: <code>"error"</code> or <code>"warning"</code></li>
+				<li>
+					<code>severity</code>: <Code lang="ts" inline content={'"error"'} /> or
+					<Code lang="ts" inline content={'"warning"'} />
+				</li>
 				<li>
 					<code>file</code>: POSIX-form and relative to the project root, with no leading
 					<code>./</code>; a file outside the project takes the <code>../</code> form. Join with
@@ -125,46 +129,52 @@
 						<td><code>type_extraction_failed</code></td>
 						<td>
 							<strong>Trigger:</strong> type resolution threw on a declaration or member.
-							<strong>Consequence:</strong> it's included with <code>partial: true</code>;
-							<code>typeSignature</code> and <code>typeInfo</code> may be absent.
+							<strong>Consequence:</strong> it's included with
+							<Code lang="ts" inline content="partial: true" />; <code>typeSignature</code> and
+							<code>typeInfo</code> may be absent.
 						</td>
 					</tr>
 					<tr>
 						<td><code>signature_analysis_failed</code></td>
 						<td>
 							<strong>Trigger:</strong> function or method signature analysis threw.
-							<strong>Consequence:</strong> declaration included with <code>partial: true</code>;
-							parameters and overloads may be empty.
+							<strong>Consequence:</strong> declaration included with
+							<Code lang="ts" inline content="partial: true" />; parameters and overloads may be
+							empty.
 						</td>
 					</tr>
 					<tr>
 						<td><code>class_member_failed</code></td>
 						<td>
 							<strong>Trigger:</strong> one member of a class couldn't be analyzed.
-							<strong>Consequence:</strong> member included with <code>partial: true</code>;
-							siblings still extract normally.
+							<strong>Consequence:</strong> member included with
+							<Code lang="ts" inline content="partial: true" />; siblings still extract normally.
 						</td>
 					</tr>
 					<tr>
 						<td><code>svelte_prop_failed</code></td>
 						<td>
 							<strong>Trigger:</strong> a Svelte component prop type couldn't be resolved.
-							<strong>Consequence:</strong> that prop's type falls back to <code>"any"</code>; if
-							the whole props type on <code>$props()</code> is unresolvable, <code>props</code> is
-							empty. When the check for a <code>children</code> snippet fails, only template use of
-							<code>children</code> can set <code>acceptsChildren</code>. A legacy
-							<code>export let</code> component whose svelte2tsx output has no recognized props type
-							reports each exported prop, at its export's line, and has empty <code>props</code>.
+							<strong>Consequence:</strong> that prop's type falls back to
+							<Code lang="ts" inline content={'"any"'} />; if the whole props type on
+							<code>$props()</code> is unresolvable, <code>props</code> is empty. When the check for
+							a <code>children</code> snippet fails, only template use of <code>children</code> can
+							set <code>acceptsChildren</code>. A legacy
+							<Code lang="ts" inline content="export let" /> component whose svelte2tsx output has
+							no recognized props type reports each exported prop, at its export's line, and has
+							empty <code>props</code>.
 						</td>
 					</tr>
 					<tr>
 						<td><code>module_skipped</code></td>
 						<td>
 							<strong>Trigger:</strong> a whole module was skipped during analysis.
-							<code>reason</code> is <code>"not_in_program"</code> (the file wasn't in the
-							TypeScript program), <code>"no_analyzer"</code> (unsupported extension), or
-							<code>"requires_program"</code> (a Svelte file passed to <code>analyzeModule</code>
-							directly). <strong>Consequence:</strong> module absent from <code>modules[]</code>.
+							<code>reason</code> is <Code lang="ts" inline content={'"not_in_program"'} /> (the
+							file wasn't in the TypeScript program),
+							<Code lang="ts" inline content={'"no_analyzer"'} /> (unsupported extension), or
+							<Code lang="ts" inline content={'"requires_program"'} /> (a Svelte file passed to
+							<code>analyzeModule</code> directly). <strong>Consequence:</strong> module absent from
+							<code>modules[]</code>.
 						</td>
 					</tr>
 					<tr>
@@ -189,11 +199,13 @@
 						<td>
 							<strong>Trigger:</strong> two sources supplied a comment for the same target: an HTML
 							<code>@component</code> comment plus script JSDoc, either with prose or a tag
-							(<code>commentType: "doc_comment"</code>), or several <code>@module</code> sources in
-							a Svelte file (<code>"module_comment"</code>). <strong>Consequence:</strong> the
-							higher-priority source wins whole: script JSDoc for doc comments, its prose and tags
-							replacing the HTML comment's even when the JSDoc holds tags alone; instance
-							<code>&lt;script&gt;</code>, then <code>&lt;script module&gt;</code>, then HTML for
+							(<Code lang="ts" inline content={'commentType: "doc_comment"'} />), or several
+							<code>@module</code> sources in a Svelte file
+							(<Code lang="ts" inline content={'"module_comment"'} />).
+							<strong>Consequence:</strong> the higher-priority source wins whole: script JSDoc for
+							doc comments, its prose and tags replacing the HTML comment's even when the JSDoc
+							holds tags alone; instance <Code lang="svelte" inline content={'<' + 'script>'} />,
+							then <Code lang="svelte" inline content={'<' + 'script module>'} />, then HTML for
 							module comments, skipping one that holds only dropped tags.
 						</td>
 					</tr>
@@ -224,8 +236,9 @@
 							<strong>Consequence:</strong> the tag is dropped. On an overload, move it to the
 							primary signature; a <code>@cssprop</code> belongs in the component's doc comment. To
 							omit a module, use <code>exclude</code> patterns rather than <code>@nodocs</code>.
-							Overloads a member borrows through its type (<code>m: typeof fn</code>) never warn;
-							the lending function's own analysis checks its tags.
+							Overloads a member borrows through its type
+							(<Code lang="ts" inline content="m: typeof fn" />) never warn; the lending function's
+							own analysis checks its tags.
 						</td>
 					</tr>
 					<tr>
@@ -252,12 +265,13 @@
 						<td>
 							<strong>Trigger:</strong> a component's <code>@cssprop</code> names a property
 							(<code>propertyName</code>) the component never reads through <code>var()</code>, in
-							its <code>&lt;style&gt;</code> or its markup's static style text: a typo, a stale tag,
-							or a property it leaves for its children (reads aren't resolved across components).
-							<code>line</code> is the tag's. Not emitted when the style isn't read
-							(<code>css_parse_failed</code>, <code>css_lang_unsupported</code>).
-							<strong>Consequence:</strong> none; the entry stays in
-							<code>cssCustomProperties</code>, <code>documented: true</code>.
+							its <Code lang="svelte" inline content={'<' + 'style>'} /> or its markup's static
+							style text: a typo, a stale tag, or a property it leaves for its children (reads
+							aren't resolved across components). <code>line</code> is the tag's. Not emitted when
+							the style isn't read (<code>css_parse_failed</code>,
+							<code>css_lang_unsupported</code>). <strong>Consequence:</strong> none; the entry
+							stays in <code>cssCustomProperties</code>,
+							<Code lang="ts" inline content="documented: true" />.
 						</td>
 					</tr>
 					<tr>
@@ -297,14 +311,15 @@
 						<td>
 							<strong>Trigger:</strong> TypeScript dropped the name of an exported type alias
 							(<code>aliasName</code>) whose right-hand side is an indexed access or conditional,
-							like <code>z.infer&lt;typeof S&gt;</code> or valibot's
-							<code>v.InferOutput&lt;typeof S&gt;</code>, and svelte-docinfo can't
-							<TomeLink slug="structured-types" hash="Lost-alias-names">recover it</TomeLink>.
+							like <Code lang="ts" inline content={'z.infer<typeof S>'} /> or valibot's
+							<Code lang="ts" inline content={'v.InferOutput<typeof S>'} />, and svelte-docinfo
+							can't <TomeLink slug="structured-types" hash="Lost-alias-names">recover it</TomeLink>.
 							Literal-only unions (<code>z.enum</code>, <code>v.picklist</code>) and brand
 							intersections don't warn, since they read fine expanded, and neither do
 							<code>@nodocs</code> aliases. <strong>Consequence:</strong> unannotated positions
 							document the alias's structure instead of its name. Where applicable, a nominal symbol
-							(<code>interface Foo extends z.infer&lt;typeof S&gt; &#123;&#125;</code>) restores it.
+							(<Code lang="ts" inline content={'interface Foo extends z.infer<typeof S> {}'} />)
+							restores it.
 						</td>
 					</tr>
 					<tr>
@@ -313,33 +328,35 @@
 							<strong>Trigger:</strong> a JS module that TypeScript doesn't bind as a module (no
 							<code>import</code>/<code>export</code> under
 							<code>bundler</code>/<code>esnext</code>) exports through CommonJS
-							(<code>module.exports = …</code>, <code>exports.x = …</code>), which isn't modeled.
-							Under <code>node16</code>/<code>nodenext</code> or
-							<code>moduleDetection: 'force'</code> the checker binds CommonJS exports itself, and
-							its named exports (<code>exports.x</code>,
-							<code>module.exports = {'{'}a, b{'}'}</code>) document without this warning; a
-							<code>module.exports =</code> of a function or literal documents nothing.
-							<strong>Consequence:</strong> the module is in <code>modules[]</code> with no
-							declarations; its module comment still reads. Converting it to ES exports documents
-							it.
+							(<Code lang="ts" inline content="module.exports = …" />,
+							<Code lang="ts" inline content="exports.x = …" />), which isn't modeled. Under
+							<code>node16</code>/<code>nodenext</code> or
+							<Code lang="ts" inline content="moduleDetection: 'force'" /> the checker binds
+							CommonJS exports itself, and its named exports (<code>exports.x</code>,
+							<Code lang="ts" inline content={'module.exports = {a, b}'} />) document without this
+							warning; a <Code lang="ts" inline content="module.exports =" /> of a function or
+							literal documents nothing. <strong>Consequence:</strong> the module is in
+							<code>modules[]</code> with no declarations; its module comment still reads.
+							Converting it to ES exports documents it.
 						</td>
 					</tr>
 					<tr>
 						<td><code>css_parse_failed</code></td>
 						<td>
 							<strong>Trigger:</strong> Svelte's parser rejects a component that has a
-							<code>&lt;style&gt;</code>, or a <code>var()</code> in its markup: malformed CSS, two
-							top-level styles, or markup its loose parsing can't absorb (any template error under a
-							Svelte before 5.13). <strong>Consequence:</strong> the component emits without
-							<code>cssCustomProperties</code> beyond its <code>@cssprop</code> tags;
-							<code>line</code>/<code>column</code> are the parser's.
+							<Code lang="svelte" inline content={'<' + 'style>'} />, or a <code>var()</code> in its
+							markup: malformed CSS, two top-level styles, or markup its loose parsing can't absorb
+							(any template error under a Svelte before 5.13). <strong>Consequence:</strong> the
+							component emits without <code>cssCustomProperties</code> beyond its
+							<code>@cssprop</code> tags; <code>line</code>/<code>column</code> are the parser's.
 						</td>
 					</tr>
 					<tr>
 						<td><code>css_lang_unsupported</code></td>
 						<td>
-							<strong>Trigger:</strong> a component's <code>&lt;style&gt;</code> names a
-							preprocessor language (<code>lang="scss"</code>, <code>lang="postcss"</code>,
+							<strong>Trigger:</strong> a component's
+							<Code lang="svelte" inline content={'<' + 'style>'} /> names a preprocessor language
+							(<code>lang="scss"</code>, <code>lang="postcss"</code>,
 							<code>type="text/less"</code>), carried in <code>lang</code>.
 							<strong>Consequence:</strong> the style isn't read, so the component emits without
 							<code>cssCustomProperties</code> beyond its <code>@cssprop</code> tags.
@@ -353,7 +370,8 @@
 							namespace). <code>declarationName</code> and <code>modules</code> name the conflict;
 							<code>modules</code> holds <code>ModuleJson.path</code> values, unlike
 							<code>file</code>. <strong>Consequence:</strong> none beyond the diagnostic, unless
-							<code>onDuplicates</code> is <code>'warn'</code> (logs) or <code>'throw'</code>.
+							<code>onDuplicates</code> is <Code lang="ts" inline content="'warn'" /> (logs) or
+							<Code lang="ts" inline content="'throw'" />.
 						</td>
 					</tr>
 					<tr>
@@ -361,11 +379,12 @@
 						<td>
 							<strong>Trigger:</strong> svelte2tsx threw on a <code>.svelte</code> file.
 							<strong>Consequence:</strong> the file's <DeclarationLink name="ModuleJson" /> is a
-							placeholder (<code>partial: true</code>, empty <code>declarations</code>). Its default
-							and namespace re-exports document as <code>partial</code> components or namespaces (a
-							<code>&lt;script module&gt;</code> name stays a bare variable), and a star over it is
-							one <DeclarationLink name="resolveExportSurface" /> reports unresolved.
-							<strong>Ingest-time.</strong>
+							placeholder (<Code lang="ts" inline content="partial: true" />, empty
+							<code>declarations</code>). Its default and namespace re-exports document as
+							<code>partial</code> components or namespaces (a
+							<Code lang="svelte" inline content={'<' + 'script module>'} /> name stays a bare
+							variable), and a star over it is one <DeclarationLink name="resolveExportSurface" />
+							reports unresolved. <strong>Ingest-time.</strong>
 						</td>
 					</tr>
 					<tr>
@@ -407,8 +426,9 @@ for (const d of byKind(diagnostics, 'misplaced_tag')) {
 		<TomeSection>
 			<TomeSectionHeader text="severity vs partial" />
 			<p>
-				<code>severity</code> says how loud to be about a problem. <code>partial: true</code> says a
-				declaration or member has incomplete data, from <code>type_extraction_failed</code>,
+				<code>severity</code> says how loud to be about a problem.
+				<Code lang="ts" inline content="partial: true" /> says a declaration or member has
+				incomplete data, from <code>type_extraction_failed</code>,
 				<code>signature_analysis_failed</code>, or <code>class_member_failed</code>, and a
 				<code>ModuleJson</code> is <code>partial</code> when it's a <code>transform_failed</code>
 				placeholder. <code>svelte_prop_failed</code> sets no flag; the prop's type falls back to
@@ -434,7 +454,8 @@ for (const d of byKind(diagnostics, 'misplaced_tag')) {
 				</li>
 				<li>
 					<DeclarationLink name="formatDiagnostic" />: format as
-					<code>'./file.ts:10:5: error: message'</code> (the <code>'./'</code> prefix is fixed)
+					<Code lang="ts" inline content="'./file.ts:10:5: error: message'" /> (the
+					<Code lang="ts" inline content="'./'" /> prefix is fixed)
 				</li>
 			</ul>
 			<p>

@@ -49,8 +49,9 @@ npx svelte-docinfo --pretty           # pretty-print the JSON output`}
 npx svelte-docinfo | jq -r '.modules[].declarations[].name'  # list all exported names`}
 			/>
 			<p>
-				JSON goes to stdout and messages go to stderr, so <code>&gt;</code> and <code>|</code>
-				capture clean JSON. <code>-q</code> silences info messages; warnings and errors still print.
+				JSON goes to stdout and messages go to stderr, so <Code lang="bash" inline content={'>'} />
+				and <Code lang="bash" inline content="|" /> capture clean JSON. <code>-q</code> silences
+				info messages; warnings and errors still print.
 			</p>
 		</TomeSection>
 
@@ -87,7 +88,7 @@ npx svelte-docinfo | jq -r '.modules[].declarations[].name'  # list all exported
 						<td class="white-space:nowrap"><code>-o, --output &lt;file&gt;</code></td>
 						<td>
 							output file (default: stdout; <code>-</code> also means stdout, so
-							<code>-o "$OUT"</code> works when <code>$OUT=-</code>)
+							<Code lang="bash" inline content={'-o "$OUT"'} /> works when <code>$OUT=-</code>)
 						</td>
 					</tr>
 					<tr>

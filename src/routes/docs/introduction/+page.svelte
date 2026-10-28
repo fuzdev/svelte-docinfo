@@ -166,11 +166,13 @@ const {modules, diagnostics} = await analyzeFromFiles({projectRoot: process.cwd(
 					Svelte 4 named slots, slot props, and events aren't modeled, nor context
 					(<code>setContext</code>); a
 					<a href="https://github.com/fuzdev/svelte-docinfo/discussions">request</a> would bump
-					context's priority. Legacy <code>export let</code> components document their props.
+					context's priority. Legacy <Code lang="ts" inline content="export let" /> components
+					document their props.
 				</li>
 				<li>
-					Standalone <code>namespace Foo {`{}`}</code> declarations document as a bare variable
-					(<code>export * as ns</code> works), and decorators aren't modeled.
+					Standalone <Code lang="ts" inline content={`namespace Foo {}`} /> declarations document as
+					a bare variable (<Code lang="ts" inline content="export * as ns" /> works), and decorators
+					aren't modeled.
 				</li>
 				<li>
 					CommonJS isn't modeled (see <TomeLink slug="js" hash="CommonJS">CommonJS</TomeLink>).

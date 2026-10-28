@@ -20,9 +20,10 @@
 	<section>
 		<p>
 			A declaration is documented once, in the module that declares it, and re-exports point to it.
-			An imported binding exported again (<code>{`import {a} from './x'; export {a}`}</code>, or
-			<code>export default</code> of an import) counts as the <code>export … from</code> it stands
-			for.
+			An imported binding exported again
+			(<Code lang="ts" inline content={`import {a} from './x'; export {a}`} />, or
+			<Code lang="ts" inline content="export default" /> of an import) counts as the
+			<Code lang="ts" inline content="export … from" /> it stands for.
 		</p>
 	</section>
 
@@ -30,31 +31,32 @@
 		<TomeSectionHeader text="Encodings" />
 		<ul>
 			<li>
-				<strong>Same name</strong> (<code>{`export {a} from './x'`}</code>): the declaration's
-				<code>alsoExportedFrom</code> lists the re-exporting modules, and each of those lists the
-				edge in <code>ModuleJson.reExports</code>
+				<strong>Same name</strong> (<Code lang="ts" inline content={`export {a} from './x'`} />):
+				the declaration's <code>alsoExportedFrom</code> lists the re-exporting modules, and each of
+				those lists the edge in <code>ModuleJson.reExports</code>
 				(<code>{`{name, module, typeOnly, sourceLine}`}</code>), with <code>module</code> naming the
 				declaring module through any chain.
 			</li>
 			<li>
-				<strong>Renamed</strong> (<code>{`export {a as b} from './x'`}</code>): a full declaration
-				<code>b</code> in the re-exporting module, with
-				<code>aliasOf: {`{module, name: "a"}`}</code> and the local specifier's
+				<strong>Renamed</strong> (<Code lang="ts" inline content={`export {a as b} from './x'`} />):
+				a full declaration <code>b</code> in the re-exporting module, with
+				<Code lang="ts" inline content={'aliasOf: {module, name: "a"}'} /> and the local specifier's
 				<code>sourceLine</code>.
 			</li>
 			<li>
-				<strong>Star</strong> (<code>export * from './x'</code>): <code>x</code>'s path in
-				<code>starExports</code>, with no per-name entries. If <code>x</code> isn't documented
-				itself, its names document in the re-exporting module instead.
+				<strong>Star</strong> (<Code lang="ts" inline content="export * from './x'" />):
+				<code>x</code>'s path in <code>starExports</code>, with no per-name entries. If
+				<code>x</code> isn't documented itself, its names document in the re-exporting module
+				instead.
 			</li>
 			<li>
-				<strong>Namespace</strong> (<code>export * as ns from './x'</code>): a
-				<code>kind: 'namespace'</code> declaration whose <code>module</code> names <code>x</code>;
-				read its members from that module.
+				<strong>Namespace</strong> (<Code lang="ts" inline content="export * as ns from './x'" />):
+				a <Code lang="ts" inline content="kind: 'namespace'" /> declaration whose
+				<code>module</code> names <code>x</code>; read its members from that module.
 			</li>
 			<li>
-				<strong>Packages</strong> (<code>{`export {a} from 'pkg'`}</code>,
-				<code>export * from 'pkg'</code>): <code>externalReExports</code> and
+				<strong>Packages</strong> (<Code lang="ts" inline content={`export {a} from 'pkg'`} />,
+				<Code lang="ts" inline content="export * from 'pkg'" />): <code>externalReExports</code> and
 				<code>externalStarExports</code>, with the specifier as written.
 			</li>
 		</ul>
@@ -74,11 +76,14 @@
 	<TomeSection>
 		<TomeSectionHeader text="Default exports" />
 		<p>
-			<code>export default</code> and <code>{`export {a as default}`}</code> carry
-			<code>name: "default"</code>, except Svelte components, which take their filename's name. A
-			rename out of the default slot (<code>{`export {default as A} from './x'`}</code>) carries
-			<code>name: "A"</code> and <code>aliasOf: {`{module, name: "default"}`}</code>, or the
-			component's name for a Svelte component.
+			<Code lang="ts" inline content="export default" /> and
+			<Code lang="ts" inline content={'export {a as default}'} /> carry
+			<Code lang="ts" inline content={'name: "default"'} />, except Svelte components, which take
+			their filename's name. A rename out of the default slot
+			(<Code lang="ts" inline content={`export {default as A} from './x'`} />) carries
+			<Code lang="ts" inline content={'name: "A"'} /> and
+			<Code lang="ts" inline content={'aliasOf: {module, name: "default"}'} />, or the component's
+			name for a Svelte component.
 		</p>
 	</TomeSection>
 

@@ -42,8 +42,8 @@
 		<p>
 			A type alias's <code>typeSignature</code> prints only its name, so an alias carries its tree
 			whatever the shape, except object and function types, which its <code>members</code> cover.
-			Intrinsic and literal aliases (<code>type A = string</code>) print structurally and get no
-			tree.
+			Intrinsic and literal aliases (<Code lang="ts" inline content="type A = string" />) print
+			structurally and get no tree.
 		</p>
 	</TomeSection>
 
@@ -63,17 +63,19 @@
 			</li>
 			<li>
 				A literal's <code>value</code> is its runtime value, except that a bigint is its text
-				(<code>"1n"</code>) and a non-finite number a string (<code>"Infinity"</code>).
+				(<Code lang="ts" inline content={'"1n"'} />) and a non-finite number a string
+				(<Code lang="ts" inline content={'"Infinity"'} />).
 			</li>
 			<li>
 				A named generic instantiation is a <code>reference</code> with <code>typeArgs</code>
-				(<code>Snippet&lt;[a: string]&gt;</code>), and other callables are <code>function</code>
-				nodes. Object literal and function types are <code>object</code> and <code>function</code>
-				nodes carrying the checker's text.
+				(<Code lang="ts" inline content={'Snippet<[a: string]>'} />), and other callables are
+				<code>function</code> nodes. Object literal and function types are <code>object</code> and
+				<code>function</code> nodes carrying the checker's text.
 			</li>
 			<li>
 				Arrays and tuples carry <code>readonly</code>, and the optional-property
-				<code>undefined</code> is dropped, since <code>optional: true</code> says it.
+				<code>undefined</code> is dropped, since <Code lang="ts" inline content="optional: true" />
+				says it.
 			</li>
 		</ul>
 	</TomeSection>
@@ -82,16 +84,17 @@
 		<TomeSectionHeader text="Lost alias names" />
 		<p>
 			TypeScript drops the name of an alias over an indexed access or conditional type, like
-			<code>type Foo = z.infer&lt;typeof S&gt;</code> or valibot's <code>InferOutput</code>, and
-			prints its expanded structure wherever it's used. The tree recovers the name as
-			<code>{`{kind: "reference", name: "Foo"}`}</code>, from the annotation written at that
-			position or by matching the project's exported aliases. A name recovered by matching also
-			carries <code>module</code>, the <code>ModuleJson.path</code> declaring it.
+			<Code lang="ts" inline content={'type Foo = z.infer<typeof S>'} /> or valibot's
+			<code>InferOutput</code>, and prints its expanded structure wherever it's used. The tree
+			recovers the name as <Code lang="ts" inline content={'{kind: "reference", name: "Foo"}'} />,
+			from the annotation written at that position or by matching the project's exported aliases. A
+			name recovered by matching also carries <code>module</code>, the <code>ModuleJson.path</code>
+			declaring it.
 		</p>
 		<p>
 			An exported alias neither way recovers warns <code>alias_lost</code> (see
 			<TomeLink slug="diagnostics" />). Declaring it as an interface keeps its name:
-			<code>interface Foo extends z.infer&lt;typeof S&gt; {'{}'}</code>.
+			<Code lang="ts" inline content={'interface Foo extends z.infer<typeof S> {}'} />.
 		</p>
 	</TomeSection>
 
@@ -117,11 +120,11 @@ if (declaration.typeInfo) typeJsonToTokens(declaration.typeInfo);
 	<TomeSection>
 		<TomeSectionHeader text="Module paths" />
 		<p>
-			TypeScript prints a module object as <code>typeof import("…")</code> with an absolute path.
-			svelte-docinfo rewrites the path in every type text, flat and structured: a module in the
-			output becomes its <code>ModuleJson.path</code>, usable as a lookup key, a package its path
-			below <code>node_modules/</code>, and any other file a path relative to the project root. In a
-			tree, a module object is an <code>other</code> node.
+			TypeScript prints a module object as <Code lang="ts" inline content={'typeof import("…")'} />
+			with an absolute path. svelte-docinfo rewrites the path in every type text, flat and
+			structured: a module in the output becomes its <code>ModuleJson.path</code>, usable as a
+			lookup key, a package its path below <code>node_modules/</code>, and any other file a path
+			relative to the project root. In a tree, a module object is an <code>other</code> node.
 		</p>
 	</TomeSection>
 </TomeContent>

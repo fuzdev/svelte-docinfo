@@ -206,8 +206,9 @@ export function double(n: number | bigint): number | bigint {
 				Dotted keys land in <DeclarationLink name="ParameterJson" />'s
 				<code>propertyDescriptions</code>, keyed by sub-path (<code>obj.prop</code> →
 				<code>prop</code>, <code>obj.a.b</code> → <code>a.b</code>). The property path isn't checked
-				against the parameter's type. Destructured parameters (<code>{`fn({a, b}: T)`}</code>, which
-				TypeScript names <code>__0</code>) can't be matched by name, so they aren't covered.
+				against the parameter's type. Destructured parameters
+				(<Code lang="ts" inline content={'fn({a, b}: T)'} />, which TypeScript names
+				<code>__0</code>) can't be matched by name, so they aren't covered.
 			</p>
 			<p>
 				A key whose name (or dotted root) matches no parameter drops its description and emits
@@ -241,9 +242,9 @@ export function double(n: number | bigint): number | bigint {
 				</li>
 			</ul>
 			<p>
-				The output is a <code>Record&lt;string, string&gt;</code> of target to description, empty
-				for the bare form. Without a separator, the first line is the target and any following lines
-				are the description.
+				The output is a <Code lang="ts" inline content={'Record<string, string>'} /> of target to
+				description, empty for the bare form. Without a separator, the first line is the target and
+				any following lines are the description.
 			</p>
 			<p>
 				On a component prop, <code>@mutates</code> declares that the component writes into the
@@ -292,8 +293,9 @@ export function double(n: number | bigint): number | bigint {
 					typedef instead, and the re-export stays.
 				</li>
 				<li>
-					<strong>Merged value+type pairs</strong>: a <code>const Foo</code> + <code>type Foo</code>
-					pair is one symbol, so the tag on either excludes it.
+					<strong>Merged value+type pairs</strong>: a <Code lang="ts" inline content="const Foo" />
+					+ <Code lang="ts" inline content="type Foo" /> pair is one symbol, so the tag on either
+					excludes it.
 				</li>
 			</ul>
 		</TomeSection>
@@ -326,8 +328,9 @@ export function double(n: number | bigint): number | bigint {
 				tags alone has no <code>moduleComment</code>. In a module comment only an <code>@</code>
 				that starts a line starts a tag, so a mid-line <code>@</code> stays in the text. The comment
 				counts as a module comment only when a line starts with <code>@module</code> (a one-line
-				<code>/** @module */</code> counts); in <code>/** Text @module */</code> the text documents
-				the next declaration instead.
+				<Code lang="ts" inline content="/** @module */" /> counts); in
+				<Code lang="ts" inline content="/** Text @module */" /> the text documents the next
+				declaration instead.
 			</p>
 			<Code
 				lang="ts"
@@ -343,9 +346,9 @@ export function add_days(d: Date, n: number): Date { /* ... */ }`}
 			/>
 			<p>
 				A Svelte file's module comment comes from the first of: a JSDoc <code>@module</code> in the
-				instance <code>&lt;script&gt;</code>, one in <code>&lt;script module&gt;</code>, and an HTML
-				comment with <code>@module</code> at a line start. More than one warns
-				<code>duplicate_comment</code>.
+				instance <Code lang="svelte" inline content={'<' + 'script>'} />, one in
+				<Code lang="svelte" inline content={'<' + 'script module>'} />, and an HTML comment with
+				<code>@module</code> at a line start. More than one warns <code>duplicate_comment</code>.
 			</p>
 			<p>
 				A component's doc comment is its JSDoc above <code>$props()</code>, else its HTML

@@ -151,8 +151,8 @@ const session = createAnalysisSession({
 			<li>
 				<strong>pre-resolved</strong> (caller supplies <code>SourceFileInfo.dependencies</code>):
 				identical content and an element-wise equal array. A fresh array with the same elements
-				hits, so <code>[...filer.deps.keys()]</code> per call works; any length, element, or order
-				difference misses. The dependencies are trusted unchecked; see
+				hits, so <Code lang="ts" inline content="[...filer.deps.keys()]" /> per call works; any
+				length, element, or order difference misses. The dependencies are trusted unchecked; see
 				<TomeLink slug="build-tools" hash="Trust-contract">trust contract</TomeLink>.
 			</li>
 		</ul>
@@ -169,7 +169,8 @@ const session = createAnalysisSession({
 		<p>
 			On a hit, <code>SetFileResult.changed</code> is <code>false</code> and the cached ingest
 			diagnostics are returned without doing any work, unless the call changes the file's role
-			(<code>context</code>), which reports <code>changed: true</code> since the emitted set moves.
+			(<code>context</code>), which reports <Code lang="ts" inline content="changed: true" /> since
+			the emitted set moves.
 		</p>
 	</TomeSection>
 
@@ -231,8 +232,8 @@ const myResolver: ImportResolver = {
 			type drawn from that component would be <code>any</code>. Such a file still emits no module
 			until you supply it yourself. Each <code>setFile</code>/<code>setFiles</code> call sets the
 			role of its files: they're inputs by default, so to forward an edit to a context file without
-			turning it into a module, pass <code>{'{context: true}'}</code>. With the closure off, as in
-			<code>analyze()</code>, pass every component the checker needs.
+			turning it into a module, pass <Code lang="ts" inline content={'{context: true}'} />. With the
+			closure off, as in <code>analyze()</code>, pass every component the checker needs.
 		</p>
 	</TomeSection>
 

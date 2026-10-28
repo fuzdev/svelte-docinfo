@@ -19,9 +19,10 @@
 	<section>
 		<p>
 			JS modules (<code>.js</code>, <code>.mjs</code>, <code>.jsx</code>), JS components, and JS
-			<code>&lt;script module&gt;</code> blocks document like their TS twins: svelte-docinfo reads
-			their JSDoc the way TypeScript's checker does, so <code>/** @param {'{string}'} a */</code>
-			types a parameter as <code>a: string</code> would. <code>allowJs</code> is always on for the
+			<Code lang="svelte" inline content={'<' + 'script module>'} /> blocks document like their TS
+			twins: svelte-docinfo reads their JSDoc the way TypeScript's checker does, so
+			<Code lang="ts" inline content={'/** @param {string} a */'} /> types a parameter as
+			<Code lang="ts" inline content="a: string" /> would. <code>allowJs</code> is always on for the
 			analysis, so no tsconfig change is needed, and <code>checkJs</code> isn't required.
 		</p>
 		<p>
@@ -54,10 +55,11 @@ export function fn(a, b, c = 0, d) {}`}
 		<TomeSectionHeader text="@typedef and @callback" />
 		<p>
 			A <code>@typedef</code> or <code>@callback</code> documents as a type alias, like
-			<code>type A = …</code>: <code>@property</code> tags become members with their descriptions, a
-			callback gets a <code>(call)</code> member, and <code>@template</code> tags its generics. A
-			<code>const A</code> with a same-named <code>@typedef A</code> documents as one declaration
-			with <code>mergedValue: true</code>.
+			<Code lang="ts" inline content="type A = …" />: <code>@property</code> tags become members
+			with their descriptions, a callback gets a <code>(call)</code> member, and
+			<code>@template</code> tags its generics. A <Code lang="ts" inline content="const A" /> with a
+			same-named <code>@typedef A</code> documents as one declaration with
+			<Code lang="ts" inline content="mergedValue: true" />.
 		</p>
 		<p>
 			As in your editor's hover, a JSDoc block that declares a typedef and has no
@@ -84,7 +86,8 @@ export const ORIGIN = {x: 0, y: 0};`}
 			generated code, where svelte-check reports a typedef as a duplicate.
 		</p>
 		<p>
-			An <code>@enum</code> const documents as <code>kind: 'enum'</code>, one member per property.
+			An <code>@enum</code> const documents as <Code lang="ts" inline content="kind: 'enum'" />, one
+			member per property.
 		</p>
 	</TomeSection>
 
@@ -93,7 +96,8 @@ export const ORIGIN = {x: 0, y: 0};`}
 		<p>
 			<code>@template</code> tags are <code>genericParams</code> on functions, classes, and methods,
 			with constraints (<code>@template {'{string}'} K</code>) and defaults
-			(<code>@template [K='k']</code>), as <code>&lt;K extends string = 'k'&gt;</code> writes them.
+			(<code>@template [K='k']</code>), as
+			<Code lang="ts" inline content={`<K extends string = 'k'>`} /> writes them.
 		</p>
 	</TomeSection>
 
@@ -138,18 +142,20 @@ export function double(n) {
 			</li>
 			<li>
 				<code>@implements {'{A}'}</code> fills <code>implements</code>, and
-				<code>@extends {'{Base<T>}'}</code> beside <code>extends Base</code> gives the type
-				arguments.
+				<code>@extends {'{Base<T>}'}</code> beside <Code lang="ts" inline content="extends Base" />
+				gives the type arguments.
 			</li>
 			<li>
-				<code>this.x = …</code> in the constructor, a method, or an accessor declares a member
-				(static in a static method or block), typed by its first <code>@type</code> and documented
-				by its first documented assignment, preferring the constructor's. These members list just
-				before the constructor, where a TS class declares its fields.
+				<Code lang="ts" inline content="this.x = …" /> in the constructor, a method, or an accessor
+				declares a member (static in a static method or block), typed by its first
+				<code>@type</code> and documented by its first documented assignment, preferring the
+				constructor's. These members list just before the constructor, where a TS class declares its
+				fields.
 			</li>
 			<li>
-				A name the base class declares stays the base's (<code>this.name = …</code> in an
-				<code>Error</code> subclass lists nothing). To document it on the subclass, write a field.
+				A name the base class declares stays the base's
+				(<Code lang="ts" inline content="this.name = …" /> in an <code>Error</code> subclass lists
+				nothing). To document it on the subclass, write a field.
 			</li>
 		</ul>
 	</TomeSection>
@@ -158,8 +164,9 @@ export function double(n) {
 		<TomeSectionHeader text="Components" />
 		<p>
 			A JS component's props come from the JSDoc <code>@type</code> on <code>$props()</code>, often
-			a typedef, else from the destructuring. A legacy component's <code>export let</code> props
-			read their <code>@type</code> and initializer.
+			a typedef, else from the destructuring. A legacy component's
+			<Code lang="ts" inline content="export let" /> props read their <code>@type</code> and
+			initializer.
 		</p>
 		<Code
 			lang="svelte"
@@ -185,10 +192,10 @@ export function double(n) {
 			CommonJS isn't modeled. A JS file with no <code>import</code> or <code>export</code> that
 			exports through <code>module.exports</code> or <code>exports.x</code> documents nothing and
 			warns <code>commonjs_unsupported</code>. Under <code>node16</code>/<code>nodenext</code> or
-			<code>moduleDetection: 'force'</code>, TypeScript reads CommonJS exports itself, so named ones
-			(<code>exports.x</code>, <code>module.exports = {'{'}a, b{'}'}</code>) document. Exports
-			defined through <code>Object.defineProperty</code> or a UMD wrapper document nothing, with no
-			warning.
+			<Code lang="ts" inline content="moduleDetection: 'force'" />, TypeScript reads CommonJS
+			exports itself, so named ones (<code>exports.x</code>,
+			<Code lang="ts" inline content={'module.exports = {a, b}'} />) document. Exports defined
+			through <code>Object.defineProperty</code> or a UMD wrapper document nothing, with no warning.
 		</p>
 	</TomeSection>
 
@@ -196,12 +203,13 @@ export function double(n) {
 		<TomeSectionHeader text="Limits" />
 		<ul>
 			<li>
-				Assignments outside a class (<code>A.prototype.x = …</code>, <code>A.x = …</code>) don't add
-				class members.
+				Assignments outside a class (<Code lang="ts" inline content="A.prototype.x = …" />,
+				<Code lang="ts" inline content="A.x = …" />) don't add class members.
 			</li>
 			<li>
-				An <code>@overload</code>'s rest parameter (<code>{'{...T}'}</code>) is <code>rest</code>,
-				but types as <code>T | undefined</code>, as TypeScript reads it.
+				An <code>@overload</code>'s rest parameter (<Code lang="ts" inline content={'{...T}'} />) is
+				<code>rest</code>, but types as <Code lang="ts" inline content="T | undefined" />, as
+				TypeScript reads it.
 			</li>
 			<li>
 				A <code>@property</code> after a non-<code>@property</code> tag leaves the typedef's

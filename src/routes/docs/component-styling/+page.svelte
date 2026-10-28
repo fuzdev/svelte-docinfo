@@ -20,18 +20,19 @@
 	<section>
 		<p>
 			A component's styling API is the set of CSS custom properties its styles read for a consumer
-			to set, on the component itself (<code>&lt;Card --card_width="20rem" /&gt;</code>) or on any
-			ancestor. Each component declaration lists them in <code>cssCustomProperties</code>, as
+			to set, on the component itself
+			(<Code lang="svelte" inline content={'<Card --card_width="20rem" />'} />) or on any ancestor.
+			Each component declaration lists them in <code>cssCustomProperties</code>, as
 			<DeclarationLink name="ComponentCssPropertyJson" /> entries, found three ways: a
 			<code>var()</code> read with a fallback, an <code>@property</code> rule, and a
 			<code>@cssprop</code> tag in the doc comment.
 		</p>
 		<p>
 			Svelte applies a <code>--x</code> attribute on a component by wrapping it in an element with
-			<code>display: contents</code> and <code>--x</code> set, so the value reaches the component's
-			own elements by inheritance, exactly as a value set on an ancestor would. That's why only
-			properties the component's own styles read count: a property set this way does nothing unless
-			something below reads it.
+			<Code lang="css" inline content="display: contents" /> and <code>--x</code> set, so the value
+			reaches the component's own elements by inheritance, exactly as a value set on an ancestor
+			would. That's why only properties the component's own styles read count: a property set this
+			way does nothing unless something below reads it.
 		</p>
 	</section>
 
@@ -121,14 +122,15 @@ A card.
 	<TomeSection>
 		<TomeSectionHeader text="Fallback reads" />
 		<p>
-			Svelte's own docs give <code>var(--track-color, #aaa)</code> as the way to expose a styling
-			hook, so a <code>var()</code> with a fallback reads as one. A read counts in:
+			Svelte's own docs give <Code lang="css" inline content="var(--track-color, #aaa)" /> as the
+			way to expose a styling hook, so a <code>var()</code> with a fallback reads as one. A read
+			counts in:
 		</p>
 		<ul>
 			<li>
-				the component's top-level <code>&lt;style&gt;</code>, at any depth: nested rules,
-				<code>@media</code>/<code>@container</code>/<code>@supports</code> blocks, keyframes,
-				<code>:global</code>
+				the component's top-level <Code lang="svelte" inline content={'<' + 'style>'} />, at any
+				depth: nested rules, <code>@media</code>/<code>@container</code>/<code>@supports</code>
+				blocks, keyframes, <code>:global</code>
 			</li>
 			<li>
 				the static text of the markup's <code>style</code> attributes and <code>style:</code>
@@ -136,23 +138,25 @@ A card.
 			</li>
 			<li>
 				the static text of a child component's <code>style</code> and <code>--a</code> attributes
-				(<code>&lt;Child --a="var(--b, 1px)" /&gt;</code> reads <code>--b</code>)
+				(<Code lang="svelte" inline content={'<Child --a="var(--b, 1px)" />'} /> reads
+				<code>--b</code>)
 			</li>
 		</ul>
 		<p>
-			Only the outermost <code>var()</code> counts: <code>var(--a, var(--b))</code> lists
-			<code>--a</code>, with <code>--b</code> part of its fallback. A name drops out when the
-			component sets it itself, a <code>--a: …</code> declaration in its style, a
-			<code>style:--a</code> directive, or <code>--a:</code> in an element's <code>style</code>
+			Only the outermost <code>var()</code> counts:
+			<Code lang="css" inline content="var(--a, var(--b))" /> lists <code>--a</code>, with
+			<code>--b</code> part of its fallback. A name drops out when the component sets it itself, a
+			<Code lang="css" inline content="--a: …" /> declaration in its style, a <code>style:--a</code>
+			directive, or <Code lang="css" inline content="--a:" /> in an element's <code>style</code>
 			attribute, since a consumer's value would be shadowed. A <code>--a</code> or
 			<code>style</code> attribute on a child component styles the child, so it sets nothing on this
 			one. Names are case-sensitive, as in CSS.
 		</p>
 		<p>
 			<code>fallback</code> is the verbatim source text after the comma, trimmed, comments and line
-			breaks included; it's empty for <code>var(--a,)</code>. When a name is read several times,
-			<code>sourceLine</code> is the first read's and <code>fallback</code> the first read's that
-			has one, so a bare read ahead of a fallback read still lists.
+			breaks included; it's empty for <Code lang="css" inline content="var(--a,)" />. When a name is
+			read several times, <code>sourceLine</code> is the first read's and <code>fallback</code> the
+			first read's that has one, so a bare read ahead of a fallback read still lists.
 		</p>
 	</TomeSection>
 
@@ -167,9 +171,10 @@ A card.
 			name the last wins, as in CSS. A registered name nothing reads isn't listed.
 		</p>
 		<p>
-			<code>inherits</code> isn't modeled. <code>inherits: false</code> keeps an ancestor's value
-			from reaching the component, which makes the property no hook at all, so register a hook with
-			<code>inherits: true</code>. Svelte emits the rule unscoped, as written.
+			<code>inherits</code> isn't modeled. <Code lang="css" inline content="inherits: false" />
+			keeps an ancestor's value from reaching the component, which makes the property no hook at
+			all, so register a hook with <Code lang="css" inline content="inherits: true" />. Svelte emits
+			the rule unscoped, as written.
 		</p>
 	</TomeSection>
 
@@ -180,7 +185,7 @@ A card.
 			<a href="https://custom-elements-manifest.open-wc.org/">Custom Elements Manifest</a> form
 			(<code>@cssproperty</code> is a synonym):
 		</p>
-		<Code lang="ts" content={`@cssprop {<syntax>} [--name=default] - description`} />
+		<Code lang={null} content={`@cssprop {<syntax>} [--name=default] - description`} />
 		<table>
 			<thead>
 				<tr>
@@ -221,12 +226,14 @@ A card.
 			</tbody>
 		</table>
 		<p>
-			A tagged property is listed whatever the reads say, with <code>documented: true</code>. Use a
-			tag to describe a hook, or to list one the fallback rule misses, like a bare read
-			(<code>width: var(--card_width)</code>). A tagged name the component reads anywhere (bare,
-			nested in another fallback, in the markup's static style text, even one it sets itself) merges
-			with the read, taking its <code>sourceLine</code> and <code>fallback</code>. One it never
-			reads keeps the tag's line and warns <code>unknown_cssprop</code>.
+			A tagged property is listed whatever the reads say, with
+			<Code lang="ts" inline content="documented: true" />. Use a tag to describe a hook, or to list
+			one the fallback rule misses, like a bare read
+			(<Code lang="css" inline content="width: var(--card_width)" />). A tagged name the component
+			reads anywhere (bare, nested in another fallback, in the markup's static style text, even one
+			it sets itself) merges with the read, taking its <code>sourceLine</code> and
+			<code>fallback</code>. One it never reads keeps the tag's line and warns
+			<code>unknown_cssprop</code>.
 		</p>
 		<p>
 			<code>default</code> is the author's claim and <code>fallback</code> the style's fact, kept
@@ -242,9 +249,9 @@ A card.
 			else the HTML <code>@component</code> comment. The winner takes the slot whole, so when both
 			carry documentation, even a JSDoc of tags alone, <code>duplicate_comment</code> warns and the
 			HTML comment's prose and tags are lost: put the tags beside the component's prose. Legacy
-			<code>export let</code> components read the same, from the HTML comment. A tag on a prop or a
-			member, or on anything but a component, documents no property (see
-			<TomeLink slug="tags" hash="cssprop" />).
+			<Code lang="ts" inline content="export let" /> components read the same, from the HTML
+			comment. A tag on a prop or a member, or on anything but a component, documents no property
+			(see <TomeLink slug="tags" hash="cssprop" />).
 		</p>
 	</TomeSection>
 
@@ -298,10 +305,11 @@ A card.
 	<TomeSection>
 		<TomeSectionHeader text="Choosing what to show" />
 		<p>
-			A global design token read with a fallback, like <code>var(--border_radius, 4px)</code> in the
-			example, lists as a hook too, because the analyzer can't tell a token from a hook. In your own
-			components, drop the fallback when the token always exists, or tag the property when consumers
-			really should set it.
+			A global design token read with a fallback, like
+			<Code lang="css" inline content="var(--border_radius, 4px)" /> in the example, lists as a hook
+			too, because the analyzer can't tell a token from a hook. In your own components, drop the
+			fallback when the token always exists, or tag the property when consumers really should set
+			it.
 		</p>
 		<p>
 			There's deliberately no option to filter during analysis: the output keeps every read, and a
@@ -325,8 +333,8 @@ const shown = documented.length > 0 ? documented : declaration.cssCustomProperti
 		<TomeSectionHeader text="What isn't read" />
 		<ul>
 			<li>
-				a <code>&lt;style lang="scss"&gt;</code>, or any language but CSS (warns
-				<code>css_lang_unsupported</code>)
+				a <Code lang="svelte" inline content={'<' + 'style lang="scss">'} />, or any language but
+				CSS (warns <code>css_lang_unsupported</code>)
 			</li>
 			<li>
 				a component Svelte's parser rejects: malformed CSS, or markup its loose parsing can't absorb
@@ -334,7 +342,7 @@ const shown = documented.length > 0 ? documented : declaration.cssCustomProperti
 			</li>
 			<li>
 				reads inside a dynamic <code>style</code> expression (<code>style="color: {'{c}'}"</code>),
-				or in a <code>&lt;svelte:head&gt;</code> style
+				or in a <Code lang="svelte" inline content={'<svelte:head>'} /> style
 			</li>
 			<li>
 				properties set from script (<code>style.setProperty</code>) or in a dynamic

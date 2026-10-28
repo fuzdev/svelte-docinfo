@@ -158,14 +158,15 @@ await session.setFiles(files);`}
 	<TomeSection>
 		<TomeSectionHeader text="Type-only edges" />
 		<p>
-			With pre-resolved dependencies, you decide whether <code>import type {`{X}`} from './x'</code>
-			counts as a dependency. Two common stances:
+			With pre-resolved dependencies, you decide whether
+			<Code lang="ts" inline content={`import type {X} from './x'`} /> counts as a dependency. Two
+			common stances:
 		</p>
 		<ul>
 			<li>
 				<strong>Keep type-only edges</strong>: what the default lex+resolve path does, for
-				<code>import type</code>, inline <code>type</code> specifiers, and type-only re-exports like
-				<code>export type {`{X}`} from</code>.
+				<Code lang="ts" inline content="import type" />, inline <code>type</code> specifiers, and
+				type-only re-exports like <Code lang="ts" inline content={`export type {X} from`} />.
 			</li>
 			<li>
 				<strong>Drop type-only edges</strong>: what Gro's filer does, so the output reflects the

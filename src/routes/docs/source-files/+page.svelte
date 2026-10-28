@@ -33,21 +33,22 @@
 		<p>The <code>discovery</code> option picks how files are found:</p>
 		<ul>
 			<li>
-				<code>'auto'</code> (default): from <code>package.json</code> <code>exports</code>, falling
-				back to globs when there are none
+				<Code lang="ts" inline content="'auto'" /> (default): from <code>package.json</code>
+				<code>exports</code>, falling back to globs when there are none
 			</li>
 			<li>
-				<code>'exports'</code>: from <code>exports</code> only, throwing when they're missing or
-				name no source files
+				<Code lang="ts" inline content="'exports'" />: from <code>exports</code> only, throwing when
+				they're missing or name no source files
 			</li>
-			<li><code>'glob'</code>: every module file under the source paths</li>
+			<li><Code lang="ts" inline content="'glob'" />: every module file under the source paths</li>
 		</ul>
 		<p>
 			Exports discovery maps each <code>dist</code> entry back to its source: a <code>.js</code> to
 			the <code>.ts</code>, <code>.tsx</code>, <code>.js</code>, or <code>.jsx</code> beside it, in
 			that order, and an <code>.mjs</code> to an <code>.mts</code> or <code>.mjs</code>. Wildcard
-			entries (<code>"./*.js"</code>) expand, and <code>null</code> entries
-			(<code>"./internal/*": null</code>) block subpaths with Node's matching rules.
+			entries (<Code lang="ts" inline content={'"./*.js"'} />) expand, and <code>null</code> entries
+			(<Code lang="json" inline content={'"./internal/*": null'} />) block subpaths with Node's
+			matching rules.
 		</p>
 		<p>
 			Modules are <code>.svelte</code>, <code>.ts</code>, <code>.mts</code>, <code>.tsx</code>,
@@ -56,8 +57,9 @@
 			declarations. <code>.cjs</code>, <code>.cts</code>, and declaration files aren't analyzed.
 		</p>
 		<p>
-			<code>include</code> globs replace discovery (they collapse <code>'auto'</code> to glob, and
-			combining them with <code>'exports'</code> throws). Each pattern's static base joins the
+			<code>include</code> globs replace discovery (they collapse
+			<Code lang="ts" inline content="'auto'" /> to glob, and combining them with
+			<Code lang="ts" inline content="'exports'" /> throws). Each pattern's static base joins the
 			source paths, so the files it finds are documented; a pattern with no base
 			(<code>**/*.ts</code>) makes the whole project source.
 		</p>
@@ -68,8 +70,11 @@
 		<p>
 			<code>exclude</code> applies at discovery and analysis alike, so an excluded file is never
 			documented however it was found. The default is
-			<code>{`['**/*.{test,spec}.{ts,mts,tsx,js,mjs,jsx}', '**/internal/**']`}</code>. An array
-			replaces it, and a callback extends it:
+			<Code
+				lang="ts"
+				inline
+				content={`['**/*.{test,spec}.{ts,mts,tsx,js,mjs,jsx}', '**/internal/**']`}
+			/>. An array replaces it, and a callback extends it:
 		</p>
 		<Code lang="ts" content={`exclude: (defaults) => [...defaults, '**/*.gen.ts']`} />
 		<p>
@@ -79,11 +84,15 @@
 		</p>
 		<p>
 			<strong><code>src/lib/internal/</code></strong> holds modules that ship for public modules to
-			import but aren't documented, usually paired with an <code>"./internal/*": null</code> exports
-			entry. They still inform types, and in dev an edit to one re-analyzes the modules that use it.
-			A public re-export of an internal symbol documents in full at the re-export. To document them
-			anyway, drop the pattern:
-			<code>{`exclude: (defaults) => defaults.filter((p) => p !== '**/internal/**')`}</code>.
+			import but aren't documented, usually paired with an
+			<Code lang="json" inline content={'"./internal/*": null'} /> exports entry. They still inform
+			types, and in dev an edit to one re-analyzes the modules that use it. A public re-export of an
+			internal symbol documents in full at the re-export. To document them anyway, drop the pattern:
+			<Code
+				lang="ts"
+				inline
+				content={`exclude: (defaults) => defaults.filter((p) => p !== '**/internal/**')`}
+			/>.
 		</p>
 	</TomeSection>
 
@@ -93,7 +102,7 @@
 			<code>sourceOptions.sourcePaths</code> (CLI: <code>--source-dir</code>, repeatable) lists the
 			source directories, and <code>sourceRoot</code> (<code>--source-root</code>) is the base of
 			<code>ModuleJson.path</code>, by default the single source path or the common prefix of
-			several. Pass <code>'.'</code> for project-relative paths.
+			several. Pass <Code lang="ts" inline content="'.'" /> for project-relative paths.
 		</p>
 		<Code
 			lang="ts"
@@ -105,8 +114,9 @@ const sourceOptions = createSourceOptions(process.cwd(), {
 		/>
 		<p>
 			Paths and patterns are relative to the project root. Absolute ones inside it are accepted, and
-			anything outside it throws when the options are created. <code>'/src/lib'</code> is a
-			filesystem path, not shorthand for <code>'src/lib'</code>.
+			anything outside it throws when the options are created.
+			<Code lang="ts" inline content="'/src/lib'" /> is a filesystem path, not shorthand for
+			<Code lang="ts" inline content="'src/lib'" />.
 		</p>
 	</TomeSection>
 
@@ -116,7 +126,7 @@ const sourceOptions = createSourceOptions(process.cwd(), {
 			Analysis runs with your project's compiler options, from <code>tsconfig.json</code> found at
 			or above the project root (the <code>tsconfig</code> option, or <code>--tsconfig</code>, names
 			another). The file and its whole <code>extends</code> chain must load, so a SvelteKit project
-			needs <code>svelte-kit sync</code> first. <code>tsconfig: false</code>
+			needs <code>svelte-kit sync</code> first. <Code lang="ts" inline content="tsconfig: false" />
 			(<code>--no-tsconfig</code>) analyzes without one, under strict built-in options
 			(<DeclarationLink name="DEFAULT_COMPILER_OPTIONS" />), and <code>compilerOptions</code> merge
 			over either, key by key.

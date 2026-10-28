@@ -54,7 +54,8 @@
 			</p>
 			<ul>
 				<li>
-					<code>path</code>: file path relative to the source root (e.g., <code>"math.ts"</code>)
+					<code>path</code>: file path relative to the source root (e.g.,
+					<Code lang="ts" inline content={'"math.ts"'} />)
 				</li>
 				<li><code>declarations</code>: exported items from this module</li>
 				<li>
@@ -68,7 +69,10 @@
 				</li>
 				<li><code>dependencies</code>: paths of modules this file imports</li>
 				<li><code>dependents</code>: paths of modules that import this file</li>
-				<li><code>starExports</code>: <code>export * from './module'</code> targets</li>
+				<li>
+					<code>starExports</code>: <Code lang="ts" inline content="export * from './module'" />
+					targets
+				</li>
 				<li>
 					<code>reExports</code>: same-name re-export edges
 					(<code>{`{name, module, typeOnly, sourceLine}`}</code>), the forward view of
@@ -79,7 +83,8 @@
 					(<code>{`{name, specifier, originalName?, typeOnly, sourceLine}`}</code>)
 				</li>
 				<li>
-					<code>externalStarExports</code>: <code>export * from 'pkg'</code> specifiers as written
+					<code>externalStarExports</code>: <Code lang="ts" inline content="export * from 'pkg'" />
+					specifiers as written
 				</li>
 				<li>
 					<code>partial</code>: <code>true</code> when the module is a placeholder for a
@@ -100,59 +105,66 @@
 			</p>
 			<ul>
 				<li>
-					<code>"function"</code>: adds <code>parameters</code>, <code>returnType</code>,
-					<code>returnTypeInfo</code>, <code>returnDescription</code>, <code>overloads</code>
+					<Code lang="ts" inline content={'"function"'} />: adds <code>parameters</code>,
+					<code>returnType</code>, <code>returnTypeInfo</code>, <code>returnDescription</code>,
+					<code>overloads</code>
 				</li>
 				<li>
-					<code>"variable"</code>: adds <code>typeInfo</code>, optional <code>defaultValue</code>
-					(from <code>@default</code>), and <code>reactivity</code> (see
+					<Code lang="ts" inline content={'"variable"'} />: adds <code>typeInfo</code>, optional
+					<code>defaultValue</code> (from <code>@default</code>), and <code>reactivity</code> (see
 					<a href="#Reactivity">Reactivity</a>)
 				</li>
 				<li>
-					<code>"class"</code>: adds <code>members</code>, <code>extends</code>,
-					<code>implements</code>, <code>externalTypes</code>
+					<Code lang="ts" inline content={'"class"'} />: adds <code>members</code>,
+					<code>extends</code>, <code>implements</code>, <code>externalTypes</code>
 				</li>
 				<li>
-					<code>"interface"</code>: adds <code>members</code>, <code>extends</code>,
-					<code>externalTypes</code>, <code>mergedValue</code>
+					<Code lang="ts" inline content={'"interface"'} />: adds <code>members</code>,
+					<code>extends</code>, <code>externalTypes</code>, <code>mergedValue</code>
 				</li>
 				<li>
-					<code>"type"</code>: adds <code>typeInfo</code>, <code>members</code>,
-					<code>externalTypes</code>, <code>mergedValue</code>
-				</li>
-				<li><code>"enum"</code>: adds <code>members</code> (enum values)</li>
-				<li>
-					<code>"component"</code>: adds <code>props</code>, <code>externalTypes</code>,
-					<code>acceptsChildren</code>, <code>cssCustomProperties</code>, <code>lang</code> (Svelte
-					components). <code>acceptsChildren</code> is set by a <code>Snippet</code>-typed
-					<code>children</code> prop, template use of <code>children</code>, or a legacy component's
-					default <code>&lt;slot /&gt;</code>
+					<Code lang="ts" inline content={'"type"'} />: adds <code>typeInfo</code>,
+					<code>members</code>, <code>externalTypes</code>, <code>mergedValue</code>
 				</li>
 				<li>
-					<code>"snippet"</code>: adds <code>parameters</code> (exported Svelte template snippets)
+					<Code lang="ts" inline content={'"enum"'} />: adds <code>members</code> (enum values)
 				</li>
 				<li>
-					<code>"namespace"</code>: adds <code>module</code>, the path of the module projected by
-					<code>export * as ns from './x'</code>
+					<Code lang="ts" inline content={'"component"'} />: adds <code>props</code>,
+					<code>externalTypes</code>, <code>acceptsChildren</code>,
+					<code>cssCustomProperties</code>, <code>lang</code> (Svelte components).
+					<code>acceptsChildren</code> is set by a <code>Snippet</code>-typed <code>children</code>
+					prop, template use of <code>children</code>, or a legacy component's default
+					<Code lang="svelte" inline content={'<slot />'} />
+				</li>
+				<li>
+					<Code lang="ts" inline content={'"snippet"'} />: adds <code>parameters</code> (exported
+					Svelte template snippets)
+				</li>
+				<li>
+					<Code lang="ts" inline content={'"namespace"'} />: adds <code>module</code>, the path of
+					the module projected by <Code lang="ts" inline content="export * as ns from './x'" />
 				</li>
 			</ul>
 			<p>
 				A name declared as both a value and a type, like the schema pattern
-				<code>{`export const Foo = z.strictObject({...})`}</code> +
-				<code>{`export type Foo = z.infer<typeof Foo>`}</code>, produces one declaration. The type
-				meaning documents like its un-merged equivalent (structure, <code>members</code>,
-				<code>typeInfo</code>), and <code>mergedValue: true</code> marks that the name is also a
-				runtime value, so <DeclarationLink name="generateImport" /> emits <code>import</code>
-				instead of <code>import type</code>. JSDoc falls back to the value declaration's comment
-				when the type has none, and <code>@nodocs</code> on either declaration excludes the pair. In
-				JS, a <code>const Foo</code> with a same-named <code>@typedef</code> merges the same way.
+				<Code lang="ts" inline content={'export const Foo = z.strictObject({...})'} /> +
+				<Code lang="ts" inline content={'export type Foo = z.infer<typeof Foo>'} />, produces one
+				declaration. The type meaning documents like its un-merged equivalent (structure,
+				<code>members</code>, <code>typeInfo</code>), and
+				<Code lang="ts" inline content="mergedValue: true" /> marks that the name is also a runtime
+				value, so <DeclarationLink name="generateImport" /> emits <code>import</code> instead of
+				<Code lang="ts" inline content="import type" />. JSDoc falls back to the value declaration's
+				comment when the type has none, and <code>@nodocs</code> on either declaration excludes the
+				pair. In JS, a <Code lang="ts" inline content="const Foo" /> with a same-named
+				<code>@typedef</code> merges the same way.
 			</p>
 			<p>Shared fields on all variants:</p>
 			<ul>
 				<li>
 					<code>name</code>, <code>kind</code>: identity. Default exports carry
-					<code>name === "default"</code>, except Svelte components, which take their
-					filename-derived name (see <TomeLink slug="re-exports" />)
+					<Code lang="ts" inline content={'name === "default"'} />, except Svelte components, which
+					take their filename-derived name (see <TomeLink slug="re-exports" />)
 				</li>
 				<li><code>docComment</code>: JSDoc comment text</li>
 				<li>
@@ -161,8 +173,9 @@
 				</li>
 				<li><code>sourceLine</code>: line number in the source file</li>
 				<li>
-					<code>modifiers</code>: e.g., <code>"readonly"</code>, <code>"static"</code>,
-					<code>"getter"</code>
+					<code>modifiers</code>: e.g., <Code lang="ts" inline content={'"readonly"'} />,
+					<Code lang="ts" inline content={'"static"'} />,
+					<Code lang="ts" inline content={'"getter"'} />
 				</li>
 				<li><code>genericParams</code>: type parameters with constraints and defaults</li>
 				<li>
@@ -175,8 +188,8 @@
 				</li>
 				<li>
 					<code>mutates</code>: from <code>@mutates</code>, a
-					<code>Record&lt;string, string&gt;</code> of target to description (empty for a target
-					with no description). See <TomeLink slug="tags" />
+					<Code lang="ts" inline content={'Record<string, string>'} /> of target to description
+					(empty for a target with no description). See <TomeLink slug="tags" />
 				</li>
 				<li><code>alsoExportedFrom</code>: modules that re-export this declaration</li>
 				<li>
@@ -212,22 +225,24 @@
 			</p>
 			<ul>
 				<li>
-					<code>"function"</code>: methods and call signatures. Adds <code>parameters</code>,
-					<code>returnType</code>, <code>returnTypeInfo</code>, <code>returnDescription</code>,
-					<code>overloads</code>, and optional <code>defaultValue</code> (from
-					<code>@default</code>, documenting the behavior when a callable option is omitted). A
-					property typed by an external function (<code>run?: typeof spawn</code>) is a
-					<code>"variable"</code> with the flat type text rather than the package's overloads and
-					docs; a mixed callable keeps its local signatures
+					<Code lang="ts" inline content={'"function"'} />: methods and call signatures. Adds
+					<code>parameters</code>, <code>returnType</code>, <code>returnTypeInfo</code>,
+					<code>returnDescription</code>, <code>overloads</code>, and optional
+					<code>defaultValue</code> (from <code>@default</code>, documenting the behavior when a
+					callable option is omitted). A property typed by an external function
+					(<Code lang="ts" inline content="run?: typeof spawn" />) is a
+					<Code lang="ts" inline content={'"variable"'} /> with the flat type text rather than the
+					package's overloads and docs; a mixed callable keeps its local signatures
 				</li>
 				<li>
-					<code>"constructor"</code>: class constructors and construct signatures. Adds
-					<code>parameters</code>, <code>overloads</code>
+					<Code lang="ts" inline content={'"constructor"'} />: class constructors and construct
+					signatures. Adds <code>parameters</code>, <code>overloads</code>
 				</li>
 				<li>
-					<code>"variable"</code>: properties, accessors, index signatures, and enum values. Adds
-					optional <code>defaultValue</code> (from <code>@default</code>), <code>typeInfo</code>,
-					and <code>reactivity</code> for class fields initialized with a Svelte rune
+					<Code lang="ts" inline content={'"variable"'} />: properties, accessors, index signatures,
+					and enum values. Adds optional <code>defaultValue</code> (from <code>@default</code>),
+					<code>typeInfo</code>, and <code>reactivity</code> for class fields initialized with a
+					Svelte rune
 				</li>
 			</ul>
 			<p>
@@ -237,9 +252,11 @@
 			<p>Nesting is exactly one level deep: members never contain members.</p>
 			<p>
 				Member <code>name</code> is the source identifier, or a synthesized name where none exists:
-				<code>"constructor"</code> (class constructor), <code>"(construct)"</code> and
-				<code>"(call)"</code> (construct and call signatures on an interface or type alias), and
-				index-signature names like <code>"[key: string]"</code> (the parameter name as written for
+				<Code lang="ts" inline content={'"constructor"'} /> (class constructor),
+				<Code lang="ts" inline content={'"(construct)"'} /> and
+				<Code lang="ts" inline content={'"(call)"'} /> (construct and call signatures on an
+				interface or type alias), and index-signature names like
+				<Code lang="ts" inline content={'"[key: string]"'} /> (the parameter name as written for
 				interfaces; a synthesized <code>key</code> for type aliases).
 			</p>
 		</TomeSection>
@@ -250,8 +267,8 @@
 				Component declarations have a <code>props</code> array of
 				<DeclarationLink name="ComponentPropJson" /> entries, in source order, followed by any props
 				an external type declares that the <code>$props()</code> destructuring names, in
-				destructuring order (a legacy <code>export let</code> component orders by its exports). Each
-				entry has:
+				destructuring order (a legacy <Code lang="ts" inline content="export let" /> component
+				orders by its exports). Each entry has:
 			</p>
 			<ul>
 				<li><code>name</code>, <code>type</code>: prop name and TypeScript type</li>
@@ -267,19 +284,21 @@
 				</li>
 				<li>
 					<code>bindable</code>: set when the prop is declared with <code>$bindable()</code>, so
-					<code>&lt;Foo bind:value /&gt;</code> works. Every prop of a legacy
-					<code>export let</code> component is bindable
+					<Code lang="svelte" inline content={'<Foo bind:value />'} /> works. Every prop of a legacy
+					<Code lang="ts" inline content="export let" /> component is bindable
 				</li>
 				<li>
 					<code>parameters</code>: structured parameters for snippet-typed props (e.g.,
-					<code>Snippet&lt;[text: string]&gt;</code>) and callback props; absent when there are none
+					<Code lang="ts" inline content={'Snippet<[text: string]>'} />) and callback props; absent
+					when there are none
 				</li>
 				<li>
 					<code>returnType</code> and <code>returnTypeInfo</code>: a callback prop's return type
-					(<code>onpick?: (value: string) =&gt; void</code>, or a project alias for one). Its
-					presence is what marks a prop as a callback, including one with no parameters; snippets
-					never carry it. Only call signatures your project declares count, so a prop typed wholly
-					by a package (<code>MouseEventHandler&lt;HTMLButtonElement&gt;</code>, a
+					(<Code lang="ts" inline content={'onpick?: (value: string) => void'} />, or a project
+					alias for one). Its presence is what marks a prop as a callback, including one with no
+					parameters; snippets never carry it. Only call signatures your project declares count, so
+					a prop typed wholly by a package
+					(<Code lang="ts" inline content={'MouseEventHandler<HTMLButtonElement>'} />, a
 					<code>Component</code>) has neither field
 				</li>
 				<li>
@@ -308,7 +327,8 @@
 				<li>
 					<code>fallback</code>: what the style gives the property when unset, as source text: an
 					<code>@property</code> rule's <code>initial-value</code>, else the first read's fallback
-					(<code>var(--a, var(--b))</code> gives <code>var(--b)</code>)
+					(<Code lang="css" inline content="var(--a, var(--b))" /> gives
+					<Code lang="css" inline content="var(--b)" />)
 				</li>
 				<li>
 					<code>default</code>: a <code>@cssprop</code> tag's bracketed default, the author's claim
@@ -330,8 +350,8 @@
 			</p>
 			<ul>
 				<li>
-					<code>name</code>: parameter name (e.g., <code>"options"</code>; a rest parameter's dots
-					live in <code>rest</code>, not the name)
+					<code>name</code>: parameter name (e.g., <Code lang="ts" inline content={'"options"'} />;
+					a rest parameter's dots live in <code>rest</code>, not the name)
 				</li>
 				<li><code>type</code>: resolved TypeScript type as a string</li>
 				<li>
@@ -418,7 +438,9 @@
 				<DeclarationLink name="GenericParamJson" /> entries in <code>genericParams</code>:
 			</p>
 			<ul>
-				<li><code>name</code>: type parameter name (e.g., <code>"T"</code>)</li>
+				<li>
+					<code>name</code>: type parameter name (e.g., <Code lang="ts" inline content={'"T"'} />)
+				</li>
 				<li><code>constraint</code>: <code>extends</code> constraint, if present</li>
 				<li><code>defaultType</code>: default type, if present</li>
 			</ul>
@@ -431,8 +453,9 @@
 				<code>false</code> booleans, and <code>undefined</code> fields are stripped, so
 				<code>optional</code>, <code>acceptsChildren</code>, <code>partial</code>,
 				<code>rest</code>, <code>bindable</code>, and similar fields vanish at their default. The
-				<code>value</code> key is exempt, so a <code>{`{kind: "literal", value: false}`}</code> type
-				node survives. Parsing with <DeclarationLink name="parseAnalyzeResult" /> (or
+				<code>value</code> key is exempt, so a
+				<Code lang="ts" inline content={'{kind: "literal", value: false}'} /> type node survives.
+				Parsing with <DeclarationLink name="parseAnalyzeResult" /> (or
 				<DeclarationLink name="parseModuleJson" /> for one module) restores every default and
 				validates the shape, so the round-trip is lossless. The helpers are the stable entry point;
 				the <ModuleLink module_path="types.ts">valibot schemas</ModuleLink> behind them are exported
@@ -440,8 +463,9 @@
 			</p>
 			<p>
 				Raw-JSON consumers (<code>jq</code>, pipelines that skip parsing) must treat <em>absent</em>
-				as <em>false</em>: <code>decl.optional === false</code> fails because the key is gone. Parse
-				first, or use truthiness checks like <code>if (decl.optional)</code>.
+				as <em>false</em>: <Code lang="ts" inline content="decl.optional === false" /> fails because
+				the key is gone. Parse first, or use truthiness checks like
+				<Code lang="ts" inline content="if (decl.optional)" />.
 			</p>
 		</TomeSection>
 

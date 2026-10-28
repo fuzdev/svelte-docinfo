@@ -80,7 +80,7 @@ import data from 'virtual:svelte-docinfo';
 		</ol>
 		<p>
 			If TypeScript reports <code>Cannot find module 'virtual:svelte-docinfo'</code>, check the
-			<code>/// &lt;reference&gt;</code> line in <code>app.d.ts</code>.
+			<Code lang="ts" inline content={'/// <reference>'} /> line in <code>app.d.ts</code>.
 		</p>
 	</TomeSection>
 
@@ -168,8 +168,8 @@ svelteDocinfo({
 		<TomeSectionHeader text="Dev behavior" />
 		<p>
 			Options are validated when Vite resolves its config, so a bad one (like
-			<code>discovery: 'exports'</code> with <code>include</code>, or a path outside the project
-			root) fails at startup.
+			<Code lang="ts" inline content="discovery: 'exports'" /> with <code>include</code>, or a path
+			outside the project root) fails at startup.
 		</p>
 		<p>
 			In dev the plugin watches the source files and the files they import, debounces re-analysis by
