@@ -102,6 +102,9 @@ export const DiagnosticKind = v.picklist([
 	'implementation_doc_hidden',
 	'unknown_param',
 	'unknown_cssprop',
+	'malformed_tag',
+	'duplicate_tag',
+	'cssprop_default_mismatch',
 	'source_map_failed',
 	'duplicate_declaration',
 	'transform_failed',
@@ -467,7 +470,7 @@ export interface UnknownCsspropDiagnosticSchema extends Named<
  * A component's `@cssprop` tag names a custom property the component never
  * reads through `var()`: not in its `<style>` (nested fallbacks included),
  * nor in the static text of its markup's `style` attributes, `style:`
- * directives, or child components' `--a` attributes.
+ * directives, or child components' `style` and `--a` attributes.
  *
  * Usually a typo or a stale tag; it may also be a property the component
  * leaves for its children to read. The entry stays in
@@ -480,6 +483,94 @@ export interface UnknownCsspropDiagnosticSchema extends Named<
 export const UnknownCsspropDiagnostic: UnknownCsspropDiagnosticSchema =
 	UnknownCsspropDiagnosticImpl;
 export type UnknownCsspropDiagnostic = v.InferOutput<typeof UnknownCsspropDiagnostic>;
+
+const MalformedTagDiagnosticImpl = v.strictObject({
+	kind: v.literal('malformed_tag'),
+	...baseDiagnosticFields,
+	/** The tag name without the `@` prefix; a synonym reports its canonical name. */
+	tagName: v.picklist(['cssprop']),
+	/** Name of the declaration whose doc comment carries the tag. */
+	declarationName: v.string()
+});
+/** @nodocs */
+export interface MalformedTagDiagnosticSchema extends Named<typeof MalformedTagDiagnosticImpl> {}
+/**
+ * A JSDoc tag whose text doesn't parse as the tag's form, so it documents
+ * nothing.
+ *
+ * Today only `@cssprop` (`@cssproperty`): its text names no custom property
+ * (`@cssprop card_width - …`, a name without `--`; `@cssprop --a: …`; an
+ * unclosed `{…}` or `[…]`; an empty tag). Emitted on a Svelte component's
+ * doc comment, at the tag's line; on any other declaration the tag warns
+ * `misplaced_tag` instead, whether or not it parses. The tag is dropped.
+ *
+ * Always `warning`, query-time category.
+ */
+export const MalformedTagDiagnostic: MalformedTagDiagnosticSchema = MalformedTagDiagnosticImpl;
+export type MalformedTagDiagnostic = v.InferOutput<typeof MalformedTagDiagnostic>;
+
+const DuplicateTagDiagnosticImpl = v.strictObject({
+	kind: v.literal('duplicate_tag'),
+	...baseDiagnosticFields,
+	/** The tag name without the `@` prefix; a synonym reports its canonical name. */
+	tagName: v.picklist(['cssprop']),
+	/** Name of the declaration whose doc comment carries the tags. */
+	declarationName: v.string(),
+	/** The repeated key: the custom property's name for `@cssprop`, `--` included. */
+	key: v.string()
+});
+/** @nodocs */
+export interface DuplicateTagDiagnosticSchema extends Named<typeof DuplicateTagDiagnosticImpl> {}
+/**
+ * A JSDoc tag repeats a key an earlier tag of the same name in the comment
+ * already set, so it documents nothing.
+ *
+ * Today only `@cssprop` (`@cssproperty`): a second tag naming the same
+ * custom property. Emitted on a Svelte component's doc comment, at the
+ * later tag's line; the first tag wins. On any other declaration the tags
+ * warn `misplaced_tag` instead.
+ *
+ * Always `warning`, query-time category.
+ */
+export const DuplicateTagDiagnostic: DuplicateTagDiagnosticSchema = DuplicateTagDiagnosticImpl;
+export type DuplicateTagDiagnostic = v.InferOutput<typeof DuplicateTagDiagnostic>;
+
+const CsspropDefaultMismatchDiagnosticImpl = v.strictObject({
+	kind: v.literal('cssprop_default_mismatch'),
+	...baseDiagnosticFields,
+	/** The custom property the `@cssprop` tag names, `--` included. */
+	propertyName: v.string(),
+	/** Name of the component. */
+	componentName: v.string(),
+	/** The tag's bracketed default, verbatim. */
+	default: v.string(),
+	/** The style's fallback for the property, verbatim (`ComponentCssPropertyJson.fallback`). */
+	fallback: v.string()
+});
+/** @nodocs */
+export interface CsspropDefaultMismatchDiagnosticSchema extends Named<
+	typeof CsspropDefaultMismatchDiagnosticImpl
+> {}
+/**
+ * A component's `@cssprop` tag documents a default (`[--a=1px]`) that
+ * differs from the fallback its style gives the property
+ * (`ComponentCssPropertyJson.fallback`: the first `var()` read's fallback,
+ * or an `@property` rule's `initial-value`), compared as text with
+ * whitespace runs collapsed.
+ *
+ * Usually a stale tag after the style changed, or a documented value
+ * written in a form the style doesn't use (`red` against `#f00`): nothing
+ * evaluates CSS, so an equivalent spelling warns too. The entry keeps both,
+ * `default` and `fallback`, and `line` is the read's (the entry's
+ * `sourceLine`). Not emitted when the style wasn't read.
+ *
+ * Always `warning`, query-time category.
+ */
+export const CsspropDefaultMismatchDiagnostic: CsspropDefaultMismatchDiagnosticSchema =
+	CsspropDefaultMismatchDiagnosticImpl;
+export type CsspropDefaultMismatchDiagnostic = v.InferOutput<
+	typeof CsspropDefaultMismatchDiagnostic
+>;
 
 const DuplicateDeclarationDiagnosticImpl = v.strictObject({
 	kind: v.literal('duplicate_declaration'),
@@ -717,6 +808,9 @@ export const Diagnostic: v.VariantSchema<
 		typeof ImplementationDocHiddenDiagnostic,
 		typeof UnknownParamDiagnostic,
 		typeof UnknownCsspropDiagnostic,
+		typeof MalformedTagDiagnostic,
+		typeof DuplicateTagDiagnostic,
+		typeof CsspropDefaultMismatchDiagnostic,
 		typeof SourceMapFailedDiagnostic,
 		typeof DuplicateDeclarationDiagnostic,
 		typeof TransformFailedDiagnostic,
@@ -741,6 +835,9 @@ export const Diagnostic: v.VariantSchema<
 	ImplementationDocHiddenDiagnostic,
 	UnknownParamDiagnostic,
 	UnknownCsspropDiagnostic,
+	MalformedTagDiagnostic,
+	DuplicateTagDiagnostic,
+	CsspropDefaultMismatchDiagnostic,
 	SourceMapFailedDiagnostic,
 	DuplicateDeclarationDiagnostic,
 	TransformFailedDiagnostic,

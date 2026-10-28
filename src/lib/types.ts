@@ -707,22 +707,33 @@ const ComponentCssPropertyJsonImpl = v.strictObject({
 	/** The `@cssprop` tag's description, raw like `docComment`. Only on a `documented` entry. */
 	description: v.optional(v.string()),
 	/**
-	 * The `@cssprop` tag's braced syntax (`@cssprop {<color>} --a` gives
-	 * `<color>`), verbatim, unvalidated. Only on a `documented` entry.
+	 * The property's value syntax, verbatim, unvalidated: the `@cssprop` tag's
+	 * braced syntax (`@cssprop {<color>} --a` gives `<color>`), else the
+	 * `syntax` descriptor of an `@property` rule for the name in the
+	 * component's style, its quotes stripped (`syntax: '<color>'` gives
+	 * `<color>`).
 	 */
 	syntax: v.optional(v.string()),
 	/**
-	 * The value the property takes when unset: a `@cssprop` tag's bracketed
-	 * default (`@cssprop [--a=1px]` gives `1px`), else the fallback of the
-	 * first `var()` read with one, the verbatim source text after the comma,
+	 * What the style gives the property when a consumer doesn't set it: the
+	 * `initial-value` of an `@property` rule for the name in the component's
+	 * style (a registered property is never unset, so its initial value
+	 * applies whatever a read falls back to), else the fallback of the first
+	 * `var()` read with one, the verbatim source text after the comma,
 	 * trimmed, comments included (`var(--a, var(--b, 1px))` gives
 	 * `var(--b, 1px)`). Empty for `var(--a,)`, a fallback of nothing. Absent
-	 * for a documented property no read gives a fallback and no tag a default.
-	 * On a `documented` entry with a tag default, it's the documented value,
-	 * which may differ from what the style falls back to; nothing checks the
-	 * two agree.
+	 * for a documented property no read gives a fallback. Code fact only;
+	 * the tag's claim is `default`, and `cssprop_default_mismatch` warns when
+	 * the two disagree.
 	 */
 	fallback: v.optional(v.string()),
+	/**
+	 * The `@cssprop` tag's bracketed default (`@cssprop [--a=1px]` gives
+	 * `1px`), verbatim and trimmed. Only on a `documented` entry. The
+	 * author's claim beside `fallback`, the style's fact; a renderer wanting
+	 * one value takes `default ?? fallback`.
+	 */
+	default: v.optional(v.string()),
 	/**
 	 * 1-based line in the original `.svelte` source of the property's first
 	 * `var()` read, or for a documented property the component never reads,
@@ -731,9 +742,10 @@ const ComponentCssPropertyJsonImpl = v.strictObject({
 	sourceLine: v.pipe(v.number(), v.safeInteger(), v.minValue(1)),
 	/**
 	 * Whether a `@cssprop` tag in the component's doc comment documents the
-	 * property, as opposed to the fallback-read heuristic finding it alone.
-	 * A consumer can list only the documented entries when a component has
-	 * any, dropping the global tokens the heuristic also catches.
+	 * property, as opposed to the fallback-read heuristic (or an `@property`
+	 * rule) finding it alone. A consumer can list only the documented
+	 * entries when a component has any, dropping the global tokens the
+	 * heuristic also catches.
 	 */
 	documented: v.optional(v.boolean(), false)
 });
@@ -744,11 +756,11 @@ export interface ComponentCssPropertyJsonSchema extends Named<
 /**
  * A CSS custom property in a Svelte component's styling API: one a consumer
  * sets on the component (`<A --a_color="red" />`) or on an ancestor, read by
- * the component's `<style>`.
+ * the component's styles.
  *
  * Maps onto a Custom Elements Manifest `cssProperties` entry field for
- * field (`name`, `description`, `syntax`, `fallback` as `default`);
- * `sourceLine` and `documented` have no CEM counterpart.
+ * field (`name`, `description`, `syntax`, `default`); `fallback`,
+ * `sourceLine`, and `documented` have no CEM counterpart.
  *
  * @see `ComponentDeclarationJson.cssCustomProperties` for which reads count
  */
@@ -1332,40 +1344,52 @@ const ComponentDeclarationJsonImpl = v.strictObject({
 	 */
 	acceptsChildren: v.optional(v.boolean(), false),
 	/**
-	 * The component's styling API: the CSS custom properties its `<style>`
-	 * reads with a fallback (`var(--a, 1px)`) and leaves for a consumer to set,
-	 * plus the ones its doc comment documents with `@cssprop`. One entry per
-	 * name: the documented ones first, in tag order, then the rest in the
-	 * order of each name's first read.
+	 * The component's styling API: the CSS custom properties its styles read
+	 * with a fallback (`var(--a, 1px)`), the pattern Svelte's own docs give
+	 * for a component's styling hooks, or read bare and register with
+	 * `@property`, and leave for a consumer to set, plus the ones its doc
+	 * comment documents
+	 * with `@cssprop`. One entry per name: the documented ones first, in tag
+	 * order, then the rest in the order of each name's first read.
 	 *
 	 * A read counts when it's an outermost `var()`, not one in another
 	 * `var()`'s fallback: `var(--a, var(--b))` reads `--a`, with `--b` the
-	 * fallback chain's global token. Reads anywhere in the stylesheet count,
-	 * in `:global(…)` rules, nested rules, `@media`/`@container`/`@supports`
-	 * blocks, and keyframes alike. A name drops out when the component sets
-	 * it itself: a `--a: …` declaration in its `<style>`, a `style:--a`
-	 * directive, or a `--a:` in a `style` attribute on one of its elements.
-	 * A `--a` attribute on a child component doesn't count, since it styles
-	 * the child. A name read only without a fallback isn't listed: bare reads
-	 * are mostly global design tokens. A global token read with a fallback is
-	 * listed too; the author's fix is to drop the fallback or to document the
-	 * property with `@cssprop`. There's deliberately no option to filter
-	 * names at analysis: the output keeps every read, and a consumer that
-	 * wants less filters it (to `documented` entries, say).
+	 * fallback chain's global token. Reads anywhere in the top-level
+	 * `<style>` count, in `:global(…)` rules, nested rules,
+	 * `@media`/`@container`/`@supports` blocks, and keyframes alike, and so
+	 * do reads in the static text of the markup's `style` attributes and
+	 * `style:` directives on elements and `style` and `--a` attributes on
+	 * child components (`<Child --a="var(--b, 1px)" />` reads `--b`). A name
+	 * drops out when the component sets it itself: a `--a: …` declaration in
+	 * its `<style>`, a `style:--a` directive, or a `--a:` in a `style`
+	 * attribute on one of its elements. A `--a` or `style` attribute on a
+	 * child component sets nothing, since it styles the child. A name read
+	 * only without a fallback isn't listed, unless the style registers it
+	 * with `@property --a {…}`, whose `syntax` and `initial-value` the entry
+	 * carries (the last rule for a name wins; `inherits` isn't modeled); a
+	 * registered name nothing reads isn't listed either: bare reads are
+	 * mostly global design tokens. A global token read with a fallback is listed too; the author's
+	 * fix is to drop the fallback or to document the property with
+	 * `@cssprop`. There's deliberately no option to filter names at
+	 * analysis: the output keeps every read, and a consumer that wants less
+	 * filters it (to `documented` entries, say). Names are case-sensitive,
+	 * as in CSS.
 	 *
 	 * `@cssprop --a - Description 1` (or `@cssproperty`) in the component's
 	 * doc comment, the source that wins `docComment` (the in-script JSDoc
 	 * over the HTML `@component` comment, the losing one's tags ignored),
 	 * lists `--a` whatever the heuristic makes of it, `documented: true`, with
-	 * the tag's `description`, `syntax`, and default (`fallback`). It merges
-	 * with the read: a bare read, one nested in another's fallback, one the
-	 * component sets itself, or one in its markup's static style text counts,
-	 * giving `sourceLine` and, without a tag default, `fallback`. A name the
-	 * component never reads stays, at the tag's line, and warns
-	 * `unknown_cssprop`.
+	 * the tag's `description`, `syntax`, and `default`. It merges with the
+	 * read: a bare read, one nested in another's fallback, one the component
+	 * sets itself, or one in its markup's static style text counts, giving
+	 * `sourceLine` and `fallback`. A name the component never reads stays, at
+	 * the tag's line, and warns `unknown_cssprop`; a tag default the style's
+	 * fallback disagrees with warns `cssprop_default_mismatch`; a tag that
+	 * names no property warns `malformed_tag`, and one repeating a name
+	 * `duplicate_tag`, each dropped.
 	 *
-	 * Without tags, empty when the component has no `<style>`, when its
-	 * style's `lang` (or `type`) names a preprocessor language
+	 * Without tags, empty when the component has no `<style>` and no markup
+	 * read, when its style's `lang` (or `type`) names a preprocessor language
 	 * (`css_lang_unsupported`), or when Svelte's parser rejects the component
 	 * (`css_parse_failed`); tagged properties are listed even then.
 	 */

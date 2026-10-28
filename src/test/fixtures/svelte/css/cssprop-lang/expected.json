@@ -9,7 +9,7 @@
 				{
 					"name": "--a",
 					"description": "Description 1",
-					"fallback": "red",
+					"default": "red",
 					"sourceLine": 3,
 					"documented": true
 				}

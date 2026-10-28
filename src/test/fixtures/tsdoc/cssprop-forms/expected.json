@@ -22,16 +22,26 @@
 		{
 			"name": "--e",
 			"description": "Description 6",
-			"fallback": "1px"
+			"default": "1px"
 		},
 		{
 			"name": "--f",
 			"description": "Description 7 with {@link fn}",
 			"syntax": "<length> | auto",
-			"fallback": "var(--g, 2px)"
+			"default": "var(--g, 2px)"
 		},
 		{
 			"name": "--h"
+		}
+	],
+	"cssPropertyProblems": [
+		{
+			"kind": "malformed",
+			"text": "a - Description 8"
+		},
+		{
+			"kind": "malformed",
+			"text": "[--i - Description 9"
 		}
 	]
 }

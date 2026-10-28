@@ -19,7 +19,7 @@
 			"kind": "duplicate_comment",
 			"commentType": "doc_comment",
 			"file": "src/lib/ComponentDoccommentScriptAndMultipleHtml.svelte",
-			"message": "Both HTML @component comment and JSDoc in <script> provide component documentation. Using JSDoc.",
+			"message": "Both the JSDoc in <script> and the HTML @component comment document the component. Using the JSDoc; the HTML comment's prose and tags are ignored.",
 			"severity": "warning"
 		}
 	]

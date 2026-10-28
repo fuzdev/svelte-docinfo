@@ -2006,8 +2006,10 @@ export const analyzeSvelteModule = (
 						htmlComponentComment.start + htmlComponentComment.content.length + 7
 					]
 				: [0, 0];
-	const tagLineOf = (name: string): number =>
-		findCsspropTagLine(sourceFile.content, docStart, docEnd, name) ?? componentDecl.sourceLine ?? 1;
+	const tagLineOf = (name: string | undefined, occurrence = 0): number =>
+		findCsspropTagLine(sourceFile.content, docStart, docEnd, name, occurrence) ??
+		componentDecl.sourceLine ??
+		1;
 	const documentedCss = documentCssProperties(css, csspropTags, tagLineOf);
 	if (documentedCss.properties.length) {
 		componentDecl.cssCustomProperties = documentedCss.properties;
@@ -2025,6 +2027,49 @@ export const analyzeSvelteModule = (
 			propertyName: name,
 			componentName
 		});
+	}
+	for (const property of documentedCss.mismatched) {
+		diagnostics.push({
+			kind: 'cssprop_default_mismatch',
+			file: diagnosticFile,
+			line: property.sourceLine,
+			message: `@cssprop "${property.name}" on "${componentName}" documents the default "${property.default}" but the style falls back to "${property.fallback}"`,
+			severity: 'warning',
+			propertyName: property.name,
+			componentName,
+			default: property.default!,
+			fallback: property.fallback!
+		});
+	}
+	// the tags that document nothing, each at its own line: the nth malformed
+	// tag, or the nth repeat of a name (its first tag is occurrence 0)
+	let malformedSeen = 0;
+	const repeatsSeen: Map<string, number> = new Map();
+	for (const problem of componentTsdoc?.tsdoc.cssPropertyProblems ?? []) {
+		if (problem.kind === 'malformed') {
+			diagnostics.push({
+				kind: 'malformed_tag',
+				file: diagnosticFile,
+				line: tagLineOf(undefined, malformedSeen++),
+				message: `${problem.text ? `@cssprop "${problem.text}"` : 'An empty @cssprop'} on "${componentName}" names no custom property (the form is \`@cssprop {<syntax>} [--name=default] - description\`), so it's dropped`,
+				severity: 'warning',
+				tagName: 'cssprop',
+				declarationName: componentName
+			});
+		} else {
+			const occurrence = (repeatsSeen.get(problem.name!) ?? 0) + 1;
+			repeatsSeen.set(problem.name!, occurrence);
+			diagnostics.push({
+				kind: 'duplicate_tag',
+				file: diagnosticFile,
+				line: tagLineOf(problem.name, occurrence),
+				message: `@cssprop "${problem.name}" on "${componentName}" repeats an earlier tag, which wins; this one is dropped`,
+				severity: 'warning',
+				tagName: 'cssprop',
+				declarationName: componentName,
+				key: problem.name!
+			});
+		}
 	}
 
 	// Warn when svelte2tsx (and so editor hover) would document the component
@@ -2044,14 +2089,20 @@ export const analyzeSvelteModule = (
 		});
 	}
 
-	// Warn if both HTML @component and script JSDoc provide docComment
-	if (componentDecl.docComment && componentTsdoc?.source === 'script' && htmlComponentComment) {
+	// Warn when both the in-script JSDoc and the HTML @component comment carry
+	// documentation (prose or a tag): the JSDoc wins whole, so the HTML
+	// comment's prose and tags are lost, even to a JSDoc of tags alone
+	if (
+		componentTsdoc?.source === 'script' &&
+		htmlComponentComment &&
+		parseHtmlComponentComment(htmlComponentComment)
+	) {
 		diagnostics.push({
 			kind: 'duplicate_comment',
 			commentType: 'doc_comment',
 			file: diagnosticFile,
 			message:
-				'Both HTML @component comment and JSDoc in <script> provide component documentation. Using JSDoc.',
+				"Both the JSDoc in <script> and the HTML @component comment document the component. Using the JSDoc; the HTML comment's prose and tags are ignored.",
 			severity: 'warning'
 		});
 	}

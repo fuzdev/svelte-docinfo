@@ -19,3 +19,6 @@ export class A {
 
 /** @cssprop --c - Description 6 */
 export type B = string;
+
+/** @cssprop c - Description 7 */
+export type C = string;

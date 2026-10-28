@@ -1,0 +1,30 @@
+{
+	"path": "CssAtProperty.svelte",
+	"declarations": [
+		{
+			"name": "CssAtProperty",
+			"kind": "component",
+			"sourceLine": 1,
+			"cssCustomProperties": [
+				{
+					"name": "--a",
+					"syntax": "<color>",
+					"fallback": "red",
+					"sourceLine": 19
+				},
+				{
+					"name": "--b",
+					"syntax": "<length>",
+					"fallback": "1px",
+					"sourceLine": 20
+				},
+				{
+					"name": "--c",
+					"syntax": "*",
+					"sourceLine": 21
+				}
+			],
+			"lang": "js"
+		}
+	]
+}

@@ -1380,7 +1380,10 @@ export const analyzeDeclaration = (
 		}
 	}
 	applyToDeclaration(result, tsdoc);
-	if (warnMisplacedCssprop && tsdoc?.cssProperties?.length) {
+	if (
+		warnMisplacedCssprop &&
+		(tsdoc?.cssProperties?.length || tsdoc?.cssPropertyProblems?.length)
+	) {
 		const loc = getNodeLocation(declNode);
 		ctx.diagnostics.push({
 			kind: 'misplaced_tag',
@@ -1612,7 +1615,7 @@ const collectDeclarationOnlyTags = (
 	if (tsdoc.throws?.length) found.push('throws');
 	if (tsdoc.defaultValue !== undefined) found.push('default');
 	if (tsdoc.nodocs) found.push('nodocs');
-	if (tsdoc.cssProperties?.length) found.push('cssprop');
+	if (tsdoc.cssProperties?.length || tsdoc.cssPropertyProblems?.length) found.push('cssprop');
 	return found;
 };
 

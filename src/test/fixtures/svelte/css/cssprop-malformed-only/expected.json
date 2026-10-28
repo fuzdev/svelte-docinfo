@@ -1,0 +1,41 @@
+{
+	"path": "CssCsspropMalformedOnly.svelte",
+	"declarations": [
+		{
+			"name": "CssCsspropMalformedOnly",
+			"kind": "component",
+			"sourceLine": 5,
+			"props": [
+				{
+					"name": "prop1",
+					"type": "string"
+				}
+			],
+			"cssCustomProperties": [
+				{
+					"name": "--a",
+					"fallback": "red",
+					"sourceLine": 16
+				}
+			]
+		}
+	],
+	"diagnostics": [
+		{
+			"kind": "malformed_tag",
+			"file": "src/lib/CssCsspropMalformedOnly.svelte",
+			"line": 7,
+			"message": "@cssprop \"b - Description 2\" on \"CssCsspropMalformedOnly\" names no custom property (the form is `@cssprop {<syntax>} [--name=default] - description`), so it's dropped",
+			"severity": "warning",
+			"tagName": "cssprop",
+			"declarationName": "CssCsspropMalformedOnly"
+		},
+		{
+			"kind": "duplicate_comment",
+			"commentType": "doc_comment",
+			"file": "src/lib/CssCsspropMalformedOnly.svelte",
+			"message": "Both the JSDoc in <script> and the HTML @component comment document the component. Using the JSDoc; the HTML comment's prose and tags are ignored.",
+			"severity": "warning"
+		}
+	]
+}

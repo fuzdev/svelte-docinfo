@@ -303,8 +303,12 @@ export function double(n: number | bigint): number | bigint {
 			<p>
 				<code>@cssprop {'{<syntax>}'} [--name=default] - description</code> documents a CSS custom
 				property in a Svelte component's doc comment, in the Custom Elements Manifest form; the
-				syntax and brackets are optional. A tag naming no <code>--</code> property is dropped, and a
-				second tag for the same name is ignored. See <TomeLink slug="component-styling" />.
+				syntax and brackets are optional. A tag naming no <code>--</code> property warns
+				<code>malformed_tag</code> and is dropped; a second tag for the same name warns
+				<code>duplicate_tag</code> and the first wins. The bracketed default lands in
+				<code>default</code>, beside the <code>fallback</code> the style gives; when the two
+				disagree, <code>cssprop_default_mismatch</code> warns. See
+				<TomeLink slug="component-styling" />.
 			</p>
 		</TomeSection>
 

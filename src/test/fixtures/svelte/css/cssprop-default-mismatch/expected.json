@@ -1,0 +1,69 @@
+{
+	"path": "CssCsspropDefaultMismatch.svelte",
+	"declarations": [
+		{
+			"name": "CssCsspropDefaultMismatch",
+			"kind": "component",
+			"sourceLine": 1,
+			"cssCustomProperties": [
+				{
+					"name": "--a",
+					"description": "Description 1",
+					"fallback": "red",
+					"default": "blue",
+					"sourceLine": 17,
+					"documented": true
+				},
+				{
+					"name": "--b",
+					"description": "Description 2",
+					"fallback": "var(--c, 1px)",
+					"default": "var(--c, 1px)",
+					"sourceLine": 18,
+					"documented": true
+				},
+				{
+					"name": "--d",
+					"description": "Description 3",
+					"default": "2px",
+					"sourceLine": 19,
+					"documented": true
+				},
+				{
+					"name": "--e",
+					"description": "Description 4",
+					"syntax": "<length>",
+					"fallback": "4px",
+					"default": "3px",
+					"sourceLine": 20,
+					"documented": true
+				}
+			],
+			"lang": "js"
+		}
+	],
+	"diagnostics": [
+		{
+			"kind": "cssprop_default_mismatch",
+			"file": "src/lib/CssCsspropDefaultMismatch.svelte",
+			"line": 17,
+			"message": "@cssprop \"--a\" on \"CssCsspropDefaultMismatch\" documents the default \"blue\" but the style falls back to \"red\"",
+			"severity": "warning",
+			"propertyName": "--a",
+			"componentName": "CssCsspropDefaultMismatch",
+			"default": "blue",
+			"fallback": "red"
+		},
+		{
+			"kind": "cssprop_default_mismatch",
+			"file": "src/lib/CssCsspropDefaultMismatch.svelte",
+			"line": 20,
+			"message": "@cssprop \"--e\" on \"CssCsspropDefaultMismatch\" documents the default \"3px\" but the style falls back to \"4px\"",
+			"severity": "warning",
+			"propertyName": "--e",
+			"componentName": "CssCsspropDefaultMismatch",
+			"default": "3px",
+			"fallback": "4px"
+		}
+	]
+}

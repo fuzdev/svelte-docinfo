@@ -40,7 +40,16 @@ const TsdocParsedCommentJson = v.strictObject({
 				name: v.string(),
 				description: v.optional(v.string()),
 				syntax: v.optional(v.string()),
-				fallback: v.optional(v.string())
+				default: v.optional(v.string())
+			})
+		)
+	),
+	cssPropertyProblems: v.optional(
+		v.array(
+			v.strictObject({
+				kind: v.picklist(['malformed', 'duplicate']),
+				text: v.string(),
+				name: v.optional(v.string())
 			})
 		)
 	)

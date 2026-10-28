@@ -6,5 +6,12 @@
 			"name": "--a",
 			"description": "Description 1"
 		}
+	],
+	"cssPropertyProblems": [
+		{
+			"kind": "duplicate",
+			"text": "--a - Description 2",
+			"name": "--a"
+		}
 	]
 }

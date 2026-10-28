@@ -31,7 +31,8 @@
 				{
 					"name": "--d",
 					"description": "Description 5",
-					"fallback": "2px",
+					"fallback": "1px",
+					"default": "2px",
 					"sourceLine": 18,
 					"documented": true
 				},
@@ -59,6 +60,17 @@
 			"severity": "warning",
 			"propertyName": "--x",
 			"componentName": "CssCsspropHtml"
+		},
+		{
+			"kind": "cssprop_default_mismatch",
+			"file": "src/lib/CssCsspropHtml.svelte",
+			"line": 18,
+			"message": "@cssprop \"--d\" on \"CssCsspropHtml\" documents the default \"2px\" but the style falls back to \"1px\"",
+			"severity": "warning",
+			"propertyName": "--d",
+			"componentName": "CssCsspropHtml",
+			"default": "2px",
+			"fallback": "1px"
 		}
 	]
 }

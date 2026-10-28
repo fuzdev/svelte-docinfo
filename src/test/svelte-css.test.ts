@@ -119,6 +119,73 @@ describe('analyzeComponentCss', () => {
 		);
 	});
 
+	test("the markup's static style text reads count, in source order with the style's", () => {
+		const source =
+			'<script>\n\timport A from "./A.svelte";\n</script>\n<div style="width: var(--a, 1px); --b: {c}" style:margin="var(--d, 2px) var(--e)"></div>\n<A --f="var(--g, 3px)" style="color: var(--h, red)" />\n<style>b { color: var(--i, 4px); padding: var(--a, 5px) }</style>';
+		assert.deepEqual(propertiesOf(source), [
+			['--a', '1px', 4],
+			['--d', '2px', 4],
+			['--g', '3px', 5],
+			['--h', 'red', 5],
+			['--i', '4px', 6]
+		]);
+	});
+
+	test('a style-less source lists its markup reads', () => {
+		assert.deepEqual(propertiesOf('<div style="color: var(--a, red)"></div>\n'), [
+			['--a', 'red', 1]
+		]);
+	});
+
+	test('a read inside a dynamic style expression is not a read', () => {
+		const source =
+			'<div style={`color: var(--a, red)`} style:margin={b ? "var(--c, 1px)" : ""}></div>\n';
+		assert.deepEqual(analyzeComponentCss(source), { properties: [], reads: new Map() });
+	});
+
+	test('an @property rule lists a bare read, with its syntax and initial value', () => {
+		const source =
+			"<div></div>\n<style>\n\t@property --a { syntax: '<color>'; inherits: true; initial-value: red; }\n\t@PROPERTY --b { SYNTAX: \"*\"; inherits: false }\n\t@property --c { syntax: '<length>'; initial-value: 1px }\n\t@property --d { syntax: '<length>'; initial-value: 1px }\n\t@property --e { syntax: '<length>'; initial-value: 1px }\n\t@property c { syntax: '*' }\n\t.a { color: var(--a); margin: var(--b); padding: var(--c, 2px); --d: 3px; width: var(--d); }\n</style>";
+		assert.deepEqual(analyzeComponentCss(source).properties, [
+			{ name: '--a', syntax: '<color>', fallback: 'red', sourceLine: 9 },
+			{ name: '--b', syntax: '*', sourceLine: 9 },
+			// a registered property is never unset, so the initial value wins
+			{ name: '--c', syntax: '<length>', fallback: '1px', sourceLine: 9 }
+		]);
+	});
+
+	test('the last @property rule for a name wins, and registration reaches nested reads', () => {
+		const source =
+			"<div></div>\n<style>\n\t@property --a { syntax: '<length>'; initial-value: 1px }\n\t@property --a { syntax: '<color>'; initial-value: red }\n\t.a { color: var(--b, var(--a, blue)) }\n</style>";
+		const css = analyzeComponentCss(source);
+		assert.deepEqual(css.properties, [{ name: '--b', fallback: 'var(--a, blue)', sourceLine: 5 }]);
+		assert.deepEqual(css.reads?.get('--a'), { line: 5, fallback: 'red', syntax: '<color>' });
+		// a tagged registered name the component only reads nested keeps the registration
+		const { properties, mismatched } = documentCssProperties(
+			css,
+			[{ name: '--a', default: 'red' }],
+			() => 1
+		);
+		assert.deepEqual(properties[0], {
+			name: '--a',
+			syntax: '<color>',
+			fallback: 'red',
+			default: 'red',
+			sourceLine: 5,
+			documented: true
+		});
+		assert.deepEqual(mismatched, []);
+	});
+
+	test("a child component's style prop is case-sensitive, an element's attribute isn't", () => {
+		const source =
+			'<script>\n\timport A from "./A.svelte";\n</script>\n<A Style="var(--a, 1)" style="var(--b, 2)" />\n<div STYLE="var(--c, 3)"></div>\n';
+		assert.deepEqual(
+			propertiesOf(source).map(([name]) => name),
+			['--b', '--c']
+		);
+	});
+
 	test('a style attribute declaration through an expression name sets nothing', () => {
 		const source =
 			'<div style="{a}: 1; --b : 2"></div>\n<style>b { color: var(--a, 2) var(--b, 3) }</style>';
@@ -210,8 +277,8 @@ describe('analyzeComponentCss reads', () => {
 		);
 	});
 
-	test('a style-less source without a @cssprop mention reads nothing', () => {
-		assert.deepEqual(analyzeComponentCss('<div style="color: var(--a, red)"></div>\n'), {
+	test('a style-less source without var( text reads nothing', () => {
+		assert.deepEqual(analyzeComponentCss('<div style="--a: red"></div>\n'), {
 			properties: [],
 			reads: new Map()
 		});
@@ -231,6 +298,13 @@ describe('analyzeComponentCss reads', () => {
 		});
 	});
 
+	test('a style-less source with var( in an HTML comment is parsed and reads nothing', () => {
+		assert.deepEqual(analyzeComponentCss('<!-- var(--a, red) -->\n<div></div>\n'), {
+			properties: [],
+			reads: new Map()
+		});
+	});
+
 	test('a style that is not read has no reads', () => {
 		const css = analyzeComponentCss(
 			'<style lang="scss">\n\t.a { color: var(--a, red); }\n</style>\n'
@@ -245,22 +319,57 @@ describe('documentCssProperties', () => {
 		'<style>\n\t.a { color: var(--a, red); margin: var(--b); padding: var(--c, 1px); }\n</style>\n';
 
 	test('documented entries come first in tag order, then the rest in read order', () => {
-		const { properties, unread } = documentCssProperties(
+		const { properties, unread, mismatched } = documentCssProperties(
 			analyzeComponentCss(SOURCE),
 			[
 				{ name: '--x', description: 'd1' },
 				{ name: '--b', syntax: '<length>' },
-				{ name: '--a', fallback: 'blue' }
+				{ name: '--a', default: 'blue' }
 			],
 			() => 9
 		);
 		assert.deepEqual(properties, [
 			{ name: '--x', description: 'd1', sourceLine: 9, documented: true },
 			{ name: '--b', syntax: '<length>', sourceLine: 2, documented: true },
-			{ name: '--a', fallback: 'blue', sourceLine: 2, documented: true },
+			{ name: '--a', fallback: 'red', default: 'blue', sourceLine: 2, documented: true },
 			{ name: '--c', fallback: '1px', sourceLine: 2 }
 		]);
 		assert.deepEqual(unread, [{ name: '--x', description: 'd1', sourceLine: 9, documented: true }]);
+		assert.deepEqual(mismatched, [
+			{ name: '--a', fallback: 'red', default: 'blue', sourceLine: 2, documented: true }
+		]);
+	});
+
+	test('a tag default matching the fallback, whitespace runs aside, is no mismatch', () => {
+		const css = analyzeComponentCss(
+			'<style>\n\t.a { color: var(--a, var(--b,  1px)); margin: var(--c, 2px); padding: var(--d) }\n</style>\n'
+		);
+		const { mismatched } = documentCssProperties(
+			css,
+			[
+				{ name: '--a', default: 'var(--b, 1px)' },
+				{ name: '--c', default: ' 2px ' },
+				{ name: '--d', default: '3px' }
+			],
+			() => 1
+		);
+		// `--d` is read only without a fallback, so nothing to disagree with
+		assert.deepEqual(mismatched, []);
+	});
+
+	test("a tag's syntax wins over an @property rule's, which fills in otherwise", () => {
+		const css = analyzeComponentCss(
+			"<style>\n\t@property --a { syntax: '<color>'; initial-value: red }\n\t@property --b { syntax: '<length>' }\n\t.a { color: var(--a); margin: var(--b) }\n</style>\n"
+		);
+		const { properties } = documentCssProperties(
+			css,
+			[{ name: '--a', syntax: '<color> | none' }, { name: '--b' }],
+			() => 1
+		);
+		assert.deepEqual(properties, [
+			{ name: '--a', syntax: '<color> | none', fallback: 'red', sourceLine: 4, documented: true },
+			{ name: '--b', syntax: '<length>', sourceLine: 4, documented: true }
+		]);
 	});
 
 	test('without tags, the heuristic list as is', () => {
@@ -269,7 +378,8 @@ describe('documentCssProperties', () => {
 			documentCssProperties(css, [], () => 1),
 			{
 				properties: css.properties,
-				unread: []
+				unread: [],
+				mismatched: []
 			}
 		);
 	});
@@ -279,8 +389,12 @@ describe('documentCssProperties', () => {
 			'<style lang="scss">\n\t.a { color: var(--a, red); }\n</style>\n'
 		);
 		assert.deepEqual(
-			documentCssProperties(css, [{ name: '--a' }], () => 4),
-			{ properties: [{ name: '--a', sourceLine: 4, documented: true }], unread: [] }
+			documentCssProperties(css, [{ name: '--a', default: 'blue' }], () => 4),
+			{
+				properties: [{ name: '--a', default: 'blue', sourceLine: 4, documented: true }],
+				unread: [],
+				mismatched: []
+			}
 		);
 	});
 });
@@ -291,6 +405,29 @@ describe('findCsspropTagLine', () => {
 	test('finds the tag naming the property, by its parsed name', () => {
 		assert.strictEqual(findCsspropTagLine(SOURCE, 0, SOURCE.length, '--a'), 4);
 		assert.strictEqual(findCsspropTagLine(SOURCE, 0, SOURCE.length, '--ab'), 3);
+	});
+
+	test('reads a tag across lines, as the comment parser does', () => {
+		const source =
+			'<script>\n\t/**\n\t * @cssprop\n\t *   --a - next line\n\t * @cssprop [--b=var(--c,\n\t *   1px)] - d\n\t * @cssprop --e*/\n</script>\n<!-- @component\n@cssprop\n@param x\n@cssprop --f -->\n';
+		assert.strictEqual(findCsspropTagLine(source, 0, source.length, '--a'), 3);
+		assert.strictEqual(findCsspropTagLine(source, 0, source.length, '--b'), 5);
+		assert.strictEqual(findCsspropTagLine(source, 0, source.length, '--e'), 7);
+		assert.strictEqual(findCsspropTagLine(source, 0, source.length, '--f'), 12);
+		// the empty tag before `@param` is the one malformed tag
+		assert.strictEqual(findCsspropTagLine(source, 0, source.length, undefined), 10);
+		assert.strictEqual(findCsspropTagLine(source, 0, source.length, undefined, 1), undefined);
+	});
+
+	test('finds the nth tag naming the property, and the nth malformed tag', () => {
+		const source =
+			'<!--\n@component\n@cssprop --a - 1\n@cssprop a - malformed\n@cssprop --a - 2\n@cssprop\n@cssprop --a - 3\n-->\n';
+		assert.strictEqual(findCsspropTagLine(source, 0, source.length, '--a', 1), 5);
+		assert.strictEqual(findCsspropTagLine(source, 0, source.length, '--a', 2), 7);
+		assert.strictEqual(findCsspropTagLine(source, 0, source.length, '--a', 3), undefined);
+		assert.strictEqual(findCsspropTagLine(source, 0, source.length, undefined), 4);
+		assert.strictEqual(findCsspropTagLine(source, 0, source.length, undefined, 1), 6);
+		assert.strictEqual(findCsspropTagLine(source, 0, source.length, undefined, 2), undefined);
 	});
 
 	test('searches only the range', () => {

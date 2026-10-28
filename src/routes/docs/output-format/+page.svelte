@@ -300,12 +300,20 @@
 			</p>
 			<ul>
 				<li><code>name</code>: the property as written, <code>--</code> included</li>
+				<li><code>description</code>: from a <code>@cssprop</code> tag</li>
 				<li>
-					<code>description</code> and <code>syntax</code>: from a <code>@cssprop</code> tag
+					<code>syntax</code>: a tag's braced syntax, else an <code>@property</code> rule's
+					<code>syntax</code> descriptor
 				</li>
 				<li>
-					<code>fallback</code>: a tag's default, else the source text of the first read's fallback
+					<code>fallback</code>: what the style gives the property when unset, as source text: an
+					<code>@property</code> rule's <code>initial-value</code>, else the first read's fallback
 					(<code>var(--a, var(--b))</code> gives <code>var(--b)</code>)
+				</li>
+				<li>
+					<code>default</code>: a <code>@cssprop</code> tag's bracketed default, the author's claim
+					beside <code>fallback</code>; a renderer wanting one value takes
+					<code>default ?? fallback</code>
 				</li>
 				<li>
 					<code>sourceLine</code>: the first read's line, or the tag's for a property never read

@@ -238,13 +238,13 @@ describe('parseCsspropTagText', () => {
 		['a braced syntax', '{<color>} --a - b', { name: '--a', description: 'b', syntax: '<color>' }],
 		['an empty syntax', '{} --a', { name: '--a' }],
 		['a bracketed name', '[--a] - b', { name: '--a', description: 'b' }],
-		['a default', '[--a=1px] - b', { name: '--a', description: 'b', fallback: '1px' }],
-		['a spaced default', '[ --a = 1px 2px ]', { name: '--a', fallback: '1px 2px' }],
+		['a default', '[--a=1px] - b', { name: '--a', description: 'b', default: '1px' }],
+		['a spaced default', '[ --a = 1px 2px ]', { name: '--a', default: '1px 2px' }],
 		['an empty default', '[--a=]', { name: '--a' }],
 		[
 			'a default with nested brackets and strings',
 			"[--a=var(--b, [c]) ']'] - d",
-			{ name: '--a', description: 'd', fallback: "var(--b, [c]) ']'" }
+			{ name: '--a', description: 'd', default: "var(--b, [c]) ']'" }
 		],
 		['a non-ASCII name', '--é', { name: '--é' }],
 		['a multi-line description', '--a - b\nc', { name: '--a', description: 'b\nc' }]

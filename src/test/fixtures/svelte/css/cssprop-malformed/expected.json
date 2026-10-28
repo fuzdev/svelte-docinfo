@@ -1,0 +1,93 @@
+{
+	"path": "CssCsspropMalformed.svelte",
+	"declarations": [
+		{
+			"name": "CssCsspropMalformed",
+			"kind": "component",
+			"docComment": "Description 1",
+			"sourceLine": 1,
+			"cssCustomProperties": [
+				{
+					"name": "--a",
+					"description": "Description 2",
+					"fallback": "red",
+					"sourceLine": 21,
+					"documented": true
+				},
+				{
+					"name": "--c",
+					"description": "Description 7",
+					"sourceLine": 22,
+					"documented": true
+				},
+				{
+					"name": "--d",
+					"description": "Description 8",
+					"fallback": "var(--e, 1px)",
+					"default": "var(--e,\n1px)",
+					"sourceLine": 23,
+					"documented": true
+				}
+			],
+			"lang": "js"
+		}
+	],
+	"diagnostics": [
+		{
+			"kind": "malformed_tag",
+			"file": "src/lib/CssCsspropMalformed.svelte",
+			"line": 6,
+			"message": "@cssprop \"a - Description 3\" on \"CssCsspropMalformed\" names no custom property (the form is `@cssprop {<syntax>} [--name=default] - description`), so it's dropped",
+			"severity": "warning",
+			"tagName": "cssprop",
+			"declarationName": "CssCsspropMalformed"
+		},
+		{
+			"kind": "duplicate_tag",
+			"file": "src/lib/CssCsspropMalformed.svelte",
+			"line": 7,
+			"message": "@cssprop \"--a\" on \"CssCsspropMalformed\" repeats an earlier tag, which wins; this one is dropped",
+			"severity": "warning",
+			"tagName": "cssprop",
+			"declarationName": "CssCsspropMalformed",
+			"key": "--a"
+		},
+		{
+			"kind": "malformed_tag",
+			"file": "src/lib/CssCsspropMalformed.svelte",
+			"line": 8,
+			"message": "@cssprop \"{<color> --b - Description 5\" on \"CssCsspropMalformed\" names no custom property (the form is `@cssprop {<syntax>} [--name=default] - description`), so it's dropped",
+			"severity": "warning",
+			"tagName": "cssprop",
+			"declarationName": "CssCsspropMalformed"
+		},
+		{
+			"kind": "malformed_tag",
+			"file": "src/lib/CssCsspropMalformed.svelte",
+			"line": 9,
+			"message": "An empty @cssprop on \"CssCsspropMalformed\" names no custom property (the form is `@cssprop {<syntax>} [--name=default] - description`), so it's dropped",
+			"severity": "warning",
+			"tagName": "cssprop",
+			"declarationName": "CssCsspropMalformed"
+		},
+		{
+			"kind": "duplicate_tag",
+			"file": "src/lib/CssCsspropMalformed.svelte",
+			"line": 10,
+			"message": "@cssprop \"--a\" on \"CssCsspropMalformed\" repeats an earlier tag, which wins; this one is dropped",
+			"severity": "warning",
+			"tagName": "cssprop",
+			"declarationName": "CssCsspropMalformed",
+			"key": "--a"
+		},
+		{
+			"kind": "malformed_tag",
+			"file": "src/lib/CssCsspropMalformed.svelte",
+			"line": 15,
+			"message": "@cssprop \"d - Description 9\" on \"CssCsspropMalformed\" names no custom property (the form is `@cssprop {<syntax>} [--name=default] - description`), so it's dropped",
+			"severity": "warning",
+			"tagName": "cssprop",
+			"declarationName": "CssCsspropMalformed"
+		}
+	]
+}

@@ -259,19 +259,33 @@ Where each behavior is locked. Unit and behavior-level mechanics live in
   blocks, and a child component's `--a` attribute not counting
   (`set-in-markup`); reads in nested rules, `&`, `@media`, `@container`,
   `@supports`, keyframes, and `:global` (`nested-rules`); comments and strings
-  (`comments-strings`); a legacy component (`legacy`), a template-only one
+  (`comments-strings`); fallback reads in the markup's static style text, on
+  elements' `style` attributes and directives and a child's `style` and `--a`
+  attributes, in source order with the style's, a bare directive read and a
+  set name left out (`markup-reads`); `@property` rules listing bare reads
+  with `syntax` and `initial-value`, the latter over a read's fallback
+  (`at-property`); a legacy component (`legacy`), a template-only one
   (`template-only`); a preprocessor `lang` warning `css_lang_unsupported`
   (`lang-postcss`). `@cssprop` tags (`cssprop-*`): in the HTML comment, a
   bare read, a fallback read merging, `@cssproperty` with a `{<color>}` syntax,
-  a default over the read's fallback, an unread name warning `unknown_cssprop`,
+  a `default` beside the read's `fallback` (warning
+  `cssprop_default_mismatch`), an unread name warning `unknown_cssprop`,
   and an undocumented read listed after (`cssprop-html`); in the in-script
-  JSDoc, winning over the HTML comment's tags (`cssprop-script`); reads that
-  count only for tags, nested in a fallback, set by the component itself, and
-  in the markup's static style text and a child's `--a` attribute
-  (`cssprop-other-reads`); a component with no style (`cssprop-no-style`) and
-  with an unread one (`cssprop-lang`); in a `<script module>` module comment
-  and on an export, warning `misplaced_tag` (`cssprop-misplaced`). Sources
-  Svelte rejects (`css_parse_failed`) and scanner edges are in
+  JSDoc, winning over the HTML comment's tags (`cssprop-script`), and a
+  tags-only JSDoc winning with `duplicate_comment`
+  (`cssprop-script-tags-only`); reads that count only for tags, nested in a
+  fallback, set by the component itself, and bare in the markup's static
+  style text (`cssprop-other-reads`); a tag default against the read's
+  fallback, equal but for whitespace, against a bare read, and against an
+  `@property` initial value (`cssprop-default-mismatch`); malformed and
+  repeated tags warning `malformed_tag` and `duplicate_tag` at their own
+  lines, beside a name on the line after its tag and a default spanning
+  lines (`cssprop-malformed`); a comment of a malformed tag alone winning the
+  doc slot and warning (`cssprop-malformed-only`); a component with no style
+  (`cssprop-no-style`)
+  and with an unread one (`cssprop-lang`); in a `<script module>` module
+  comment and on an export, warning `misplaced_tag` (`cssprop-misplaced`).
+  Sources Svelte rejects (`css_parse_failed`) and scanner edges are in
   `svelte-css.test.ts`, since svelte-check type-checks fixtures
 - Re-exports (`reexports/*`): component rename with phase-2 fill
   (`component-renamed`), same-name re-key via a ts barrel's bare
@@ -385,8 +399,8 @@ Where each behavior is locked. Unit and behavior-level mechanics live in
   (`declarations/function/overload-implementation-doc-hidden`)
 - TSDoc placement on declarations and members (`ts/tsdoc/*`), including
   `@default` (`declarations/*/jsdoc-default*`) and `@cssprop` warning
-  `misplaced_tag` on a function and a type, not on a member
-  (`tsdoc/cssprop-misplaced`)
+  `misplaced_tag` on a function and a type, a malformed one too, not on a
+  member (`tsdoc/cssprop-misplaced`)
 - Type aliases: object literals, intersections, mapped, unions, tuples,
   conditionals, template literals, index/call/construct signatures, readonly,
   overloads
@@ -404,7 +418,8 @@ Where each behavior is locked. Unit and behavior-level mechanics live in
 `@deprecated`, `@internal` (prose and bare), `@see` (URL, `{@link}`, text,
 mixed), `@since`, `@mutates` (compound path, multi-word, backtick, bare,
 continuation, list), `@nodocs`, `@cssprop` (every form, `@cssproperty`,
-dropped malformed tags, a duplicate name: `cssprop-*`), inline `{@link}` in
+malformed tags and a duplicate name kept apart in `cssPropertyProblems`:
+`cssprop-*`), inline `{@link}` in
 descriptions, empty comments, a comprehensive all-tags case, and a `@module` block's tags never
 reaching the declaration below it (`module-block-*`).
 

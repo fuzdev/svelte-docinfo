@@ -542,7 +542,9 @@ let {label}: {label: string} = $props();
 
 				assert.strictEqual(exitCode, 0, 'Warnings should not fail the run');
 				assert.ok(
-					stderr.some((e) => e.includes('Both HTML @component comment and JSDoc')),
+					stderr.some((e) =>
+						e.includes('Both the JSDoc in <script> and the HTML @component comment')
+					),
 					`Expected duplicate_comment warning on stderr under --quiet, got: ${stderr.join('; ')}`
 				);
 				assert.ok(

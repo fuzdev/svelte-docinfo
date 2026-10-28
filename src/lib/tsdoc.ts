@@ -37,7 +37,11 @@
  * synonym) for documenting a Svelte component's CSS custom properties:
  * `@cssprop {<syntax>} [--name=default] - description`, where the braced syntax, the
  * brackets, and the default are optional (`parseCsspropTagText`). It documents only a
- * component, in its doc comment; elsewhere it warns `misplaced_tag`.
+ * component, in its doc comment; elsewhere it warns `misplaced_tag`. A tag whose text
+ * names no custom property, and a tag repeating an earlier tag's name, are kept apart in
+ * `cssPropertyProblems` for the analyzers to warn about (`malformed_tag`, `duplicate_tag`);
+ * they still count as doc content, so a comment of broken tags alone claims the doc slot
+ * and gets its warnings.
  *
  * The `@see` tag supports multiple formats: plain URLs (`https://...`), `{@link}` syntax, and module names.
  * Relative/absolute path support in `@see` is TBD.
@@ -124,9 +128,28 @@ export interface TsdocParsedComment {
 	nodocs?: boolean;
 	/**
 	 * CSS custom properties from `@cssprop` (or its `@cssproperty` synonym), in
-	 * tag order, one per name: a later tag naming the same property is ignored.
+	 * tag order, one per name: a later tag naming the same property is ignored
+	 * (`cssPropertyProblems` records it).
 	 */
 	cssProperties?: Array<TsdocCssProperty>;
+	/**
+	 * The `@cssprop` tags that document nothing, in tag order: one whose text
+	 * names no custom property (`malformed`), and one naming a property an
+	 * earlier tag already documents (`duplicate`). They count as doc content
+	 * (`hasDocContent`), so a comment of broken tags alone still reaches the
+	 * analyzer that warns about them.
+	 */
+	cssPropertyProblems?: Array<TsdocCssPropertyProblem>;
+}
+
+/** A `@cssprop` tag that documents nothing, for the analyzers to warn about. */
+export interface TsdocCssPropertyProblem {
+	/** `malformed` when the text names no custom property, `duplicate` when it repeats a name. */
+	kind: 'malformed' | 'duplicate';
+	/** The tag's text after the tag name, trimmed. */
+	text: string;
+	/** The repeated name, on a `duplicate`. */
+	name?: string;
 }
 
 /**
@@ -141,7 +164,7 @@ export interface TsdocCssProperty {
 	/** The braced syntax before the name (`<color>`), verbatim without the braces. */
 	syntax?: string;
 	/** The bracketed default after the name (`[--a=red]` → `red`), verbatim and trimmed. */
-	fallback?: string;
+	default?: string;
 }
 
 /**
@@ -355,7 +378,7 @@ export const parseCsspropTagText = (text: string): TsdocCssProperty | undefined 
 		rest = rest.slice(close + 1).trimStart();
 	}
 	let name: string;
-	let fallback: string | undefined;
+	let defaultValue: string | undefined;
 	if (rest.startsWith('[')) {
 		let depth = 0;
 		let quote: string | undefined;
@@ -382,7 +405,7 @@ export const parseCsspropTagText = (text: string): TsdocCssProperty | undefined 
 		const equals = inner.indexOf('=');
 		name = (equals === -1 ? inner : inner.slice(0, equals)).trim();
 		if (equals !== -1) {
-			fallback = inner.slice(equals + 1).trim() || undefined;
+			defaultValue = inner.slice(equals + 1).trim() || undefined;
 		}
 		rest = rest.slice(close + 1);
 	} else {
@@ -394,7 +417,7 @@ export const parseCsspropTagText = (text: string): TsdocCssProperty | undefined 
 	const description = cleanTagDescription(rest);
 	if (description) property.description = description;
 	if (syntax !== undefined) property.syntax = syntax;
-	if (fallback !== undefined) property.fallback = fallback;
+	if (defaultValue !== undefined) property.default = defaultValue;
 	return property;
 };
 
@@ -414,7 +437,8 @@ export const parseCsspropTagText = (text: string): TsdocCssProperty | undefined 
  * - `@default` - default value (`@defaultValue`/`@defaultvalue` accepted as synonyms)
  * - `@mutates` - mutation documentation (non-standard)
  * - `@nodocs` - exclusion flag (non-standard)
- * - `@cssprop` - a component's CSS custom property (`@cssproperty` accepted as a synonym)
+ * - `@cssprop` - a component's CSS custom property (`@cssproperty` accepted as a synonym);
+ *   a tag that documents nothing lands in `cssPropertyProblems`
  *
  * A JSDoc `@typedef` or `@callback` tag parses to the typedef's docs
  * (`parseTypedefComment`), and a `@callback`'s signature to its parameter and
@@ -756,6 +780,7 @@ const parseCommentParts = (
 	let mutates: Record<string, string> | undefined;
 	let nodocs: boolean | undefined;
 	let cssProperties: Array<TsdocCssProperty> | undefined;
+	let cssPropertyProblems: Array<TsdocCssPropertyProblem> | undefined;
 
 	for (const tag of tags) {
 		const tagText = jsdocCommentText(tag.comment, sourceFile);
@@ -820,9 +845,14 @@ const parseCommentParts = (
 			}
 		} else if (tagName === 'nodocs') {
 			nodocs = true;
-		} else if ((tagName === 'cssprop' || tagName === 'cssproperty') && tagText) {
-			const property = parseCsspropTagText(tagText);
-			if (property && !cssProperties?.some(({ name }) => name === property.name)) {
+		} else if (tagName === 'cssprop' || tagName === 'cssproperty') {
+			const text = tagText?.trim() ?? '';
+			const property = parseCsspropTagText(text);
+			if (!property) {
+				(cssPropertyProblems ??= []).push({ kind: 'malformed', text });
+			} else if (cssProperties?.some(({ name }) => name === property.name)) {
+				(cssPropertyProblems ??= []).push({ kind: 'duplicate', text, name: property.name });
+			} else {
 				(cssProperties ??= []).push(property);
 			}
 		}
@@ -841,7 +871,8 @@ const parseCommentParts = (
 		defaultValue,
 		mutates,
 		nodocs,
-		cssProperties
+		cssProperties,
+		cssPropertyProblems
 	};
 };
 
@@ -855,7 +886,9 @@ const parseCommentParts = (
  * reachable instead of letting an annotation claim the doc slot with empty
  * text. Structural over the parsed result — any field beyond `text`/`params`
  * counts when present — so it can't drift from `parseComment`'s extraction or
- * from `TsdocParsedComment` gaining fields.
+ * from `TsdocParsedComment` gaining fields. `cssPropertyProblems` counts too:
+ * a broken `@cssprop` is still the author's intent, and only a comment that
+ * wins the doc slot gets warned about (`malformed_tag`, `duplicate_tag`).
  */
 export const hasDocContent = ({ text, params, ...tags }: TsdocParsedComment): boolean =>
 	text.length > 0 ||

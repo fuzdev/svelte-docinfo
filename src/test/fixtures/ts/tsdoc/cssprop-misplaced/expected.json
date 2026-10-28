@@ -28,6 +28,12 @@
 			"kind": "type",
 			"typeSignature": "string",
 			"sourceLine": 21
+		},
+		{
+			"name": "C",
+			"kind": "type",
+			"typeSignature": "string",
+			"sourceLine": 24
 		}
 	],
 	"diagnostics": [
@@ -50,6 +56,16 @@
 			"severity": "warning",
 			"tagName": "cssprop",
 			"functionName": "B"
+		},
+		{
+			"kind": "misplaced_tag",
+			"file": "src/lib/input.ts",
+			"line": 24,
+			"column": 1,
+			"message": "@cssprop on \"C\" has no effect — it documents a Svelte component's CSS custom properties, in the component's doc comment",
+			"severity": "warning",
+			"tagName": "cssprop",
+			"functionName": "C"
 		}
 	]
 }

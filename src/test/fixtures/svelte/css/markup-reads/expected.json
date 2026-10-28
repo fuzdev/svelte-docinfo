@@ -1,0 +1,77 @@
+{
+	"modules": [
+		{
+			"path": "CssMarkupReads/CssMarkupReads.svelte",
+			"declarations": [
+				{
+					"name": "CssMarkupReads",
+					"kind": "component",
+					"sourceLine": 1,
+					"props": [
+						{
+							"name": "prop1",
+							"type": "string"
+						}
+					],
+					"cssCustomProperties": [
+						{
+							"name": "--a",
+							"fallback": "1px",
+							"sourceLine": 7
+						},
+						{
+							"name": "--c",
+							"fallback": "2px",
+							"sourceLine": 7
+						},
+						{
+							"name": "--f",
+							"fallback": "3px",
+							"sourceLine": 10
+						},
+						{
+							"name": "--g",
+							"fallback": "red",
+							"sourceLine": 10
+						},
+						{
+							"name": "--h",
+							"fallback": "4px",
+							"sourceLine": 14
+						}
+					]
+				}
+			],
+			"dependencies": [
+				"CssMarkupReads/Other.svelte"
+			]
+		},
+		{
+			"path": "CssMarkupReads/Other.svelte",
+			"declarations": [
+				{
+					"name": "Other",
+					"kind": "component",
+					"sourceLine": 1,
+					"props": [
+						{
+							"name": "style",
+							"type": "string",
+							"optional": true
+						}
+					],
+					"cssCustomProperties": [
+						{
+							"name": "--e",
+							"fallback": "red",
+							"sourceLine": 9
+						}
+					]
+				}
+			],
+			"dependents": [
+				"CssMarkupReads/CssMarkupReads.svelte"
+			]
+		}
+	]
+}

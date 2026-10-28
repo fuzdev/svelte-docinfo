@@ -77,9 +77,12 @@ topic guides and references; `tomes.ts` orders them). Examples: `examples/vite/`
   - `@cssprop {<syntax>} [--name=default] - description` (the Custom Elements Manifest
     form, `parseCsspropTagText`; syntax, brackets, and default optional) documents a
     component's CSS custom property, from the component's doc comment only (see Svelte
-    Component Analysis). On any other exported declaration it warns `misplaced_tag`
-    (`analyzeDeclaration`'s `warnMisplacedCssprop`, off for svelte2tsx's generated
-    component, which carries the HTML comment); members and props drop it silently.
+    Component Analysis). A tag naming no `--` property, and one repeating a name, land in
+    `cssPropertyProblems` (doc content still, so a comment of broken tags alone wins the
+    slot and gets warned), which the component warns `malformed_tag` / `duplicate_tag`. On any other exported declaration any `@cssprop`, parsed or not, warns
+    `misplaced_tag` (`analyzeDeclaration`'s `warnMisplacedCssprop`, off for svelte2tsx's
+    generated component, which carries the HTML comment); members and props drop it
+    silently.
   - `@mutates` splits target from description at ` - `. Dotted `@param obj.prop` fills
     `ParameterJson.propertyDescriptions`, including the tags TS nests under a braced
     `@param {object} obj` (`collectParamTag`).
@@ -114,8 +117,9 @@ topic guides and references; `tomes.ts` orders them). Examples: `examples/vite/`
   and the checker, including JS components and legacy `export let` components (see Svelte
   Component Analysis).
 - **Component styling API** — `cssCustomProperties`: the CSS custom properties a component's
-  `<style>` reads with a fallback and doesn't set itself, plus the ones its doc comment
-  documents with `@cssprop` (see Svelte Component Analysis).
+  styles read with a fallback, or read bare and register with `@property`, and doesn't set
+  itself, plus the ones its doc comment documents with `@cssprop` (see Svelte Component
+  Analysis).
 - **Runes** — `$state`, `$state.raw`, `$derived`, `$derived.by`, detected syntactically in
   every file (`reactivity`).
 
@@ -367,28 +371,38 @@ The workflow is in the `analyzeSvelteModule` TSDoc; the policies:
   last comment containing `@component` anywhere; when the two picks differ and in-script
   JSDoc doesn't supply the doc, `component_comment_mismatch` warns.
 - **Styling API** (`cssCustomProperties`; `svelte-css.ts` and the `types.ts` field doc) —
-  outermost `var(--x, fallback)` reads in the top-level `<style>`, at any depth (nested
-  rules, at-rule blocks, `:global`, keyframes), minus names the component sets itself: a
-  `--x:` declaration in its style, a `style:--x` directive, or `--x:` in an element's
-  `style` attribute (a child component's `--x` attribute doesn't count). Bare reads are
-  left out. One entry per name (`name`, `fallback` verbatim, `sourceLine` of the first
-  read), in first-read order. One Svelte `parse` (`modern`, `loose`) over the source with
-  script content blanked (`blankVerbatimContent`), at transform; a source without `<style`
-  is parsed only when it has both `var(` and a `@cssprop` mention. A non-CSS `lang`/`type`
-  warns `css_lang_unsupported`, a rejected parse `css_parse_failed`; either way the
-  component emits without the field (`@cssprop` entries aside). Legacy components read the same.
+  outermost `var(--x, fallback)` reads (the pattern Svelte's docs give for styling hooks)
+  in the top-level `<style>`, at any depth (nested rules, at-rule blocks, `:global`,
+  keyframes), and in the markup's static style text (elements' `style` attributes and
+  `style:` directives, child components' `style` and `--x` attributes), minus names the
+  component sets itself: a `--x:` declaration in its style, a `style:--x` directive, or
+  `--x:` in an element's `style` attribute (a child component's `--x` or `style` attribute
+  sets nothing). Bare reads are left out, unless the style registers the name with
+  `@property --x {…}`, which supplies `syntax` and, as `fallback`, `initial-value` (a
+  registered property is never unset, so it wins over a read's fallback, nested reads
+  included; the last rule for a name wins; `inherits` isn't modeled). One entry per name (`name`, `fallback` verbatim, `sourceLine` of the first
+  read), in first-read order across style and markup. One Svelte `parse` (`modern`,
+  `loose`) over the source with script content blanked (`blankVerbatimContent`), at
+  transform; a source without `<style` is parsed only when its non-script text has `var(`.
+  A non-CSS `lang`/`type` warns `css_lang_unsupported`, a rejected parse
+  `css_parse_failed`; either way the component emits without the field (`@cssprop` entries
+  aside). Legacy components read the same.
   - **`@cssprop`** (`documentCssProperties` TSDoc) — tags from the source that wins
-    `docComment` only (the loser's are ignored, as its other tags are). Each tag is an
-    entry, `documented: true`, with `description`/`syntax` and its default as `fallback`;
-    documented entries come first in tag order, then the heuristic's in first-read order.
+    `docComment` only (the loser's are ignored, as its other tags are; `duplicate_comment`
+    warns whenever both sources carry content, a tags-only JSDoc included). Each tag is an
+    entry, `documented: true`, with the tag's `description`/`syntax`/`default`; the style's
+    `fallback` and `sourceLine` sit beside them, never overwritten, and a `default` the
+    `fallback` disagrees with (whitespace runs aside) warns `cssprop_default_mismatch`.
+    Documented entries come first in tag order, then the heuristic's in first-read order.
     A tagged name merges with any read (`ComponentCss.reads`: bare, nested in a fallback,
-    set by the component itself, or in the markup's static style text, child components'
-    `--x="var(--y)"` attributes included), taking its
-    `sourceLine` and, absent a tag default, its `fallback`. An unread name stays at the
-    tag's line (`findCsspropTagLine`) and warns `unknown_cssprop`, unless the style wasn't
-    read at all (`css_lang_unsupported`/`css_parse_failed`), where tags stay unchecked.
-    Consumers can filter to `documented` entries when a component has any, dropping the
-    heuristic's global-token false positives.
+    set by the component itself, or in the markup's static style text), taking its
+    `sourceLine` and `fallback` (and an `@property` `syntax` when the tag gives none). An
+    unread name stays at the tag's line (`findCsspropTagLine`) and warns
+    `unknown_cssprop`, unless the style wasn't read at all
+    (`css_lang_unsupported`/`css_parse_failed`), where tags stay unchecked. A tag naming no
+    property warns `malformed_tag`, a repeat `duplicate_tag`, each at its own line and
+    dropped. Consumers can filter to `documented` entries when a component has any,
+    dropping the heuristic's global-token false positives.
 - **Legacy `export let`** (`svelte-legacy.ts` TSDoc) — every prop is `bindable`; type and
   optionality come from svelte2tsx's props literal or the author's `$$Props` (an
   `export let` it doesn't declare is dropped), else (JS, or TS whose exports are all untyped
@@ -554,7 +568,11 @@ whole-output pass so a new printing site can't miss it.
   warning.
 - **`unknown_cssprop`** — a component's `@cssprop` names a property it never reads
   (`propertyName`, `componentName`, `line` at the tag), mirroring `unknown_param`; the entry
-  stays.
+  stays. **`cssprop_default_mismatch`** — its bracketed default differs from the style's
+  `fallback` (`default`, `fallback`, `line` at the read); both stay on the entry.
+  **`malformed_tag`** / **`duplicate_tag`** (`tagName`, `declarationName`; `key` on the
+  duplicate) — a `@cssprop` that names nothing, or repeats a name, dropped; on a
+  non-component the same tags warn `misplaced_tag` instead.
 - **`alias_lost`** — an exported alias the checker dropped and neither recovery channel
   heals. Gated on a registry being present, a loss-capable right-hand side, not a literal
   union or brand, and not `@nodocs`. The author-side fix is a nominal symbol
@@ -637,15 +655,17 @@ semantics and reports unresolvable stars instead of guessing. Lock-in tests:
 - Standalone `namespace Foo {}` documents as a bare `kind: 'variable'` (`export * as ns` is
   supported). Decorators aren't modeled.
 - `@nodocs` on members and component props is ignored with no warning.
-- `@cssprop` drops silently when malformed (naming no `--` property), when it repeats a
-  name (the first tag wins), on a prop's or member's JSDoc, and on a non-primary
-  overload. A tag whose name sits on the next line reports the component's line, as does
-  one TS reads mid-line (`findCsspropTagLine` matches line-leading tags only), and a
-  line-leading mention earlier in the instance script (a `/* … */` block's ` * @cssprop`
-  line, a template-literal line) takes the tag's line.
+- `@cssprop` drops silently on a prop's or member's JSDoc and on a non-primary overload.
+  A tag TS reads mid-line reports the component's line (`findCsspropTagLine` matches
+  line-leading tags only), and a line-leading mention earlier in the instance script (a
+  `/* … */` block's ` * @cssprop` line, a template-literal line) takes the tag's line, or
+  shifts a later malformed or repeated tag's.
 - A `var()` inside a dynamic attribute expression (`style="color: {c ? 'var(--a)' : ''}"`)
   or in a `<svelte:head>` `<style>` isn't a read, so a `@cssprop` for it warns
-  `unknown_cssprop`.
+  `unknown_cssprop`. So does one on a wrapper component whose child reads the property
+  through inheritance: reads aren't resolved across components.
+- `cssprop_default_mismatch` compares text, so an equivalent spelling (`red` against
+  `#f00`) warns.
 - Silently dropped: indirect external re-exports, unresolvable specifiers, the type-only
   marker of `export type * from` and of a renamed value (`export type {c as d} from`).
 - A `<script module>` name re-exported from a component with no virtual documents as a
@@ -660,7 +680,8 @@ semantics and reports unresolvable stars instead of guessing. Lock-in tests:
 - Styling API: a preprocessor-language `<style>` (`css_lang_unsupported`); custom
   properties set from script (`style.setProperty`), a dynamic `style={…}` value, or an
   expression in a `style` attribute's property position (`style="{a}: 1"`) count as unset,
-  so their fallback reads stay listed.
+  so their fallback reads stay listed. An `@property` rule's `inherits: false`, which
+  keeps an ancestor's value from reaching the component, isn't modeled.
 - A runes component's `<slot />` doesn't set `acceptsChildren`.
 - Legacy components: named slots, slot props, and events aren't modeled. Two export forms
   follow svelte2tsx where it departs from Svelte: `export let a; export {a as b}` keeps

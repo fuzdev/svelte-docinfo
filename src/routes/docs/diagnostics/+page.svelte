@@ -188,10 +188,11 @@
 						<td><code>duplicate_comment</code></td>
 						<td>
 							<strong>Trigger:</strong> two sources supplied a comment for the same target: an HTML
-							<code>@component</code> comment plus script JSDoc
+							<code>@component</code> comment plus script JSDoc, either with prose or a tag
 							(<code>commentType: "doc_comment"</code>), or several <code>@module</code> sources in
 							a Svelte file (<code>"module_comment"</code>). <strong>Consequence:</strong> the
-							higher-priority source wins: script JSDoc for doc comments; instance
+							higher-priority source wins whole: script JSDoc for doc comments, its prose and tags
+							replacing the HTML comment's even when the JSDoc holds tags alone; instance
 							<code>&lt;script&gt;</code>, then <code>&lt;script module&gt;</code>, then HTML for
 							module comments, skipping one that holds only dropped tags.
 						</td>
@@ -252,10 +253,43 @@
 							<strong>Trigger:</strong> a component's <code>@cssprop</code> names a property
 							(<code>propertyName</code>) the component never reads through <code>var()</code>, in
 							its <code>&lt;style&gt;</code> or its markup's static style text: a typo, a stale tag,
-							or a property it leaves for its children. <code>line</code> is the tag's. Not emitted
-							when the style isn't read (<code>css_parse_failed</code>,
-							<code>css_lang_unsupported</code>). <strong>Consequence:</strong> none; the entry
-							stays in <code>cssCustomProperties</code>, <code>documented: true</code>.
+							or a property it leaves for its children (reads aren't resolved across components).
+							<code>line</code> is the tag's. Not emitted when the style isn't read
+							(<code>css_parse_failed</code>, <code>css_lang_unsupported</code>).
+							<strong>Consequence:</strong> none; the entry stays in
+							<code>cssCustomProperties</code>, <code>documented: true</code>.
+						</td>
+					</tr>
+					<tr>
+						<td><code>cssprop_default_mismatch</code></td>
+						<td>
+							<strong>Trigger:</strong> a component's <code>@cssprop</code> documents a default
+							(<code>[--a=1px]</code>, carried in <code>default</code>) that differs from the
+							fallback its style gives the property (<code>fallback</code>: the first
+							<code>var()</code> read's, or an <code>@property</code> rule's
+							<code>initial-value</code>), compared as text with whitespace runs collapsed, so an
+							equivalent spelling (<code>red</code> against <code>#f00</code>) warns too.
+							<code>line</code> is the read's. Not emitted when the style isn't read.
+							<strong>Consequence:</strong> none; the entry keeps both values.
+						</td>
+					</tr>
+					<tr>
+						<td><code>malformed_tag</code></td>
+						<td>
+							<strong>Trigger:</strong> a <code>@cssprop</code> (<code>tagName</code>) in a
+							component's doc comment whose text names no <code>--</code> property: a name without
+							the dashes, an unclosed <code>{'{…}'}</code> or <code>[…]</code>, an empty tag.
+							<code>line</code> is the tag's. On any other declaration the tag warns
+							<code>misplaced_tag</code> instead. <strong>Consequence:</strong> the tag is dropped.
+						</td>
+					</tr>
+					<tr>
+						<td><code>duplicate_tag</code></td>
+						<td>
+							<strong>Trigger:</strong> a <code>@cssprop</code> (<code>tagName</code>) in a
+							component's doc comment repeats a property (<code>key</code>) an earlier tag names.
+							<code>line</code> is the later tag's. <strong>Consequence:</strong> the first tag
+							wins; this one is dropped.
 						</td>
 					</tr>
 					<tr>
@@ -294,8 +328,9 @@
 						<td><code>css_parse_failed</code></td>
 						<td>
 							<strong>Trigger:</strong> Svelte's parser rejects a component that has a
-							<code>&lt;style&gt;</code>: malformed CSS, two top-level styles, or markup its loose
-							parsing can't absorb. <strong>Consequence:</strong> the component emits without
+							<code>&lt;style&gt;</code>, or a <code>var()</code> in its markup: malformed CSS, two
+							top-level styles, or markup its loose parsing can't absorb (any template error under a
+							Svelte before 5.13). <strong>Consequence:</strong> the component emits without
 							<code>cssCustomProperties</code> beyond its <code>@cssprop</code> tags;
 							<code>line</code>/<code>column</code> are the parser's.
 						</td>
