@@ -15,7 +15,7 @@
 			);
 		</script>
 
-		<meta http-equiv="content-security-policy" content="child-src 'none'; default-src 'none'; frame-src 'self' https://*.fuz.dev/ https://*.zzz.software/; worker-src 'self' blob: 'wasm-unsafe-eval'; connect-src 'self' https://*.fuz.dev/ https://*.zzz.software/; font-src 'self' data: https://*.fuz.dev/ https://*.zzz.software/; img-src 'self' data: blob: filesystem: https://*.fuz.dev/ https://*.zzz.software/; manifest-src 'self'; media-src 'self' data: blob: mediastream: filesystem: https://*.fuz.dev/ https://*.zzz.software/; object-src 'none'; script-src 'self' 'wasm-unsafe-eval' 'sha256-CkhymyixntvSTuePGizI3BFtnRFlWWg95YBmBOCFxfY=' 'sha256-mskoirOhVV+3H/wJOWQENSifj6FlxSZB0U4h9dPY8PY='; script-src-elem 'self' 'sha256-CkhymyixntvSTuePGizI3BFtnRFlWWg95YBmBOCFxfY=' 'sha256-mskoirOhVV+3H/wJOWQENSifj6FlxSZB0U4h9dPY8PY='; script-src-attr 'none'; style-src 'self' 'unsafe-inline'; style-src-elem 'self' 'unsafe-inline'; style-src-attr 'unsafe-inline'; base-uri 'none'; form-action 'self'; upgrade-insecure-requests">
+		<meta http-equiv="content-security-policy" content="child-src 'none'; default-src 'none'; frame-src 'self' https://*.fuz.dev/ https://*.zzz.software/; worker-src 'self' blob: 'wasm-unsafe-eval'; connect-src 'self' https://*.fuz.dev/ https://*.zzz.software/; font-src 'self' data: https://*.fuz.dev/ https://*.zzz.software/; img-src 'self' data: blob: filesystem: https://*.fuz.dev/ https://*.zzz.software/; manifest-src 'self'; media-src 'self' data: blob: mediastream: filesystem: https://*.fuz.dev/ https://*.zzz.software/; object-src 'none'; script-src 'self' 'wasm-unsafe-eval' 'sha256-CkhymyixntvSTuePGizI3BFtnRFlWWg95YBmBOCFxfY=' 'sha256-cahkq163lKhmGvv/5X1GN0nk6Z05hEQm6/WLdXET8Lc='; script-src-elem 'self' 'sha256-CkhymyixntvSTuePGizI3BFtnRFlWWg95YBmBOCFxfY=' 'sha256-cahkq163lKhmGvv/5X1GN0nk6Z05hEQm6/WLdXET8Lc='; script-src-attr 'none'; style-src 'self' 'unsafe-inline'; style-src-elem 'self' 'unsafe-inline'; style-src-attr 'unsafe-inline'; base-uri 'none'; form-action 'self'; upgrade-insecure-requests">
 		<link href="/_app/immutable/entry/start.BNDNHIzM.js" rel="modulepreload">
 		<link href="/_app/immutable/entry/payload.DSmR2FwN.js" rel="modulepreload">
 		<link href="/_app/immutable/chunks/CRzLMJPS.js" rel="modulepreload">
@@ -24,7 +24,7 @@
 		<link href="/_app/immutable/chunks/Dv5cY9UL.js" rel="modulepreload">
 		<link href="/_app/immutable/chunks/Cyt8LZpN.js" rel="modulepreload">
 		<link href="/_app/immutable/chunks/_qhx-64t.js" rel="modulepreload">
-		<link href="/_app/immutable/entry/app.bH0bmG7j.js" rel="modulepreload">
+		<link href="/_app/immutable/entry/app.KZ73huIN.js" rel="modulepreload">
 		<link href="/_app/immutable/nodes/0.DxyC-FPF.js" rel="modulepreload">
 		<link href="/_app/immutable/chunks/DW-egKz2.js" rel="modulepreload">
 		<link href="/_app/immutable/chunks/BlM4x1kJ.js" rel="modulepreload">
@@ -39,8 +39,8 @@
 		<link href="/_app/immutable/chunks/BoZRk_e8.js" rel="modulepreload">
 		<link href="/_app/immutable/chunks/DEmID6vD.js" rel="modulepreload">
 		<link href="/_app/immutable/chunks/BIDoCPWp.js" rel="modulepreload">
-		<link href="/_app/immutable/nodes/7.BJBEP7FY.js" rel="modulepreload">
-		<link href="/_app/immutable/chunks/Di2O_w4E.js" rel="modulepreload">
+		<link href="/_app/immutable/nodes/7.Bxry838k.js" rel="modulepreload">
+		<link href="/_app/immutable/chunks/BNHTZZj6.js" rel="modulepreload">
 		<!--12qhfyh--><!----><!--4fa0a9--><!--[-1--><!--]--><!----><!--l7ch43--><!----><title>shapes.ts - extraction - svelte-docinfo</title>
 		<link href="/_app/immutable/assets/0.BrxRqued.css" rel="stylesheet">
 		<link href="/_app/immutable/assets/2.BmqVpFtv.css" rel="stylesheet">
@@ -75,7 +75,7 @@
 <span class="token_comment">/** Anything with a computable area. */</span>
 <span class="token_special_keyword">export</span> <span class="token_keyword">interface</span> <span class="token_class_name">HasArea</span> <span class="token_punctuation">{</span>
 	<span class="token_comment">/** Area in square units. */</span>
-	<span class="token_keyword">readonly</span> area<span class="token_type_annotation"><span class="token_:">:</span> <span class="token_type"><span class="token_builtin">number</span></span></span><span class="token_punctuation">;</span>
+	<span class="token_keyword">readonly</span> area<span class="token_type_annotation"><span class="token_operator">:</span> <span class="token_type"><span class="token_builtin">number</span></span></span><span class="token_punctuation">;</span>
 <span class="token_punctuation">}</span>
 
 <span class="token_comment">/** What `shapeArea` measures: a shape, or a circle's radius. */</span>
@@ -87,9 +87,9 @@
 	 * Stroke color as a CSS color string.
 	 * @default 'black'
 	 */</span>
-	stroke<span class="token_operator">?</span><span class="token_type_annotation"><span class="token_:">:</span> <span class="token_type"><span class="token_builtin">string</span></span></span><span class="token_punctuation">;</span>
+	stroke<span class="token_operator">?</span><span class="token_type_annotation"><span class="token_operator">:</span> <span class="token_type"><span class="token_builtin">string</span></span></span><span class="token_punctuation">;</span>
 	<span class="token_comment">/** Line width in pixels. */</span>
-	width<span class="token_operator">?</span><span class="token_type_annotation"><span class="token_:">:</span> <span class="token_type"><span class="token_builtin">number</span></span></span><span class="token_punctuation">;</span>
+	width<span class="token_operator">?</span><span class="token_type_annotation"><span class="token_operator">:</span> <span class="token_type"><span class="token_builtin">number</span></span></span><span class="token_punctuation">;</span>
 <span class="token_punctuation">}</span>
 
 <span class="token_comment">/**
@@ -102,9 +102,9 @@
 	<span class="token_keyword">static</span> <span class="token_keyword">readonly</span> kind <span class="token_operator">=</span> <span class="token_capitalized_identifier token_class_name">ShapeKind</span><span class="token_punctuation">.</span><span class="token_capitalized_identifier token_class_name">Rectangle</span><span class="token_punctuation">;</span>
 
 	<span class="token_comment">/** Width in units. */</span>
-	width<span class="token_type_annotation"><span class="token_:">:</span> <span class="token_type"><span class="token_builtin">number</span></span></span><span class="token_punctuation">;</span>
+	width<span class="token_type_annotation"><span class="token_operator">:</span> <span class="token_type"><span class="token_builtin">number</span></span></span><span class="token_punctuation">;</span>
 	<span class="token_comment">/** Height in units. */</span>
-	height<span class="token_type_annotation"><span class="token_:">:</span> <span class="token_type"><span class="token_builtin">number</span></span></span><span class="token_punctuation">;</span>
+	height<span class="token_type_annotation"><span class="token_operator">:</span> <span class="token_type"><span class="token_builtin">number</span></span></span><span class="token_punctuation">;</span>
 
 	<span class="token_comment">// private state is excluded from extraction</span>
 	#drawCount <span class="token_operator">=</span> <span class="token_number">0</span><span class="token_punctuation">;</span>
@@ -114,22 +114,22 @@
 	 * @param height - initial height
 	 * @throws `RangeError` when either dimension is negative
 	 */</span>
-	<span class="token_function">constructor</span><span class="token_punctuation">(</span>width<span class="token_type_annotation"><span class="token_:">:</span> <span class="token_type"><span class="token_builtin">number</span></span></span><span class="token_punctuation">,</span> height<span class="token_type_annotation"><span class="token_:">:</span> <span class="token_type"><span class="token_builtin">number</span></span></span><span class="token_punctuation">)</span> <span class="token_punctuation">{</span>
+	<span class="token_function">constructor</span><span class="token_punctuation">(</span>width<span class="token_type_annotation"><span class="token_operator">:</span> <span class="token_type"><span class="token_builtin">number</span></span></span><span class="token_punctuation">,</span> height<span class="token_type_annotation"><span class="token_operator">:</span> <span class="token_type"><span class="token_builtin">number</span></span></span><span class="token_punctuation">)</span> <span class="token_punctuation">{</span>
 		<span class="token_special_keyword">if</span> <span class="token_punctuation">(</span>width <span class="token_operator">&lt;</span> <span class="token_number">0</span> <span class="token_operator">||</span> height <span class="token_operator">&lt;</span> <span class="token_number">0</span><span class="token_punctuation">)</span> <span class="token_special_keyword">throw</span> <span class="token_keyword">new</span> <span class="token_class_name">RangeError</span><span class="token_punctuation">(</span><span class="token_string">'dimensions must be non-negative'</span><span class="token_punctuation">);</span>
 		<span class="token_keyword">this</span><span class="token_punctuation">.</span>width <span class="token_operator">=</span> width<span class="token_punctuation">;</span>
 		<span class="token_keyword">this</span><span class="token_punctuation">.</span>height <span class="token_operator">=</span> height<span class="token_punctuation">;</span>
 	<span class="token_punctuation">}</span>
 
 	<span class="token_comment">/** Area in square units. */</span>
-	<span class="token_keyword">get</span> <span class="token_function">area</span><span class="token_punctuation">()</span><span class="token_type_annotation"><span class="token_:">:</span> <span class="token_type"><span class="token_builtin">number</span></span></span> <span class="token_punctuation">{</span>
+	<span class="token_keyword">get</span> <span class="token_function">area</span><span class="token_punctuation">()</span><span class="token_type_annotation"><span class="token_operator">:</span> <span class="token_type"><span class="token_builtin">number</span></span></span> <span class="token_punctuation">{</span>
 		<span class="token_special_keyword">return</span> <span class="token_keyword">this</span><span class="token_punctuation">.</span>width <span class="token_operator">*</span> <span class="token_keyword">this</span><span class="token_punctuation">.</span>height<span class="token_punctuation">;</span>
 	<span class="token_punctuation">}</span>
 
 	<span class="token_comment">/** Longest side; setting it makes the rectangle a square. */</span>
-	<span class="token_keyword">get</span> <span class="token_function">size</span><span class="token_punctuation">()</span><span class="token_type_annotation"><span class="token_:">:</span> <span class="token_type"><span class="token_builtin">number</span></span></span> <span class="token_punctuation">{</span>
+	<span class="token_keyword">get</span> <span class="token_function">size</span><span class="token_punctuation">()</span><span class="token_type_annotation"><span class="token_operator">:</span> <span class="token_type"><span class="token_builtin">number</span></span></span> <span class="token_punctuation">{</span>
 		<span class="token_special_keyword">return</span> <span class="token_capitalized_identifier token_class_name">Math</span><span class="token_punctuation">.</span><span class="token_function">max</span><span class="token_punctuation">(</span><span class="token_keyword">this</span><span class="token_punctuation">.</span>width<span class="token_punctuation">,</span> <span class="token_keyword">this</span><span class="token_punctuation">.</span>height<span class="token_punctuation">);</span>
 	<span class="token_punctuation">}</span>
-	<span class="token_keyword">set</span> <span class="token_function">size</span><span class="token_punctuation">(</span>value<span class="token_type_annotation"><span class="token_:">:</span> <span class="token_type"><span class="token_builtin">number</span></span></span><span class="token_punctuation">)</span> <span class="token_punctuation">{</span>
+	<span class="token_keyword">set</span> <span class="token_function">size</span><span class="token_punctuation">(</span>value<span class="token_type_annotation"><span class="token_operator">:</span> <span class="token_type"><span class="token_builtin">number</span></span></span><span class="token_punctuation">)</span> <span class="token_punctuation">{</span>
 		<span class="token_keyword">this</span><span class="token_punctuation">.</span>width <span class="token_operator">=</span> value<span class="token_punctuation">;</span>
 		<span class="token_keyword">this</span><span class="token_punctuation">.</span>height <span class="token_operator">=</span> value<span class="token_punctuation">;</span>
 	<span class="token_punctuation">}</span>
@@ -139,13 +139,13 @@
 	 * @param factor - multiplier applied to width and height
 	 * @mutates `this`
 	 */</span>
-	<span class="token_function">scale</span><span class="token_punctuation">(</span>factor<span class="token_type_annotation"><span class="token_:">:</span> <span class="token_type"><span class="token_builtin">number</span></span></span><span class="token_punctuation">)</span><span class="token_type_annotation"><span class="token_:">:</span> <span class="token_type"><span class="token_keyword">void</span></span></span> <span class="token_punctuation">{</span>
+	<span class="token_function">scale</span><span class="token_punctuation">(</span>factor<span class="token_type_annotation"><span class="token_operator">:</span> <span class="token_type"><span class="token_builtin">number</span></span></span><span class="token_punctuation">)</span><span class="token_type_annotation"><span class="token_operator">:</span> <span class="token_type"><span class="token_keyword">void</span></span></span> <span class="token_punctuation">{</span>
 		<span class="token_keyword">this</span><span class="token_punctuation">.</span>width <span class="token_operator">*=</span> factor<span class="token_punctuation">;</span>
 		<span class="token_keyword">this</span><span class="token_punctuation">.</span>height <span class="token_operator">*=</span> factor<span class="token_punctuation">;</span>
 	<span class="token_punctuation">}</span>
 
 	<span class="token_comment">/** Number of times this rectangle has been drawn, for subclasses. */</span>
-	<span class="token_keyword">protected</span> <span class="token_function">countDraw</span><span class="token_punctuation">()</span><span class="token_type_annotation"><span class="token_:">:</span> <span class="token_type"><span class="token_builtin">number</span></span></span> <span class="token_punctuation">{</span>
+	<span class="token_keyword">protected</span> <span class="token_function">countDraw</span><span class="token_punctuation">()</span><span class="token_type_annotation"><span class="token_operator">:</span> <span class="token_type"><span class="token_builtin">number</span></span></span> <span class="token_punctuation">{</span>
 		<span class="token_special_keyword">return</span> <span class="token_operator">++</span><span class="token_keyword">this</span><span class="token_punctuation">.</span>#drawCount<span class="token_punctuation">;</span>
 	<span class="token_punctuation">}</span>
 <span class="token_punctuation">}</span>
@@ -160,14 +160,14 @@
  * shapeArea(1) // Math.PI
  * ```
  */</span>
-<span class="token_special_keyword">export</span> <span class="token_keyword">function</span> <span class="token_function">shapeArea</span><span class="token_punctuation">(</span>shape<span class="token_type_annotation"><span class="token_:">:</span> <span class="token_type"><span class="token_type_name token_class_name">HasArea</span></span></span><span class="token_punctuation">)</span><span class="token_type_annotation"><span class="token_:">:</span> <span class="token_type"><span class="token_builtin">number</span></span></span><span class="token_punctuation">;</span>
+<span class="token_special_keyword">export</span> <span class="token_keyword">function</span> <span class="token_function">shapeArea</span><span class="token_punctuation">(</span>shape<span class="token_type_annotation"><span class="token_operator">:</span> <span class="token_type"><span class="token_type_name token_class_name">HasArea</span></span></span><span class="token_punctuation">)</span><span class="token_type_annotation"><span class="token_operator">:</span> <span class="token_type"><span class="token_builtin">number</span></span></span><span class="token_punctuation">;</span>
 <span class="token_comment">/**
  * Compute the area of a circle from its radius.
  * @param radius - circle radius in units
  * @returns the circle's area
  */</span>
-<span class="token_special_keyword">export</span> <span class="token_keyword">function</span> <span class="token_function">shapeArea</span><span class="token_punctuation">(</span>radius<span class="token_type_annotation"><span class="token_:">:</span> <span class="token_type"><span class="token_builtin">number</span></span></span><span class="token_punctuation">)</span><span class="token_type_annotation"><span class="token_:">:</span> <span class="token_type"><span class="token_builtin">number</span></span></span><span class="token_punctuation">;</span>
-<span class="token_special_keyword">export</span> <span class="token_keyword">function</span> <span class="token_function">shapeArea</span><span class="token_punctuation">(</span>shapeOrRadius<span class="token_type_annotation"><span class="token_:">:</span> <span class="token_type"><span class="token_type_name token_class_name">ShapeInput</span></span></span><span class="token_punctuation">)</span><span class="token_type_annotation"><span class="token_:">:</span> <span class="token_type"><span class="token_builtin">number</span></span></span> <span class="token_punctuation">{</span>
+<span class="token_special_keyword">export</span> <span class="token_keyword">function</span> <span class="token_function">shapeArea</span><span class="token_punctuation">(</span>radius<span class="token_type_annotation"><span class="token_operator">:</span> <span class="token_type"><span class="token_builtin">number</span></span></span><span class="token_punctuation">)</span><span class="token_type_annotation"><span class="token_operator">:</span> <span class="token_type"><span class="token_builtin">number</span></span></span><span class="token_punctuation">;</span>
+<span class="token_special_keyword">export</span> <span class="token_keyword">function</span> <span class="token_function">shapeArea</span><span class="token_punctuation">(</span>shapeOrRadius<span class="token_type_annotation"><span class="token_operator">:</span> <span class="token_type"><span class="token_type_name token_class_name">ShapeInput</span></span></span><span class="token_punctuation">)</span><span class="token_type_annotation"><span class="token_operator">:</span> <span class="token_type"><span class="token_builtin">number</span></span></span> <span class="token_punctuation">{</span>
 	<span class="token_special_keyword">return</span> <span class="token_keyword">typeof</span> shapeOrRadius <span class="token_operator">===</span> <span class="token_string">'number'</span>
 		<span class="token_operator">?</span> <span class="token_capitalized_identifier token_class_name">Math</span><span class="token_punctuation">.</span><span class="token_constant">PI</span> <span class="token_operator">*</span> shapeOrRadius <span class="token_operator">**</span> <span class="token_number">2</span>
 		<span class="token_operator">:</span> shapeOrRadius<span class="token_punctuation">.</span>area<span class="token_punctuation">;</span>
@@ -182,9 +182,9 @@
  * @returns a human-readable description
  */</span>
 <span class="token_special_keyword">export</span> <span class="token_keyword">function</span> <span class="token_function">describeShape</span><span class="token_punctuation">(</span>
-	shape<span class="token_type_annotation"><span class="token_:">:</span> <span class="token_type"><span class="token_type_name token_class_name">HasArea</span></span></span><span class="token_punctuation">,</span>
-	options<span class="token_type_annotation"><span class="token_:">:</span> <span class="token_type"><span class="token_punctuation">{</span> precision<span class="token_operator">?:</span> <span class="token_builtin">number</span><span class="token_punctuation">;</span> label<span class="token_operator">?:</span> <span class="token_builtin">string</span> <span class="token_punctuation">}</span></span></span> <span class="token_operator">=</span> <span class="token_punctuation">{}</span>
-<span class="token_punctuation">)</span><span class="token_type_annotation"><span class="token_:">:</span> <span class="token_type"><span class="token_builtin">string</span></span></span> <span class="token_punctuation">{</span>
+	shape<span class="token_type_annotation"><span class="token_operator">:</span> <span class="token_type"><span class="token_type_name token_class_name">HasArea</span></span></span><span class="token_punctuation">,</span>
+	options<span class="token_type_annotation"><span class="token_operator">:</span> <span class="token_type"><span class="token_punctuation">{</span> precision<span class="token_operator">?:</span> <span class="token_builtin">number</span><span class="token_punctuation">;</span> label<span class="token_operator">?:</span> <span class="token_builtin">string</span> <span class="token_punctuation">}</span></span></span> <span class="token_operator">=</span> <span class="token_punctuation">{}</span>
+<span class="token_punctuation">)</span><span class="token_type_annotation"><span class="token_operator">:</span> <span class="token_type"><span class="token_builtin">string</span></span></span> <span class="token_punctuation">{</span>
 	<span class="token_special_keyword">return</span> <span class="token_template_string"><span class="token_template_punctuation token_string">`</span><span class="token_interpolation"><span class="token_interpolation_punctuation token_punctuation">${</span>options<span class="token_punctuation">.</span>label <span class="token_operator">??</span> <span class="token_string">'shape'</span><span class="token_interpolation_punctuation token_punctuation">}</span></span><span class="token_string">: area </span><span class="token_interpolation"><span class="token_interpolation_punctuation token_punctuation">${</span>shape<span class="token_punctuation">.</span>area<span class="token_punctuation">.</span><span class="token_function">toFixed</span><span class="token_punctuation">(</span>options<span class="token_punctuation">.</span>precision <span class="token_operator">??</span> <span class="token_number">2</span><span class="token_punctuation">)</span><span class="token_interpolation_punctuation token_punctuation">}</span></span><span class="token_template_punctuation token_string">`</span></span><span class="token_punctuation">;</span>
 <span class="token_punctuation">}</span>
 
@@ -195,7 +195,7 @@
  * @returns the area
  * @deprecated use `shapeArea(new Rectangle(width, height))`
  */</span>
-<span class="token_special_keyword">export</span> <span class="token_keyword">function</span> <span class="token_function">rectangleArea</span><span class="token_punctuation">(</span>width<span class="token_type_annotation"><span class="token_:">:</span> <span class="token_type"><span class="token_builtin">number</span></span></span><span class="token_punctuation">,</span> height<span class="token_type_annotation"><span class="token_:">:</span> <span class="token_type"><span class="token_builtin">number</span></span></span><span class="token_punctuation">)</span><span class="token_type_annotation"><span class="token_:">:</span> <span class="token_type"><span class="token_builtin">number</span></span></span> <span class="token_punctuation">{</span>
+<span class="token_special_keyword">export</span> <span class="token_keyword">function</span> <span class="token_function">rectangleArea</span><span class="token_punctuation">(</span>width<span class="token_type_annotation"><span class="token_operator">:</span> <span class="token_type"><span class="token_builtin">number</span></span></span><span class="token_punctuation">,</span> height<span class="token_type_annotation"><span class="token_operator">:</span> <span class="token_type"><span class="token_builtin">number</span></span></span><span class="token_punctuation">)</span><span class="token_type_annotation"><span class="token_operator">:</span> <span class="token_type"><span class="token_builtin">number</span></span></span> <span class="token_punctuation">{</span>
 	<span class="token_special_keyword">return</span> width <span class="token_operator">*</span> height<span class="token_punctuation">;</span>
 <span class="token_punctuation">}</span>
 
@@ -537,16 +537,16 @@
 			
 			<script>
 				{
-					__sveltekit_1o20db8 = {
+					__sveltekit_129d7df = {
 						base: "",
-						version: "759e0373c3093e9468509b1d6feab87b40daadff"
+						version: "380ed4811dd56a6b9d46e741c27054c7b32e965a"
 					};
 
 					const element = document.currentScript.parentElement;
 
 					import("/_app/immutable/entry/start.BNDNHIzM.js").then(async (kit) => {
-						kit.init(__sveltekit_1o20db8);
-						const app = await import("/_app/immutable/entry/app.bH0bmG7j.js");
+						kit.init(__sveltekit_129d7df);
+						const app = await import("/_app/immutable/entry/app.KZ73huIN.js");
 						kit.start(app, element, {
 							node_ids: [0, 2, 3, 7],
 							data: [null,null,null,null],

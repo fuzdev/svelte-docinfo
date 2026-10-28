@@ -1,0 +1,1 @@
+export{t as component}from"../chunks/iUp2IA4L.js";
