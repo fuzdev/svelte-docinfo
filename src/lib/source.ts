@@ -41,9 +41,9 @@ export interface SourceFileInfo {
 	 *
 	 * **Opt-in optimization** — when supplied, the session treats this as the
 	 * authoritative dependency set for the file and skips its own lex+resolve
-	 * pass for this entry. Build-tool integrations (e.g., Gro's filer) that
-	 * already maintain a dependency graph can hand it over directly instead of
-	 * paying the lex+resolve cost twice.
+	 * pass for this entry. Build-tool integrations that already maintain a
+	 * dependency graph can hand it over directly instead of paying the
+	 * lex+resolve cost twice.
 	 *
 	 * **Omit (undefined) → default behavior** — the session lexes import
 	 * specifiers from `content` and resolves them via its `ImportResolver`.
@@ -63,20 +63,20 @@ export interface SourceFileInfo {
 	 * Type-only imports (`import type {...}`) are the most common asymmetry
 	 * versus the lex+resolve path: the default lex (`lexImports`) keeps
 	 * type-only imports and re-exports; pre-resolved callers backed by a
-	 * Gro-style filer typically drop them. Both are intentional within their
-	 * respective contracts.
+	 * build tool's import graph often drop them. Both are intentional within
+	 * their respective contracts.
 	 *
 	 * Cache semantics: the session compares this array element-wise (shallow
 	 * equality) against the snapshot stored from the prior call — a fresh
 	 * array with identical contents cache-hits, while any length, element, or
 	 * order difference invalidates. Callers that produce fresh arrays per
-	 * call (e.g., Gro's `[...filer.dependencies.keys()]`) reuse the cache
-	 * cleanly across persistent-session calls.
+	 * call (e.g., `[...dependencies.keys()]` from a graph's `Map`) reuse the
+	 * cache cleanly across persistent-session calls.
 	 *
 	 * Order is significant. Reordering without a content change is treated
 	 * as a real change — sort upstream if you want order-insensitive caching.
-	 * Map-iteration-order callers (e.g., a Gro filer emitting
-	 * `[...filer.dependencies.keys()]`) are naturally stable across calls for
+	 * Map-iteration-order callers (e.g., a module graph emitting
+	 * `[...dependencies.keys()]`) are naturally stable across calls for
 	 * the same content, so no defensive sort is needed there.
 	 */
 	dependencies?: ReadonlyArray<string>;

@@ -423,10 +423,10 @@ plugin, a future LSP); `analyze()`/`analyzeFromFiles()` wrap single-use sessions
   is a no-op, a miss re-ingests and version-bumps the LS. Ingest is additive (`deleteFile`
   removes). `getProgram()` is reference-stable until a version bumps.
 - **Dependency resolution** — by default `lexImports` finds specifiers (type-only
-  included), resolved in parallel. Pre-resolved `SourceFileInfo.dependencies` (e.g. Gro's
-  filer) skip both steps, trusted unchecked. Resolver cache identity is
-  `ImportResolver.identity`; the default resolver is built lazily from the session's single
-  tsconfig parse, and its host sees owned files and the in-flight batch.
+  included), resolved in parallel. Pre-resolved `SourceFileInfo.dependencies` (e.g. a
+  build tool's module graph) skip both steps, trusted unchecked. Resolver cache identity
+  is `ImportResolver.identity`; the default resolver is built lazily from the session's
+  single tsconfig parse, and its host sees owned files and the in-flight batch.
 - **Input order** — the same files ingested in any order or batching give identical output
   from a fresh session (limits under `postprocess.ts` above).
 - **Context closure** (`contextClosure`, default `true`; `analyze()` passes `false`) — after
@@ -733,8 +733,8 @@ Tests live in `src/test/` and import source via `#lib/*.ts`. Fixtures
 diagnostics, each fixture run through `analyzeCore` alone. **Multi-file** fixtures
 (siblings beside the entry) capture the whole envelope; `internal/` siblings exercise
 gated canonicals, and the ts side's `external/` maps to `node_modules/`. Rules and guards:
-`src/test/fixtures/CLAUDE.md`. Regenerate with `gro src/test/fixtures/update`, or one set
-with `gro src/test/fixtures/ts/update`.
+`src/test/fixtures/CLAUDE.md`. Regenerate with `gro task src/test/fixtures/update.task.ts`,
+or one set with `gro task src/test/fixtures/ts/update.task.ts`.
 
 `examples.test.ts` runs the example scripts and needs `npm run build` and
 `npm run setup-examples` first.

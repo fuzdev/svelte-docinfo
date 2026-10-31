@@ -4,8 +4,9 @@ Fixture sets for `parseComment` (`tsdoc/`), TypeScript module analysis
 (`ts/`), and Svelte component analysis (`svelte/`). Each fixture is a
 directory holding an input file plus a generated `expected.json`.
 
-Regenerate with `gro src/test/fixtures/update` (runs tsdoc, then ts, then
-svelte), or one set via `gro src/test/fixtures/{tsdoc,ts,svelte}/update`. Never
+Regenerate with `gro task src/test/fixtures/update.task.ts` (runs tsdoc,
+then ts, then svelte), or one set via
+`gro task src/test/fixtures/{tsdoc,ts,svelte}/update.task.ts`. Never
 hand-edit `expected.json`.
 
 ## Naming
