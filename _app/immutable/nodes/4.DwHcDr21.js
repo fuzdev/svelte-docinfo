@@ -589,9 +589,9 @@ the files they supply. Files they don't (context-closure files,
 
 **Opt-in optimization** — when supplied, the session treats this as the
 authoritative dependency set for the file and skips its own lex+resolve
-pass for this entry. Build-tool integrations (e.g., Gro's filer) that
-already maintain a dependency graph can hand it over directly instead of
-paying the lex+resolve cost twice.
+pass for this entry. Build-tool integrations that already maintain a
+dependency graph can hand it over directly instead of paying the
+lex+resolve cost twice.
 
 **Omit (undefined) → default behavior** — the session lexes import
 specifiers from \`content\` and resolves them via its \`ImportResolver\`.
@@ -611,20 +611,20 @@ supply this field own the correctness of the graph they hand over.
 Type-only imports (\`import type {...}\`) are the most common asymmetry
 versus the lex+resolve path: the default lex (\`lexImports\`) keeps
 type-only imports and re-exports; pre-resolved callers backed by a
-Gro-style filer typically drop them. Both are intentional within their
-respective contracts.
+build tool's import graph often drop them. Both are intentional within
+their respective contracts.
 
 Cache semantics: the session compares this array element-wise (shallow
 equality) against the snapshot stored from the prior call — a fresh
 array with identical contents cache-hits, while any length, element, or
 order difference invalidates. Callers that produce fresh arrays per
-call (e.g., Gro's \`[...filer.dependencies.keys()]\`) reuse the cache
-cleanly across persistent-session calls.
+call (e.g., \`[...dependencies.keys()]\` from a graph's \`Map\`) reuse the
+cache cleanly across persistent-session calls.
 
 Order is significant. Reordering without a content change is treated
 as a real change — sort upstream if you want order-insensitive caching.
-Map-iteration-order callers (e.g., a Gro filer emitting
-\`[...filer.dependencies.keys()]\`) are naturally stable across calls for
+Map-iteration-order callers (e.g., a module graph emitting
+\`[...dependencies.keys()]\`) are naturally stable across calls for
 the same content, so no defensive sort is needed there.`,typeSignature:`readonly string[]`,optional:!0}]},{name:`getDefaultAnalyzer`,kind:`function`,docComment:"Default analyzer resolver based on file extension.\n\n- `.svelte` → `'svelte'`\n- `.ts`, `.mts`, `.tsx` (not `.d.ts`/`.d.mts`), `.js`, `.mjs`, `.jsx` → `'typescript'`\n- `.css` → `'css'`\n- `.json` → `'json'`\n- Other extensions → `null` (skip)",typeSignature:`(path: string): AnalyzerType | null`,sourceLine:94,alsoExportedFrom:[`index.ts`],parameters:[{name:`path`,type:`string`}],returnType:`AnalyzerType | null`,returnTypeInfo:{kind:`union`,members:[{kind:`union`,alias:`AnalyzerType`,members:[{kind:`literal`,value:`typescript`,text:`"typescript"`},{kind:`literal`,value:`svelte`,text:`"svelte"`},{kind:`literal`,value:`css`,text:`"css"`},{kind:`literal`,value:`json`,text:`"json"`}]},{kind:`intrinsic`,text:`null`}]}},{name:`getComponentName`,kind:`function`,docComment:`Extract component name from a Svelte module path.`,typeSignature:`(modulePath: string): string`,sourceLine:111,examples:["```ts\ngetComponentName('Alert.svelte') // => 'Alert'\ngetComponentName('components/Button.svelte') // => 'Button'\n```"],parameters:[{name:`modulePath`,type:`string`}],returnType:`string`},{name:`isTypescript`,kind:`function`,docComment:"Check if a path is a TypeScript or JS file: `.ts`, `.mts`, `.tsx`, `.js`,\n`.mjs`, or `.jsx`.\n\nJS files count since JS is valid in TS projects; the analysis program reads\nthem with `allowJs` forced on (see `createAnalysisLanguageService`).\nCommonJS extensions (`.cjs`, `.cts`) are left out, since CommonJS exports\naren't modeled (`commonjs_unsupported`). Excludes `.d.ts` and `.d.mts`\ndeclaration files — use a custom `getAnalyzerType` to include them.",typeSignature:`(path: string): boolean`,sourceLine:127,parameters:[{name:`path`,type:`string`}],returnType:`boolean`},{name:`isSvelte`,kind:`function`,docComment:`Check if a path is a Svelte component file.`,typeSignature:`(path: string): boolean`,sourceLine:134,parameters:[{name:`path`,type:`string`}],returnType:`boolean`},{name:`isCss`,kind:`function`,docComment:`Check if a path is a CSS file.`,typeSignature:`(path: string): boolean`,sourceLine:137,parameters:[{name:`path`,type:`string`}],returnType:`boolean`},{name:`isJson`,kind:`function`,docComment:`Check if a path is a JSON file.`,typeSignature:`(path: string): boolean`,sourceLine:140,parameters:[{name:`path`,type:`string`}],returnType:`boolean`},{name:`SVELTE_VIRTUAL_SUFFIX`,kind:`variable`,docComment:"Suffix appended to `.svelte` file paths to create virtual TypeScript file paths.\n\nUsed by svelte2tsx integration: `Component.svelte` → `Component.svelte.__svelte2tsx__.ts`.",typeSignature:`".__svelte2tsx__.ts"`,sourceLine:147},{name:`stripVirtualSuffix`,kind:`function`,docComment:"Strip the svelte2tsx virtual file suffix from a path, if present.\n\nMaps `Component.svelte.__svelte2tsx__.ts` back to `Component.svelte`.\nReturns the path unchanged if the suffix is not present.",typeSignature:`(path: string): string`,sourceLine:155,parameters:[{name:`path`,type:`string`}],returnType:`string`},{name:`isSvelteVirtualPath`,kind:`function`,docComment:"Whether a path names a svelte2tsx virtual file (carries `SVELTE_VIRTUAL_SUFFIX`).",typeSignature:`(path: string): boolean`,sourceLine:159,parameters:[{name:`path`,type:`string`}],returnType:`boolean`},{name:`scrubVirtualSuffixes`,kind:`function`,docComment:`Remove every occurrence of the virtual suffix from free-form text.
 
 The text twin of \`stripVirtualSuffix\`: that one strips a path's trailing
