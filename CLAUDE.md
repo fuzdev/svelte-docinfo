@@ -6,7 +6,7 @@ Extracts structured metadata from TypeScript and Svelte 5 source via the TypeScr
 compiler API — full type inference instead of manual annotations. Build-tool agnostic;
 consumers add package metadata and formatting. Use cases: docs, code search, dev tools.
 
-Conventions: [fuz-stack skill](https://github.com/fuzdev/fuz_docs), with one deliberate
+Conventions: [fuz-stack skill](https://github.com/fuzdev/docs.fuz.dev), with one deliberate
 divergence: the API is **camelCase**, since the package serves the broad Svelte ecosystem.
 For the same reason `@fuzdev/fuz_util` is dev-only: `src/lib` never imports it, hence the
 local `toErrorMessage` and `mapConcurrent`.
