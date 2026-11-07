@@ -1,1 +1,0 @@
-export{t as component}from"../chunks/Ci_Qgv75.js";

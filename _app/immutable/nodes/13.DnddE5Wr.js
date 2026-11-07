@@ -1,0 +1,1 @@
+export{t as component}from"../chunks/CpvHv8F5.js";

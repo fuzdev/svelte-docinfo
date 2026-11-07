@@ -1,0 +1,1 @@
+export{t as component}from"../chunks/ClWs4A4w.js";
