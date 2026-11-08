@@ -1,5 +1,5 @@
 import ts from 'typescript';
-import * as v from 'valibot';
+import * as s from '@fuzdev/fuz_schema/schema.ts';
 
 import type { TsdocParsedComment } from '#lib/tsdoc.ts';
 import { parseComment } from '#lib/tsdoc.ts';
@@ -17,39 +17,37 @@ export type TsdocFixture = GenericFixture<TsdocParsedComment | null>;
  */
 // the lib's unexported string-record schema, reached through a field that uses
 // it, so `constructor`/`prototype` keys validate here as they do in the output
-const StringRecord = v.unwrap(ComponentPropJson.entries.mutates);
+const StringRecord = ComponentPropJson.def.mutates.def.schema;
 
-const TsdocParsedCommentJson = v.strictObject({
-	text: v.string(),
+const TsdocParsedCommentJson = s.object({
+	text: s.string,
 	params: StringRecord,
-	returns: v.optional(v.string()),
-	throws: v.optional(
-		v.array(v.strictObject({ type: v.optional(v.string()), description: v.string() }))
-	),
-	examples: v.optional(v.array(v.string())),
-	deprecatedMessage: v.optional(v.string()),
-	internalMessage: v.optional(v.string()),
-	seeAlso: v.optional(v.array(v.string())),
-	since: v.optional(v.string()),
-	defaultValue: v.optional(v.string()),
-	mutates: v.optional(StringRecord),
-	nodocs: v.optional(v.boolean()),
-	cssProperties: v.optional(
-		v.array(
-			v.strictObject({
-				name: v.string(),
-				description: v.optional(v.string()),
-				syntax: v.optional(v.string()),
-				default: v.optional(v.string())
+	returns: s.optional(s.string),
+	throws: s.optional(s.array(s.object({ type: s.optional(s.string), description: s.string }))),
+	examples: s.optional(s.array(s.string)),
+	deprecatedMessage: s.optional(s.string),
+	internalMessage: s.optional(s.string),
+	seeAlso: s.optional(s.array(s.string)),
+	since: s.optional(s.string),
+	defaultValue: s.optional(s.string),
+	mutates: s.optional(StringRecord),
+	nodocs: s.optional(s.boolean),
+	cssProperties: s.optional(
+		s.array(
+			s.object({
+				name: s.string,
+				description: s.optional(s.string),
+				syntax: s.optional(s.string),
+				default: s.optional(s.string)
 			})
 		)
 	),
-	cssPropertyProblems: v.optional(
-		v.array(
-			v.strictObject({
-				kind: v.picklist(['malformed', 'duplicate']),
-				text: v.string(),
-				name: v.optional(v.string())
+	cssPropertyProblems: s.optional(
+		s.array(
+			s.object({
+				kind: s.one_of(['malformed', 'duplicate']),
+				text: s.string,
+				name: s.optional(s.string)
 			})
 		)
 	)
@@ -67,8 +65,8 @@ const TsdocParsedCommentJson = v.strictObject({
  * `never`, and every call to `validateTsdocStructure` stops compiling.
  */
 type SchemaMirroredComment = [
-	Exclude<keyof TsdocParsedComment, keyof v.InferOutput<typeof TsdocParsedCommentJson>>,
-	Exclude<keyof v.InferOutput<typeof TsdocParsedCommentJson>, keyof TsdocParsedComment>
+	Exclude<keyof TsdocParsedComment, keyof s.Infer<typeof TsdocParsedCommentJson>>,
+	Exclude<keyof s.Infer<typeof TsdocParsedCommentJson>, keyof TsdocParsedComment>
 ] extends [never, never]
 	? TsdocParsedComment
 	: never;
@@ -127,5 +125,5 @@ export const validateTsdocStructure = (tsdoc: SchemaMirroredComment | undefined)
 	if (!tsdoc) {
 		throw new Error('Expected tsdoc to be defined');
 	}
-	v.parse(TsdocParsedCommentJson, tsdoc);
+	s.parse_or_throw(TsdocParsedCommentJson, tsdoc);
 };

@@ -15,7 +15,7 @@
  */
 
 import type ts from 'typescript';
-import * as v from 'valibot';
+import * as s from '@fuzdev/fuz_schema/schema.ts';
 import { posix } from 'node:path';
 
 import { ModuleJson } from '#lib/types.ts';
@@ -44,13 +44,13 @@ import type { GenericFixture } from '../test-helpers.ts';
  * Fixtures are written through `compactReplacer`, so defaulted fields (empty
  * arrays, `false` booleans) are stripped on disk and restored by parsing.
  */
-export const ModuleFixtureJson = v.strictObject({
-	...ModuleJson.entries,
-	diagnostics: v.optional(v.array(Diagnostic), () => [])
+export const ModuleFixtureJson = s.object({
+	...ModuleJson.def,
+	diagnostics: s.with_default_fn(s.array(Diagnostic), () => [])
 });
-export type ModuleFixtureJson = v.InferOutput<typeof ModuleFixtureJson>;
+export type ModuleFixtureJson = s.Infer<typeof ModuleFixtureJson>;
 /** Wire (serialized) form of `ModuleFixtureJson` — the shape read from disk. */
-export type ModuleFixtureJsonInput = v.InferInput<typeof ModuleFixtureJson>;
+export type ModuleFixtureJsonInput = s.InferInput<typeof ModuleFixtureJson>;
 
 /**
  * A loaded module fixture: raw input beside the expected wire-form
@@ -234,7 +234,7 @@ export const validateModuleFixture = (
 	expected: ModuleFixtureJsonInput,
 	options?: { components?: number }
 ): void => {
-	const parsed = v.parse(ModuleFixtureJson, expected);
+	const parsed = s.parse_or_throw(ModuleFixtureJson, expected);
 	if (options?.components !== undefined) {
 		const components = parsed.declarations.filter((d) => d.kind === 'component');
 		if (components.length !== options.components) {

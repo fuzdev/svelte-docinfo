@@ -1,25 +1,25 @@
 /**
  * Tests for the identity-keyed alias registry and the `alias_lost` diagnostic,
  * through the real pipeline with a real schema library (`analyze()` over
- * in-memory files rooted at the repo cwd, so `'valibot'` resolves via this
+ * in-memory files rooted at the repo cwd, so `@fuzdev/fuz_schema` resolves via this
  * repo's node_modules — the ts fixture harness is `noResolve` with a stub lib
  * and can't express these).
  *
  * What only a real library can lock: the safety gate keyed on
  * `namedSymbolName`'s `__`-prefix rule (real inferred object outputs carry
  * `Mapped | Instantiated`, not `ObjectFlags.Anonymous` — a gate keyed on the
- * flag would silently register nothing), picklist non-recovery (interned
+ * flag would silently register nothing), `one_of` non-recovery (interned
  * literal unions must never register), the input-side family, and
  * lib-dependent absence flips (`Array<Lost>`, `Promise<Lost>` instantiations
- * don't exist under the stub lib). `v.InferOutput<typeof S>` is an indexed
- * access, so it loses its alias the way every inferred-schema alias does.
+ * don't exist under the stub lib). `s.Infer<typeof S>` is a conditional
+ * (`ReturnType`), so it loses its alias the way every inferred-schema alias does.
  * Simulation-based fixture locks live at
  * `ts/declarations/{variable,function}/alias-lost-inferred`,
  * `ts/declarations/type/alias-lost-{callable,nullable-optional}`, and
- * `svelte/component/valibot-merged-schema`.
+ * `svelte/component/fuz-schema-merged-schema`.
  *
- * Recursion is the one shape valibot doesn't lose: its documented recursive
- * pattern declares the type explicitly beside `v.lazy`. The cyclic lost type
+ * Recursion is the one shape that isn't lost when the recursive pattern
+ * declares the type explicitly beside `s.lazy`. The cyclic lost type
  * that a getter-based recursive schema infers (zod's documented pattern) is
  * locked by a dependency-free simulation at the end of this file.
  */
@@ -36,61 +36,61 @@ import type { DeclarationJson, ModuleJson, TypeJson } from '#lib/types.ts';
 
 import { testSourceOptions } from './test-module-helpers.ts';
 
-const SCHEMAS = `import * as v from 'valibot';
+const SCHEMAS = `import * as s from '@fuzdev/fuz_schema/schema.ts';
 
 /** The canonical schema/type pair — a merged value+type symbol. */
-export const Point = v.strictObject({ x: v.number(), y: v.number() });
-export type Point = v.InferOutput<typeof Point>;
+export const Point = s.object({ x: s.number, y: s.number });
+export type Point = s.Infer<typeof Point>;
 /** Identity-equal to \`Point\` — enters the ambiguity set, loses the tie-break. */
-export type PointOutput = v.InferOutput<typeof Point>;
+export type PointOutput = s.Infer<typeof Point>;
 
 /** A default splits input and output into distinct types. */
-export const WithDefault = v.strictObject({ a: v.optional(v.string(), 'x') });
-export type WithDefault = v.InferOutput<typeof WithDefault>;
-export type WithDefaultInput = v.InferInput<typeof WithDefault>;
+export const WithDefault = s.object({ a: s.with_default(s.string, 'x') });
+export type WithDefault = s.Infer<typeof WithDefault>;
+export type WithDefaultInput = s.InferInput<typeof WithDefault>;
 
 /** A literal union — interned, never registrable, excluded from the warning. */
-export const Kind = v.picklist(['a', 'b']);
-export type Kind = v.InferOutput<typeof Kind>;
+export const Kind = s.one_of(['a', 'b']);
+export type Kind = s.Infer<typeof Kind>;
 
 /** A null-bearing union — the member-set side index's case. */
-export const NullableSchema = v.nullable(Point);
-export type NullablePoint = v.InferOutput<typeof NullableSchema>;
+export const NullableSchema = s.nullable(Point);
+export type NullablePoint = s.Infer<typeof NullableSchema>;
 
-/** valibot's documented recursive pattern — an explicit type beside \`v.lazy\`. */
+/** The recursive pattern — an explicit type beside \`s.lazy\`. */
 export type Category = { name: string; children: Array<Category> };
-export const Category: v.GenericSchema<Category> = v.strictObject({
-	name: v.string(),
-	children: v.array(v.lazy(() => Category))
+export const Category: s.Schema<Category> = s.object({
+	name: s.string,
+	children: s.array(s.lazy(() => Category))
 });
 
 /** Two aliases over one schema — the tie-break decides the single winner. */
-export const Twin = v.strictObject({ t: v.string() });
-export type TwinB = v.InferOutput<typeof Twin>;
-export type TwinA = v.InferOutput<typeof Twin>;
+export const Twin = s.object({ t: s.string });
+export type TwinB = s.Infer<typeof Twin>;
+export type TwinA = s.Infer<typeof Twin>;
 
 /** A primitive union — lost, unrecoverable, not excluded: the warning's residue. */
-export const Id = v.union([v.string(), v.number()]);
-export type Id = v.InferOutput<typeof Id>;
+export const Id = s.union([s.string, s.number]);
+export type Id = s.Infer<typeof Id>;
 
 /** A brand intersection — lost and unrecoverable but excluded from the warning. */
-export const Uid = v.pipe(v.string(), v.brand('Uid'));
-export type Uid = v.InferOutput<typeof Uid>;
+export const Uid = s.brand(s.string, 'Uid');
+export type Uid = s.Infer<typeof Uid>;
 
 /** An array-root loss — \`namedSymbolName\` is \`Array\`, outside the predicate. */
-export const ArrSchema = v.array(v.strictObject({ a: v.string() }));
-export type Arr = v.InferOutput<typeof ArrSchema>;
+export const ArrSchema = s.array(s.object({ a: s.string }));
+export type Arr = s.Infer<typeof ArrSchema>;
 
-const HiddenSchema = v.strictObject({ h: v.string() });
+const HiddenSchema = s.object({ h: s.string });
 /** @nodocs */
-export type Hidden = v.InferOutput<typeof HiddenSchema>;
+export type Hidden = s.Infer<typeof HiddenSchema>;
 
 declare const hiddenSeed: Hidden;
 /** Inferred position of the nodocs-excluded alias — must not recover its name. */
 export const derivedHidden = hiddenSeed;
 `;
 
-const CONSUMERS = `import * as v from 'valibot';
+const CONSUMERS = `import * as s from '@fuzdev/fuz_schema/schema.ts';
 import {
 	ArrSchema,
 	Category,
@@ -105,23 +105,23 @@ import { gatedSeed } from './internal/gated.js';
 declare const seedInput: WithDefaultInput;
 
 /** Inferred return of the lost type — the registry names it. */
-export const parsePoint = (input: unknown) => v.parse(Point, input);
+export const parsePoint = (input: unknown) => s.parse_or_throw(Point, input);
 /** Inferred \`Array<Lost>\` — the element reference makes the absent tree appear. */
-export const pointList = (input: unknown) => [v.parse(Point, input)];
+export const pointList = (input: unknown) => [s.parse_or_throw(Point, input)];
 /** Inferred \`Promise<Lost>\` — the typeArg reference makes the absent tree appear. */
-export const pointLater = async (input: unknown) => v.parse(Point, input);
+export const pointLater = async (input: unknown) => s.parse_or_throw(Point, input);
 /** The lost type at the depth cap — registry recovery still fires there. */
-export const pointDeep = (input: unknown) => [[[[[v.parse(Point, input)]]]]];
+export const pointDeep = (input: unknown) => [[[[[s.parse_or_throw(Point, input)]]]]];
 /** Inferred literal union — interned, never recovered. */
-export const parseKind = (input: unknown) => v.parse(Kind, input);
+export const parseKind = (input: unknown) => s.parse_or_throw(Kind, input);
 /** Inferred variable of the input-side type. */
 export const derivedInput = seedInput;
 /** Inferred return of the explicitly typed recursive schema. */
-export const parseCategory = (input: unknown) => v.parse(Category, input);
+export const parseCategory = (input: unknown) => s.parse_or_throw(Category, input);
 /** Tie-break: recovers the winning twin's name. */
-export const parseTwin = (input: unknown) => v.parse(Twin, input);
+export const parseTwin = (input: unknown) => s.parse_or_throw(Twin, input);
 /** Array-root loss — outside the predicate, never recovers. */
-export const parseArr = (input: unknown) => v.parse(ArrSchema, input);
+export const parseArr = (input: unknown) => s.parse_or_throw(ArrSchema, input);
 /** Inferred variable of a gated module's lost type — must not recover. */
 export const derivedGated = gatedSeed;
 
@@ -182,7 +182,7 @@ beforeAll(async () => {
 	assert.ok(consumers, 'expected the consumers module');
 }, 60_000);
 
-describe('alias registry over real valibot', () => {
+describe('alias registry over real fuz_schema', () => {
 	test('merged pairs document the type meaning with members', () => {
 		const point = declOf(schemas, 'Point');
 		assert(point.kind === 'type', 'expected a type declaration');
@@ -250,7 +250,7 @@ describe('alias registry over real valibot', () => {
 		assert.deepStrictEqual(node, schemaRef('Point'));
 	});
 
-	test('picklist outputs never register — interned literal unions expand', () => {
+	test('one_of outputs never register — interned literal unions expand', () => {
 		const decl = declOf(consumers, 'parseKind');
 		assert(decl.kind === 'function', 'expected a function');
 		assert(decl.returnTypeInfo?.kind === 'union', 'expected a union tree');
@@ -363,7 +363,7 @@ describe('alias_lost diagnostic', () => {
 		// literal union, not a brand). Everything else self-heals or is excluded:
 		// recoverable losses (Point, WithDefault(+Input), NullablePoint, TwinA),
 		// the recoverable twins suppressed by type identity (PointOutput, TwinB),
-		// picklist literal unions (Kind), brand intersections (Uid, a
+		// `one_of` literal unions (Kind), brand intersections (Uid, a
 		// `string & Brand<"Uid">`), array-root shapes outside the predicate (Arr),
 		// and `@nodocs` (Hidden). Exactly-one also locks the synthesis dedupe:
 		// the barrel's rename re-analyzes `Id`'s declaration and must not

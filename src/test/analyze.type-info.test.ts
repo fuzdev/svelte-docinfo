@@ -32,7 +32,7 @@
  */
 
 import { test, assert, describe } from 'vitest';
-import * as v from 'valibot';
+import * as s from '@fuzdev/fuz_schema/schema.ts';
 
 import { parseAnalyzeResult } from '#lib/analyze-core.ts';
 import { compactReplacer } from '#lib/declaration-helpers.ts';
@@ -565,7 +565,7 @@ export const f = <E,>(c?: E): void => {};`
 		assert(declaration?.kind === 'type', 'expected a type declaration');
 		assert.ok(declaration.typeInfo, 'expected typeInfo on the recursive alias');
 		// must be parseable — i.e., finite — and bottom out in a degraded text node
-		const parsed = v.parse(TypeJson, declaration.typeInfo);
+		const parsed = s.parse_or_throw(TypeJson, declaration.typeInfo);
 		let node = parsed;
 		let depth = 0;
 		while (node.kind === 'union' || node.kind === 'array') {

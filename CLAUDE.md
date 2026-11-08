@@ -21,7 +21,7 @@ topic guides and references; `tomes.ts` orders them). Examples: `examples/vite/`
 
 - **Type resolution** — imported types, generics, inferred types. Every member type is
   checker-backed.
-- **Structured types** — optional `typeInfo` (`TypeJson`, a recursive valibot
+- **Structured types** — optional `typeInfo` (`TypeJson`, a recursive fuz_schema
   schema) beside the flat type strings, on variables, type aliases, variable members,
   component props, parameters, and tuple elements; `returnTypeInfo` on functions, function
   members, and overloads. Policy: the `TypeJson` schema TSDoc (`types.ts`) and
@@ -211,18 +211,22 @@ topic guides and references; `tomes.ts` orders them). Examples: `examples/vite/`
 - `concurrency.ts` — `MAX_FILE_CONCURRENCY`, `MAX_RESOLVE_CONCURRENCY`, `mapConcurrent`.
 - `error.ts` — `toErrorMessage`.
 - `schema.ts` (not in the barrel) — `parseWithSummary` (the `parse*` helpers throw through
-  it, listing every issue) and the `@nodocs` `Named` alias; a leaf importing only valibot.
+  it, listing every issue) and the `@nodocs` `VariantSchema` type; a leaf importing only
+  `@fuzdev/fuz_schema`.
 - `source-config.ts` — `ModuleSourceOptions`, `DEFAULT_SOURCE_OPTIONS`,
   `createSourceOptions`/`normalizeSourceOptions`, `ExcludeOption`, `isSource`,
   `extractPath`, `extractDependencies`, include widening
   (`createSourceOptionsWithInclude`), the baseline exclusions.
-- `types.ts` — the output schemas (valibot): `ModuleJson`, `DeclarationJson`, `MemberJson`,
-  `TypeJson`, `OverloadJson`, …, plus `parseModuleJson`. Field-level policy lives here.
-  Non-recursive object schemas are typed through `@nodocs` `FooSchema` interfaces
-  (`extends Named<typeof FooImpl>`); the recursive `TypeJson`/`TupleElementJson` are
-  `v.GenericSchema<…>`. That keeps emitted declarations referential and small: an inlined
-  `ModuleJson` sends consumers past TS's instantiation depth (TS2589).
-  `diagnostics.ts` and `AnalyzeResultJson` follow suit; `dist-types.test.ts` guards it.
+- `types.ts` — the output schemas (`@fuzdev/fuz_schema`): `ModuleJson`, `DeclarationJson`,
+  `MemberJson`, `TypeJson`, `OverloadJson`, …, plus `parseModuleJson`. Field-level policy
+  lives here. Each object schema is built from a `FooEntries` const and typed through
+  `@nodocs` interfaces: `FooSchema`, and `FooSchemaOutput`/`FooSchemaInput` extending the
+  output and input `s.object` computes; variants are `VariantSchema<…>` and the variant
+  unions are written out; the recursive `TypeJson`/`TupleElementJson` are `s.Schema<…>`.
+  That keeps emitted declarations referential and small: unnamed, every container repeats
+  the whole tree below it. `diagnostics.ts` (whose shared base fields are a written-out
+  `BaseDiagnosticEntries` type) and `AnalyzeResultJson` follow suit; `dist-types.test.ts`
+  guards it.
 - `declaration-build.ts` — permissive build types (`DeclarationJsonBuild`,
   `MemberJsonBuild`: every field optional but `kind`) and the per-module analysis records
   (`ModuleAnalysis`, …). The schemas validate at `parseModuleJson`.
@@ -526,9 +530,10 @@ shared doc fields (`docFields` in `types.ts`); `ParameterJson` carries none of `
   empties and `false` (except under `value`, so a literal `false` node survives); the
   parse helpers (`parseAnalyzeResult`, `parseModuleJson`, `parseDiagnostics`) restore them
   and are the stable, library-agnostic contract. Array defaults are factories
-  (`() => []`), since valibot returns a non-function default as-is. String maps
-  (`mutates`, `propertyDescriptions`) use a local `StringRecord`, since `v.record` drops
-  `constructor` and `prototype` keys.
+  (`s.with_default_fn(…, () => [])`), since `s.with_default` returns its value as-is.
+  String maps (`mutates`, `propertyDescriptions`) are `s.record(s.string)`, which keeps
+  `constructor` and `prototype` keys and drops `__proto__`. Parsing is copy-on-write: an
+  object that needed no default comes back as the input itself, keys in input order.
 
 ## Key Design Decisions
 
@@ -715,15 +720,15 @@ fuz_ui and fuz_css consume `virtual:svelte-docinfo` directly: a hand-written
 ## Dependencies
 
 - **Runtime**: `commander`, `tinyglobby`, `picomatch`, `@jridgewell/trace-mapping`, and
-  `valibot` (the output schemas; a regular dependency, so consumers using the parse
-  helpers never import it).
+  `@fuzdev/fuz_schema` (the output schemas; a regular dependency, so consumers using the
+  parse helpers never import it).
 - **Peers** (required): `svelte` 5+ and `svelte2tsx` (eagerly imported by every entry, so
   needed even for TS-only analysis), and `typescript` 5.9+ or 6, so consumers don't carry
   a second TS.
 - **Peers** (optional): `vite` 6+, for the Vite plugin only.
 - **Not a dependency**: `zod`. Nothing under `src` imports it (a `types.test.ts` guard),
   and it doesn't resolve locally, so a fixture importing it would silently type as `any`;
-  tests that need a real schema library use `valibot`.
+  tests that need a real schema library use `@fuzdev/fuz_schema`.
 
 ## Testing
 

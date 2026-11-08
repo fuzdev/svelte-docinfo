@@ -36,10 +36,10 @@
 
 import { relative } from 'node:path';
 import ts from 'typescript';
-import * as v from 'valibot';
+import * as s from '@fuzdev/fuz_schema/schema.ts';
 
 import { ModuleJson, parseModuleJson, type ModuleJsonInput } from './types.ts';
-import { parseWithSummary, type Named } from './schema.ts';
+import { parseWithSummary } from './schema.ts';
 import type { ModuleAnalysis } from './declaration-build.ts';
 import { Diagnostic, type ModuleSkippedDiagnostic } from './diagnostics.ts';
 import type { AnalysisLog } from './log.ts';
@@ -163,30 +163,29 @@ const dispatchOnDuplicates = (
 
 // Result types
 
-// named through an interface for declaration emit, as in `types.ts`
-const AnalyzeResultJsonEntries = v.strictObject({
-	modules: v.optional(v.array(ModuleJson), () => []),
-	diagnostics: v.optional(v.array(Diagnostic), () => [])
-});
-// Both keys are optional, and `v.strictObject` takes any non-null object, so
-// without the guard an empty array would parse as an empty result (a
-// plausible slip: passing a `modules` array where the envelope belongs).
-// Every other object schema has a required key an array can't carry.
-// The input interface is exported so a consumer's emitted declarations can
-// name the envelope's input type.
+// named through an interface for declaration emit, as in `types.ts`. Both
+// keys are optional, and `s.object` refuses an array, so a `modules` array
+// passed where the envelope belongs fails rather than parsing as an empty
+// result
+const AnalyzeResultJsonEntries = {
+	modules: s.with_default_fn(s.array(ModuleJson), () => []),
+	diagnostics: s.with_default_fn(s.array(Diagnostic), () => [])
+};
 /** @nodocs */
-export interface AnalyzeResultJsonEntriesInput extends Named<
-	v.InferInput<typeof AnalyzeResultJsonEntries>
+export interface AnalyzeResultJsonSchemaOutput extends s.SchemaStrictObjectOutput<
+	typeof AnalyzeResultJsonEntries
 > {}
-const AnalyzeResultJsonImpl = v.pipe(
-	v.custom<AnalyzeResultJsonEntriesInput>(
-		(input) => !Array.isArray(input),
-		'Invalid type: Expected Object but received Array'
-	),
-	AnalyzeResultJsonEntries
-);
 /** @nodocs */
-export interface AnalyzeResultJsonSchema extends Named<typeof AnalyzeResultJsonImpl> {}
+export interface AnalyzeResultJsonSchemaInput extends s.SchemaStrictObjectInput<
+	typeof AnalyzeResultJsonEntries
+> {}
+/** @nodocs */
+export interface AnalyzeResultJsonSchema extends s.Schema<
+	AnalyzeResultJsonSchemaOutput,
+	AnalyzeResultJsonSchemaInput,
+	'object',
+	typeof AnalyzeResultJsonEntries
+> {}
 /**
  * Result of `analyze`, `analyzeFromFiles`, and `AnalysisSession.query`.
  *
@@ -196,7 +195,7 @@ export interface AnalyzeResultJsonSchema extends Named<typeof AnalyzeResultJsonI
  *
  * ## Schema-validated round-trip
  *
- * The envelope is a valibot schema (`AnalyzeResultJson`) — both fields default
+ * The envelope is a fuz_schema schema (`AnalyzeResultJson`) — both fields default
  * to `[]`, so `JSON.stringify(result, compactReplacer)` strips empty arrays on
  * the wire and `parseAnalyzeResult(JSON.parse(json))` restores them.
  * Consumers programmatically ingesting analysis JSON should parse through
@@ -212,8 +211,8 @@ export interface AnalyzeResultJsonSchema extends Named<typeof AnalyzeResultJsonI
  * See `AnalyzeResultJsonWire` for the serialized input-side shape published on
  * `virtual:svelte-docinfo`.
  */
-export const AnalyzeResultJson: AnalyzeResultJsonSchema = AnalyzeResultJsonImpl;
-export type AnalyzeResultJson = v.InferOutput<typeof AnalyzeResultJson>;
+export const AnalyzeResultJson: AnalyzeResultJsonSchema = s.object(AnalyzeResultJsonEntries);
+export type AnalyzeResultJson = s.Infer<typeof AnalyzeResultJson>;
 
 /**
  * Validate an analysis result, restoring the defaults the wire form omits.
@@ -228,10 +227,10 @@ export type AnalyzeResultJson = v.InferOutput<typeof AnalyzeResultJson>;
  * @returns the validated result with every default present
  * @throws Error when `value` doesn't match the schema; the message lists the
  *   reported issues, one per line, as `path: message`
- *   (`modules.0.declarations.1.kind: Invalid type: …`), the dot path omitted for an
- *   issue at the root. The class is the schema library's (valibot's `ValiError`, the
+ *   (`modules.0.declarations.1.kind: expected …, received …`), the dot path omitted for an
+ *   issue at the root. The class is the schema library's (fuz_schema's `SchemaError`, the
  *   structured list on `issues`), so catch it as a plain `Error` unless you
- *   depend on valibot
+ *   depend on fuz_schema
  *
  * @example
  * ```ts
@@ -248,7 +247,7 @@ export const parseAnalyzeResult = (value: unknown): AnalyzeResultJson =>
  *
  * The two fields are deliberately asymmetric:
  *
- * - `modules` is `ModuleJsonInput` (the `v.InferInput` of `ModuleJson`)
+ * - `modules` is `ModuleJsonInput` (the `s.InferInput` of `ModuleJson`)
  *   because the plugin runs it through `compactReplacer`, which strips
  *   defaulted empty arrays and `false` booleans. Default-bearing fields
  *   therefore arrive `undefined`.

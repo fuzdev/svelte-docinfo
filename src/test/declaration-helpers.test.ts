@@ -13,7 +13,7 @@
 import { readFileSync } from 'node:fs';
 import { globSync } from 'tinyglobby';
 import { test, assert, describe } from 'vitest';
-import * as v from 'valibot';
+import * as s from '@fuzdev/fuz_schema/schema.ts';
 
 import {
 	DeclarationJson,
@@ -34,7 +34,7 @@ import {
 import { AnalyzeResultJson, parseAnalyzeResult } from '#lib/analyze-core.ts';
 
 const d = (input: { name?: string; kind: string; [key: string]: unknown }): DeclarationJson =>
-	v.parse(DeclarationJson, input);
+	s.parse_or_throw(DeclarationJson, input);
 
 describe('getDisplayName', () => {
 	describe('non-generic declarations', () => {
@@ -533,7 +533,7 @@ describe('compactReplacer', () => {
 	test('round-trips DeclarationJson through parse', () => {
 		const original = d({ name: 'test', kind: 'function' });
 		const json = JSON.stringify(original, compactReplacer);
-		const restored = v.parse(DeclarationJson, JSON.parse(json));
+		const restored = s.parse_or_throw(DeclarationJson, JSON.parse(json));
 
 		// empty arrays are restored by the schema's array defaults
 		assert.deepStrictEqual(restored.genericParams, []);
@@ -541,27 +541,27 @@ describe('compactReplacer', () => {
 		assert.strictEqual(restored.name, 'test');
 	});
 
-	test('every defaulted v.boolean() in types.ts defaults to false (locks compactReplacer invariant)', () => {
+	test('every defaulted s.boolean in types.ts defaults to false (locks compactReplacer invariant)', () => {
 		// `compactReplacer` strips `value === false` for every boolean it sees,
 		// which is only safe round-trip-wise if every boolean in the schema
 		// defaults to `false` (parsing restores the default).
-		// A `v.optional(v.boolean(), true)` would silently break round-tripping:
+		// A `s.with_default(s.boolean, true)` would silently break round-tripping:
 		// compact serialization drops the `false` value, then parsing restores
 		// the schema default `true`. This test catches that at the source level.
 		const typesUrl = new URL('../lib/types.ts', import.meta.url);
 		const source = readFileSync(typesUrl, 'utf-8');
 		// Strip block + line comments so JSDoc examples don't trigger false positives
 		const code = source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/[^\n]*/g, '');
-		const matches = Array.from(code.matchAll(/v\.optional\(\s*v\.boolean\(\),\s*([^)]+)\)/g));
+		const matches = Array.from(code.matchAll(/s\.with_default\(\s*s\.boolean,\s*([^)]+)\)/g));
 		assert.ok(
 			matches.length > 0,
-			'Expected at least one v.optional(v.boolean(), ...) in types.ts (regex broke?)'
+			'Expected at least one s.with_default(s.boolean, ...) in types.ts (regex broke?)'
 		);
 		const violations = matches.map((m) => m[1]!.trim()).filter((arg) => arg !== 'false');
 		assert.deepStrictEqual(
 			violations,
 			[],
-			`Found ${violations.length} v.optional(v.boolean(), ...) call(s) with non-false default: ${violations.join(', ')}. ` +
+			`Found ${violations.length} s.with_default(s.boolean, ...) call(s) with non-false default: ${violations.join(', ')}. ` +
 				`compactReplacer in declaration-helpers.ts strips every false boolean from compact output, ` +
 				`which only round-trips correctly when every defaulted boolean defaults to false. ` +
 				`Either change the default to false, or extend compactReplacer + this test.`
@@ -569,7 +569,7 @@ describe('compactReplacer', () => {
 	});
 
 	test('every schema default is `false` or a fresh-array factory (walks the schema tree)', () => {
-		// valibot returns a non-function default as-is, so a literal `[]` default
+		// `s.with_default` returns its value as-is, so a literal `[]` default
 		// would hand every parse the same array — a mutation through one result
 		// would leak into the next. And `compactReplacer` strips only `[]` and
 		// `false`, so those are the only defaults the wire round-trip restores.
@@ -577,21 +577,42 @@ describe('compactReplacer', () => {
 		const seen: Set<unknown> = new Set();
 		const defaults: Array<{ path: string; value: unknown }> = [];
 		const walk = (schema: unknown, path: string): void => {
-			if (typeof schema !== 'object' || schema === null || seen.has(schema)) return;
+			if (!s.is_schema(schema) || seen.has(schema)) return;
 			seen.add(schema);
-			const s = schema as Record<string, unknown>;
-			if (s.type === 'optional' && s.default !== undefined) {
-				defaults.push({ path, value: s.default });
-			}
-			if (s.type === 'lazy') walk((s.getter as () => unknown)(), path);
-			if (s.wrapped) walk(s.wrapped, path);
-			if (s.item) walk(s.item, `${path}[]`);
-			if (Array.isArray(s.options)) for (const option of s.options) walk(option, path);
-			if (Array.isArray(s.pipe)) for (const item of s.pipe) walk(item, path);
-			if (s.entries) {
-				for (const [key, entry] of Object.entries(s.entries as Record<string, unknown>)) {
-					walk(entry, `${path}.${key}`);
-				}
+			const { kind, def } = schema as s.AnySchema;
+			switch (kind) {
+				case 'with_default':
+					defaults.push({ path, value: def.value });
+					walk(def.schema, path);
+					return;
+				case 'with_default_fn':
+					defaults.push({ path, value: def.make });
+					walk(def.schema, path);
+					return;
+				case 'optional':
+				case 'nullable':
+					walk(def.schema, path);
+					return;
+				case 'lazy':
+					walk((def as () => unknown)(), path);
+					return;
+				case 'array':
+					walk(def, `${path}[]`);
+					return;
+				case 'record':
+					walk(def, `${path}{}`);
+					return;
+				case 'variant':
+					for (const option of def.options) walk(option, path);
+					return;
+				case 'union':
+				case 'pipe':
+					for (const item of def) walk(item, path);
+					return;
+				case 'object':
+					for (const [key, entry] of Object.entries(def as Record<string, unknown>)) {
+						walk(entry, `${path}.${key}`);
+					}
 			}
 		};
 		walk(AnalyzeResultJson, 'AnalyzeResultJson');
@@ -644,7 +665,7 @@ describe('compactReplacer', () => {
 
 	test('parse → stringify(compactReplacer) → parse is a faithful round-trip across every variant', () => {
 		// Stricter than the tests above. The source-regex test
-		// (`every defaulted v.boolean() in types.ts defaults to false`) catches
+		// (`every defaulted s.boolean in types.ts defaults to false`) catches
 		// *new* `true` defaults, but it doesn't catch:
 		//   - removing a `false` default on an existing field (now optional
 		//     without a default; compact strips `false`, parse leaves it absent)
@@ -1005,7 +1026,7 @@ describe('isKind', () => {
 
 	describe('MemberJson narrowing', () => {
 		const member = (input: { name: string; kind: string; [key: string]: unknown }): MemberJson =>
-			v.parse(MemberJson, input);
+			s.parse_or_throw(MemberJson, input);
 
 		test('narrows function members', () => {
 			const m = member({ name: 'method', kind: 'function' });
@@ -1410,7 +1431,7 @@ describe('typeJsonToTokens over the fixture corpus', () => {
 		// the walk finding nothing would pass vacuously — assert a floor
 		assert.isAtLeast(trees.length, 10, 'expected the corpus walk to find trees');
 		for (const raw of trees) {
-			const tree = v.parse(TypeJson, raw);
+			const tree = s.parse_or_throw(TypeJson, raw);
 			const tokens = typeJsonToTokens(tree);
 			assert.isAbove(tokens.length, 0);
 			let prev: TypeJsonToken | undefined;
@@ -1432,45 +1453,52 @@ describe('typeJsonToTokens over the fixture corpus', () => {
 
 describe('schema validation', () => {
 	test('ModuleJson rejects unknown keys (strictObject)', () => {
-		assert.throws(() => parseModuleJson({ path: 'foo.ts', unknownField: true }), v.ValiError);
+		assert.throws(() => parseModuleJson({ path: 'foo.ts', unknownField: true }), s.SchemaError);
 	});
 
 	test('DeclarationJson rejects unknown keys (strictObject)', () => {
 		assert.throws(
-			() => v.parse(DeclarationJson, { name: 'foo', kind: 'function', unknownField: true }),
-			v.ValiError
+			() =>
+				s.parse_or_throw(DeclarationJson, { name: 'foo', kind: 'function', unknownField: true }),
+			s.SchemaError
 		);
 	});
 
 	test('DeclarationJson rejects invalid kind', () => {
-		assert.throws(() => v.parse(DeclarationJson, { name: 'foo', kind: 'invalid' }), v.ValiError);
+		assert.throws(
+			() => s.parse_or_throw(DeclarationJson, { name: 'foo', kind: 'invalid' }),
+			s.SchemaError
+		);
 	});
 
 	test('MemberJson rejects invalid kind', () => {
-		assert.throws(() => v.parse(MemberJson, { name: 'foo', kind: 'class' }), v.ValiError);
+		assert.throws(
+			() => s.parse_or_throw(MemberJson, { name: 'foo', kind: 'class' }),
+			s.SchemaError
+		);
 	});
 
 	test('InterfaceDeclarationJson rejects "properties" key', () => {
 		assert.throws(
 			() =>
-				v.parse(DeclarationJson, {
+				s.parse_or_throw(DeclarationJson, {
 					name: 'A',
 					kind: 'interface',
 					properties: [{ name: 'a', kind: 'variable' }]
 				}),
-			v.ValiError
+			s.SchemaError
 		);
 	});
 
 	test('TypeDeclarationJson rejects "properties" key', () => {
 		assert.throws(
 			() =>
-				v.parse(DeclarationJson, {
+				s.parse_or_throw(DeclarationJson, {
 					name: 'A',
 					kind: 'type',
 					properties: [{ name: 'a', kind: 'variable' }]
 				}),
-			v.ValiError
+			s.SchemaError
 		);
 	});
 
@@ -1483,7 +1511,7 @@ describe('schema validation', () => {
 		] as const;
 
 		for (const input of containers) {
-			const decl = v.parse(DeclarationJson, input);
+			const decl = s.parse_or_throw(DeclarationJson, input);
 			if ('members' in decl) {
 				assert.strictEqual(decl.members.length, 1, `${input.kind} should have 1 member`);
 				assert.strictEqual(decl.members[0]!.name, 'a');

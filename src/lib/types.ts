@@ -9,8 +9,8 @@
  *
  * ## Input/output split
  *
- * The schemas are valibot schemas. Array fields default to `[]` and boolean
- * flags to `false` (`v.optional(schema, default)`), so they're optional in
+ * The schemas are fuz_schema schemas. Array fields default to `[]` and boolean
+ * flags to `false` (`s.with_default_fn`, `s.with_default`), so they're optional in
  * serialized JSON (compact) but guaranteed after parsing. Input types
  * (`ModuleJsonInput`, `DeclarationJsonInput`, `ComponentPropJsonInput`) accept
  * the omitted fields; output types (`ModuleJson`, `DeclarationJson`,
@@ -20,19 +20,20 @@
  * validate and restore the defaults — the parse helpers are the stable
  * entry points, independent of the schema library.
  *
- * Array defaults are factories (`() => []`): valibot returns a non-function
- * default as-is, so a literal `[]` would be one array shared by every parse.
+ * Array defaults are factories (`s.with_default_fn(…, () => [])`):
+ * `s.with_default` returns its value as-is, so a literal `[]` would be one
+ * array shared by every parse.
  *
  * ## Discriminated union
  *
- * `DeclarationJson` is a `v.variant` on `kind` with 9 variants:
+ * `DeclarationJson` is an `s.variant` on `kind` with 9 variants:
  * `FunctionDeclarationJson`, `ClassDeclarationJson`, `InterfaceDeclarationJson`,
  * `TypeDeclarationJson`, `VariableDeclarationJson`, `EnumDeclarationJson`,
  * `ComponentDeclarationJson`, `SnippetDeclarationJson`, `NamespaceDeclarationJson`.
  * Each variant has only the fields relevant to that kind, enforced by
- * `v.strictObject`. Use `isKind` (in `declaration-helpers.ts`) to narrow.
+ * `s.object`. Use `isKind` (in `declaration-helpers.ts`) to narrow.
  *
- * `MemberJson` is similarly a `v.variant` on `kind` with 3 variants:
+ * `MemberJson` is similarly an `s.variant` on `kind` with 3 variants:
  * `FunctionMemberJson`, `VariableMemberJson`, `ConstructorMemberJson`.
  * Each variant has only the fields relevant to that member kind.
  *
@@ -48,9 +49,9 @@
  * @module
  */
 
-import * as v from 'valibot';
+import * as s from '@fuzdev/fuz_schema/schema.ts';
 
-import { parseWithSummary, type Named } from './schema.ts';
+import { parseWithSummary, type VariantSchema } from './schema.ts';
 
 /**
  * The kind of top-level exported declaration.
@@ -59,7 +60,7 @@ import { parseWithSummary, type Named } from './schema.ts';
  * (nested in classes, interfaces, or types with construct signatures), never as
  * top-level module exports.
  */
-export const DeclarationKind = v.picklist([
+export const DeclarationKind = s.one_of([
 	'type',
 	'function',
 	'variable',
@@ -70,7 +71,7 @@ export const DeclarationKind = v.picklist([
 	'snippet',
 	'namespace'
 ]);
-export type DeclarationKind = v.InferOutput<typeof DeclarationKind>;
+export type DeclarationKind = s.Infer<typeof DeclarationKind>;
 
 /**
  * TypeScript modifier keywords extracted from declarations.
@@ -79,7 +80,7 @@ export type DeclarationKind = v.InferOutput<typeof DeclarationKind>;
  * Private members (including `#field` syntax) are filtered out during analysis.
  * Protected members are included as part of the extension API.
  */
-export const DeclarationModifier = v.picklist([
+export const DeclarationModifier = s.one_of([
 	'public',
 	'protected',
 	'readonly',
@@ -88,7 +89,7 @@ export const DeclarationModifier = v.picklist([
 	'getter',
 	'setter'
 ]);
-export type DeclarationModifier = v.InferOutput<typeof DeclarationModifier>;
+export type DeclarationModifier = s.Infer<typeof DeclarationModifier>;
 
 /**
  * Reactivity flavor for a variable declaration or class field, captured from
@@ -113,38 +114,49 @@ export type DeclarationModifier = v.InferOutput<typeof DeclarationModifier>;
  * documentation pipelines can capture any rune-shaped declaration their
  * conventions choose to expose.
  */
-export const Reactivity = v.picklist(['$state', '$state.raw', '$derived', '$derived.by']);
-export type Reactivity = v.InferOutput<typeof Reactivity>;
+export const Reactivity = s.one_of(['$state', '$state.raw', '$derived', '$derived.by']);
+export type Reactivity = s.Infer<typeof Reactivity>;
 
-// Each exported object schema is named through an interface (`FooSchema`) so
-// the emitted declarations reference it by name. Inferred, a schema's type is
-// written out structurally at every use, nested schemas included, which
-// multiplies the declarations' size. Naming keeps them referential and small.
-// It also keeps consumers' typechecking shallow: over a fully inlined
-// `ModuleJson`, `v.InferOutput` exceeds TypeScript's instantiation depth
-// (TS2589), which this repo's own typecheck never sees. A name on that heavy
-// root is enough to clear the error, and the rest are there for size.
-// `dist-types.test.ts` guards both. `Named` is the identity alias that lets an
-// interface extend a `typeof` query.
+// Each exported object schema is named through interfaces so the emitted
+// declarations reference it by name: `FooSchema` for the schema, and
+// `FooSchemaOutput`/`FooSchemaInput` for its output and input, which extend
+// the types `s.object` computes from the entries (`FooEntries`). Unnamed, an
+// object schema's type carries its output and input written out structurally,
+// and a variant's carries every option's, so each container repeats the
+// whole tree below it, which multiplies the declarations' size.
+// `dist-types.test.ts` guards it.
 
-const GenericParamJsonImpl = v.strictObject({
+const GenericParamJsonEntries = {
 	/** Parameter name like `T`. */
-	name: v.string(),
+	name: s.string,
 	/** Constraint like `string` from `T extends string`. */
-	constraint: v.optional(v.string()),
+	constraint: s.optional(s.string),
 	/** Default type like `unknown` from `T = unknown`. */
-	defaultType: v.optional(v.string())
-});
+	defaultType: s.optional(s.string)
+};
 /** @nodocs */
-export interface GenericParamJsonSchema extends Named<typeof GenericParamJsonImpl> {}
+export interface GenericParamJsonSchemaOutput extends s.SchemaStrictObjectOutput<
+	typeof GenericParamJsonEntries
+> {}
+/** @nodocs */
+export interface GenericParamJsonSchemaInput extends s.SchemaStrictObjectInput<
+	typeof GenericParamJsonEntries
+> {}
+/** @nodocs */
+export interface GenericParamJsonSchema extends s.Schema<
+	GenericParamJsonSchemaOutput,
+	GenericParamJsonSchemaInput,
+	'object',
+	typeof GenericParamJsonEntries
+> {}
 /**
  * Generic type parameter metadata extracted from declarations like `<T extends string = unknown>`.
  *
  * Present on functions, classes, interfaces, type aliases, and Svelte components
  * that declare generic type parameters.
  */
-export const GenericParamJson: GenericParamJsonSchema = GenericParamJsonImpl;
-export type GenericParamJson = v.InferOutput<typeof GenericParamJson>;
+export const GenericParamJson: GenericParamJsonSchema = s.object(GenericParamJsonEntries);
+export type GenericParamJson = s.Infer<typeof GenericParamJson>;
 
 /**
  * Structured type information — the machine-readable counterpart to the flat
@@ -401,115 +413,77 @@ export interface TupleElementJson {
 	rest?: boolean;
 }
 
-// the recursive positions go through `v.lazy`, never the variant itself:
-// valibot calls a lazy getter on every parse, so wrapping the whole variant
-// would rebuild it at each node, while these getters only read the bindings
-// below (resolved at parse time, after both consts are initialized)
-export const TypeJson: v.GenericSchema<TypeJson> = v.variant('kind', [
-	v.strictObject({ kind: v.literal('intrinsic'), text: v.string() }),
-	v.strictObject({
-		kind: v.literal('literal'),
-		value: v.union([v.string(), v.pipe(v.number(), v.finite()), v.boolean()]),
-		text: v.string()
+// the recursive positions go through `s.lazy`, whose getter runs on first
+// use, after both consts below are initialized
+export const TypeJson: s.Schema<TypeJson> = s.variant('kind', [
+	s.object({ kind: s.literal('intrinsic'), text: s.string }),
+	s.object({
+		kind: s.literal('literal'),
+		value: s.union([s.string, s.number, s.boolean]),
+		text: s.string
 	}),
-	v.strictObject({
-		kind: v.literal('reference'),
-		name: v.string(),
-		module: v.optional(v.string()),
-		typeArgs: v.optional(v.array(v.lazy(() => TypeJson)))
+	s.object({
+		kind: s.literal('reference'),
+		name: s.string,
+		module: s.optional(s.string),
+		typeArgs: s.optional(s.array(s.lazy(() => TypeJson)))
 	}),
-	v.strictObject({
-		kind: v.literal('array'),
-		element: v.lazy(() => TypeJson),
-		readonly: v.optional(v.boolean())
+	s.object({
+		kind: s.literal('array'),
+		element: s.lazy(() => TypeJson),
+		readonly: s.optional(s.boolean)
 	}),
-	v.strictObject({
-		kind: v.literal('tuple'),
-		elements: v.optional(v.array(v.lazy(() => TupleElementJson))),
-		readonly: v.optional(v.boolean())
+	s.object({
+		kind: s.literal('tuple'),
+		elements: s.optional(s.array(s.lazy(() => TupleElementJson))),
+		readonly: s.optional(s.boolean)
 	}),
-	v.strictObject({
-		kind: v.literal('union'),
-		alias: v.optional(v.string()),
-		members: v.array(v.lazy(() => TypeJson))
+	s.object({
+		kind: s.literal('union'),
+		alias: s.optional(s.string),
+		members: s.array(s.lazy(() => TypeJson))
 	}),
-	v.strictObject({
-		kind: v.literal('intersection'),
-		alias: v.optional(v.string()),
-		members: v.array(v.lazy(() => TypeJson))
+	s.object({
+		kind: s.literal('intersection'),
+		alias: s.optional(s.string),
+		members: s.array(s.lazy(() => TypeJson))
 	}),
-	v.strictObject({ kind: v.literal('function'), text: v.string() }),
-	v.strictObject({ kind: v.literal('object'), text: v.string() }),
-	v.strictObject({ kind: v.literal('other'), text: v.string() })
+	s.object({ kind: s.literal('function'), text: s.string }),
+	s.object({ kind: s.literal('object'), text: s.string }),
+	s.object({ kind: s.literal('other'), text: s.string })
 ]);
 
 // declared after `TypeJson` so its `type` field can reference the const
 // directly; `TypeJson`'s lazy getters resolve this binding at parse time
-export const TupleElementJson: v.GenericSchema<TupleElementJson> = v.strictObject({
-	name: v.optional(v.string()),
+export const TupleElementJson: s.Schema<TupleElementJson> = s.object({
+	name: s.optional(s.string),
 	type: TypeJson,
-	optional: v.optional(v.boolean()),
-	rest: v.optional(v.boolean())
+	optional: s.optional(s.boolean),
+	rest: s.optional(s.boolean)
 });
 
 /**
  * A map of author-written string keys to strings (`@mutates` targets, dotted
  * `@param` sub-paths).
  *
- * Not `v.record(v.string(), v.string())`, which silently drops the
- * `constructor` and `prototype` keys — legitimate keys here
- * (`@mutates constructor`). Accepts a plain object whose own values are all
- * strings, and copies them into a fresh object. Each non-string value gets its
- * own issue, with the key on the issue path. An own `__proto__` key (which
- * `JSON.parse` can produce) is skipped entirely, its value never checked.
+ * `s.record` keeps every own key, `constructor` and `prototype` included
+ * (legitimate keys here: `@mutates constructor`), and drops an own
+ * `__proto__` key (which `JSON.parse` can produce), whose value must still be
+ * a string. Each non-string value gets its own issue, with the key on the
+ * issue path.
  */
-const StringRecord: v.GenericSchema<Record<string, string>> = v.pipe(
-	v.custom<Record<string, string>>((input) => {
-		if (typeof input !== 'object' || input === null) return false;
-		const proto: unknown = Object.getPrototypeOf(input);
-		return proto === Object.prototype || proto === null;
-	}, 'Invalid type: Expected a record of strings'),
-	v.rawCheck(({ dataset, addIssue }) => {
-		if (!dataset.typed) return;
-		const input: Record<string, unknown> = dataset.value;
-		for (const [key, value] of Object.entries(input)) {
-			if (key === '__proto__' || typeof value === 'string') continue;
-			addIssue({
-				message: `Invalid type: Expected string but received ${describeReceived(value)}`,
-				expected: 'string',
-				input: value,
-				path: [{ type: 'object', origin: 'value', input, key, value }]
-			});
-		}
-	}),
-	v.transform((input) => {
-		const copy: Record<string, string> = {};
-		for (const key of Object.keys(input)) {
-			if (key !== '__proto__') copy[key] = input[key]!;
-		}
-		return copy;
-	})
-);
+const StringRecord = s.record(s.string);
 
-/** Names a rejected value for an issue message: its JSON for a primitive, else its type. */
-const describeReceived = (value: unknown): string => {
-	if (value === null || value === undefined) return String(value);
-	if (Array.isArray(value)) return 'Array';
-	if (typeof value === 'object') return 'Object';
-	if (typeof value === 'function' || typeof value === 'symbol') return typeof value;
-	return typeof value === 'bigint' ? `${value}n` : JSON.stringify(value);
-};
-
-const ParameterJsonImpl = v.strictObject({
+const ParameterJsonEntries = {
 	/**
 	 * Parameter name (e.g., `options`, `args`); rest-ness is carried by `rest`,
 	 * never the name.
 	 */
-	name: v.string(),
+	name: s.string,
 	/** Resolved TypeScript type string (e.g., `string`, `Record<string, unknown>`). */
-	type: v.string(),
+	type: s.string,
 	/** Structured type; absent when `type` is the whole story (see `TypeJson`). */
-	typeInfo: v.optional(TypeJson),
+	typeInfo: s.optional(TypeJson),
 	/**
 	 * Whether a caller may omit the argument, by the checker's
 	 * `isOptionalParameter`: a `?` token, an initializer with no required
@@ -519,18 +493,18 @@ const ParameterJsonImpl = v.strictObject({
 	 * type already holds), so `optional` carries it alone. A rest parameter is
 	 * never `optional`.
 	 */
-	optional: v.optional(v.boolean(), false),
+	optional: s.with_default(s.boolean, false),
 	/** Whether the parameter uses rest syntax (`...args`). */
-	rest: v.optional(v.boolean(), false),
+	rest: s.with_default(s.boolean, false),
 	/** Description from `@param` tag. */
-	description: v.optional(v.string()),
+	description: s.optional(s.string),
 	/**
 	 * The initializer's source text, verbatim (e.g., `"'hello'"`, `42`,
 	 * `() => 10`) — quotes included, no normalization; consumers render it as
 	 * highlighted TS. Without an initializer, the default a bracketed
 	 * `@param {T} [b=0]` writes, verbatim the same way.
 	 */
-	defaultValue: v.optional(v.string()),
+	defaultValue: s.optional(s.string),
 	/**
 	 * Descriptions for properties of a named object parameter, from dotted
 	 * `@param` tags (`@param obj.prop - ...`), the ones TypeScript nests under
@@ -548,10 +522,23 @@ const ParameterJsonImpl = v.strictObject({
 	 * (`fn({a, b}: T)`) are not covered — TypeScript names them `__0`, with no
 	 * author-facing identifier for a `@param` key to reference.
 	 */
-	propertyDescriptions: v.optional(StringRecord)
-});
+	propertyDescriptions: s.optional(StringRecord)
+};
 /** @nodocs */
-export interface ParameterJsonSchema extends Named<typeof ParameterJsonImpl> {}
+export interface ParameterJsonSchemaOutput extends s.SchemaStrictObjectOutput<
+	typeof ParameterJsonEntries
+> {}
+/** @nodocs */
+export interface ParameterJsonSchemaInput extends s.SchemaStrictObjectInput<
+	typeof ParameterJsonEntries
+> {}
+/** @nodocs */
+export interface ParameterJsonSchema extends s.Schema<
+	ParameterJsonSchemaOutput,
+	ParameterJsonSchemaInput,
+	'object',
+	typeof ParameterJsonEntries
+> {}
 /**
  * Parameter information for functions and methods.
  *
@@ -564,9 +551,9 @@ export interface ParameterJsonSchema extends Named<typeof ParameterJsonImpl> {}
  * parameter's docs come from one `@param` line, while a prop has a JSDoc block
  * of its own.
  */
-export const ParameterJson: ParameterJsonSchema = ParameterJsonImpl;
-export type ParameterJson = v.InferOutput<typeof ParameterJson>;
-export type ParameterJsonInput = v.InferInput<typeof ParameterJson>;
+export const ParameterJson: ParameterJsonSchema = s.object(ParameterJsonEntries);
+export type ParameterJson = s.Infer<typeof ParameterJson>;
+export type ParameterJsonInput = s.InferInput<typeof ParameterJson>;
 
 /**
  * Doc-comment fields shared across declarations, members, and component props.
@@ -576,18 +563,18 @@ export type ParameterJsonInput = v.InferInput<typeof ParameterJson>;
  */
 const docFields = {
 	/** Code examples from `@example` tags. */
-	examples: v.optional(v.array(v.string()), () => []),
+	examples: s.with_default_fn(s.array(s.string), () => []),
 	/** Deprecation message from `@deprecated` tag. */
-	deprecatedMessage: v.optional(v.string()),
+	deprecatedMessage: s.optional(s.string),
 	/** Related items from `@see` tags, in raw TSDoc format. */
-	seeAlso: v.optional(v.array(v.string()), () => []),
+	seeAlso: s.with_default_fn(s.array(s.string), () => []),
 	/** Exceptions from `@throws` tags. */
-	throws: v.optional(
-		v.array(v.strictObject({ type: v.optional(v.string()), description: v.string() })),
+	throws: s.with_default_fn(
+		s.array(s.object({ type: s.optional(s.string), description: s.string })),
 		() => []
 	),
 	/** Version introduced, from `@since` tag. */
-	since: v.optional(v.string()),
+	since: s.optional(s.string),
 	/**
 	 * Internal-API marker from the `@internal` tag. Presence means the tag was
 	 * written; an empty string is a bare tag with no trailing prose.
@@ -597,7 +584,7 @@ const docFields = {
 	 * documented — unlike `@nodocs`, which removes a declaration from output
 	 * entirely (and is ignored on props and members).
 	 */
-	internalMessage: v.optional(v.string()),
+	internalMessage: s.optional(s.string),
 	/**
 	 * Mutation documentation from `@mutates` tags (non-standard), mapping keys to descriptions.
 	 *
@@ -615,7 +602,7 @@ const docFields = {
 	 * not a mutation in this sense (`bindable` covers it), though a `$bindable`
 	 * prop can carry both.
 	 */
-	mutates: v.optional(StringRecord)
+	mutates: s.optional(StringRecord)
 } as const;
 
 /**
@@ -624,32 +611,32 @@ const docFields = {
  */
 const { throws: _throws, mutates: _mutates, ...moduleDocFields } = docFields;
 
-const ComponentPropJsonImpl = v.strictObject({
+const ComponentPropJsonEntries = {
 	/**
 	 * Prop name as declared in the component's `$props()` type — the prop's own
 	 * name, not the local binding a renamed destructuring element introduces.
 	 */
-	name: v.string(),
+	name: s.string,
 	/** Resolved TypeScript type string. */
-	type: v.string(),
+	type: s.string,
 	/** Structured type; absent when `type` is the whole story (see `TypeJson`). */
-	typeInfo: v.optional(TypeJson),
+	typeInfo: s.optional(TypeJson),
 	/** Whether the prop is optional in the component's props type. */
-	optional: v.optional(v.boolean(), false),
+	optional: s.with_default(s.boolean, false),
 	/** Description from JSDoc on the prop's type declaration. */
-	description: v.optional(v.string()),
+	description: s.optional(s.string),
 	/**
 	 * The destructuring default's source text, else the `@default` tag text —
 	 * verbatim author text either way (`"'primary'"`, `() => 10`), quotes
 	 * included, no normalization; consumers render it as highlighted TS.
 	 */
-	defaultValue: v.optional(v.string()),
+	defaultValue: s.optional(s.string),
 	/**
 	 * Whether the prop supports two-way binding (`bind:name`): declared with the
 	 * `$bindable()` rune, or any prop of a legacy `export let` component, where
 	 * every prop can be bound.
 	 */
-	bindable: v.optional(v.boolean(), false),
+	bindable: s.with_default(s.boolean, false),
 	/**
 	 * Structured parameters for callable props: a snippet's
 	 * (`Snippet<[text: string]>`) or a callback's (`(value: string) => void`).
@@ -662,7 +649,7 @@ const ComponentPropJsonImpl = v.strictObject({
 	 * (see the input/output split in the module comment): absence is a
 	 * meaningful signal, not an empty list.
 	 */
-	parameters: v.optional(v.array(ParameterJson)),
+	parameters: s.optional(s.array(ParameterJson)),
 	/**
 	 * A callback prop's return type, and the marker that the prop is one:
 	 * present exactly when the prop's type has a call signature this project
@@ -681,13 +668,26 @@ const ComponentPropJsonImpl = v.strictObject({
 	 * shape a redeclared `onclick` over an attributes bag takes), the own
 	 * signature is the one described. Of several own signatures, the first.
 	 */
-	returnType: v.optional(v.string()),
+	returnType: s.optional(s.string),
 	/** Structured return type; absent when `returnType` is the whole story (see `TypeJson`). */
-	returnTypeInfo: v.optional(TypeJson),
+	returnTypeInfo: s.optional(TypeJson),
 	...docFields
-});
+};
 /** @nodocs */
-export interface ComponentPropJsonSchema extends Named<typeof ComponentPropJsonImpl> {}
+export interface ComponentPropJsonSchemaOutput extends s.SchemaStrictObjectOutput<
+	typeof ComponentPropJsonEntries
+> {}
+/** @nodocs */
+export interface ComponentPropJsonSchemaInput extends s.SchemaStrictObjectInput<
+	typeof ComponentPropJsonEntries
+> {}
+/** @nodocs */
+export interface ComponentPropJsonSchema extends s.Schema<
+	ComponentPropJsonSchemaOutput,
+	ComponentPropJsonSchemaInput,
+	'object',
+	typeof ComponentPropJsonEntries
+> {}
 /**
  * Component prop information for Svelte components.
  *
@@ -697,15 +697,15 @@ export interface ComponentPropJsonSchema extends Named<typeof ComponentPropJsonI
  * and support for two-way binding (the `$bindable` rune, or a legacy
  * `export let` prop).
  */
-export const ComponentPropJson: ComponentPropJsonSchema = ComponentPropJsonImpl;
-export type ComponentPropJson = v.InferOutput<typeof ComponentPropJson>;
-export type ComponentPropJsonInput = v.InferInput<typeof ComponentPropJson>;
+export const ComponentPropJson: ComponentPropJsonSchema = s.object(ComponentPropJsonEntries);
+export type ComponentPropJson = s.Infer<typeof ComponentPropJson>;
+export type ComponentPropJsonInput = s.InferInput<typeof ComponentPropJson>;
 
-const ComponentCssPropertyJsonImpl = v.strictObject({
+const ComponentCssPropertyJsonEntries = {
 	/** The custom property's name as written, `--` included (`--a_color`); case-sensitive, as in CSS. */
-	name: v.string(),
+	name: s.string,
 	/** The `@cssprop` tag's description, raw like `docComment`. Only on a `documented` entry. */
-	description: v.optional(v.string()),
+	description: s.optional(s.string),
 	/**
 	 * The property's value syntax, verbatim, unvalidated: the `@cssprop` tag's
 	 * braced syntax (`@cssprop {<color>} --a` gives `<color>`), else the
@@ -713,7 +713,7 @@ const ComponentCssPropertyJsonImpl = v.strictObject({
 	 * component's style, its quotes stripped (`syntax: '<color>'` gives
 	 * `<color>`).
 	 */
-	syntax: v.optional(v.string()),
+	syntax: s.optional(s.string),
 	/**
 	 * What the style gives the property when a consumer doesn't set it: the
 	 * `initial-value` of an `@property` rule for the name in the component's
@@ -726,20 +726,20 @@ const ComponentCssPropertyJsonImpl = v.strictObject({
 	 * the tag's claim is `default`, and `cssprop_default_mismatch` warns when
 	 * the two disagree.
 	 */
-	fallback: v.optional(v.string()),
+	fallback: s.optional(s.string),
 	/**
 	 * The `@cssprop` tag's bracketed default (`@cssprop [--a=1px]` gives
 	 * `1px`), verbatim and trimmed. Only on a `documented` entry. The
 	 * author's claim beside `fallback`, the style's fact; a renderer wanting
 	 * one value takes `default ?? fallback`.
 	 */
-	default: v.optional(v.string()),
+	default: s.optional(s.string),
 	/**
 	 * 1-based line in the original `.svelte` source of the property's first
 	 * `var()` read, or for a documented property the component never reads,
 	 * of its `@cssprop` tag.
 	 */
-	sourceLine: v.pipe(v.number(), v.safeInteger(), v.minValue(1)),
+	sourceLine: s.pipe(s.number, s.safe_integer, s.min_value(1)),
 	/**
 	 * Whether a `@cssprop` tag in the component's doc comment documents the
 	 * property, as opposed to the fallback-read heuristic (or an `@property`
@@ -747,11 +747,22 @@ const ComponentCssPropertyJsonImpl = v.strictObject({
 	 * entries when a component has any, dropping the global tokens the
 	 * heuristic also catches.
 	 */
-	documented: v.optional(v.boolean(), false)
-});
+	documented: s.with_default(s.boolean, false)
+};
 /** @nodocs */
-export interface ComponentCssPropertyJsonSchema extends Named<
-	typeof ComponentCssPropertyJsonImpl
+export interface ComponentCssPropertyJsonSchemaOutput extends s.SchemaStrictObjectOutput<
+	typeof ComponentCssPropertyJsonEntries
+> {}
+/** @nodocs */
+export interface ComponentCssPropertyJsonSchemaInput extends s.SchemaStrictObjectInput<
+	typeof ComponentCssPropertyJsonEntries
+> {}
+/** @nodocs */
+export interface ComponentCssPropertyJsonSchema extends s.Schema<
+	ComponentCssPropertyJsonSchemaOutput,
+	ComponentCssPropertyJsonSchemaInput,
+	'object',
+	typeof ComponentCssPropertyJsonEntries
 > {}
 /**
  * A CSS custom property in a Svelte component's styling API: one a consumer
@@ -764,38 +775,52 @@ export interface ComponentCssPropertyJsonSchema extends Named<
  *
  * @see `ComponentDeclarationJson.cssCustomProperties` for which reads count
  */
-export const ComponentCssPropertyJson: ComponentCssPropertyJsonSchema =
-	ComponentCssPropertyJsonImpl;
-export type ComponentCssPropertyJson = v.InferOutput<typeof ComponentCssPropertyJson>;
-export type ComponentCssPropertyJsonInput = v.InferInput<typeof ComponentCssPropertyJson>;
+export const ComponentCssPropertyJson: ComponentCssPropertyJsonSchema = s.object(
+	ComponentCssPropertyJsonEntries
+);
+export type ComponentCssPropertyJson = s.Infer<typeof ComponentCssPropertyJson>;
+export type ComponentCssPropertyJsonInput = s.InferInput<typeof ComponentCssPropertyJson>;
 
-const OverloadJsonImpl = v.strictObject({
+const OverloadJsonEntries = {
 	/** Full TypeScript type signature for this overload. */
-	typeSignature: v.string(),
+	typeSignature: s.string,
 	/** Parameters for this overload. */
-	parameters: v.optional(v.array(ParameterJson), () => []),
+	parameters: s.with_default_fn(s.array(ParameterJson), () => []),
 	/** Return type for this overload. */
-	returnType: v.optional(v.string()),
+	returnType: s.optional(s.string),
 	/** Structured return type; absent when `returnType` is the whole story (see `TypeJson`). */
-	returnTypeInfo: v.optional(TypeJson),
+	returnTypeInfo: s.optional(TypeJson),
 	/** Generic type parameters for this overload. */
-	genericParams: v.optional(v.array(GenericParamJson), () => []),
+	genericParams: s.with_default_fn(s.array(GenericParamJson), () => []),
 	/** JSDoc/TSDoc comment specific to this overload. */
-	docComment: v.optional(v.string()),
+	docComment: s.optional(s.string),
 	/** Return value description from `@returns` tag on this overload. */
-	returnDescription: v.optional(v.string())
-});
+	returnDescription: s.optional(s.string)
+};
 /** @nodocs */
-export interface OverloadJsonSchema extends Named<typeof OverloadJsonImpl> {}
+export interface OverloadJsonSchemaOutput extends s.SchemaStrictObjectOutput<
+	typeof OverloadJsonEntries
+> {}
+/** @nodocs */
+export interface OverloadJsonSchemaInput extends s.SchemaStrictObjectInput<
+	typeof OverloadJsonEntries
+> {}
+/** @nodocs */
+export interface OverloadJsonSchema extends s.Schema<
+	OverloadJsonSchemaOutput,
+	OverloadJsonSchemaInput,
+	'object',
+	typeof OverloadJsonEntries
+> {}
 /**
  * A single function overload signature.
  *
  * When a function has multiple overload signatures, each public overload
  * is captured here. The implementation signature is excluded.
  */
-export const OverloadJson: OverloadJsonSchema = OverloadJsonImpl;
-export type OverloadJson = v.InferOutput<typeof OverloadJson>;
-export type OverloadJsonInput = v.InferInput<typeof OverloadJson>;
+export const OverloadJson: OverloadJsonSchema = s.object(OverloadJsonEntries);
+export type OverloadJson = s.Infer<typeof OverloadJson>;
+export type OverloadJsonInput = s.InferInput<typeof OverloadJson>;
 
 /**
  * The subset of declaration kinds that appear as nested members in classes, interfaces, and types.
@@ -806,8 +831,8 @@ export type OverloadJsonInput = v.InferInput<typeof OverloadJson>;
  *
  * Every other `DeclarationKind` is top-level only; nesting is exactly one level deep.
  */
-export const MemberKind = v.picklist(['function', 'variable', 'constructor']);
-export type MemberKind = v.InferOutput<typeof MemberKind>;
+export const MemberKind = s.one_of(['function', 'variable', 'constructor']);
+export type MemberKind = s.Infer<typeof MemberKind>;
 
 /**
  * Shared schema fields for both `MemberJson` and all `DeclarationJson` variants.
@@ -824,7 +849,7 @@ const declarationSharedFields = {
 	 * `import X from 'mod'` is sugar for `import {default as X}`. Consumers
 	 * branch on `name === 'default'` to render the sugar form when desired.
 	 */
-	name: v.string(),
+	name: s.string,
 	/**
 	 * Declaration kind — placeholder for key ordering.
 	 * Each variant and `MemberJson` override with a narrower literal/enum.
@@ -833,44 +858,44 @@ const declarationSharedFields = {
 	 */
 	kind: DeclarationKind,
 	/** JSDoc/TSDoc comment. */
-	docComment: v.optional(v.string()),
+	docComment: s.optional(s.string),
 	/** Full TypeScript type signature. */
-	typeSignature: v.optional(v.string()),
+	typeSignature: s.optional(s.string),
 	/** TypeScript modifiers like `readonly`, `static`, or `protected`. */
-	modifiers: v.optional(v.array(DeclarationModifier), () => []),
+	modifiers: s.with_default_fn(s.array(DeclarationModifier), () => []),
 	/**
 	 * 1-indexed line number in source file.
 	 * Synthesized aliases (see `aliasOf`) carry the local export specifier's line, not the
 	 * canonical's.
 	 */
-	sourceLine: v.optional(v.pipe(v.number(), v.finite())),
+	sourceLine: s.optional(s.number),
 	/** Generic type parameters like `<T, U>`. */
-	genericParams: v.optional(v.array(GenericParamJson), () => []),
+	genericParams: s.with_default_fn(s.array(GenericParamJson), () => []),
 	...docFields,
 	/** Whether extraction failed partway through, leaving some fields missing (e.g., `typeSignature`, `parameters`). */
-	partial: v.optional(v.boolean(), false)
+	partial: s.with_default(s.boolean, false)
 } as const;
 
 /** Callable fields shared by functions and constructors (but not variables). */
 const callableFields = {
 	/** Function/method/constructor parameters, in signature order. */
-	parameters: v.optional(v.array(ParameterJson), () => []),
+	parameters: s.with_default_fn(s.array(ParameterJson), () => []),
 	/**
 	 * Overload signatures (when there are multiple public overloads).
 	 * Includes all public overloads. The implementation signature is excluded.
 	 * Empty when there are no overloads (single signature).
 	 */
-	overloads: v.optional(v.array(OverloadJson), () => [])
+	overloads: s.with_default_fn(s.array(OverloadJson), () => [])
 } as const;
 
 /** Return-value fields for functions only (not constructors or variables). */
 const returnFields = {
 	/** Function/method return type. */
-	returnType: v.optional(v.string()),
+	returnType: s.optional(s.string),
 	/** Structured return type; absent when `returnType` is the whole story (see `TypeJson`). */
-	returnTypeInfo: v.optional(TypeJson),
+	returnTypeInfo: s.optional(TypeJson),
 	/** Return value description from `@returns` tag. */
-	returnDescription: v.optional(v.string())
+	returnDescription: s.optional(s.string)
 } as const;
 
 /** Function-like fields shared by `FunctionMemberJson` and `FunctionDeclarationJson`. */
@@ -881,17 +906,17 @@ const functionLikeFields = {
 
 // MemberJson Variants
 
-const FunctionMemberJsonImpl = v.strictObject({
+const FunctionMemberJsonEntries = {
 	...declarationSharedFields,
 	...functionLikeFields,
-	kind: v.literal('function'),
+	kind: s.literal('function'),
 	/**
 	 * User-chosen identifier, or the literal `'(call)'` sentinel for
 	 * unnamed call signatures.
 	 */
-	name: v.string(),
+	name: s.string,
 	/** Whether the member has a `?` token in its declaration. */
-	optional: v.optional(v.boolean(), false),
+	optional: s.with_default(s.boolean, false),
 	/**
 	 * Default value documented via `@default` — for a callable member,
 	 * typically the behavior used when the callback is omitted. Always
@@ -899,10 +924,23 @@ const FunctionMemberJsonImpl = v.strictObject({
 	 * no normalization. Members only: top-level function declarations and
 	 * overloads never carry one.
 	 */
-	defaultValue: v.optional(v.string())
-});
+	defaultValue: s.optional(s.string)
+};
 /** @nodocs */
-export interface FunctionMemberJsonSchema extends Named<typeof FunctionMemberJsonImpl> {}
+export interface FunctionMemberJsonSchemaOutput extends s.SchemaStrictObjectOutput<
+	typeof FunctionMemberJsonEntries
+> {}
+/** @nodocs */
+export interface FunctionMemberJsonSchemaInput extends s.SchemaStrictObjectInput<
+	typeof FunctionMemberJsonEntries
+> {}
+/** @nodocs */
+export interface FunctionMemberJsonSchema extends s.Schema<
+	FunctionMemberJsonSchemaOutput,
+	FunctionMemberJsonSchemaInput,
+	'object',
+	typeof FunctionMemberJsonEntries
+> {}
 /**
  * A function member (method, call signature, method signature).
  * Has `parameters`, `returnType`, `returnDescription`, `overloads`.
@@ -915,22 +953,22 @@ export interface FunctionMemberJsonSchema extends Named<typeof FunctionMemberJso
  * signatures on interfaces and type aliases where it is the literal sentinel
  * `'(call)'`.
  */
-export const FunctionMemberJson: FunctionMemberJsonSchema = FunctionMemberJsonImpl;
-export type FunctionMemberJson = v.InferOutput<typeof FunctionMemberJson>;
+export const FunctionMemberJson: FunctionMemberJsonSchema = s.object(FunctionMemberJsonEntries);
+export type FunctionMemberJson = s.Infer<typeof FunctionMemberJson>;
 
-const VariableMemberJsonImpl = v.strictObject({
+const VariableMemberJsonEntries = {
 	...declarationSharedFields,
-	kind: v.literal('variable'),
+	kind: s.literal('variable'),
 	/** Whether the member has a `?` token in its declaration. */
-	optional: v.optional(v.boolean(), false),
+	optional: s.with_default(s.boolean, false),
 	/** Rune flavor when this field is initialized with a value-producing reactivity rune. */
-	reactivity: v.optional(Reactivity),
+	reactivity: s.optional(Reactivity),
 	/**
 	 * Default value documented via `@default`, verbatim tag text with no
 	 * normalization. Initializers aren't captured — a class field's
 	 * `typeSignature` is its checker type, not its initializer.
 	 */
-	defaultValue: v.optional(v.string()),
+	defaultValue: s.optional(s.string),
 	/**
 	 * Structured type; absent when `typeSignature` is the whole story (see
 	 * `TypeJson`). Member types are checker-backed everywhere — type-alias and
@@ -938,10 +976,23 @@ const VariableMemberJsonImpl = v.strictObject({
 	 * inferred), and accessors (getter-backed or setter-only) all resolve
 	 * through the checker, with written annotations feeding name recovery.
 	 */
-	typeInfo: v.optional(TypeJson)
-});
+	typeInfo: s.optional(TypeJson)
+};
 /** @nodocs */
-export interface VariableMemberJsonSchema extends Named<typeof VariableMemberJsonImpl> {}
+export interface VariableMemberJsonSchemaOutput extends s.SchemaStrictObjectOutput<
+	typeof VariableMemberJsonEntries
+> {}
+/** @nodocs */
+export interface VariableMemberJsonSchemaInput extends s.SchemaStrictObjectInput<
+	typeof VariableMemberJsonEntries
+> {}
+/** @nodocs */
+export interface VariableMemberJsonSchema extends s.Schema<
+	VariableMemberJsonSchemaOutput,
+	VariableMemberJsonSchemaInput,
+	'object',
+	typeof VariableMemberJsonEntries
+> {}
 /**
  * A variable member (property, accessor, index signature, enum value).
  * Shared fields plus optional `reactivity` for class fields initialized with
@@ -950,17 +1001,30 @@ export interface VariableMemberJsonSchema extends Named<typeof VariableMemberJso
  * `optional` reflects a `?` token on the declaration (e.g., `x?: string`).
  * Always `false` for index signatures and enum values.
  */
-export const VariableMemberJson: VariableMemberJsonSchema = VariableMemberJsonImpl;
-export type VariableMemberJson = v.InferOutput<typeof VariableMemberJson>;
+export const VariableMemberJson: VariableMemberJsonSchema = s.object(VariableMemberJsonEntries);
+export type VariableMemberJson = s.Infer<typeof VariableMemberJson>;
 
-const ConstructorMemberJsonImpl = v.strictObject({
+const ConstructorMemberJsonEntries = {
 	...declarationSharedFields,
 	...callableFields,
-	kind: v.literal('constructor'),
-	name: v.union([v.literal('constructor'), v.literal('(construct)')])
-});
+	kind: s.literal('constructor'),
+	name: s.union([s.literal('constructor'), s.literal('(construct)')])
+};
 /** @nodocs */
-export interface ConstructorMemberJsonSchema extends Named<typeof ConstructorMemberJsonImpl> {}
+export interface ConstructorMemberJsonSchemaOutput extends s.SchemaStrictObjectOutput<
+	typeof ConstructorMemberJsonEntries
+> {}
+/** @nodocs */
+export interface ConstructorMemberJsonSchemaInput extends s.SchemaStrictObjectInput<
+	typeof ConstructorMemberJsonEntries
+> {}
+/** @nodocs */
+export interface ConstructorMemberJsonSchema extends s.Schema<
+	ConstructorMemberJsonSchemaOutput,
+	ConstructorMemberJsonSchemaInput,
+	'object',
+	typeof ConstructorMemberJsonEntries
+> {}
 /**
  * A constructor member (class constructor, construct signature).
  * Has `parameters`, `overloads` — but not `returnType`/`returnDescription`
@@ -974,8 +1038,10 @@ export interface ConstructorMemberJsonSchema extends Named<typeof ConstructorMem
  * and consumer renderers reading `member.name` keep working without a
  * constructor-specific branch.
  */
-export const ConstructorMemberJson: ConstructorMemberJsonSchema = ConstructorMemberJsonImpl;
-export type ConstructorMemberJson = v.InferOutput<typeof ConstructorMemberJson>;
+export const ConstructorMemberJson: ConstructorMemberJsonSchema = s.object(
+	ConstructorMemberJsonEntries
+);
+export type ConstructorMemberJson = s.Infer<typeof ConstructorMemberJson>;
 
 /**
  * Metadata for a nested declaration within a class, interface, type, or enum.
@@ -989,13 +1055,14 @@ export type ConstructorMemberJson = v.InferOutput<typeof ConstructorMemberJson>;
  *
  * Nesting is exactly one level deep — members never contain their own members.
  */
-export const MemberJson: v.VariantSchema<
+export const MemberJson: VariantSchema<
 	'kind',
-	[typeof FunctionMemberJson, typeof VariableMemberJson, typeof ConstructorMemberJson],
-	undefined
-> = v.variant('kind', [FunctionMemberJson, VariableMemberJson, ConstructorMemberJson]);
-export type MemberJson = v.InferOutput<typeof MemberJson>;
-export type MemberJsonInput = v.InferInput<typeof MemberJson>;
+	[typeof FunctionMemberJson, typeof VariableMemberJson, typeof ConstructorMemberJson]
+> = s.variant('kind', [FunctionMemberJson, VariableMemberJson, ConstructorMemberJson]);
+// written out, not `s.Infer`, so the union keeps its name at use sites
+export type MemberJson = FunctionMemberJson | VariableMemberJson | ConstructorMemberJson;
+export type MemberJsonInput =
+	FunctionMemberJsonSchemaInput | VariableMemberJsonSchemaInput | ConstructorMemberJsonSchemaInput;
 
 // DeclarationJson Variants
 
@@ -1016,7 +1083,7 @@ const declarationTopLevelFields = {
 	 * 1. `alsoExportedFrom` on each declaration — same-name re-exports
 	 * 2. `aliasOf` on declarations — renamed re-exports (separate declarations)
 	 */
-	alsoExportedFrom: v.optional(v.array(v.string()), () => []),
+	alsoExportedFrom: s.with_default_fn(s.array(s.string), () => []),
 	/**
 	 * For renamed re-exports (`export {foo as bar}`), points to the original declaration.
 	 * This declaration's `name` is the alias; `aliasOf.name` is the original name.
@@ -1038,36 +1105,51 @@ const declarationTopLevelFields = {
 	 * A type-only rename of a value (`export type {someConst as c} from './x'`)
 	 * synthesizes a normal alias — declarations carry no type-only marker.
 	 */
-	aliasOf: v.optional(
-		v.strictObject({
+	aliasOf: s.optional(
+		s.object({
 			/**
 			 * The canonical's `ModuleJson.path` — relative to `sourceRoot`, like
 			 * every module reference in the schema and unlike `Diagnostic.file`.
 			 * May name a module absent from output when the canonical is gated
 			 * (the `internal/` convention) — a documented margin.
 			 */
-			module: v.string(),
-			name: v.string()
+			module: s.string,
+			name: s.string
 		})
 	)
 } as const;
 
-const FunctionDeclarationJsonImpl = v.strictObject({
+const FunctionDeclarationJsonEntries = {
 	...declarationSharedFields,
 	...declarationTopLevelFields,
 	...functionLikeFields,
-	kind: v.literal('function')
-});
+	kind: s.literal('function')
+};
 /** @nodocs */
-export interface FunctionDeclarationJsonSchema extends Named<typeof FunctionDeclarationJsonImpl> {}
+export interface FunctionDeclarationJsonSchemaOutput extends s.SchemaStrictObjectOutput<
+	typeof FunctionDeclarationJsonEntries
+> {}
+/** @nodocs */
+export interface FunctionDeclarationJsonSchemaInput extends s.SchemaStrictObjectInput<
+	typeof FunctionDeclarationJsonEntries
+> {}
+/** @nodocs */
+export interface FunctionDeclarationJsonSchema extends s.Schema<
+	FunctionDeclarationJsonSchemaOutput,
+	FunctionDeclarationJsonSchemaInput,
+	'object',
+	typeof FunctionDeclarationJsonEntries
+> {}
 /** A function declaration. Has `parameters`, `returnType`, `returnDescription`, `overloads`. */
-export const FunctionDeclarationJson: FunctionDeclarationJsonSchema = FunctionDeclarationJsonImpl;
-export type FunctionDeclarationJson = v.InferOutput<typeof FunctionDeclarationJson>;
+export const FunctionDeclarationJson: FunctionDeclarationJsonSchema = s.object(
+	FunctionDeclarationJsonEntries
+);
+export type FunctionDeclarationJson = s.Infer<typeof FunctionDeclarationJson>;
 
-const ClassDeclarationJsonImpl = v.strictObject({
+const ClassDeclarationJsonEntries = {
 	...declarationSharedFields,
 	...declarationTopLevelFields,
-	kind: v.literal('class'),
+	kind: s.literal('class'),
 	/**
 	 * Extended base class — 0 or 1 entries (TypeScript allows only one base).
 	 * An array so every heritage field (`extends`, `implements`,
@@ -1083,7 +1165,7 @@ const ClassDeclarationJsonImpl = v.strictObject({
 	 *   for the other verbatim heritage fields, `externalTypes` (this variant)
 	 *   for the resolved external reach.
 	 */
-	extends: v.optional(v.array(v.string()), () => []),
+	extends: s.with_default_fn(s.array(s.string), () => []),
 	/**
 	 * External types the `extends` chain reaches whose contributions `members`
 	 * never enumerates — the class counterpart of
@@ -1096,27 +1178,42 @@ const ClassDeclarationJsonImpl = v.strictObject({
 	 * A direct external base makes this textually equal to `extends`;
 	 * consumers dedupe at render time.
 	 */
-	externalTypes: v.optional(v.array(v.string()), () => []),
+	externalTypes: s.with_default_fn(s.array(s.string), () => []),
 	/** Implemented interfaces. */
-	implements: v.optional(v.array(v.string()), () => []),
+	implements: s.with_default_fn(s.array(s.string), () => []),
 	/**
 	 * Class members: methods, properties, constructors, getters/setters — own
 	 * members only, inherited members excluded whatever their origin. Source
 	 * order, except accessors (getter/setter pairs merged by name), which follow
 	 * every other member.
 	 */
-	members: v.optional(v.array(MemberJson), () => [])
-});
+	members: s.with_default_fn(s.array(MemberJson), () => [])
+};
 /** @nodocs */
-export interface ClassDeclarationJsonSchema extends Named<typeof ClassDeclarationJsonImpl> {}
+export interface ClassDeclarationJsonSchemaOutput extends s.SchemaStrictObjectOutput<
+	typeof ClassDeclarationJsonEntries
+> {}
+/** @nodocs */
+export interface ClassDeclarationJsonSchemaInput extends s.SchemaStrictObjectInput<
+	typeof ClassDeclarationJsonEntries
+> {}
+/** @nodocs */
+export interface ClassDeclarationJsonSchema extends s.Schema<
+	ClassDeclarationJsonSchemaOutput,
+	ClassDeclarationJsonSchemaInput,
+	'object',
+	typeof ClassDeclarationJsonEntries
+> {}
 /** A class declaration. Has `members`, `extends`, `implements`. */
-export const ClassDeclarationJson: ClassDeclarationJsonSchema = ClassDeclarationJsonImpl;
-export type ClassDeclarationJson = v.InferOutput<typeof ClassDeclarationJson>;
+export const ClassDeclarationJson: ClassDeclarationJsonSchema = s.object(
+	ClassDeclarationJsonEntries
+);
+export type ClassDeclarationJson = s.Infer<typeof ClassDeclarationJson>;
 
-const InterfaceDeclarationJsonImpl = v.strictObject({
+const InterfaceDeclarationJsonEntries = {
 	...declarationSharedFields,
 	...declarationTopLevelFields,
-	kind: v.literal('interface'),
+	kind: s.literal('interface'),
 	/**
 	 * Extended interfaces.
 	 *
@@ -1130,7 +1227,7 @@ const InterfaceDeclarationJsonImpl = v.strictObject({
 	 *   for the other verbatim heritage fields, `externalTypes` (this variant)
 	 *   for the resolved external reach.
 	 */
-	extends: v.optional(v.array(v.string()), () => []),
+	extends: s.with_default_fn(s.array(s.string), () => []),
 	/**
 	 * External types the heritage composition reaches whose contributions
 	 * `members` never enumerates.
@@ -1150,7 +1247,7 @@ const InterfaceDeclarationJsonImpl = v.strictObject({
 	 * Direct-heritage cases make this textually equal to `extends`; consumers
 	 * dedupe at render time.
 	 */
-	externalTypes: v.optional(v.array(v.string()), () => []),
+	externalTypes: s.with_default_fn(s.array(s.string), () => []),
 	/**
 	 * Interface members: property signatures, method signatures, index
 	 * signatures, call/construct signatures — own members only, inherited
@@ -1158,7 +1255,7 @@ const InterfaceDeclarationJsonImpl = v.strictObject({
 	 * included: a base interface's `(call)` is not enumerated here). Source
 	 * order, except call/construct signatures, which come last.
 	 */
-	members: v.optional(v.array(MemberJson), () => []),
+	members: s.with_default_fn(s.array(MemberJson), () => []),
 	/**
 	 * The exported name also carries a value meaning — a merged value+type
 	 * symbol (`const Foo = ...` + `interface Foo {...}`), where the interface
@@ -1168,21 +1265,33 @@ const InterfaceDeclarationJsonImpl = v.strictObject({
 	 *
 	 * @see `TypeDeclarationJson.mergedValue`
 	 */
-	mergedValue: v.optional(v.boolean(), false)
-});
+	mergedValue: s.with_default(s.boolean, false)
+};
 /** @nodocs */
-export interface InterfaceDeclarationJsonSchema extends Named<
-	typeof InterfaceDeclarationJsonImpl
+export interface InterfaceDeclarationJsonSchemaOutput extends s.SchemaStrictObjectOutput<
+	typeof InterfaceDeclarationJsonEntries
+> {}
+/** @nodocs */
+export interface InterfaceDeclarationJsonSchemaInput extends s.SchemaStrictObjectInput<
+	typeof InterfaceDeclarationJsonEntries
+> {}
+/** @nodocs */
+export interface InterfaceDeclarationJsonSchema extends s.Schema<
+	InterfaceDeclarationJsonSchemaOutput,
+	InterfaceDeclarationJsonSchemaInput,
+	'object',
+	typeof InterfaceDeclarationJsonEntries
 > {}
 /** An interface declaration. Has `members`, `extends`. */
-export const InterfaceDeclarationJson: InterfaceDeclarationJsonSchema =
-	InterfaceDeclarationJsonImpl;
-export type InterfaceDeclarationJson = v.InferOutput<typeof InterfaceDeclarationJson>;
+export const InterfaceDeclarationJson: InterfaceDeclarationJsonSchema = s.object(
+	InterfaceDeclarationJsonEntries
+);
+export type InterfaceDeclarationJson = s.Infer<typeof InterfaceDeclarationJson>;
 
-const TypeDeclarationJsonImpl = v.strictObject({
+const TypeDeclarationJsonEntries = {
 	...declarationSharedFields,
 	...declarationTopLevelFields,
-	kind: v.literal('type'),
+	kind: s.literal('type'),
 	/**
 	 * External types whose contributions are filtered out of `members`.
 	 *
@@ -1219,7 +1328,7 @@ const TypeDeclarationJsonImpl = v.strictObject({
 	 *   `InterfaceDeclarationJson.extends` for the verbatim own-clause heritage
 	 *   fields. Field shapes mirror TS syntax.
 	 */
-	externalTypes: v.optional(v.array(v.string()), () => []),
+	externalTypes: s.with_default_fn(s.array(s.string), () => []),
 	/**
 	 * Structured type; absent when `typeSignature` is the whole story (see
 	 * `TypeJson`). The headline case: a union alias's `typeSignature` prints as
@@ -1228,12 +1337,12 @@ const TypeDeclarationJsonImpl = v.strictObject({
 	 * type, so the tree is emitted there whatever its shape — the exception is
 	 * object and function roots, whose content `members` already carries.
 	 */
-	typeInfo: v.optional(TypeJson),
+	typeInfo: s.optional(TypeJson),
 	/**
 	 * Type members: properties (property and method signatures) first, then
 	 * index signatures (string, number), then call and construct signatures.
 	 */
-	members: v.optional(v.array(MemberJson), () => []),
+	members: s.with_default_fn(s.array(MemberJson), () => []),
 	/**
 	 * The exported name also carries a value meaning — a merged value+type
 	 * symbol (`const Foo = z.strictObject({...})` + `type Foo = z.infer<typeof
@@ -1244,56 +1353,97 @@ const TypeDeclarationJsonImpl = v.strictObject({
 	 *
 	 * @see `InterfaceDeclarationJson.mergedValue`
 	 */
-	mergedValue: v.optional(v.boolean(), false)
-});
+	mergedValue: s.with_default(s.boolean, false)
+};
 /** @nodocs */
-export interface TypeDeclarationJsonSchema extends Named<typeof TypeDeclarationJsonImpl> {}
+export interface TypeDeclarationJsonSchemaOutput extends s.SchemaStrictObjectOutput<
+	typeof TypeDeclarationJsonEntries
+> {}
+/** @nodocs */
+export interface TypeDeclarationJsonSchemaInput extends s.SchemaStrictObjectInput<
+	typeof TypeDeclarationJsonEntries
+> {}
+/** @nodocs */
+export interface TypeDeclarationJsonSchema extends s.Schema<
+	TypeDeclarationJsonSchemaOutput,
+	TypeDeclarationJsonSchemaInput,
+	'object',
+	typeof TypeDeclarationJsonEntries
+> {}
 /** A type alias declaration. Has `members`, `externalTypes`. */
-export const TypeDeclarationJson: TypeDeclarationJsonSchema = TypeDeclarationJsonImpl;
-export type TypeDeclarationJson = v.InferOutput<typeof TypeDeclarationJson>;
+export const TypeDeclarationJson: TypeDeclarationJsonSchema = s.object(TypeDeclarationJsonEntries);
+export type TypeDeclarationJson = s.Infer<typeof TypeDeclarationJson>;
 
-const VariableDeclarationJsonImpl = v.strictObject({
+const VariableDeclarationJsonEntries = {
 	...declarationSharedFields,
 	...declarationTopLevelFields,
-	kind: v.literal('variable'),
+	kind: s.literal('variable'),
 	/** Rune flavor when this variable is initialized with a value-producing reactivity rune. */
-	reactivity: v.optional(Reactivity),
+	reactivity: s.optional(Reactivity),
 	/**
 	 * Default value documented via `@default`, verbatim tag text with no
 	 * normalization. Useful when the AST initializer is opaque (a call
 	 * expression, computed value) and the author wants to document the
 	 * conceptual default.
 	 */
-	defaultValue: v.optional(v.string()),
+	defaultValue: s.optional(s.string),
 	/** Structured type; absent when `typeSignature` is the whole story (see `TypeJson`). */
-	typeInfo: v.optional(TypeJson)
-});
+	typeInfo: s.optional(TypeJson)
+};
 /** @nodocs */
-export interface VariableDeclarationJsonSchema extends Named<typeof VariableDeclarationJsonImpl> {}
+export interface VariableDeclarationJsonSchemaOutput extends s.SchemaStrictObjectOutput<
+	typeof VariableDeclarationJsonEntries
+> {}
+/** @nodocs */
+export interface VariableDeclarationJsonSchemaInput extends s.SchemaStrictObjectInput<
+	typeof VariableDeclarationJsonEntries
+> {}
+/** @nodocs */
+export interface VariableDeclarationJsonSchema extends s.Schema<
+	VariableDeclarationJsonSchemaOutput,
+	VariableDeclarationJsonSchemaInput,
+	'object',
+	typeof VariableDeclarationJsonEntries
+> {}
 /**
  * A variable declaration. Has optional `reactivity` for top-level rune-module
  * exports (e.g., `export let count = $state(0)` in `.svelte.ts` or `<script module>`).
  */
-export const VariableDeclarationJson: VariableDeclarationJsonSchema = VariableDeclarationJsonImpl;
-export type VariableDeclarationJson = v.InferOutput<typeof VariableDeclarationJson>;
+export const VariableDeclarationJson: VariableDeclarationJsonSchema = s.object(
+	VariableDeclarationJsonEntries
+);
+export type VariableDeclarationJson = s.Infer<typeof VariableDeclarationJson>;
 
-const EnumDeclarationJsonImpl = v.strictObject({
+const EnumDeclarationJsonEntries = {
 	...declarationSharedFields,
 	...declarationTopLevelFields,
-	kind: v.literal('enum'),
+	kind: s.literal('enum'),
 	/** Enum members: name/value pairs with optional JSDoc. */
-	members: v.optional(v.array(MemberJson), () => [])
-});
+	members: s.with_default_fn(s.array(MemberJson), () => [])
+};
 /** @nodocs */
-export interface EnumDeclarationJsonSchema extends Named<typeof EnumDeclarationJsonImpl> {}
+export interface EnumDeclarationJsonSchemaOutput extends s.SchemaStrictObjectOutput<
+	typeof EnumDeclarationJsonEntries
+> {}
+/** @nodocs */
+export interface EnumDeclarationJsonSchemaInput extends s.SchemaStrictObjectInput<
+	typeof EnumDeclarationJsonEntries
+> {}
+/** @nodocs */
+export interface EnumDeclarationJsonSchema extends s.Schema<
+	EnumDeclarationJsonSchemaOutput,
+	EnumDeclarationJsonSchemaInput,
+	'object',
+	typeof EnumDeclarationJsonEntries
+> {}
 /** An enum declaration. Has `members` for enum values. */
-export const EnumDeclarationJson: EnumDeclarationJsonSchema = EnumDeclarationJsonImpl;
-export type EnumDeclarationJson = v.InferOutput<typeof EnumDeclarationJson>;
+export const EnumDeclarationJson: EnumDeclarationJsonSchema = s.object(EnumDeclarationJsonEntries);
+export type EnumDeclarationJson = s.Infer<typeof EnumDeclarationJson>;
 
-const ComponentDeclarationJsonImpl = v.strictObject({
+const ComponentDeclarationJsonEntries = {
 	...declarationSharedFields,
 	...declarationTopLevelFields,
-	kind: v.literal('component'),
+	kind: s.literal('component'),
 	/**
 	 * External types whose properties are filtered out of `props` — the
 	 * attribute bags a component forwards, such as `HTMLButtonAttributes` or
@@ -1320,7 +1470,7 @@ const ComponentDeclarationJsonImpl = v.strictObject({
 	 *   `InterfaceDeclarationJson.externalTypes` for the field on the props
 	 *   interface itself. Field shapes mirror TS syntax.
 	 */
-	externalTypes: v.optional(v.array(v.string()), () => []),
+	externalTypes: s.with_default_fn(s.array(s.string), () => []),
 	/**
 	 * Svelte component props, in source order.
 	 *
@@ -1334,7 +1484,7 @@ const ComponentDeclarationJsonImpl = v.strictObject({
 	 * others, in destructuring order, since their declaration position is in
 	 * a package.
 	 */
-	props: v.optional(v.array(ComponentPropJson), () => []),
+	props: s.with_default_fn(s.array(ComponentPropJson), () => []),
 	/**
 	 * Whether the component accepts children: an explicit or inherited
 	 * `Snippet`-typed `children` prop, implicit template usage, or a default
@@ -1342,7 +1492,7 @@ const ComponentDeclarationJsonImpl = v.strictObject({
 	 * svelte2tsx reads as runes-less. A runes component's `<slot />` doesn't
 	 * set it, and neither does a named slot alone.
 	 */
-	acceptsChildren: v.optional(v.boolean(), false),
+	acceptsChildren: s.with_default(s.boolean, false),
 	/**
 	 * The component's styling API: the CSS custom properties its styles read
 	 * with a fallback (`var(--a, 1px)`), the pattern Svelte's own docs give
@@ -1393,45 +1543,83 @@ const ComponentDeclarationJsonImpl = v.strictObject({
 	 * (`css_lang_unsupported`), or when Svelte's parser rejects the component
 	 * (`css_parse_failed`); tagged properties are listed even then.
 	 */
-	cssCustomProperties: v.optional(v.array(ComponentCssPropertyJson), () => []),
+	cssCustomProperties: s.with_default_fn(s.array(ComponentCssPropertyJson), () => []),
 	/** Script language. `undefined` means TypeScript (default), `'js'` for JS-only components. */
-	lang: v.optional(v.picklist(['js']))
-});
+	lang: s.optional(s.one_of(['js']))
+};
 /** @nodocs */
-export interface ComponentDeclarationJsonSchema extends Named<
-	typeof ComponentDeclarationJsonImpl
+export interface ComponentDeclarationJsonSchemaOutput extends s.SchemaStrictObjectOutput<
+	typeof ComponentDeclarationJsonEntries
+> {}
+/** @nodocs */
+export interface ComponentDeclarationJsonSchemaInput extends s.SchemaStrictObjectInput<
+	typeof ComponentDeclarationJsonEntries
+> {}
+/** @nodocs */
+export interface ComponentDeclarationJsonSchema extends s.Schema<
+	ComponentDeclarationJsonSchemaOutput,
+	ComponentDeclarationJsonSchemaInput,
+	'object',
+	typeof ComponentDeclarationJsonEntries
 > {}
 /**
  * A Svelte component declaration. Has `props`, `externalTypes`, `acceptsChildren`,
  * `cssCustomProperties`.
  */
-export const ComponentDeclarationJson: ComponentDeclarationJsonSchema =
-	ComponentDeclarationJsonImpl;
-export type ComponentDeclarationJson = v.InferOutput<typeof ComponentDeclarationJson>;
+export const ComponentDeclarationJson: ComponentDeclarationJsonSchema = s.object(
+	ComponentDeclarationJsonEntries
+);
+export type ComponentDeclarationJson = s.Infer<typeof ComponentDeclarationJson>;
 
-const SnippetDeclarationJsonImpl = v.strictObject({
+const SnippetDeclarationJsonEntries = {
 	...declarationSharedFields,
 	...declarationTopLevelFields,
-	kind: v.literal('snippet'),
+	kind: s.literal('snippet'),
 	/** Snippet parameters. */
-	parameters: v.optional(v.array(ParameterJson), () => [])
-});
+	parameters: s.with_default_fn(s.array(ParameterJson), () => [])
+};
 /** @nodocs */
-export interface SnippetDeclarationJsonSchema extends Named<typeof SnippetDeclarationJsonImpl> {}
+export interface SnippetDeclarationJsonSchemaOutput extends s.SchemaStrictObjectOutput<
+	typeof SnippetDeclarationJsonEntries
+> {}
+/** @nodocs */
+export interface SnippetDeclarationJsonSchemaInput extends s.SchemaStrictObjectInput<
+	typeof SnippetDeclarationJsonEntries
+> {}
+/** @nodocs */
+export interface SnippetDeclarationJsonSchema extends s.Schema<
+	SnippetDeclarationJsonSchemaOutput,
+	SnippetDeclarationJsonSchemaInput,
+	'object',
+	typeof SnippetDeclarationJsonEntries
+> {}
 /** A Svelte snippet declaration exported from `<script module>`. Has `parameters`. */
-export const SnippetDeclarationJson: SnippetDeclarationJsonSchema = SnippetDeclarationJsonImpl;
-export type SnippetDeclarationJson = v.InferOutput<typeof SnippetDeclarationJson>;
+export const SnippetDeclarationJson: SnippetDeclarationJsonSchema = s.object(
+	SnippetDeclarationJsonEntries
+);
+export type SnippetDeclarationJson = s.Infer<typeof SnippetDeclarationJson>;
 
-const NamespaceDeclarationJsonImpl = v.strictObject({
+const NamespaceDeclarationJsonEntries = {
 	...declarationSharedFields,
 	...declarationTopLevelFields,
-	kind: v.literal('namespace'),
+	kind: s.literal('namespace'),
 	/** Source module path (relative to `sourceRoot`) projected under this binding. */
-	module: v.string()
-});
+	module: s.string
+};
 /** @nodocs */
-export interface NamespaceDeclarationJsonSchema extends Named<
-	typeof NamespaceDeclarationJsonImpl
+export interface NamespaceDeclarationJsonSchemaOutput extends s.SchemaStrictObjectOutput<
+	typeof NamespaceDeclarationJsonEntries
+> {}
+/** @nodocs */
+export interface NamespaceDeclarationJsonSchemaInput extends s.SchemaStrictObjectInput<
+	typeof NamespaceDeclarationJsonEntries
+> {}
+/** @nodocs */
+export interface NamespaceDeclarationJsonSchema extends s.Schema<
+	NamespaceDeclarationJsonSchemaOutput,
+	NamespaceDeclarationJsonSchemaInput,
+	'object',
+	typeof NamespaceDeclarationJsonEntries
 > {}
 /**
  * A namespace re-export binding: `export * as ns from './x'`.
@@ -1445,9 +1633,10 @@ export interface NamespaceDeclarationJsonSchema extends Named<
  * and `module` names the component's `partial` placeholder, or a module the
  * result lacks when the component emits nothing.
  */
-export const NamespaceDeclarationJson: NamespaceDeclarationJsonSchema =
-	NamespaceDeclarationJsonImpl;
-export type NamespaceDeclarationJson = v.InferOutput<typeof NamespaceDeclarationJson>;
+export const NamespaceDeclarationJson: NamespaceDeclarationJsonSchema = s.object(
+	NamespaceDeclarationJsonEntries
+);
+export type NamespaceDeclarationJson = s.Infer<typeof NamespaceDeclarationJson>;
 
 /**
  * Metadata for an exported declaration (function, type, class, component, etc.).
@@ -1455,7 +1644,7 @@ export type NamespaceDeclarationJson = v.InferOutput<typeof NamespaceDeclaration
  * Discriminated union on `kind` — each variant has only the fields relevant to that kind.
  * Use `isKind` (in `declaration-helpers.ts`) to narrow, or check `declaration.kind` directly.
  */
-export const DeclarationJson: v.VariantSchema<
+export const DeclarationJson: VariantSchema<
 	'kind',
 	[
 		typeof FunctionDeclarationJson,
@@ -1467,9 +1656,8 @@ export const DeclarationJson: v.VariantSchema<
 		typeof ComponentDeclarationJson,
 		typeof SnippetDeclarationJson,
 		typeof NamespaceDeclarationJson
-	],
-	undefined
-> = v.variant('kind', [
+	]
+> = s.variant('kind', [
 	FunctionDeclarationJson,
 	ClassDeclarationJson,
 	InterfaceDeclarationJson,
@@ -1480,30 +1668,62 @@ export const DeclarationJson: v.VariantSchema<
 	SnippetDeclarationJson,
 	NamespaceDeclarationJson
 ]);
-export type DeclarationJson = v.InferOutput<typeof DeclarationJson>;
-export type DeclarationJsonInput = v.InferInput<typeof DeclarationJson>;
+// written out, not `s.Infer`, so the union keeps its name at use sites
+export type DeclarationJson =
+	| FunctionDeclarationJson
+	| ClassDeclarationJson
+	| InterfaceDeclarationJson
+	| TypeDeclarationJson
+	| VariableDeclarationJson
+	| EnumDeclarationJson
+	| ComponentDeclarationJson
+	| SnippetDeclarationJson
+	| NamespaceDeclarationJson;
+export type DeclarationJsonInput =
+	| FunctionDeclarationJsonSchemaInput
+	| ClassDeclarationJsonSchemaInput
+	| InterfaceDeclarationJsonSchemaInput
+	| TypeDeclarationJsonSchemaInput
+	| VariableDeclarationJsonSchemaInput
+	| EnumDeclarationJsonSchemaInput
+	| ComponentDeclarationJsonSchemaInput
+	| SnippetDeclarationJsonSchemaInput
+	| NamespaceDeclarationJsonSchemaInput;
 
-const ReExportJsonImpl = v.strictObject({
+const ReExportJsonEntries = {
 	/** Exported name — the canonical declaration's name in `module`. */
-	name: v.string(),
+	name: s.string,
 	/** Module path (relative to `sourceRoot`) where the canonical declaration lives. */
-	module: v.string(),
+	module: s.string,
 	/**
 	 * Whether the statement (`export type {A} from ...`) or specifier
 	 * (`export {type A} from ...`) is type-only — the name is erased at
 	 * runtime and importable only via `import type`. A type-only *rename*
 	 * carries no such marker (see `aliasOf`).
 	 */
-	typeOnly: v.optional(v.boolean(), false),
+	typeOnly: s.with_default(s.boolean, false),
 	/**
 	 * 1-based line of the export specifier in this module's source. When
 	 * identical `(name, module)` edges are deduped (Svelte default-slot
 	 * re-keying), the smallest line is kept.
 	 */
-	sourceLine: v.optional(v.pipe(v.number(), v.finite()))
-});
+	sourceLine: s.optional(s.number)
+};
 /** @nodocs */
-export interface ReExportJsonSchema extends Named<typeof ReExportJsonImpl> {}
+export interface ReExportJsonSchemaOutput extends s.SchemaStrictObjectOutput<
+	typeof ReExportJsonEntries
+> {}
+/** @nodocs */
+export interface ReExportJsonSchemaInput extends s.SchemaStrictObjectInput<
+	typeof ReExportJsonEntries
+> {}
+/** @nodocs */
+export interface ReExportJsonSchema extends s.Schema<
+	ReExportJsonSchemaOutput,
+	ReExportJsonSchemaInput,
+	'object',
+	typeof ReExportJsonEntries
+> {}
 /**
  * A same-name re-export edge, from the re-exporting module's side.
  *
@@ -1550,28 +1770,41 @@ export interface ReExportJsonSchema extends Named<typeof ReExportJsonImpl> {}
  * projected binding whose canonical does emit, with the star statement's
  * line and type-only-ness (see `ModuleJson.starExports`).
  */
-export const ReExportJson: ReExportJsonSchema = ReExportJsonImpl;
-export type ReExportJson = v.InferOutput<typeof ReExportJson>;
-export type ReExportJsonInput = v.InferInput<typeof ReExportJson>;
+export const ReExportJson: ReExportJsonSchema = s.object(ReExportJsonEntries);
+export type ReExportJson = s.Infer<typeof ReExportJson>;
+export type ReExportJsonInput = s.InferInput<typeof ReExportJson>;
 
-const ExternalReExportJsonImpl = v.strictObject({
+const ExternalReExportJsonEntries = {
 	/** Public exported name from this module. */
-	name: v.string(),
+	name: s.string,
 	/** Module specifier as written in the statement (e.g. `'pkg'`). */
-	specifier: v.string(),
+	specifier: s.string,
 	/**
 	 * The name inside the external module when renamed
 	 * (`export {x as y} from 'pkg'` → `'x'`). Omitted for same-name
 	 * re-exports and namespace form (`export * as ns`).
 	 */
-	originalName: v.optional(v.string()),
+	originalName: s.optional(s.string),
 	/** Whether the statement or specifier is type-only — see `ReExportJson.typeOnly`. */
-	typeOnly: v.optional(v.boolean(), false),
+	typeOnly: s.with_default(s.boolean, false),
 	/** 1-based line of the export specifier in this module's source. */
-	sourceLine: v.optional(v.pipe(v.number(), v.finite()))
-});
+	sourceLine: s.optional(s.number)
+};
 /** @nodocs */
-export interface ExternalReExportJsonSchema extends Named<typeof ExternalReExportJsonImpl> {}
+export interface ExternalReExportJsonSchemaOutput extends s.SchemaStrictObjectOutput<
+	typeof ExternalReExportJsonEntries
+> {}
+/** @nodocs */
+export interface ExternalReExportJsonSchemaInput extends s.SchemaStrictObjectInput<
+	typeof ExternalReExportJsonEntries
+> {}
+/** @nodocs */
+export interface ExternalReExportJsonSchema extends s.Schema<
+	ExternalReExportJsonSchemaOutput,
+	ExternalReExportJsonSchemaInput,
+	'object',
+	typeof ExternalReExportJsonEntries
+> {}
 /**
  * A re-export whose immediate target is an external package —
  * `export {x} from 'pkg'`, `export {x as y} from 'pkg'`, or
@@ -1590,11 +1823,13 @@ export interface ExternalReExportJsonSchema extends Named<typeof ExternalReExpor
  * project-local gated module, and specifiers the checker can't resolve.
  * Statement-level `@nodocs` suppresses the entry.
  */
-export const ExternalReExportJson: ExternalReExportJsonSchema = ExternalReExportJsonImpl;
-export type ExternalReExportJson = v.InferOutput<typeof ExternalReExportJson>;
-export type ExternalReExportJsonInput = v.InferInput<typeof ExternalReExportJson>;
+export const ExternalReExportJson: ExternalReExportJsonSchema = s.object(
+	ExternalReExportJsonEntries
+);
+export type ExternalReExportJson = s.Infer<typeof ExternalReExportJson>;
+export type ExternalReExportJsonInput = s.InferInput<typeof ExternalReExportJson>;
 
-const ModuleJsonImpl = v.strictObject({
+const ModuleJsonEntries = {
 	/**
 	 * Path relative to `sourceRoot` (e.g., `helpers.ts` for the default
 	 * SvelteKit `src/lib` layout). `sourceRoot` is configurable via
@@ -1602,9 +1837,9 @@ const ModuleJsonImpl = v.strictObject({
 	 * custom layout (e.g., `sourcePaths: ['src/lib', 'src/routes']`,
 	 * `sourceRoot: 'src'`) see prefixes like `lib/foo.ts` here.
 	 */
-	path: v.string(),
+	path: s.string,
 	/** Exported declarations from this module. */
-	declarations: v.optional(v.array(DeclarationJson), () => []),
+	declarations: s.with_default_fn(s.array(DeclarationJson), () => []),
 	/**
 	 * The prose of the file-level comment, the one carrying a `@module` tag:
 	 * its main text, with every tag line removed. Absent when the comment has
@@ -1619,12 +1854,12 @@ const ModuleJsonImpl = v.strictObject({
 	 * HTML comment with a `@module` line, the first in that order whose
 	 * comment populates any of these fields.
 	 */
-	moduleComment: v.optional(v.string()),
+	moduleComment: s.optional(s.string),
 	...moduleDocFields,
 	/** Modules this imports (paths relative to `sourceRoot`). */
-	dependencies: v.optional(v.array(v.string()), () => []),
+	dependencies: s.with_default_fn(s.array(s.string), () => []),
 	/** Modules that import this (paths relative to `sourceRoot`). */
-	dependents: v.optional(v.array(v.string()), () => []),
+	dependents: s.with_default_fn(s.array(s.string), () => []),
 	/**
 	 * Modules fully re-exported via `export * from './module'`.
 	 * Paths are relative to `sourceRoot`. Statement-level `@nodocs`
@@ -1646,7 +1881,7 @@ const ModuleJsonImpl = v.strictObject({
 	 * reports it unresolved); one that emits nothing (gated, never supplied)
 	 * is dropped.
 	 */
-	starExports: v.optional(v.array(v.string()), () => []),
+	starExports: s.with_default_fn(s.array(s.string), () => []),
 	/**
 	 * Same-name re-exports in this module's source, sorted by `name` then
 	 * `module` (names can collide — see `ReExportJson`). The forward view of
@@ -1654,13 +1889,13 @@ const ModuleJsonImpl = v.strictObject({
 	 * resolution, Svelte default-slot naming, `@nodocs` suppression, presence
 	 * caveats).
 	 */
-	reExports: v.optional(v.array(ReExportJson), () => []),
+	reExports: s.with_default_fn(s.array(ReExportJson), () => []),
 	/**
 	 * Re-exports whose immediate target is an external package, sorted by
 	 * `name` then `specifier`. See `ExternalReExportJson` for which forms
 	 * are captured.
 	 */
-	externalReExports: v.optional(v.array(ExternalReExportJson), () => []),
+	externalReExports: s.with_default_fn(s.array(ExternalReExportJson), () => []),
 	/**
 	 * External modules fully re-exported via `export * from 'pkg'`, as
 	 * written (statement order, each specifier once). The projected names are unknown — the
@@ -1669,7 +1904,7 @@ const ModuleJsonImpl = v.strictObject({
 	 * specifier is never an entry, whether or not its component has a
 	 * virtual (see `starExports`).
 	 */
-	externalStarExports: v.optional(v.array(v.string()), () => []),
+	externalStarExports: s.with_default_fn(s.array(s.string), () => []),
 	/**
 	 * Whether the module is a placeholder for a file that couldn't be analyzed.
 	 *
@@ -1679,10 +1914,23 @@ const ModuleJsonImpl = v.strictObject({
 	 * `modules` array reflects the full emitted (source-gated) set; consumers
 	 * render them as "broken" entries.
 	 */
-	partial: v.optional(v.boolean(), false)
-});
+	partial: s.with_default(s.boolean, false)
+};
 /** @nodocs */
-export interface ModuleJsonSchema extends Named<typeof ModuleJsonImpl> {}
+export interface ModuleJsonSchemaOutput extends s.SchemaStrictObjectOutput<
+	typeof ModuleJsonEntries
+> {}
+/** @nodocs */
+export interface ModuleJsonSchemaInput extends s.SchemaStrictObjectInput<
+	typeof ModuleJsonEntries
+> {}
+/** @nodocs */
+export interface ModuleJsonSchema extends s.Schema<
+	ModuleJsonSchemaOutput,
+	ModuleJsonSchemaInput,
+	'object',
+	typeof ModuleJsonEntries
+> {}
 /**
  * Metadata for a source module — the top-level container in the data model.
  *
@@ -1690,9 +1938,9 @@ export interface ModuleJsonSchema extends Named<typeof ModuleJsonImpl> {}
  * whose `modules` is sorted by `path` (`compareStrings`).
  * Each module contains its exported `declarations`, dependency graph, and optional `moduleComment`.
  */
-export const ModuleJson: ModuleJsonSchema = ModuleJsonImpl;
-export type ModuleJson = v.InferOutput<typeof ModuleJson>;
-export type ModuleJsonInput = v.InferInput<typeof ModuleJson>;
+export const ModuleJson: ModuleJsonSchema = s.object(ModuleJsonEntries);
+export type ModuleJson = s.Infer<typeof ModuleJson>;
+export type ModuleJsonInput = s.InferInput<typeof ModuleJson>;
 
 /**
  * Validate a `ModuleJson`, restoring the defaults the wire form omits.
@@ -1704,9 +1952,9 @@ export type ModuleJsonInput = v.InferInput<typeof ModuleJson>;
  * @param value - a module, typically from `JSON.parse` of compact output
  * @returns the validated module with every default present
  * @throws Error when `value` doesn't match the schema; the message lists the
- *   reported issues, one per line, as `path: message` (`declarations.1.kind: Invalid type: …`),
+ *   reported issues, one per line, as `path: message` (`declarations.1.kind: expected …, received …`),
  *   the dot path omitted for an issue at the root. The class is the schema
- *   library's (valibot's `ValiError`, the structured list on `issues`), so catch it
- *   as a plain `Error` unless you depend on valibot
+ *   library's (fuz_schema's `SchemaError`, the structured list on `issues`), so
+ *   catch it as a plain `Error` unless you depend on fuz_schema
  */
 export const parseModuleJson = (value: unknown): ModuleJson => parseWithSummary(ModuleJson, value);

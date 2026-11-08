@@ -41,7 +41,7 @@
  * `AnalyzeResultJson.diagnostics` is `Array<Diagnostic>` — no wrapper object,
  * no methods, no private fields. Round-trip-safe through `JSON.stringify` /
  * `parseDiagnostics` and symmetric with `AnalyzeResultJson.modules` (also
- * schema-validated). The full envelope is itself a valibot schema
+ * schema-validated). The full envelope is itself a fuz_schema schema
  * (`AnalyzeResultJson` in `analyze-core.ts`) with both fields defaulting to
  * `[]`, so the whole `{modules, diagnostics}` shape round-trips through
  * `JSON.stringify(result, compactReplacer)` / `parseAnalyzeResult` even when
@@ -65,9 +65,9 @@
  * @module
  */
 
-import * as v from 'valibot';
+import * as s from '@fuzdev/fuz_schema/schema.ts';
 
-import { parseWithSummary, type Named } from './schema.ts';
+import { parseWithSummary, type VariantSchema } from './schema.ts';
 
 // Severity
 
@@ -77,8 +77,8 @@ import { parseWithSummary, type Named } from './schema.ts';
  * - `'error'` — analysis failed, declaration may be incomplete or missing data
  * - `'warning'` — partial success, something seems off but analysis continued
  */
-export const DiagnosticSeverity = v.picklist(['error', 'warning']);
-export type DiagnosticSeverity = v.InferOutput<typeof DiagnosticSeverity>;
+export const DiagnosticSeverity = s.one_of(['error', 'warning']);
+export type DiagnosticSeverity = s.Infer<typeof DiagnosticSeverity>;
 
 // Kind
 
@@ -88,7 +88,7 @@ export type DiagnosticSeverity = v.InferOutput<typeof DiagnosticSeverity>;
  * Severity is a stable per-kind property: `transform_failed` and
  * `module_unreadable` are always `error`, every other kind always `warning`.
  */
-export const DiagnosticKind = v.picklist([
+export const DiagnosticKind = s.one_of([
 	'type_extraction_failed',
 	'signature_analysis_failed',
 	'class_member_failed',
@@ -114,7 +114,7 @@ export const DiagnosticKind = v.picklist([
 	'css_parse_failed',
 	'css_lang_unsupported'
 ]);
-export type DiagnosticKind = v.InferOutput<typeof DiagnosticKind>;
+export type DiagnosticKind = s.Infer<typeof DiagnosticKind>;
 
 // Variants
 
@@ -127,6 +127,19 @@ export type DiagnosticKind = v.InferOutput<typeof DiagnosticKind>;
  * use `??` at the call site if you need a placeholder.
  */
 const baseDiagnosticFields = {
+	file: s.string,
+	line: s.optional(s.pipe(s.number, s.safe_integer, s.min_value(1))),
+	column: s.optional(s.pipe(s.number, s.safe_integer, s.min_value(1))),
+	message: s.string,
+	severity: DiagnosticSeverity
+};
+
+// the base fields' type, written out as an object type so the emitted
+// declarations name it once instead of copying the fields, docs included,
+// into every variant (an alias of `typeof` would print structurally, and an
+// interface isn't assignable to `s.SchemaEntries`). The field docs live here,
+// where the variants' output types read them
+type BaseDiagnosticEntries = {
 	/**
 	 * File path relative to project root (no leading slash, no `./` prefix).
 	 *
@@ -152,77 +165,131 @@ const baseDiagnosticFields = {
 	 * the same file under a second name. Absolute is what the pass can
 	 * actually correct.
 	 */
-	file: v.string(),
+	file: (typeof baseDiagnosticFields)['file'];
 	/** Line number (1-based), absent if location unavailable. */
-	line: v.optional(v.pipe(v.number(), v.safeInteger(), v.minValue(1))),
+	line: (typeof baseDiagnosticFields)['line'];
 	/** Column number (1-based), absent if location unavailable. */
-	column: v.optional(v.pipe(v.number(), v.safeInteger(), v.minValue(1))),
+	column: (typeof baseDiagnosticFields)['column'];
 	/** Human-readable description of the issue. */
-	message: v.string(),
-	severity: DiagnosticSeverity
+	message: (typeof baseDiagnosticFields)['message'];
+	severity: (typeof baseDiagnosticFields)['severity'];
 };
 
+// the variant's entries with the base fields spread after `kind`
+const diagnosticEntries = <T extends { kind: s.Schema } & s.SchemaEntries>({
+	kind,
+	...entries
+}: T): T & BaseDiagnosticEntries => ({ kind, ...baseDiagnosticFields, ...entries }) as any;
+
 // named through an interface for declaration emit, as in `types.ts`
-const TypeExtractionDiagnosticImpl = v.strictObject({
-	kind: v.literal('type_extraction_failed'),
-	...baseDiagnosticFields,
+const TypeExtractionDiagnosticEntries = diagnosticEntries({
+	kind: s.literal('type_extraction_failed'),
 	/** Name of the symbol whose type couldn't be extracted. */
-	symbolName: v.string()
+	symbolName: s.string
 });
 /** @nodocs */
-export interface TypeExtractionDiagnosticSchema extends Named<
-	typeof TypeExtractionDiagnosticImpl
+export interface TypeExtractionDiagnosticSchemaOutput extends s.SchemaStrictObjectOutput<
+	typeof TypeExtractionDiagnosticEntries
+> {}
+/** @nodocs */
+export interface TypeExtractionDiagnosticSchemaInput extends s.SchemaStrictObjectInput<
+	typeof TypeExtractionDiagnosticEntries
+> {}
+/** @nodocs */
+export interface TypeExtractionDiagnosticSchema extends s.Schema<
+	TypeExtractionDiagnosticSchemaOutput,
+	TypeExtractionDiagnosticSchemaInput,
+	'object',
+	typeof TypeExtractionDiagnosticEntries
 > {}
 /**
  * Type extraction failed (e.g., complex or recursive types).
  */
-export const TypeExtractionDiagnostic: TypeExtractionDiagnosticSchema =
-	TypeExtractionDiagnosticImpl;
-export type TypeExtractionDiagnostic = v.InferOutput<typeof TypeExtractionDiagnostic>;
+export const TypeExtractionDiagnostic: TypeExtractionDiagnosticSchema = s.object(
+	TypeExtractionDiagnosticEntries
+);
+export type TypeExtractionDiagnostic = s.Infer<typeof TypeExtractionDiagnostic>;
 
-const SignatureAnalysisDiagnosticImpl = v.strictObject({
-	kind: v.literal('signature_analysis_failed'),
-	...baseDiagnosticFields,
+const SignatureAnalysisDiagnosticEntries = diagnosticEntries({
+	kind: s.literal('signature_analysis_failed'),
 	/** Name of the function or method. */
-	functionName: v.string()
+	functionName: s.string
 });
 /** @nodocs */
-export interface SignatureAnalysisDiagnosticSchema extends Named<
-	typeof SignatureAnalysisDiagnosticImpl
+export interface SignatureAnalysisDiagnosticSchemaOutput extends s.SchemaStrictObjectOutput<
+	typeof SignatureAnalysisDiagnosticEntries
+> {}
+/** @nodocs */
+export interface SignatureAnalysisDiagnosticSchemaInput extends s.SchemaStrictObjectInput<
+	typeof SignatureAnalysisDiagnosticEntries
+> {}
+/** @nodocs */
+export interface SignatureAnalysisDiagnosticSchema extends s.Schema<
+	SignatureAnalysisDiagnosticSchemaOutput,
+	SignatureAnalysisDiagnosticSchemaInput,
+	'object',
+	typeof SignatureAnalysisDiagnosticEntries
 > {}
 /**
  * Function/method signature analysis failed.
  */
-export const SignatureAnalysisDiagnostic: SignatureAnalysisDiagnosticSchema =
-	SignatureAnalysisDiagnosticImpl;
-export type SignatureAnalysisDiagnostic = v.InferOutput<typeof SignatureAnalysisDiagnostic>;
+export const SignatureAnalysisDiagnostic: SignatureAnalysisDiagnosticSchema = s.object(
+	SignatureAnalysisDiagnosticEntries
+);
+export type SignatureAnalysisDiagnostic = s.Infer<typeof SignatureAnalysisDiagnostic>;
 
-const ClassMemberDiagnosticImpl = v.strictObject({
-	kind: v.literal('class_member_failed'),
-	...baseDiagnosticFields,
+const ClassMemberDiagnosticEntries = diagnosticEntries({
+	kind: s.literal('class_member_failed'),
 	/** Name of the class. */
-	className: v.string(),
+	className: s.string,
 	/** Name of the member that failed. */
-	memberName: v.string()
+	memberName: s.string
 });
 /** @nodocs */
-export interface ClassMemberDiagnosticSchema extends Named<typeof ClassMemberDiagnosticImpl> {}
+export interface ClassMemberDiagnosticSchemaOutput extends s.SchemaStrictObjectOutput<
+	typeof ClassMemberDiagnosticEntries
+> {}
+/** @nodocs */
+export interface ClassMemberDiagnosticSchemaInput extends s.SchemaStrictObjectInput<
+	typeof ClassMemberDiagnosticEntries
+> {}
+/** @nodocs */
+export interface ClassMemberDiagnosticSchema extends s.Schema<
+	ClassMemberDiagnosticSchemaOutput,
+	ClassMemberDiagnosticSchemaInput,
+	'object',
+	typeof ClassMemberDiagnosticEntries
+> {}
 /**
  * Class member analysis failed.
  */
-export const ClassMemberDiagnostic: ClassMemberDiagnosticSchema = ClassMemberDiagnosticImpl;
-export type ClassMemberDiagnostic = v.InferOutput<typeof ClassMemberDiagnostic>;
+export const ClassMemberDiagnostic: ClassMemberDiagnosticSchema = s.object(
+	ClassMemberDiagnosticEntries
+);
+export type ClassMemberDiagnostic = s.Infer<typeof ClassMemberDiagnostic>;
 
-const SveltePropDiagnosticImpl = v.strictObject({
-	kind: v.literal('svelte_prop_failed'),
-	...baseDiagnosticFields,
+const SveltePropDiagnosticEntries = diagnosticEntries({
+	kind: s.literal('svelte_prop_failed'),
 	/** Name of the component. */
-	componentName: v.string(),
+	componentName: s.string,
 	/** Name of the prop. */
-	propName: v.string()
+	propName: s.string
 });
 /** @nodocs */
-export interface SveltePropDiagnosticSchema extends Named<typeof SveltePropDiagnosticImpl> {}
+export interface SveltePropDiagnosticSchemaOutput extends s.SchemaStrictObjectOutput<
+	typeof SveltePropDiagnosticEntries
+> {}
+/** @nodocs */
+export interface SveltePropDiagnosticSchemaInput extends s.SchemaStrictObjectInput<
+	typeof SveltePropDiagnosticEntries
+> {}
+/** @nodocs */
+export interface SveltePropDiagnosticSchema extends s.Schema<
+	SveltePropDiagnosticSchemaOutput,
+	SveltePropDiagnosticSchemaInput,
+	'object',
+	typeof SveltePropDiagnosticEntries
+> {}
 /**
  * Svelte prop type resolution failed.
  *
@@ -237,17 +304,31 @@ export interface SveltePropDiagnosticSchema extends Named<typeof SveltePropDiagn
  * line, the rule `remapVirtualDiagnosticPositions` applies to extractor
  * diagnostics.
  */
-export const SveltePropDiagnostic: SveltePropDiagnosticSchema = SveltePropDiagnosticImpl;
-export type SveltePropDiagnostic = v.InferOutput<typeof SveltePropDiagnostic>;
+export const SveltePropDiagnostic: SveltePropDiagnosticSchema = s.object(
+	SveltePropDiagnosticEntries
+);
+export type SveltePropDiagnostic = s.Infer<typeof SveltePropDiagnostic>;
 
-const ModuleSkippedDiagnosticImpl = v.strictObject({
-	kind: v.literal('module_skipped'),
-	...baseDiagnosticFields,
+const ModuleSkippedDiagnosticEntries = diagnosticEntries({
+	kind: s.literal('module_skipped'),
 	/** Reason the module was skipped. */
-	reason: v.picklist(['not_in_program', 'no_analyzer', 'requires_program'])
+	reason: s.one_of(['not_in_program', 'no_analyzer', 'requires_program'])
 });
 /** @nodocs */
-export interface ModuleSkippedDiagnosticSchema extends Named<typeof ModuleSkippedDiagnosticImpl> {}
+export interface ModuleSkippedDiagnosticSchemaOutput extends s.SchemaStrictObjectOutput<
+	typeof ModuleSkippedDiagnosticEntries
+> {}
+/** @nodocs */
+export interface ModuleSkippedDiagnosticSchemaInput extends s.SchemaStrictObjectInput<
+	typeof ModuleSkippedDiagnosticEntries
+> {}
+/** @nodocs */
+export interface ModuleSkippedDiagnosticSchema extends s.Schema<
+	ModuleSkippedDiagnosticSchemaOutput,
+	ModuleSkippedDiagnosticSchemaInput,
+	'object',
+	typeof ModuleSkippedDiagnosticEntries
+> {}
 /**
  * Module was skipped during the analysis pass.
  *
@@ -262,16 +343,28 @@ export interface ModuleSkippedDiagnosticSchema extends Named<typeof ModuleSkippe
  *
  * Discovery-time file-read failures are a separate kind: `module_unreadable`.
  */
-export const ModuleSkippedDiagnostic: ModuleSkippedDiagnosticSchema = ModuleSkippedDiagnosticImpl;
-export type ModuleSkippedDiagnostic = v.InferOutput<typeof ModuleSkippedDiagnostic>;
+export const ModuleSkippedDiagnostic: ModuleSkippedDiagnosticSchema = s.object(
+	ModuleSkippedDiagnosticEntries
+);
+export type ModuleSkippedDiagnostic = s.Infer<typeof ModuleSkippedDiagnostic>;
 
-const ModuleUnreadableDiagnosticImpl = v.strictObject({
-	kind: v.literal('module_unreadable'),
-	...baseDiagnosticFields
+const ModuleUnreadableDiagnosticEntries = diagnosticEntries({
+	kind: s.literal('module_unreadable')
 });
 /** @nodocs */
-export interface ModuleUnreadableDiagnosticSchema extends Named<
-	typeof ModuleUnreadableDiagnosticImpl
+export interface ModuleUnreadableDiagnosticSchemaOutput extends s.SchemaStrictObjectOutput<
+	typeof ModuleUnreadableDiagnosticEntries
+> {}
+/** @nodocs */
+export interface ModuleUnreadableDiagnosticSchemaInput extends s.SchemaStrictObjectInput<
+	typeof ModuleUnreadableDiagnosticEntries
+> {}
+/** @nodocs */
+export interface ModuleUnreadableDiagnosticSchema extends s.Schema<
+	ModuleUnreadableDiagnosticSchemaOutput,
+	ModuleUnreadableDiagnosticSchemaInput,
+	'object',
+	typeof ModuleUnreadableDiagnosticEntries
 > {}
 /**
  * File discovered via package.json `exports` exists but couldn't be read.
@@ -281,50 +374,84 @@ export interface ModuleUnreadableDiagnosticSchema extends Named<
  * `module_skipped` so severity is a stable per-kind property and downstream
  * consumers can route discovery failures separately from analysis-pass skips.
  */
-export const ModuleUnreadableDiagnostic: ModuleUnreadableDiagnosticSchema =
-	ModuleUnreadableDiagnosticImpl;
-export type ModuleUnreadableDiagnostic = v.InferOutput<typeof ModuleUnreadableDiagnostic>;
+export const ModuleUnreadableDiagnostic: ModuleUnreadableDiagnosticSchema = s.object(
+	ModuleUnreadableDiagnosticEntries
+);
+export type ModuleUnreadableDiagnostic = s.Infer<typeof ModuleUnreadableDiagnostic>;
 
-const ImportParseDiagnosticImpl = v.strictObject({
-	kind: v.literal('import_parse_failed'),
-	...baseDiagnosticFields
-});
+const ImportParseDiagnosticEntries = diagnosticEntries({ kind: s.literal('import_parse_failed') });
 /** @nodocs */
-export interface ImportParseDiagnosticSchema extends Named<typeof ImportParseDiagnosticImpl> {}
+export interface ImportParseDiagnosticSchemaOutput extends s.SchemaStrictObjectOutput<
+	typeof ImportParseDiagnosticEntries
+> {}
+/** @nodocs */
+export interface ImportParseDiagnosticSchemaInput extends s.SchemaStrictObjectInput<
+	typeof ImportParseDiagnosticEntries
+> {}
+/** @nodocs */
+export interface ImportParseDiagnosticSchema extends s.Schema<
+	ImportParseDiagnosticSchemaOutput,
+	ImportParseDiagnosticSchemaInput,
+	'object',
+	typeof ImportParseDiagnosticEntries
+> {}
 /**
  * Import scanning threw during dependency resolution.
  *
  * Not expected in practice: the parse in `lexImports` tolerates malformed
  * source rather than rejecting it, so this guards an unexpected throw.
  */
-export const ImportParseDiagnostic: ImportParseDiagnosticSchema = ImportParseDiagnosticImpl;
-export type ImportParseDiagnostic = v.InferOutput<typeof ImportParseDiagnostic>;
+export const ImportParseDiagnostic: ImportParseDiagnosticSchema = s.object(
+	ImportParseDiagnosticEntries
+);
+export type ImportParseDiagnostic = s.Infer<typeof ImportParseDiagnostic>;
 
-const DuplicateCommentDiagnosticImpl = v.strictObject({
-	kind: v.literal('duplicate_comment'),
-	...baseDiagnosticFields,
+const DuplicateCommentDiagnosticEntries = diagnosticEntries({
+	kind: s.literal('duplicate_comment'),
 	/** Which comment type is duplicated. */
-	commentType: v.picklist(['module_comment', 'doc_comment'])
+	commentType: s.one_of(['module_comment', 'doc_comment'])
 });
 /** @nodocs */
-export interface DuplicateCommentDiagnosticSchema extends Named<
-	typeof DuplicateCommentDiagnosticImpl
+export interface DuplicateCommentDiagnosticSchemaOutput extends s.SchemaStrictObjectOutput<
+	typeof DuplicateCommentDiagnosticEntries
+> {}
+/** @nodocs */
+export interface DuplicateCommentDiagnosticSchemaInput extends s.SchemaStrictObjectInput<
+	typeof DuplicateCommentDiagnosticEntries
+> {}
+/** @nodocs */
+export interface DuplicateCommentDiagnosticSchema extends s.Schema<
+	DuplicateCommentDiagnosticSchemaOutput,
+	DuplicateCommentDiagnosticSchemaInput,
+	'object',
+	typeof DuplicateCommentDiagnosticEntries
 > {}
 /**
  * Duplicate comment sources detected (e.g., both HTML and JSDoc `@module`,
  * or both HTML `@component` and JSDoc for component `docComment`).
  */
-export const DuplicateCommentDiagnostic: DuplicateCommentDiagnosticSchema =
-	DuplicateCommentDiagnosticImpl;
-export type DuplicateCommentDiagnostic = v.InferOutput<typeof DuplicateCommentDiagnostic>;
+export const DuplicateCommentDiagnostic: DuplicateCommentDiagnosticSchema = s.object(
+	DuplicateCommentDiagnosticEntries
+);
+export type DuplicateCommentDiagnostic = s.Infer<typeof DuplicateCommentDiagnostic>;
 
-const ComponentCommentMismatchDiagnosticImpl = v.strictObject({
-	kind: v.literal('component_comment_mismatch'),
-	...baseDiagnosticFields
+const ComponentCommentMismatchDiagnosticEntries = diagnosticEntries({
+	kind: s.literal('component_comment_mismatch')
 });
 /** @nodocs */
-export interface ComponentCommentMismatchDiagnosticSchema extends Named<
-	typeof ComponentCommentMismatchDiagnosticImpl
+export interface ComponentCommentMismatchDiagnosticSchemaOutput extends s.SchemaStrictObjectOutput<
+	typeof ComponentCommentMismatchDiagnosticEntries
+> {}
+/** @nodocs */
+export interface ComponentCommentMismatchDiagnosticSchemaInput extends s.SchemaStrictObjectInput<
+	typeof ComponentCommentMismatchDiagnosticEntries
+> {}
+/** @nodocs */
+export interface ComponentCommentMismatchDiagnosticSchema extends s.Schema<
+	ComponentCommentMismatchDiagnosticSchemaOutput,
+	ComponentCommentMismatchDiagnosticSchemaInput,
+	'object',
+	typeof ComponentCommentMismatchDiagnosticEntries
 > {}
 /**
  * svelte2tsx, and so editor hover, documents a component with a different
@@ -338,20 +465,17 @@ export interface ComponentCommentMismatchDiagnosticSchema extends Named<
  * when in-script JSDoc supplies the component's doc.
  */
 export const ComponentCommentMismatchDiagnostic: ComponentCommentMismatchDiagnosticSchema =
-	ComponentCommentMismatchDiagnosticImpl;
-export type ComponentCommentMismatchDiagnostic = v.InferOutput<
-	typeof ComponentCommentMismatchDiagnostic
->;
+	s.object(ComponentCommentMismatchDiagnosticEntries);
+export type ComponentCommentMismatchDiagnostic = s.Infer<typeof ComponentCommentMismatchDiagnostic>;
 
-const MisplacedTagDiagnosticImpl = v.strictObject({
-	kind: v.literal('misplaced_tag'),
-	...baseDiagnosticFields,
+const MisplacedTagDiagnosticEntries = diagnosticEntries({
+	kind: s.literal('misplaced_tag'),
 	/**
 	 * The tag name without the `@` prefix (e.g., `'example'`, `'deprecated'`).
 	 * A synonym reports its canonical name: `@return` as `'returns'`,
 	 * `@defaultValue` as `'default'`.
 	 */
-	tagName: v.picklist([
+	tagName: s.one_of([
 		'example',
 		'deprecated',
 		'internal',
@@ -370,10 +494,23 @@ const MisplacedTagDiagnosticImpl = v.strictObject({
 	 * carries the misplaced tag, or the declaration carrying a `@cssprop`.
 	 * Absent for module-comment misplacements (no enclosing symbol).
 	 */
-	functionName: v.optional(v.string())
+	functionName: s.optional(s.string)
 });
 /** @nodocs */
-export interface MisplacedTagDiagnosticSchema extends Named<typeof MisplacedTagDiagnosticImpl> {}
+export interface MisplacedTagDiagnosticSchemaOutput extends s.SchemaStrictObjectOutput<
+	typeof MisplacedTagDiagnosticEntries
+> {}
+/** @nodocs */
+export interface MisplacedTagDiagnosticSchemaInput extends s.SchemaStrictObjectInput<
+	typeof MisplacedTagDiagnosticEntries
+> {}
+/** @nodocs */
+export interface MisplacedTagDiagnosticSchema extends s.Schema<
+	MisplacedTagDiagnosticSchemaOutput,
+	MisplacedTagDiagnosticSchemaInput,
+	'object',
+	typeof MisplacedTagDiagnosticEntries
+> {}
 /**
  * A JSDoc tag found somewhere it has no effect.
  *
@@ -401,18 +538,30 @@ export interface MisplacedTagDiagnosticSchema extends Named<typeof MisplacedTagD
  *   it's dropped, one warning per declaration. Members, props, and
  *   parameters drop it silently.
  */
-export const MisplacedTagDiagnostic: MisplacedTagDiagnosticSchema = MisplacedTagDiagnosticImpl;
-export type MisplacedTagDiagnostic = v.InferOutput<typeof MisplacedTagDiagnostic>;
+export const MisplacedTagDiagnostic: MisplacedTagDiagnosticSchema = s.object(
+	MisplacedTagDiagnosticEntries
+);
+export type MisplacedTagDiagnostic = s.Infer<typeof MisplacedTagDiagnostic>;
 
-const ImplementationDocHiddenDiagnosticImpl = v.strictObject({
-	kind: v.literal('implementation_doc_hidden'),
-	...baseDiagnosticFields,
+const ImplementationDocHiddenDiagnosticEntries = diagnosticEntries({
+	kind: s.literal('implementation_doc_hidden'),
 	/** Name of the overloaded function, method, or constructor. */
-	functionName: v.string()
+	functionName: s.string
 });
 /** @nodocs */
-export interface ImplementationDocHiddenDiagnosticSchema extends Named<
-	typeof ImplementationDocHiddenDiagnosticImpl
+export interface ImplementationDocHiddenDiagnosticSchemaOutput extends s.SchemaStrictObjectOutput<
+	typeof ImplementationDocHiddenDiagnosticEntries
+> {}
+/** @nodocs */
+export interface ImplementationDocHiddenDiagnosticSchemaInput extends s.SchemaStrictObjectInput<
+	typeof ImplementationDocHiddenDiagnosticEntries
+> {}
+/** @nodocs */
+export interface ImplementationDocHiddenDiagnosticSchema extends s.Schema<
+	ImplementationDocHiddenDiagnosticSchemaOutput,
+	ImplementationDocHiddenDiagnosticSchemaInput,
+	'object',
+	typeof ImplementationDocHiddenDiagnosticEntries
 > {}
 /**
  * An overloaded function, method, or constructor documents its
@@ -429,42 +578,65 @@ export interface ImplementationDocHiddenDiagnosticSchema extends Named<
  *
  * Always `warning`, query-time category (recomputed each `query()`).
  */
-export const ImplementationDocHiddenDiagnostic: ImplementationDocHiddenDiagnosticSchema =
-	ImplementationDocHiddenDiagnosticImpl;
-export type ImplementationDocHiddenDiagnostic = v.InferOutput<
-	typeof ImplementationDocHiddenDiagnostic
->;
+export const ImplementationDocHiddenDiagnostic: ImplementationDocHiddenDiagnosticSchema = s.object(
+	ImplementationDocHiddenDiagnosticEntries
+);
+export type ImplementationDocHiddenDiagnostic = s.Infer<typeof ImplementationDocHiddenDiagnostic>;
 
-const UnknownParamDiagnosticImpl = v.strictObject({
-	kind: v.literal('unknown_param'),
-	...baseDiagnosticFields,
+const UnknownParamDiagnosticEntries = diagnosticEntries({
+	kind: s.literal('unknown_param'),
 	/** The `@param` key that didn't match a real parameter. */
-	paramName: v.string(),
+	paramName: s.string,
 	/** Name of the function or method. */
-	functionName: v.string()
+	functionName: s.string
 });
 /** @nodocs */
-export interface UnknownParamDiagnosticSchema extends Named<typeof UnknownParamDiagnosticImpl> {}
+export interface UnknownParamDiagnosticSchemaOutput extends s.SchemaStrictObjectOutput<
+	typeof UnknownParamDiagnosticEntries
+> {}
+/** @nodocs */
+export interface UnknownParamDiagnosticSchemaInput extends s.SchemaStrictObjectInput<
+	typeof UnknownParamDiagnosticEntries
+> {}
+/** @nodocs */
+export interface UnknownParamDiagnosticSchema extends s.Schema<
+	UnknownParamDiagnosticSchemaOutput,
+	UnknownParamDiagnosticSchemaInput,
+	'object',
+	typeof UnknownParamDiagnosticEntries
+> {}
 /**
  * `@param` tag references a name that doesn't match any actual parameter.
  *
  * Usually a typo (`@param argz` for parameter `args`) or stale doc after a
  * rename. The description is dropped; analysis continues.
  */
-export const UnknownParamDiagnostic: UnknownParamDiagnosticSchema = UnknownParamDiagnosticImpl;
-export type UnknownParamDiagnostic = v.InferOutput<typeof UnknownParamDiagnostic>;
+export const UnknownParamDiagnostic: UnknownParamDiagnosticSchema = s.object(
+	UnknownParamDiagnosticEntries
+);
+export type UnknownParamDiagnostic = s.Infer<typeof UnknownParamDiagnostic>;
 
-const UnknownCsspropDiagnosticImpl = v.strictObject({
-	kind: v.literal('unknown_cssprop'),
-	...baseDiagnosticFields,
+const UnknownCsspropDiagnosticEntries = diagnosticEntries({
+	kind: s.literal('unknown_cssprop'),
 	/** The custom property the `@cssprop` tag names, `--` included. */
-	propertyName: v.string(),
+	propertyName: s.string,
 	/** Name of the component. */
-	componentName: v.string()
+	componentName: s.string
 });
 /** @nodocs */
-export interface UnknownCsspropDiagnosticSchema extends Named<
-	typeof UnknownCsspropDiagnosticImpl
+export interface UnknownCsspropDiagnosticSchemaOutput extends s.SchemaStrictObjectOutput<
+	typeof UnknownCsspropDiagnosticEntries
+> {}
+/** @nodocs */
+export interface UnknownCsspropDiagnosticSchemaInput extends s.SchemaStrictObjectInput<
+	typeof UnknownCsspropDiagnosticEntries
+> {}
+/** @nodocs */
+export interface UnknownCsspropDiagnosticSchema extends s.Schema<
+	UnknownCsspropDiagnosticSchemaOutput,
+	UnknownCsspropDiagnosticSchemaInput,
+	'object',
+	typeof UnknownCsspropDiagnosticEntries
 > {}
 /**
  * A component's `@cssprop` tag names a custom property the component never
@@ -480,20 +652,33 @@ export interface UnknownCsspropDiagnosticSchema extends Named<
  *
  * Always `warning`, query-time category.
  */
-export const UnknownCsspropDiagnostic: UnknownCsspropDiagnosticSchema =
-	UnknownCsspropDiagnosticImpl;
-export type UnknownCsspropDiagnostic = v.InferOutput<typeof UnknownCsspropDiagnostic>;
+export const UnknownCsspropDiagnostic: UnknownCsspropDiagnosticSchema = s.object(
+	UnknownCsspropDiagnosticEntries
+);
+export type UnknownCsspropDiagnostic = s.Infer<typeof UnknownCsspropDiagnostic>;
 
-const MalformedTagDiagnosticImpl = v.strictObject({
-	kind: v.literal('malformed_tag'),
-	...baseDiagnosticFields,
+const MalformedTagDiagnosticEntries = diagnosticEntries({
+	kind: s.literal('malformed_tag'),
 	/** The tag name without the `@` prefix; a synonym reports its canonical name. */
-	tagName: v.picklist(['cssprop']),
+	tagName: s.one_of(['cssprop']),
 	/** Name of the declaration whose doc comment carries the tag. */
-	declarationName: v.string()
+	declarationName: s.string
 });
 /** @nodocs */
-export interface MalformedTagDiagnosticSchema extends Named<typeof MalformedTagDiagnosticImpl> {}
+export interface MalformedTagDiagnosticSchemaOutput extends s.SchemaStrictObjectOutput<
+	typeof MalformedTagDiagnosticEntries
+> {}
+/** @nodocs */
+export interface MalformedTagDiagnosticSchemaInput extends s.SchemaStrictObjectInput<
+	typeof MalformedTagDiagnosticEntries
+> {}
+/** @nodocs */
+export interface MalformedTagDiagnosticSchema extends s.Schema<
+	MalformedTagDiagnosticSchemaOutput,
+	MalformedTagDiagnosticSchemaInput,
+	'object',
+	typeof MalformedTagDiagnosticEntries
+> {}
 /**
  * A JSDoc tag whose text doesn't parse as the tag's form, so it documents
  * nothing.
@@ -506,21 +691,35 @@ export interface MalformedTagDiagnosticSchema extends Named<typeof MalformedTagD
  *
  * Always `warning`, query-time category.
  */
-export const MalformedTagDiagnostic: MalformedTagDiagnosticSchema = MalformedTagDiagnosticImpl;
-export type MalformedTagDiagnostic = v.InferOutput<typeof MalformedTagDiagnostic>;
+export const MalformedTagDiagnostic: MalformedTagDiagnosticSchema = s.object(
+	MalformedTagDiagnosticEntries
+);
+export type MalformedTagDiagnostic = s.Infer<typeof MalformedTagDiagnostic>;
 
-const DuplicateTagDiagnosticImpl = v.strictObject({
-	kind: v.literal('duplicate_tag'),
-	...baseDiagnosticFields,
+const DuplicateTagDiagnosticEntries = diagnosticEntries({
+	kind: s.literal('duplicate_tag'),
 	/** The tag name without the `@` prefix; a synonym reports its canonical name. */
-	tagName: v.picklist(['cssprop']),
+	tagName: s.one_of(['cssprop']),
 	/** Name of the declaration whose doc comment carries the tags. */
-	declarationName: v.string(),
+	declarationName: s.string,
 	/** The repeated key: the custom property's name for `@cssprop`, `--` included. */
-	key: v.string()
+	key: s.string
 });
 /** @nodocs */
-export interface DuplicateTagDiagnosticSchema extends Named<typeof DuplicateTagDiagnosticImpl> {}
+export interface DuplicateTagDiagnosticSchemaOutput extends s.SchemaStrictObjectOutput<
+	typeof DuplicateTagDiagnosticEntries
+> {}
+/** @nodocs */
+export interface DuplicateTagDiagnosticSchemaInput extends s.SchemaStrictObjectInput<
+	typeof DuplicateTagDiagnosticEntries
+> {}
+/** @nodocs */
+export interface DuplicateTagDiagnosticSchema extends s.Schema<
+	DuplicateTagDiagnosticSchemaOutput,
+	DuplicateTagDiagnosticSchemaInput,
+	'object',
+	typeof DuplicateTagDiagnosticEntries
+> {}
 /**
  * A JSDoc tag repeats a key an earlier tag of the same name in the comment
  * already set, so it documents nothing.
@@ -532,24 +731,36 @@ export interface DuplicateTagDiagnosticSchema extends Named<typeof DuplicateTagD
  *
  * Always `warning`, query-time category.
  */
-export const DuplicateTagDiagnostic: DuplicateTagDiagnosticSchema = DuplicateTagDiagnosticImpl;
-export type DuplicateTagDiagnostic = v.InferOutput<typeof DuplicateTagDiagnostic>;
+export const DuplicateTagDiagnostic: DuplicateTagDiagnosticSchema = s.object(
+	DuplicateTagDiagnosticEntries
+);
+export type DuplicateTagDiagnostic = s.Infer<typeof DuplicateTagDiagnostic>;
 
-const CsspropDefaultMismatchDiagnosticImpl = v.strictObject({
-	kind: v.literal('cssprop_default_mismatch'),
-	...baseDiagnosticFields,
+const CsspropDefaultMismatchDiagnosticEntries = diagnosticEntries({
+	kind: s.literal('cssprop_default_mismatch'),
 	/** The custom property the `@cssprop` tag names, `--` included. */
-	propertyName: v.string(),
+	propertyName: s.string,
 	/** Name of the component. */
-	componentName: v.string(),
+	componentName: s.string,
 	/** The tag's bracketed default, verbatim. */
-	default: v.string(),
+	default: s.string,
 	/** The style's fallback for the property, verbatim (`ComponentCssPropertyJson.fallback`). */
-	fallback: v.string()
+	fallback: s.string
 });
 /** @nodocs */
-export interface CsspropDefaultMismatchDiagnosticSchema extends Named<
-	typeof CsspropDefaultMismatchDiagnosticImpl
+export interface CsspropDefaultMismatchDiagnosticSchemaOutput extends s.SchemaStrictObjectOutput<
+	typeof CsspropDefaultMismatchDiagnosticEntries
+> {}
+/** @nodocs */
+export interface CsspropDefaultMismatchDiagnosticSchemaInput extends s.SchemaStrictObjectInput<
+	typeof CsspropDefaultMismatchDiagnosticEntries
+> {}
+/** @nodocs */
+export interface CsspropDefaultMismatchDiagnosticSchema extends s.Schema<
+	CsspropDefaultMismatchDiagnosticSchemaOutput,
+	CsspropDefaultMismatchDiagnosticSchemaInput,
+	'object',
+	typeof CsspropDefaultMismatchDiagnosticEntries
 > {}
 /**
  * A component's `@cssprop` tag documents a default (`[--a=1px]`) that
@@ -566,17 +777,15 @@ export interface CsspropDefaultMismatchDiagnosticSchema extends Named<
  *
  * Always `warning`, query-time category.
  */
-export const CsspropDefaultMismatchDiagnostic: CsspropDefaultMismatchDiagnosticSchema =
-	CsspropDefaultMismatchDiagnosticImpl;
-export type CsspropDefaultMismatchDiagnostic = v.InferOutput<
-	typeof CsspropDefaultMismatchDiagnostic
->;
+export const CsspropDefaultMismatchDiagnostic: CsspropDefaultMismatchDiagnosticSchema = s.object(
+	CsspropDefaultMismatchDiagnosticEntries
+);
+export type CsspropDefaultMismatchDiagnostic = s.Infer<typeof CsspropDefaultMismatchDiagnostic>;
 
-const DuplicateDeclarationDiagnosticImpl = v.strictObject({
-	kind: v.literal('duplicate_declaration'),
-	...baseDiagnosticFields,
+const DuplicateDeclarationDiagnosticEntries = diagnosticEntries({
+	kind: s.literal('duplicate_declaration'),
 	/** The duplicated declaration name. */
-	declarationName: v.string(),
+	declarationName: s.string,
 	/**
 	 * Module paths where the name was defined (>= 2).
 	 *
@@ -585,11 +794,22 @@ const DuplicateDeclarationDiagnosticImpl = v.strictObject({
 	 * The two disagree textually whenever `sourceRoot` is non-empty; each names
 	 * what it says it names, a module vs. a file.
 	 */
-	modules: v.pipe(v.array(v.string()), v.minLength(2))
+	modules: s.pipe(s.array(s.string), s.min_length(2))
 });
 /** @nodocs */
-export interface DuplicateDeclarationDiagnosticSchema extends Named<
-	typeof DuplicateDeclarationDiagnosticImpl
+export interface DuplicateDeclarationDiagnosticSchemaOutput extends s.SchemaStrictObjectOutput<
+	typeof DuplicateDeclarationDiagnosticEntries
+> {}
+/** @nodocs */
+export interface DuplicateDeclarationDiagnosticSchemaInput extends s.SchemaStrictObjectInput<
+	typeof DuplicateDeclarationDiagnosticEntries
+> {}
+/** @nodocs */
+export interface DuplicateDeclarationDiagnosticSchema extends s.Schema<
+	DuplicateDeclarationDiagnosticSchemaOutput,
+	DuplicateDeclarationDiagnosticSchemaInput,
+	'object',
+	typeof DuplicateDeclarationDiagnosticEntries
 > {}
 /**
  * A declaration `name` appears in more than one module.
@@ -600,17 +820,28 @@ export interface DuplicateDeclarationDiagnosticSchema extends Named<
  * fatal. The default slot (`name === 'default'`) is excluded — every module
  * owns its own.
  */
-export const DuplicateDeclarationDiagnostic: DuplicateDeclarationDiagnosticSchema =
-	DuplicateDeclarationDiagnosticImpl;
-export type DuplicateDeclarationDiagnostic = v.InferOutput<typeof DuplicateDeclarationDiagnostic>;
+export const DuplicateDeclarationDiagnostic: DuplicateDeclarationDiagnosticSchema = s.object(
+	DuplicateDeclarationDiagnosticEntries
+);
+export type DuplicateDeclarationDiagnostic = s.Infer<typeof DuplicateDeclarationDiagnostic>;
 
-const SourceMapFailedDiagnosticImpl = v.strictObject({
-	kind: v.literal('source_map_failed'),
-	...baseDiagnosticFields
+const SourceMapFailedDiagnosticEntries = diagnosticEntries({
+	kind: s.literal('source_map_failed')
 });
 /** @nodocs */
-export interface SourceMapFailedDiagnosticSchema extends Named<
-	typeof SourceMapFailedDiagnosticImpl
+export interface SourceMapFailedDiagnosticSchemaOutput extends s.SchemaStrictObjectOutput<
+	typeof SourceMapFailedDiagnosticEntries
+> {}
+/** @nodocs */
+export interface SourceMapFailedDiagnosticSchemaInput extends s.SchemaStrictObjectInput<
+	typeof SourceMapFailedDiagnosticEntries
+> {}
+/** @nodocs */
+export interface SourceMapFailedDiagnosticSchema extends s.Schema<
+	SourceMapFailedDiagnosticSchemaOutput,
+	SourceMapFailedDiagnosticSchemaInput,
+	'object',
+	typeof SourceMapFailedDiagnosticEntries
 > {}
 /**
  * Source map parsing failed for a Svelte virtual file.
@@ -626,17 +857,26 @@ export interface SourceMapFailedDiagnosticSchema extends Named<
  * through `setFile`/`setFiles` ingest diagnostics rather than the analysis
  * pass.
  */
-export const SourceMapFailedDiagnostic: SourceMapFailedDiagnosticSchema =
-	SourceMapFailedDiagnosticImpl;
-export type SourceMapFailedDiagnostic = v.InferOutput<typeof SourceMapFailedDiagnostic>;
+export const SourceMapFailedDiagnostic: SourceMapFailedDiagnosticSchema = s.object(
+	SourceMapFailedDiagnosticEntries
+);
+export type SourceMapFailedDiagnostic = s.Infer<typeof SourceMapFailedDiagnostic>;
 
-const TransformFailedDiagnosticImpl = v.strictObject({
-	kind: v.literal('transform_failed'),
-	...baseDiagnosticFields
-});
+const TransformFailedDiagnosticEntries = diagnosticEntries({ kind: s.literal('transform_failed') });
 /** @nodocs */
-export interface TransformFailedDiagnosticSchema extends Named<
-	typeof TransformFailedDiagnosticImpl
+export interface TransformFailedDiagnosticSchemaOutput extends s.SchemaStrictObjectOutput<
+	typeof TransformFailedDiagnosticEntries
+> {}
+/** @nodocs */
+export interface TransformFailedDiagnosticSchemaInput extends s.SchemaStrictObjectInput<
+	typeof TransformFailedDiagnosticEntries
+> {}
+/** @nodocs */
+export interface TransformFailedDiagnosticSchema extends s.Schema<
+	TransformFailedDiagnosticSchemaOutput,
+	TransformFailedDiagnosticSchemaInput,
+	'object',
+	typeof TransformFailedDiagnosticEntries
 > {}
 /**
  * svelte2tsx transform threw for a `.svelte` file.
@@ -647,19 +887,30 @@ export interface TransformFailedDiagnosticSchema extends Named<
  * empty `declarations`). The originating error message lives in `message`;
  * this diagnostic is the authoritative cause-of-failure signal.
  */
-export const TransformFailedDiagnostic: TransformFailedDiagnosticSchema =
-	TransformFailedDiagnosticImpl;
-export type TransformFailedDiagnostic = v.InferOutput<typeof TransformFailedDiagnostic>;
+export const TransformFailedDiagnostic: TransformFailedDiagnosticSchema = s.object(
+	TransformFailedDiagnosticEntries
+);
+export type TransformFailedDiagnostic = s.Infer<typeof TransformFailedDiagnostic>;
 
-const ResolverFailedDiagnosticImpl = v.strictObject({
-	kind: v.literal('resolver_failed'),
-	...baseDiagnosticFields,
+const ResolverFailedDiagnosticEntries = diagnosticEntries({
+	kind: s.literal('resolver_failed'),
 	/** The import specifier the resolver failed on. */
-	specifier: v.string()
+	specifier: s.string
 });
 /** @nodocs */
-export interface ResolverFailedDiagnosticSchema extends Named<
-	typeof ResolverFailedDiagnosticImpl
+export interface ResolverFailedDiagnosticSchemaOutput extends s.SchemaStrictObjectOutput<
+	typeof ResolverFailedDiagnosticEntries
+> {}
+/** @nodocs */
+export interface ResolverFailedDiagnosticSchemaInput extends s.SchemaStrictObjectInput<
+	typeof ResolverFailedDiagnosticEntries
+> {}
+/** @nodocs */
+export interface ResolverFailedDiagnosticSchema extends s.Schema<
+	ResolverFailedDiagnosticSchemaOutput,
+	ResolverFailedDiagnosticSchemaInput,
+	'object',
+	typeof ResolverFailedDiagnosticEntries
 > {}
 /**
  * Import resolver threw while resolving a specifier.
@@ -674,18 +925,31 @@ export interface ResolverFailedDiagnosticSchema extends Named<
  *
  * Emitted at ingest time by the session's resolve phase.
  */
-export const ResolverFailedDiagnostic: ResolverFailedDiagnosticSchema =
-	ResolverFailedDiagnosticImpl;
-export type ResolverFailedDiagnostic = v.InferOutput<typeof ResolverFailedDiagnostic>;
+export const ResolverFailedDiagnostic: ResolverFailedDiagnosticSchema = s.object(
+	ResolverFailedDiagnosticEntries
+);
+export type ResolverFailedDiagnostic = s.Infer<typeof ResolverFailedDiagnostic>;
 
-const AliasLostDiagnosticImpl = v.strictObject({
-	kind: v.literal('alias_lost'),
-	...baseDiagnosticFields,
+const AliasLostDiagnosticEntries = diagnosticEntries({
+	kind: s.literal('alias_lost'),
 	/** Name of the alias whose right-hand side resolves to a nameless type. */
-	aliasName: v.string()
+	aliasName: s.string
 });
 /** @nodocs */
-export interface AliasLostDiagnosticSchema extends Named<typeof AliasLostDiagnosticImpl> {}
+export interface AliasLostDiagnosticSchemaOutput extends s.SchemaStrictObjectOutput<
+	typeof AliasLostDiagnosticEntries
+> {}
+/** @nodocs */
+export interface AliasLostDiagnosticSchemaInput extends s.SchemaStrictObjectInput<
+	typeof AliasLostDiagnosticEntries
+> {}
+/** @nodocs */
+export interface AliasLostDiagnosticSchema extends s.Schema<
+	AliasLostDiagnosticSchemaOutput,
+	AliasLostDiagnosticSchemaInput,
+	'object',
+	typeof AliasLostDiagnosticEntries
+> {}
 /**
  * An exported type alias loses its name at use sites.
  *
@@ -703,16 +967,26 @@ export interface AliasLostDiagnosticSchema extends Named<typeof AliasLostDiagnos
  *
  * Always `warning`, query-time category (recomputed each `query()`).
  */
-export const AliasLostDiagnostic: AliasLostDiagnosticSchema = AliasLostDiagnosticImpl;
-export type AliasLostDiagnostic = v.InferOutput<typeof AliasLostDiagnostic>;
+export const AliasLostDiagnostic: AliasLostDiagnosticSchema = s.object(AliasLostDiagnosticEntries);
+export type AliasLostDiagnostic = s.Infer<typeof AliasLostDiagnostic>;
 
-const CommonjsUnsupportedDiagnosticImpl = v.strictObject({
-	kind: v.literal('commonjs_unsupported'),
-	...baseDiagnosticFields
+const CommonjsUnsupportedDiagnosticEntries = diagnosticEntries({
+	kind: s.literal('commonjs_unsupported')
 });
 /** @nodocs */
-export interface CommonjsUnsupportedDiagnosticSchema extends Named<
-	typeof CommonjsUnsupportedDiagnosticImpl
+export interface CommonjsUnsupportedDiagnosticSchemaOutput extends s.SchemaStrictObjectOutput<
+	typeof CommonjsUnsupportedDiagnosticEntries
+> {}
+/** @nodocs */
+export interface CommonjsUnsupportedDiagnosticSchemaInput extends s.SchemaStrictObjectInput<
+	typeof CommonjsUnsupportedDiagnosticEntries
+> {}
+/** @nodocs */
+export interface CommonjsUnsupportedDiagnosticSchema extends s.Schema<
+	CommonjsUnsupportedDiagnosticSchemaOutput,
+	CommonjsUnsupportedDiagnosticSchemaInput,
+	'object',
+	typeof CommonjsUnsupportedDiagnosticEntries
 > {}
 /**
  * A JS module exports through CommonJS (`module.exports = …`,
@@ -731,17 +1005,26 @@ export interface CommonjsUnsupportedDiagnosticSchema extends Named<
  *
  * Always `warning`, query-time category (recomputed each `query()`).
  */
-export const CommonjsUnsupportedDiagnostic: CommonjsUnsupportedDiagnosticSchema =
-	CommonjsUnsupportedDiagnosticImpl;
-export type CommonjsUnsupportedDiagnostic = v.InferOutput<typeof CommonjsUnsupportedDiagnostic>;
+export const CommonjsUnsupportedDiagnostic: CommonjsUnsupportedDiagnosticSchema = s.object(
+	CommonjsUnsupportedDiagnosticEntries
+);
+export type CommonjsUnsupportedDiagnostic = s.Infer<typeof CommonjsUnsupportedDiagnostic>;
 
-const CssParseFailedDiagnosticImpl = v.strictObject({
-	kind: v.literal('css_parse_failed'),
-	...baseDiagnosticFields
-});
+const CssParseFailedDiagnosticEntries = diagnosticEntries({ kind: s.literal('css_parse_failed') });
 /** @nodocs */
-export interface CssParseFailedDiagnosticSchema extends Named<
-	typeof CssParseFailedDiagnosticImpl
+export interface CssParseFailedDiagnosticSchemaOutput extends s.SchemaStrictObjectOutput<
+	typeof CssParseFailedDiagnosticEntries
+> {}
+/** @nodocs */
+export interface CssParseFailedDiagnosticSchemaInput extends s.SchemaStrictObjectInput<
+	typeof CssParseFailedDiagnosticEntries
+> {}
+/** @nodocs */
+export interface CssParseFailedDiagnosticSchema extends s.Schema<
+	CssParseFailedDiagnosticSchemaOutput,
+	CssParseFailedDiagnosticSchemaInput,
+	'object',
+	typeof CssParseFailedDiagnosticEntries
 > {}
 /**
  * Svelte's parser rejected a component that has a `<style>`, so its styling
@@ -755,19 +1038,30 @@ export interface CssParseFailedDiagnosticSchema extends Named<
  * Always `warning`, query-time category (reported each `query()` from the reading cached at
  * transform).
  */
-export const CssParseFailedDiagnostic: CssParseFailedDiagnosticSchema =
-	CssParseFailedDiagnosticImpl;
-export type CssParseFailedDiagnostic = v.InferOutput<typeof CssParseFailedDiagnostic>;
+export const CssParseFailedDiagnostic: CssParseFailedDiagnosticSchema = s.object(
+	CssParseFailedDiagnosticEntries
+);
+export type CssParseFailedDiagnostic = s.Infer<typeof CssParseFailedDiagnostic>;
 
-const CssLangUnsupportedDiagnosticImpl = v.strictObject({
-	kind: v.literal('css_lang_unsupported'),
-	...baseDiagnosticFields,
+const CssLangUnsupportedDiagnosticEntries = diagnosticEntries({
+	kind: s.literal('css_lang_unsupported'),
 	/** The style tag's `lang` (or `type`) value, as written (`scss`, `text/postcss`). */
-	lang: v.string()
+	lang: s.string
 });
 /** @nodocs */
-export interface CssLangUnsupportedDiagnosticSchema extends Named<
-	typeof CssLangUnsupportedDiagnosticImpl
+export interface CssLangUnsupportedDiagnosticSchemaOutput extends s.SchemaStrictObjectOutput<
+	typeof CssLangUnsupportedDiagnosticEntries
+> {}
+/** @nodocs */
+export interface CssLangUnsupportedDiagnosticSchemaInput extends s.SchemaStrictObjectInput<
+	typeof CssLangUnsupportedDiagnosticEntries
+> {}
+/** @nodocs */
+export interface CssLangUnsupportedDiagnosticSchema extends s.Schema<
+	CssLangUnsupportedDiagnosticSchemaOutput,
+	CssLangUnsupportedDiagnosticSchemaInput,
+	'object',
+	typeof CssLangUnsupportedDiagnosticEntries
 > {}
 /**
  * A component's `<style>` names a preprocessor language (`lang="scss"`,
@@ -779,9 +1073,10 @@ export interface CssLangUnsupportedDiagnosticSchema extends Named<
  * Always `warning`, query-time category (reported each `query()` from the reading cached at
  * transform).
  */
-export const CssLangUnsupportedDiagnostic: CssLangUnsupportedDiagnosticSchema =
-	CssLangUnsupportedDiagnosticImpl;
-export type CssLangUnsupportedDiagnostic = v.InferOutput<typeof CssLangUnsupportedDiagnostic>;
+export const CssLangUnsupportedDiagnostic: CssLangUnsupportedDiagnosticSchema = s.object(
+	CssLangUnsupportedDiagnosticEntries
+);
+export type CssLangUnsupportedDiagnostic = s.Infer<typeof CssLangUnsupportedDiagnostic>;
 
 /**
  * Discriminated union of all diagnostic variants. Ingest-time kinds:
@@ -792,7 +1087,7 @@ export type CssLangUnsupportedDiagnostic = v.InferOutput<typeof CssLangUnsupport
 // the explicit `VariantSchema` annotation keeps the emitted declaration
 // referential (each variant by name, not re-inlined), and means a new variant
 // must land in both the type-parameter tuple and the runtime array
-export const Diagnostic: v.VariantSchema<
+export const Diagnostic: VariantSchema<
 	'kind',
 	[
 		typeof TypeExtractionDiagnostic,
@@ -819,9 +1114,8 @@ export const Diagnostic: v.VariantSchema<
 		typeof CommonjsUnsupportedDiagnostic,
 		typeof CssParseFailedDiagnostic,
 		typeof CssLangUnsupportedDiagnostic
-	],
-	undefined
-> = v.variant('kind', [
+	]
+> = s.variant('kind', [
 	TypeExtractionDiagnostic,
 	SignatureAnalysisDiagnostic,
 	ClassMemberDiagnostic,
@@ -847,9 +1141,34 @@ export const Diagnostic: v.VariantSchema<
 	CssParseFailedDiagnostic,
 	CssLangUnsupportedDiagnostic
 ]);
-export type Diagnostic = v.InferOutput<typeof Diagnostic>;
+// written out, not `s.Infer`, so the union keeps its name at use sites
+export type Diagnostic =
+	| TypeExtractionDiagnostic
+	| SignatureAnalysisDiagnostic
+	| ClassMemberDiagnostic
+	| SveltePropDiagnostic
+	| ModuleSkippedDiagnostic
+	| ModuleUnreadableDiagnostic
+	| ImportParseDiagnostic
+	| DuplicateCommentDiagnostic
+	| ComponentCommentMismatchDiagnostic
+	| MisplacedTagDiagnostic
+	| ImplementationDocHiddenDiagnostic
+	| UnknownParamDiagnostic
+	| UnknownCsspropDiagnostic
+	| MalformedTagDiagnostic
+	| DuplicateTagDiagnostic
+	| CsspropDefaultMismatchDiagnostic
+	| SourceMapFailedDiagnostic
+	| DuplicateDeclarationDiagnostic
+	| TransformFailedDiagnostic
+	| ResolverFailedDiagnostic
+	| AliasLostDiagnostic
+	| CommonjsUnsupportedDiagnostic
+	| CssParseFailedDiagnostic
+	| CssLangUnsupportedDiagnostic;
 
-const DiagnosticArray = v.array(Diagnostic);
+const DiagnosticArray = s.array(Diagnostic);
 
 /**
  * Validate an array of diagnostics.
@@ -861,10 +1180,10 @@ const DiagnosticArray = v.array(Diagnostic);
  * @param value - an array of diagnostics, typically from `JSON.parse`
  * @returns the validated diagnostics
  * @throws Error when `value` doesn't match the schema; the message lists the
- *   reported issues, one per line, as `path: message` (`0.kind: Invalid type: …`), the dot
+ *   reported issues, one per line, as `path: message` (`0.kind: expected …, received …`), the dot
  *   path omitted for an issue at the root. The class is the schema library's
- *   (valibot's `ValiError`, the structured list on `issues`), so catch it as a
- *   plain `Error` unless you depend on valibot
+ *   (fuz_schema's `SchemaError`, the structured list on `issues`), so catch it
+ *   as a plain `Error` unless you depend on fuz_schema
  */
 export const parseDiagnostics = (value: unknown): Array<Diagnostic> =>
 	parseWithSummary(DiagnosticArray, value);

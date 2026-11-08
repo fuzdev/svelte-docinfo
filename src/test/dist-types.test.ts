@@ -1,5 +1,6 @@
 import { test, assert } from 'vitest';
 import ts from 'typescript';
+import * as s from '@fuzdev/fuz_schema/schema.ts';
 import { fileURLToPath } from 'node:url';
 import { basename, join } from 'node:path';
 
@@ -23,7 +24,7 @@ const DIST_DIR = join(ROOT, '__dist_types__');
 const CONSUMER_PATH = join(ROOT, '__dist_types_consumer__.ts');
 
 const CONSUMER = `
-import * as v from 'valibot';
+import * as s from '@fuzdev/fuz_schema/schema.js';
 import {
 	analyze,
 	analyzeFromFiles,
@@ -42,15 +43,15 @@ import {
 } from './__dist_types__/types.js';
 import { isKind } from './__dist_types__/declaration-helpers.js';
 
-export const ComposedModules = v.array(ModuleJson);
-export const ComposedResult = v.strictObject({ result: AnalyzeResultJson, at: v.string() });
+export const ComposedModules = s.array(ModuleJson);
+export const ComposedResult = s.object({ result: AnalyzeResultJson, at: s.string });
 
-// inferred positions over a schema's input type and a pipe item: the emitted
+// inferred positions over a schema's input type and an entry: the emitted
 // declarations must be able to name them
-export const inputOf = <T extends v.GenericSchema>(_schema: T) => (x: unknown) => x as v.InferInput<T>;
+export const inputOf = <T extends s.Schema>(_schema: T) => (x: unknown) => x as s.InferInput<T>;
 export const resultInput = inputOf(AnalyzeResultJson);
 export const moduleInput = inputOf(ModuleJson);
-export const resultGuard = AnalyzeResultJson.pipe[0];
+export const resultModules = AnalyzeResultJson.def.modules;
 
 export const consume = async (): Promise<number> => {
 	let r1: AnalyzeResultJson = await analyze({ sourceFiles: [], sourceOptions: createSourceOptions('/') });
@@ -62,7 +63,7 @@ export const consume = async (): Promise<number> => {
 	const d: DeclarationJson | undefined = m.declarations[0];
 	const n = d && isKind(d, 'function') ? d.parameters.length : 0;
 	const diagnostics: Array<Diagnostic> = parseDiagnostics([]);
-	const composed = v.parse(ComposedResult, { result: {}, at: 'x' });
+	const composed = s.parse_or_throw(ComposedResult, { result: {}, at: 'x' });
 	return (
 		r1.modules.length +
 		r2.modules.length +
@@ -70,7 +71,7 @@ export const consume = async (): Promise<number> => {
 		n +
 		input.path.length +
 		p.name.length +
-		v.parse(ComposedModules, []).length +
+		s.parse_or_throw(ComposedModules, []).length +
 		composed.result.diagnostics.length
 	);
 };
@@ -83,7 +84,7 @@ const SCHEMA_MODULES: Record<string, Record<string, unknown>> = {
 	'analyze-core': analyzeCore
 };
 
-// `schema.ts` references valibot for the shared helpers and exports no schema
+// `schema.ts` references fuz_schema for the shared helpers and exports no schema
 const SCHEMA_HELPERS_MODULE = 'schema';
 
 // Ceiling on the schema modules' combined declaration text, in characters.
@@ -96,8 +97,7 @@ const SCHEMA_HELPERS_MODULE = 'schema';
 // after checking nothing was inlined.
 const SCHEMA_DECLARATIONS_BUDGET = 240_000;
 
-const isSchema = (value: unknown): boolean =>
-	typeof value === 'object' && value !== null && (value as { kind?: unknown }).kind === 'schema';
+const isSchema = (value: unknown): boolean => s.is_schema(value);
 
 // every exported schema, composed the ways a consumer would (wrapped, inferred
 // both ways, parsed), so naming one schema can't hide another's depth
@@ -111,11 +111,11 @@ const buildComposeConsumer = (): string => {
 			const ref = `${alias}.${name}`;
 			const id = `${alias}_${name}`;
 			lines.push(
-				`export const ${id}_array = v.array(${ref});`,
-				`export const ${id}_wrapped = v.strictObject({ value: ${ref}, list: v.optional(v.array(${ref}), () => []) });`,
-				`export type ${id}_out = v.InferOutput<typeof ${id}_wrapped>;`,
-				`export type ${id}_in = v.InferInput<typeof ${id}_wrapped>;`,
-				`export const ${id}_parse = (u: unknown): ${id}_out => v.parse(${id}_wrapped, u);`
+				`export const ${id}_array = s.array(${ref});`,
+				`export const ${id}_wrapped = s.object({ value: ${ref}, list: s.with_default_fn(s.array(${ref}), () => []) });`,
+				`export type ${id}_out = s.Infer<typeof ${id}_wrapped>;`,
+				`export type ${id}_in = s.InferInput<typeof ${id}_wrapped>;`,
+				`export const ${id}_parse = (u: unknown): ${id}_out => s.parse_or_throw(${id}_wrapped, u);`
 			);
 		}
 	}
@@ -159,12 +159,15 @@ test('emitted declarations typecheck for a consumer', { timeout: 120_000 }, () =
 	}
 
 	// a schema exported from any other module would escape every check here
-	const valibotModules = [...emitted]
-		.filter(([fileName, text]) => fileName.endsWith('.d.ts') && /['"]valibot['"]/.test(text))
+	const schemaLibModules = [...emitted]
+		.filter(
+			([fileName, text]) =>
+				fileName.endsWith('.d.ts') && /['"]@fuzdev\/fuz_schema\/schema\.(?:ts|js)['"]/.test(text)
+		)
 		.map(([fileName]) => basename(fileName, '.d.ts'))
 		.sort();
 	assert.deepStrictEqual(
-		valibotModules,
+		schemaLibModules,
 		[...Object.keys(SCHEMA_MODULES), SCHEMA_HELPERS_MODULE].sort()
 	);
 	assert.isBelow(schemaDeclarationsSize, SCHEMA_DECLARATIONS_BUDGET);

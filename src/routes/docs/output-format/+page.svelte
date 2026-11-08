@@ -458,8 +458,8 @@
 				Parsing with <DeclarationLink name="parseAnalyzeResult" /> (or
 				<DeclarationLink name="parseModuleJson" /> for one module) restores every default and
 				validates the shape, so the round-trip is lossless. The helpers are the stable entry point;
-				the <ModuleLink module_path="types.ts">valibot schemas</ModuleLink> behind them are exported
-				too.
+				the <ModuleLink module_path="types.ts">fuz_schema schemas</ModuleLink> behind them are
+				exported too.
 			</p>
 			<p>
 				Raw-JSON consumers (<code>jq</code>, pipelines that skip parsing) must treat <em>absent</em>

@@ -1,8 +1,8 @@
 {
-	"path": "ComponentValibotMergedSchema.svelte",
+	"path": "ComponentFuzSchemaMergedSchema.svelte",
 	"declarations": [
 		{
-			"name": "ComponentValibotMergedSchema",
+			"name": "ComponentFuzSchemaMergedSchema",
 			"kind": "component",
 			"sourceLine": 12,
 			"props": [
@@ -53,7 +53,7 @@
 			"returnTypeInfo": {
 				"kind": "reference",
 				"name": "Point",
-				"module": "ComponentValibotMergedSchema.svelte"
+				"module": "ComponentFuzSchemaMergedSchema.svelte"
 			}
 		}
 	]

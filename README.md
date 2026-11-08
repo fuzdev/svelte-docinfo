@@ -206,7 +206,7 @@ const { modules, diagnostics } = parseAnalyzeResult(JSON.parse(json));
 `parseModuleJson` from `svelte-docinfo/types.js` per module instead.
 
 The parse helpers are the stable entry point. The schemas behind them (`AnalyzeResultJson`,
-`ModuleJson`, `DeclarationJson`, …) are exported too, as [valibot](https://valibot.dev/) schemas.
+`ModuleJson`, `DeclarationJson`, …) are exported too, as [fuz_schema](https://schema.fuz.dev/) schemas.
 
 The [extraction demo](https://svelte-docinfo.fuz.dev/demo/extraction) has more examples,
 and see the docs for the complete [output format](https://svelte-docinfo.fuz.dev/docs/output-format).

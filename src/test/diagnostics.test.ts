@@ -1,5 +1,5 @@
 import { test, assert, describe } from 'vitest';
-import * as v from 'valibot';
+import * as s from '@fuzdev/fuz_schema/schema.ts';
 
 import {
 	byKind,
@@ -450,8 +450,8 @@ describe('diagnostics array', () => {
 				}
 			];
 			for (const d of variants) {
-				const validated = v.parse(Diagnostic, d);
-				const reparsed = v.parse(Diagnostic, JSON.parse(JSON.stringify(validated)));
+				const validated = s.parse_or_throw(Diagnostic, d);
+				const reparsed = s.parse_or_throw(Diagnostic, JSON.parse(JSON.stringify(validated)));
 				assert.deepEqual(reparsed, validated);
 			}
 		});
