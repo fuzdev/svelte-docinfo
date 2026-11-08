@@ -1,6 +1,6 @@
 import { test, assert, describe, beforeAll } from 'vitest';
 import ts from 'typescript';
-import * as v from 'valibot';
+import * as s from '@fuzdev/fuz_schema/schema.ts';
 
 import { createAnalysisProgram } from '#lib/typescript-program.ts';
 import { detectReactivity, extractSignatureParameters } from '#lib/typescript-extract-shared.ts';
@@ -52,7 +52,7 @@ describe('TypeScript helpers (fixture-based)', () => {
 			if (fixture.extraFiles) {
 				parseAnalyzeResult(fixture.expected);
 			} else {
-				v.parse(ModuleFixtureJson, fixture.expected);
+				s.parse_or_throw(ModuleFixtureJson, fixture.expected);
 			}
 		}
 	});
@@ -68,7 +68,8 @@ describe('TypeScript helpers (fixture-based)', () => {
 
 		// Parse through the schema to restore stripped array/boolean defaults so
 		// `result.members` is `Array<...>` (Output shape), not optional.
-		const result = v.parse(ModuleFixtureJson, privateFieldsFixture.expected).declarations[0];
+		const result = s.parse_or_throw(ModuleFixtureJson, privateFieldsFixture.expected)
+			.declarations[0];
 
 		// Verify that private members are NOT in the output
 		if (result?.kind === 'class') {
@@ -102,7 +103,7 @@ describe('TypeScript helpers (fixture-based)', () => {
 			throw new Error('members/class-accessors fixture not found');
 		}
 
-		const result = v.parse(ModuleFixtureJson, accessorsFixture.expected).declarations[0];
+		const result = s.parse_or_throw(ModuleFixtureJson, accessorsFixture.expected).declarations[0];
 
 		if (result?.kind !== 'class' || result.members.length === 0) {
 			throw new Error('Expected members to be defined for class A');

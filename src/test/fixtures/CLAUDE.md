@@ -188,7 +188,7 @@ Where each behavior is locked. Unit and behavior-level mechanics live in
   a template-only and a propless legacy component, and not on a runes one —
   `$props()`, a rune-using exported binding, `<svelte:options runes />` over a
   rune-free script — nor a named slot alone: `slot-*`), exported snippets
-  (`exported-snippet*`), merged valibot schema, JS components (`javascript`,
+  (`exported-snippet*`), merged fuz_schema schema, JS components (`javascript`,
   `props/jsdoc-type`; typedef `@property` types as written nodes, recovering a lost alias
   and ordering a union as written: `props/jsdoc-typedef-written{,-ts}`), JSDoc parameters
   on a JS `<script module>` function

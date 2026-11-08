@@ -728,7 +728,7 @@ describe('mergeReExports', () => {
 		]);
 
 		test('every ComponentDeclarationJson field is either inherited or in NOT_INHERITED', () => {
-			const schemaFields = Object.keys(ComponentDeclarationJson.entries);
+			const schemaFields = Object.keys(ComponentDeclarationJson.def);
 
 			// Build canonical with a unique sentinel for every inheritable field.
 			const canonical = m({

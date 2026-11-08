@@ -50,12 +50,12 @@
 						}
 					],
 					"returnType": "T",
+					"docComment": "Description 4.",
 					"genericParams": [
 						{
 							"name": "T"
 						}
-					],
-					"docComment": "Description 4."
+					]
 				}
 			],
 			"returnType": "string",

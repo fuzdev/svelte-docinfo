@@ -41,11 +41,11 @@
     "svelte-docinfo": "dist/main.js"
   },
   "dependencies": {
+    "@fuzdev/fuz_schema": "^0.5.6",
     "@jridgewell/trace-mapping": "^0.3.25",
     "commander": "^14.0.3",
     "picomatch": "^4.0.4",
-    "tinyglobby": "^0.2.15",
-    "valibot": "^1.4.0"
+    "tinyglobby": "^0.2.15"
   },
   "peerDependencies": {
     "svelte": "^5.0.0",
@@ -62,7 +62,6 @@
     "@fuzdev/blake3-wasm": "^0.2.0",
     "@fuzdev/fuz_code": "^0.58.0",
     "@fuzdev/fuz_css": "^0.79.0",
-    "@fuzdev/fuz_schema": "^0.5.6",
     "@fuzdev/fuz_ui": "^0.226.0",
     "@fuzdev/fuz_util": "^0.80.0",
     "@fuzdev/gro": "^0.226.0",

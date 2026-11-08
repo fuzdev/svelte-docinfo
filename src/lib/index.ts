@@ -27,7 +27,7 @@ export type {
 export { normalizeResolveImport } from './dep-resolver.ts';
 export type { ImportResolver, ResolveImport, ResolveImportFn } from './dep-resolver.ts';
 
-// Types (valibot schemas, parse helpers, and TypeScript interfaces)
+// Types (fuz_schema schemas, parse helpers, and TypeScript interfaces)
 
 export {
 	DeclarationKind,

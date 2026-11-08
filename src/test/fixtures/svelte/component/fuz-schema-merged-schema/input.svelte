@@ -1,12 +1,12 @@
 <script module lang="ts">
-	import * as v from 'valibot';
+	import * as s from '@fuzdev/fuz_schema/schema.ts';
 
 	/** A schema whose inferred type shares its name (the merged value+type pattern). */
-	export const Point = v.strictObject({ x: v.number(), y: v.number() });
-	export type Point = v.InferOutput<typeof Point>;
+	export const Point = s.object({ x: s.number, y: s.number });
+	export type Point = s.Infer<typeof Point>;
 
 	/** An inferred (unannotated) return of the lost type — the registry recovers the name. */
-	export const parsePoint = (input: unknown) => v.parse(Point, input);
+	export const parsePoint = (input: unknown) => s.parse_or_throw(Point, input);
 </script>
 
 <script lang="ts">

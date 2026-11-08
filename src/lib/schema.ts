@@ -2,65 +2,61 @@
  * Helpers shared by the modules that declare output schemas (`types.ts`,
  * `diagnostics.ts`, `analyze-core.ts`).
  *
- * `Named` is the alias their schema interfaces extend through, and
+ * `VariantSchema` is the type their variant exports are annotated with, and
  * `parseWithSummary` is what the public `parse*` helpers throw through, so a
- * failure names every reported issue with its path, not just the first one's
- * text.
+ * failure names every reported issue with its path, not just the first ten.
  *
- * A leaf: it imports only valibot, so any schema module can depend on it
+ * A leaf: it imports only fuz_schema, so any schema module can depend on it
  * without pulling in another.
  *
  * @module
  */
 
-import * as v from 'valibot';
+import * as s from '@fuzdev/fuz_schema/schema.ts';
 
 /**
- * Identity alias that lets an interface extend an inferred schema type:
- * `interface FooSchema extends Named<typeof FooImpl> {}`. A heritage clause
- * can't hold a bare `typeof` query, and going through the alias spares a
- * per-schema one. The schema modules explain why they name their schemas
- * (see `types.ts`).
+ * The type of a `s.variant` over `T`, written out so a schema module can
+ * annotate a variant export and keep its emitted declaration referential
+ * (each option by name, not re-inlined).
  *
  * Exported only so the schema modules can share it.
  *
  * @nodocs
  */
-export type Named<T> = T;
+export type VariantSchema<
+	TKey extends string,
+	T extends ReadonlyArray<s.Schema<any, any, string, s.SchemaEntries>>
+> = s.Schema<
+	s.Infer<T[number]>,
+	s.InferInput<T[number]>,
+	'variant',
+	{ readonly key: TKey; readonly options: T }
+>;
 
 /**
  * Validate `value` against `schema`, throwing an error that lists every issue
- * valibot reports.
+ * the parse reports.
  *
- * Collects all issues rather than stopping at the first, and replaces the
- * message valibot's own `parse` would throw (the first issue only, with no
- * path). The format is this package's own, built from each issue's `message`
- * and `v.getDotPath`: one line per issue, in issue order, as `path: message`,
- * or the bare `message` when the issue has no dot path (the root value, or a
- * path through a key a dot path can't express).
- *
- * That isn't every problem in the value: a strict object with several unknown
- * keys reports only the first, so fixing one can surface the next.
+ * `s.parse_or_throw`'s message stops at ten issues; this one lists every issue
+ * the parse builds (fuz_schema caps a parse at a hundred), one per line, as
+ * `s.format_issue` writes it: `path: expected X, received Y`, or the bare
+ * text for an issue at the root. Unknown keys of a strict object are each
+ * reported.
  *
  * @param schema - the schema to validate against
  * @param value - the value to validate
  * @returns the parsed output, defaults applied
- * @throws ValiError when `value` doesn't match; `message` lists the issues
+ * @throws SchemaError when `value` doesn't match; `message` lists the issues
  *   in the format above and `issues` holds them structured
  * @internal
  */
-export const parseWithSummary = <TSchema extends v.GenericSchema>(
+export const parseWithSummary = <TSchema extends s.Schema>(
 	schema: TSchema,
 	value: unknown
-): v.InferOutput<TSchema> => {
-	const result = v.safeParse(schema, value);
-	if (result.success) return result.output;
-	const error = new v.ValiError(result.issues);
-	error.message = result.issues
-		.map((issue) => {
-			const path = v.getDotPath(issue);
-			return path ? `${path}: ${issue.message}` : issue.message;
-		})
-		.join('\n');
+): s.Infer<TSchema> => {
+	const result = s.parse(schema, value);
+	if (result.ok) return result.value;
+	const error = new s.SchemaError(result.issues);
+	error.message = result.issues.map(s.format_issue).join('\n');
 	throw error;
 };

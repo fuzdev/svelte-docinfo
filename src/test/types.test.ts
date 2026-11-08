@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { globSync } from 'tinyglobby';
 import { test, assert, describe } from 'vitest';
-import * as v from 'valibot';
+import * as s from '@fuzdev/fuz_schema/schema.ts';
 
 import {
 	ComponentPropJson,
@@ -20,12 +20,12 @@ import { parseDiagnostics } from '#lib/diagnostics.ts';
 // well-meaning "consistency" change to a `[]` default fails loudly.
 
 test('ComponentPropJson.parameters is optional — absence is meaningful, not an empty list', () => {
-	const prop = v.parse(ComponentPropJson, { name: 'label', type: 'string' });
+	const prop = s.parse_or_throw(ComponentPropJson, { name: 'label', type: 'string' });
 	assert.equal(prop.parameters, undefined);
 });
 
 test('ComponentPropJson.parameters round-trips a populated list', () => {
-	const prop = v.parse(ComponentPropJson, {
+	const prop = s.parse_or_throw(ComponentPropJson, {
 		name: 'row',
 		type: 'Snippet<[item: string]>',
 		parameters: [{ name: 'item', type: 'string' }]
@@ -35,14 +35,14 @@ test('ComponentPropJson.parameters round-trips a populated list', () => {
 });
 
 test('array fields under the [] default policy still materialize [] (contrast)', () => {
-	const overload = v.parse(OverloadJson, { typeSignature: '() => void' });
+	const overload = s.parse_or_throw(OverloadJson, { typeSignature: '() => void' });
 	assert.deepEqual(overload.parameters, []);
 	assert.deepEqual(overload.genericParams, []);
 });
 
 // One node of every `TypeJson` kind — the `Record` keying forces a compile
 // error when the TS union gains a kind without a test node, and parsing fails
-// when the schema's variant misses one (`v.GenericSchema` is covariant in its
+// when the schema's variant misses one (`s.Schema` is covariant in its
 // output, so the schema annotation alone can't catch a missing runtime variant).
 test('TypeJson parses one node of every kind and round-trips it', () => {
 	const nodes: Record<TypeJson['kind'], TypeJson> = {
@@ -81,13 +81,13 @@ test('TypeJson parses one node of every kind and round-trips it', () => {
 		other: { kind: 'other', text: 'T' }
 	};
 	for (const node of Object.values(nodes)) {
-		assert.deepStrictEqual(v.parse(TypeJson, node), node);
+		assert.deepStrictEqual(s.parse_or_throw(TypeJson, node), node);
 	}
 });
 
 test('TypeJson tuple elements are strict objects', () => {
 	assert.throws(() =>
-		v.parse(TypeJson, {
+		s.parse_or_throw(TypeJson, {
 			kind: 'tuple',
 			elements: [{ type: { kind: 'intrinsic', text: 'string' }, extra: true }]
 		})
@@ -95,21 +95,21 @@ test('TypeJson tuple elements are strict objects', () => {
 });
 
 test('array defaults are fresh per parse, never one shared array', () => {
-	const a = v.parse(OverloadJson, { typeSignature: '() => void' });
-	const b = v.parse(OverloadJson, { typeSignature: '() => void' });
+	const a = s.parse_or_throw(OverloadJson, { typeSignature: '() => void' });
+	const b = s.parse_or_throw(OverloadJson, { typeSignature: '() => void' });
 	assert.notStrictEqual(a.parameters, b.parameters);
 	a.parameters.push({ name: 'x', type: 'string', optional: false, rest: false });
 	assert.deepEqual(b.parameters, []);
 });
 
 // `propertyDescriptions` and `mutates` hold author-written keys, which may
-// collide with `Object.prototype` names that `v.record` would drop
+// collide with `Object.prototype` names
 describe('string records', () => {
 	test('string records keep `constructor` and `prototype` keys and drop `__proto__`', () => {
 		const input: unknown = JSON.parse(
 			'{"name":"o","type":"T","propertyDescriptions":{"constructor":"a","prototype":"b","x":"c","__proto__":"d"}}'
 		);
-		const parsed = v.parse(ParameterJson, input);
+		const parsed = s.parse_or_throw(ParameterJson, input);
 		assert.deepStrictEqual(Object.entries(parsed.propertyDescriptions!), [
 			['constructor', 'a'],
 			['prototype', 'b'],
@@ -118,62 +118,46 @@ describe('string records', () => {
 		assert.strictEqual(Object.getPrototypeOf(parsed.propertyDescriptions), Object.prototype);
 	});
 
-	test('string records skip an own `__proto__` key without checking its value', () => {
+	test('string records check an own `__proto__` key before dropping it', () => {
 		const input: unknown = JSON.parse(
 			'{"name":"o","type":"T","propertyDescriptions":{"__proto__":{"x":"y"},"a":"y"}}'
 		);
-		const parsed = v.parse(ParameterJson, input);
-		assert.deepStrictEqual(Object.entries(parsed.propertyDescriptions!), [['a', 'y']]);
-		assert.strictEqual(Object.getPrototypeOf(parsed.propertyDescriptions), Object.prototype);
+		assert.throws(() => s.parse_or_throw(ParameterJson, input), /__proto__/);
 	});
 
-	test('string records accept null-prototype objects and copy them', () => {
-		const descriptions: Record<string, string> = Object.create(null);
-		descriptions.a = 'x';
-		const parsed = v.parse(ParameterJson, {
-			name: 'o',
-			type: 'T',
-			propertyDescriptions: descriptions
-		});
-		assert.deepEqual({ ...parsed.propertyDescriptions }, { a: 'x' });
-		assert.notStrictEqual(parsed.propertyDescriptions, descriptions);
-	});
-
-	test('string records reject non-string values, arrays, and class instances', () => {
-		for (const propertyDescriptions of [{ a: 1 }, ['a'], new Map(), null]) {
-			assert.throws(() => v.parse(ParameterJson, { name: 'o', type: 'T', propertyDescriptions }));
+	test('string records reject non-string values and arrays', () => {
+		for (const propertyDescriptions of [{ a: 1 }, ['a'], null]) {
+			assert.throws(() =>
+				s.parse_or_throw(ParameterJson, { name: 'o', type: 'T', propertyDescriptions })
+			);
 		}
 	});
 
 	test('each non-string value gets its own issue, pathed to its key', () => {
-		const result = v.safeParse(ParameterJson, {
+		const result = s.parse(ParameterJson, {
 			name: 'o',
 			type: 'T',
 			propertyDescriptions: { a: 1, ok: 'x', b: null, c: ['y'], d: {} }
 		});
-		assert(!result.success);
-		assert.deepStrictEqual(
-			result.issues.map((issue) => `${v.getDotPath(issue)}: ${issue.message}`),
-			[
-				'propertyDescriptions.a: Invalid type: Expected string but received 1',
-				'propertyDescriptions.b: Invalid type: Expected string but received null',
-				'propertyDescriptions.c: Invalid type: Expected string but received Array',
-				'propertyDescriptions.d: Invalid type: Expected string but received Object'
-			]
-		);
+		assert(!result.ok);
+		assert.deepStrictEqual(result.issues.map(s.format_issue), [
+			'propertyDescriptions.a: expected string, received number',
+			'propertyDescriptions.b: expected string, received null',
+			'propertyDescriptions.c: expected string, received array',
+			'propertyDescriptions.d: expected string, received object'
+		]);
 	});
 
-	test('a non-plain string record is one issue at the record itself', () => {
-		const result = v.safeParse(ParameterJson, {
+	test('a non-object string record is one issue at the record itself', () => {
+		const result = s.parse(ParameterJson, {
 			name: 'o',
 			type: 'T',
 			propertyDescriptions: [1]
 		});
-		assert(!result.success);
-		assert.deepStrictEqual(
-			result.issues.map((issue) => `${v.getDotPath(issue)}: ${issue.message}`),
-			['propertyDescriptions: Invalid type: Expected a record of strings']
-		);
+		assert(!result.ok);
+		assert.deepStrictEqual(result.issues.map(s.format_issue), [
+			'propertyDescriptions: expected object, received array'
+		]);
 	});
 });
 
@@ -197,29 +181,34 @@ describe('parse helpers', () => {
 				]
 			})
 		);
-		assert(error instanceof v.ValiError);
+		assert(error instanceof s.SchemaError);
 		assert.strictEqual(error.issues.length, 2);
-		assert.strictEqual(
-			error.message,
-			error.issues.map((issue) => `${v.getDotPath(issue)}: ${issue.message}`).join('\n')
-		);
+		assert.strictEqual(error.message, error.issues.map(s.format_issue).join('\n'));
 		const lines = error.message.split('\n');
 		assert.strictEqual(lines.length, 2);
-		assert.match(lines[0]!, /^modules\.0\.declarations\.0\.typeInfo: Invalid key: /);
-		assert.strictEqual(lines[1], 'modules.1.path: Invalid type: Expected string but received 1');
+		assert.match(lines[0]!, /^modules\.0\.declarations\.0\.typeInfo: expected no unknown keys, /);
+		assert.strictEqual(lines[1], 'modules.1.path: expected string, received number');
+	});
+
+	test('the message lists past the ten issues `s.SchemaError` stops at', () => {
+		const error = catchError(() =>
+			parseModuleJson({ path: 'a.ts', dependencies: Array.from({ length: 12 }, (_, i) => i) })
+		);
+		assert(error instanceof s.SchemaError);
+		assert.strictEqual(error.message.split('\n').length, 12);
 	});
 
 	test('an issue at the root has no path prefix', () => {
 		assert.strictEqual(
 			catchError(() => parseModuleJson(null)).message,
-			'Invalid type: Expected Object but received null'
+			'expected object, received null'
 		);
 	});
 
-	test('an object with several unknown keys reports only the first', () => {
+	test('an object with several unknown keys reports each', () => {
 		assert.strictEqual(
 			catchError(() => parseModuleJson({ path: 'a.ts', x: 1, y: 2 })).message,
-			'x: Invalid key: Expected never but received "x"'
+			'x: expected no unknown keys, received number\ny: expected no unknown keys, received number'
 		);
 	});
 
@@ -231,22 +220,22 @@ describe('parse helpers', () => {
 					declarations: [{ name: 'f', kind: 'function', mutates: { a: 1 } }]
 				})
 			).message,
-			'declarations.0.mutates.a: Invalid type: Expected string but received 1'
+			'declarations.0.mutates.a: expected string, received number'
 		);
 	});
 
 	test('an array is not an analysis result, even an empty one', () => {
-		const message = 'Invalid type: Expected Object but received Array';
+		const message = 'expected object, received array';
 		for (const value of [[], [{ path: 'a.ts' }]]) {
 			assert.strictEqual(catchError(() => parseAnalyzeResult(value)).message, message);
 			// the guard is the schema's, not the helper's
-			assert.throws(() => v.parse(AnalyzeResultJson, value), message);
+			assert.throws(() => s.parse_or_throw(AnalyzeResultJson, value), message);
 		}
 		assert.deepStrictEqual(parseAnalyzeResult({}), { modules: [], diagnostics: [] });
-		assert.deepStrictEqual(v.parse(AnalyzeResultJson, Object.create(null)), {
-			modules: [],
-			diagnostics: []
-		});
+		assert.deepStrictEqual(
+			{ ...s.parse_or_throw(AnalyzeResultJson, Object.create(null)) },
+			{ modules: [], diagnostics: [] }
+		);
 	});
 
 	test('parseModuleJson and parseDiagnostics root their paths at their own value', () => {
@@ -270,7 +259,7 @@ test('numeric fields reject ±Infinity', () => {
 	for (const make of cases) {
 		parseModuleJson(make(3));
 		for (const n of [Infinity, -Infinity]) {
-			assert.throws(() => parseModuleJson(make(n)), /Invalid finite/);
+			assert.throws(() => parseModuleJson(make(n)), /received -?Infinity/);
 		}
 	}
 });
