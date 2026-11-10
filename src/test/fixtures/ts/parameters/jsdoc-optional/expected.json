@@ -87,6 +87,8 @@
 				{
 					"name": "rest",
 					"type": "{} | undefined",
+					"rest": true,
+					"description": "Description 1",
 					"typeInfo": {
 						"kind": "union",
 						"members": [
@@ -99,9 +101,7 @@
 								"text": "undefined"
 							}
 						]
-					},
-					"rest": true,
-					"description": "Description 1"
+					}
 				}
 			],
 			"returnType": "void"

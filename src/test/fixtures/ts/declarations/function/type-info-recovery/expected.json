@@ -19,11 +19,11 @@
 				{
 					"name": "extra",
 					"type": "\"x\" | { y: number; }",
+					"optional": true,
 					"typeInfo": {
 						"kind": "reference",
 						"name": "LostUnion"
-					},
-					"optional": true
+					}
 				}
 			],
 			"returnType": "{ a: string; b: number; } | undefined",

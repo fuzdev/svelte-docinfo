@@ -18,11 +18,11 @@
 				{
 					"name": "y",
 					"type": "{ d: number; }",
+					"optional": true,
 					"typeInfo": {
 						"kind": "reference",
 						"name": "B"
-					},
-					"optional": true
+					}
 				}
 			],
 			"returnType": "{ d: number; } | undefined",
@@ -88,11 +88,11 @@
 						{
 							"name": "y",
 							"type": "\"a\" | \"b\"",
+							"optional": true,
 							"typeInfo": {
 								"kind": "reference",
 								"name": "A"
-							},
-							"optional": true
+							}
 						}
 					],
 					"returnType": "\"a\" | \"b\"",
