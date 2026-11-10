@@ -60,7 +60,7 @@ import{A as e,K as t,M as n,P as r,Q as i,Y as a,Z as o,ct as s,et as c,ft as l,
 							intersections don't warn, since they read fine expanded, and neither do <code>@nodocs</code> aliases. <strong>Consequence:</strong> unannotated positions
 							document the alias's structure instead of its name. Where applicable, a nominal symbol
 							(<!>)
-							restores it.</td></tr><tr><td><code>commonjs_unsupported</code></td><td><strong>Trigger:</strong> a JS module that TypeScript doesn't bind as a module (no <code>import</code>/<code>export</code> under <code>bundler</code>/<code>esnext</code>) exports through CommonJS
+							restores it, and documents the inferred properties as its members.</td></tr><tr><td><code>commonjs_unsupported</code></td><td><strong>Trigger:</strong> a JS module that TypeScript doesn't bind as a module (no <code>import</code>/<code>export</code> under <code>bundler</code>/<code>esnext</code>) exports through CommonJS
 							(<!>, <!>), which isn't modeled. Under <code>node16</code>/<code>nodenext</code> or <!> the checker binds
 							CommonJS exports itself, and its named exports (<code>exports.x</code>, <!>) document without this
 							warning; a <!> of a function or
