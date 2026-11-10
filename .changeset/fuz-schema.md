@@ -15,11 +15,14 @@ To migrate code that uses a schema directly:
 
 Line fields take positive integers only: the declaration and member `sourceLine`, and `ReExportJson.sourceLine` and `ExternalReExportJson.sourceLine`, now reject `0`, negatives, and fractions, like `ComponentCssPropertyJson.sourceLine` and the diagnostics' `line` and `column` already did. The analyzer never produces such a value, so only hand-written JSON is affected.
 
-A parse helper that fails throws fuz_schema's `SchemaError` in place of valibot's `ValiError`, with the structured list on `.issues`. Its `message` has one line per issue, as `path: expected X, received Y`, and every unknown key of an object is reported, not just the first:
+A parse helper that fails throws fuz_schema's `SchemaError` in place of valibot's `ValiError`, with the structured list on `.issues`. Its `message` has one line per issue, as `path: expected X, received Y`, where `Y` is the value that failed when it's a string, a number, or a boolean (a string quoted, and cut when long) and its type otherwise, and every unknown key of an object is reported, not just the first, by its value's type:
 
 ```
-modules.0.declarations.0.typeInfo: expected no unknown keys, received object
-modules.1.path: expected string, received number
+modules.0.declarations.0.kind: expected "function" | "class" | "interface" | "type" | "variable" | "enum" | "component" | "snippet" | "namespace", received "funtion"
+modules.1.path: expected string, received 1
+modules.1.deps: expected no unknown keys, received array
 ```
+
+The message so holds short pieces of the input's values, which `.issues` never does (both hold its key names).
 
 Parsing is copy-on-write: an object that needed no default comes back as the input itself, so don't mutate a parsed value you also hold as input. Such an object keeps its keys in the order it had, and one that was copied has them in the schema's order, so serialized output can order an object's keys differently than before, the analyzer's own included. A parse reports at most a hundred issues, and a message that holds a hundred ends with a line saying there may be more. String maps (`mutates`, `propertyDescriptions`) accept any non-array object and check the value of a `__proto__` key before dropping it.

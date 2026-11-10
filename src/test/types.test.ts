@@ -183,11 +183,76 @@ describe('parse helpers', () => {
 		);
 		assert(error instanceof s.SchemaError);
 		assert.strictEqual(error.issues.length, 2);
-		assert.strictEqual(error.message, error.issues.map(s.format_issue).join('\n'));
 		const lines = error.message.split('\n');
 		assert.strictEqual(lines.length, 2);
 		assert.match(lines[0]!, /^modules\.0\.declarations\.0\.typeInfo: expected no unknown keys, /);
-		assert.strictEqual(lines[1], 'modules.1.path: expected string, received number');
+		assert.strictEqual(lines[1], 'modules.1.path: expected string, received 1');
+	});
+
+	describe('the message writes the value that failed', () => {
+		const messageOf = (declaration: Record<string, unknown>): string =>
+			catchError(() =>
+				parseModuleJson({ path: 'a.ts', declarations: [{ name: 'f', ...declaration }] })
+			).message;
+
+		test('a string, quoted as JSON', () => {
+			assert.strictEqual(
+				messageOf({ kind: 'funtion' }),
+				'declarations.0.kind: expected "function" | "class" | "interface" | "type" | "variable" | "enum" | "component" | "snippet" | "namespace", received "funtion"'
+			);
+			assert.strictEqual(
+				catchError(() =>
+					parseDiagnostics([{ kind: 'alias_lost', file: 'a.ts', message: 'm', severity: 'warn' }])
+				).message.split('\n')[0],
+				'0.severity: expected "error" | "warning", received "warn"'
+			);
+			// a newline can't start a line of its own
+			assert.match(messageOf({ kind: 'a\nb' }), /, received "a\\nb"$/);
+		});
+
+		test('a long string, cut after 32 code units', () => {
+			assert.strictEqual(
+				messageOf({ kind: 'function', modifiers: ['x'.repeat(50)] }),
+				`declarations.0.modifiers.0: expected "public" | "protected" | "readonly" | "static" | "abstract" | "getter" | "setter", received "${'x'.repeat(32)}"…`
+			);
+		});
+
+		test('a number and a boolean', () => {
+			assert.strictEqual(
+				messageOf({ kind: 'function', sourceLine: 0 }),
+				'declarations.0.sourceLine: expected >= 1, received 0'
+			);
+			assert.strictEqual(
+				catchError(() => parseModuleJson({ path: true })).message,
+				'path: expected string, received true'
+			);
+		});
+
+		test('an unknown key, a missing key, and any other value write the type', () => {
+			// an unknown key's value is the field most likely sent by mistake
+			assert.strictEqual(
+				catchError(() => parseModuleJson({ path: 'a.ts', x: 'secret' })).message,
+				'x: expected no unknown keys, received string'
+			);
+			assert.strictEqual(
+				catchError(() => parseModuleJson({})).message,
+				'path: expected string, received undefined'
+			);
+			assert.strictEqual(
+				messageOf({ kind: 'function', modifiers: [{}] }),
+				'declarations.0.modifiers.0: expected "public" | "protected" | "readonly" | "static" | "abstract" | "getter" | "setter", received object'
+			);
+		});
+
+		test('the issues hold no value', () => {
+			const error = catchError(() => parseModuleJson({ path: 'a.ts', partial: 'yes' }));
+			assert(error instanceof s.SchemaError);
+			assert.strictEqual(error.message, 'partial: expected boolean, received "yes"');
+			assert.strictEqual(
+				s.format_issue(error.issues[0]!),
+				'partial: expected boolean, received string'
+			);
+		});
 	});
 
 	test('the message lists past the ten issues `s.SchemaError` stops at', () => {
@@ -210,7 +275,7 @@ describe('parse helpers', () => {
 			assert.strictEqual(error.issues.length, 100);
 			const lines = error.message.split('\n');
 			assert.strictEqual(lines.length, 101);
-			assert.strictEqual(lines[99], 'dependencies.99: expected string, received number');
+			assert.strictEqual(lines[99], 'dependencies.99: expected string, received 99');
 			assert.strictEqual(lines[100], '(only the first 100 issues are reported, there may be more)');
 		}
 		const under = catchError(() => parseModuleJson(withBad(99)));
@@ -240,7 +305,7 @@ describe('parse helpers', () => {
 					declarations: [{ name: 'f', kind: 'function', mutates: { a: 1 } }]
 				})
 			).message,
-			'declarations.0.mutates.a: expected string, received number'
+			'declarations.0.mutates.a: expected string, received 1'
 		);
 	});
 
@@ -315,10 +380,10 @@ test('line fields take positive integers only', () => {
 	for (const [path, make] of cases) {
 		parseModuleJson(make(1));
 		for (const [n, expected] of [
-			[0, 'expected >= 1, received number'],
-			[-1, 'expected >= 1, received number'],
-			[1.5, 'expected safe_integer, received number'],
-			[2 ** 53, 'expected safe_integer, received number']
+			[0, 'expected >= 1, received 0'],
+			[-1, 'expected >= 1, received -1'],
+			[1.5, 'expected safe_integer, received 1.5'],
+			[2 ** 53, 'expected safe_integer, received 9007199254740992']
 		] as const) {
 			assert.strictEqual(
 				catchError(() => parseModuleJson(make(n))).message,

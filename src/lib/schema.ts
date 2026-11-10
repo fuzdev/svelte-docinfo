@@ -46,11 +46,15 @@ const ISSUE_CAP = 100;
  * the parse reports.
  *
  * `s.parse_or_throw`'s message stops at ten issues; this one lists every issue
- * the parse builds, one per line, as `s.format_issue` writes it:
- * `path: expected X, received Y`, or the bare text for an issue at the root.
- * Unknown keys of a strict object are each reported. fuz_schema builds at most
- * a hundred issues for a parse, so a message of a hundred ends with a line
- * saying there may be more.
+ * the parse builds, one per line, as `s.format_issue_with_value` writes it:
+ * `path: expected X, received Y`, or the bare text for an issue at the root,
+ * where `Y` is the value that failed when it's a string, number, or boolean
+ * (a string quoted as JSON and cut at 32 code units, so `received "funtion"`),
+ * and its type otherwise (`received undefined`, `received object`). An unknown
+ * key reads its value's type, never the value. So the message carries short
+ * pieces of `value`'s values, which `issues` never does. Unknown keys of a strict
+ * object are each reported. fuz_schema builds at most a hundred issues for a
+ * parse, so a message of a hundred ends with a line saying there may be more.
  *
  * @param schema - the schema to validate against
  * @param value - the value to validate
@@ -66,7 +70,7 @@ export const parseWithSummary = <TSchema extends s.Schema>(
 	const result = s.parse(schema, value);
 	if (result.ok) return result.value;
 	const error = new s.SchemaError(result.issues);
-	const lines = result.issues.map(s.format_issue);
+	const lines = result.issues.map((issue) => s.format_issue_with_value(issue, value));
 	if (result.issues.length === ISSUE_CAP) {
 		lines.push(`(only the first ${ISSUE_CAP} issues are reported, there may be more)`);
 	}
