@@ -172,17 +172,9 @@ const AnalyzeResultJsonEntries = {
 	diagnostics: s.with_default_fn(s.array(Diagnostic), () => [])
 };
 /** @nodocs */
-export interface AnalyzeResultJsonSchemaOutput extends s.SchemaStrictObjectOutput<
-	typeof AnalyzeResultJsonEntries
-> {}
-/** @nodocs */
-export interface AnalyzeResultJsonSchemaInput extends s.SchemaStrictObjectInput<
-	typeof AnalyzeResultJsonEntries
-> {}
-/** @nodocs */
 export interface AnalyzeResultJsonSchema extends s.Schema<
-	AnalyzeResultJsonSchemaOutput,
-	AnalyzeResultJsonSchemaInput,
+	AnalyzeResultJson,
+	AnalyzeResultJsonInput,
 	'object',
 	typeof AnalyzeResultJsonEntries
 > {}
@@ -212,7 +204,13 @@ export interface AnalyzeResultJsonSchema extends s.Schema<
  * `virtual:svelte-docinfo`.
  */
 export const AnalyzeResultJson: AnalyzeResultJsonSchema = s.object(AnalyzeResultJsonEntries);
-export type AnalyzeResultJson = s.Infer<typeof AnalyzeResultJson>;
+export interface AnalyzeResultJson extends s.SchemaStrictObjectOutput<
+	typeof AnalyzeResultJsonEntries
+> {}
+/** The input `AnalyzeResultJson` parses, with any field it defaults optional. */
+export interface AnalyzeResultJsonInput extends s.SchemaStrictObjectInput<
+	typeof AnalyzeResultJsonEntries
+> {}
 
 /**
  * Validate an analysis result, restoring the defaults the wire form omits.

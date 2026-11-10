@@ -38,6 +38,7 @@ import {
 import {
 	ModuleJson,
 	DeclarationJson,
+	type FunctionDeclarationJsonInput,
 	type ModuleJsonInput,
 	type ParameterJsonInput
 } from './__dist_types__/types.js';
@@ -60,6 +61,7 @@ export const consume = async (): Promise<number> => {
 	const m: ModuleJson = parseModuleJson({ path: 'a.ts' });
 	const input: ModuleJsonInput = { path: 'a.ts' };
 	const p: ParameterJsonInput = { name: 'a', type: 'string' };
+	const f: FunctionDeclarationJsonInput = { name: 'f', kind: 'function' };
 	const d: DeclarationJson | undefined = m.declarations[0];
 	const n = d && isKind(d, 'function') ? d.parameters.length : 0;
 	const diagnostics: Array<Diagnostic> = parseDiagnostics([]);
@@ -71,6 +73,7 @@ export const consume = async (): Promise<number> => {
 		n +
 		input.path.length +
 		p.name.length +
+		f.name.length +
 		s.parse_or_throw(ComposedModules, []).length +
 		composed.result.diagnostics.length
 	);
@@ -181,7 +184,27 @@ test('emitted declarations typecheck for a consumer', { timeout: 120_000 }, () =
 			const declared = new RegExp(`^export declare const ${name}: ([^;]*);`, 'm').exec(text);
 			assert.ok(declared, `expected a declaration for ${name} in ${module}.d.ts`);
 			assert.notInclude(declared[1], '{', `${name} is declared structurally`);
+			// a `FooSchema`'s output and input are interfaces under the public names,
+			// so errors and hovers print `Foo`, never a `@nodocs` name (the recursive
+			// schemas are typed by hand-written interfaces of their own)
+			if (declared[1] === `${name}Schema`) {
+				for (const [type, base] of [
+					[name, 'SchemaStrictObjectOutput'],
+					[`${name}Input`, 'SchemaStrictObjectInput']
+				]) {
+					assert.match(
+						text,
+						new RegExp(`^export interface ${type} extends s\\.${base}<`, 'm'),
+						`expected ${type} as an interface in ${module}.d.ts`
+					);
+				}
+			}
 		}
+		assert.notMatch(
+			text,
+			/\w+Schema(?:Output|Input)\b/,
+			`${module}.d.ts names a *SchemaOutput type`
+		);
 	}
 
 	const composed = buildComposeConsumer();

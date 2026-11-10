@@ -188,17 +188,9 @@ const TypeExtractionDiagnosticEntries = diagnosticEntries({
 	symbolName: s.string
 });
 /** @nodocs */
-export interface TypeExtractionDiagnosticSchemaOutput extends s.SchemaStrictObjectOutput<
-	typeof TypeExtractionDiagnosticEntries
-> {}
-/** @nodocs */
-export interface TypeExtractionDiagnosticSchemaInput extends s.SchemaStrictObjectInput<
-	typeof TypeExtractionDiagnosticEntries
-> {}
-/** @nodocs */
 export interface TypeExtractionDiagnosticSchema extends s.Schema<
-	TypeExtractionDiagnosticSchemaOutput,
-	TypeExtractionDiagnosticSchemaInput,
+	TypeExtractionDiagnostic,
+	TypeExtractionDiagnosticInput,
 	'object',
 	typeof TypeExtractionDiagnosticEntries
 > {}
@@ -208,7 +200,13 @@ export interface TypeExtractionDiagnosticSchema extends s.Schema<
 export const TypeExtractionDiagnostic: TypeExtractionDiagnosticSchema = s.object(
 	TypeExtractionDiagnosticEntries
 );
-export type TypeExtractionDiagnostic = s.Infer<typeof TypeExtractionDiagnostic>;
+export interface TypeExtractionDiagnostic extends s.SchemaStrictObjectOutput<
+	typeof TypeExtractionDiagnosticEntries
+> {}
+/** The input `TypeExtractionDiagnostic` parses, with any field it defaults optional. */
+export interface TypeExtractionDiagnosticInput extends s.SchemaStrictObjectInput<
+	typeof TypeExtractionDiagnosticEntries
+> {}
 
 const SignatureAnalysisDiagnosticEntries = diagnosticEntries({
 	kind: s.literal('signature_analysis_failed'),
@@ -216,17 +214,9 @@ const SignatureAnalysisDiagnosticEntries = diagnosticEntries({
 	functionName: s.string
 });
 /** @nodocs */
-export interface SignatureAnalysisDiagnosticSchemaOutput extends s.SchemaStrictObjectOutput<
-	typeof SignatureAnalysisDiagnosticEntries
-> {}
-/** @nodocs */
-export interface SignatureAnalysisDiagnosticSchemaInput extends s.SchemaStrictObjectInput<
-	typeof SignatureAnalysisDiagnosticEntries
-> {}
-/** @nodocs */
 export interface SignatureAnalysisDiagnosticSchema extends s.Schema<
-	SignatureAnalysisDiagnosticSchemaOutput,
-	SignatureAnalysisDiagnosticSchemaInput,
+	SignatureAnalysisDiagnostic,
+	SignatureAnalysisDiagnosticInput,
 	'object',
 	typeof SignatureAnalysisDiagnosticEntries
 > {}
@@ -236,7 +226,13 @@ export interface SignatureAnalysisDiagnosticSchema extends s.Schema<
 export const SignatureAnalysisDiagnostic: SignatureAnalysisDiagnosticSchema = s.object(
 	SignatureAnalysisDiagnosticEntries
 );
-export type SignatureAnalysisDiagnostic = s.Infer<typeof SignatureAnalysisDiagnostic>;
+export interface SignatureAnalysisDiagnostic extends s.SchemaStrictObjectOutput<
+	typeof SignatureAnalysisDiagnosticEntries
+> {}
+/** The input `SignatureAnalysisDiagnostic` parses, with any field it defaults optional. */
+export interface SignatureAnalysisDiagnosticInput extends s.SchemaStrictObjectInput<
+	typeof SignatureAnalysisDiagnosticEntries
+> {}
 
 const ClassMemberDiagnosticEntries = diagnosticEntries({
 	kind: s.literal('class_member_failed'),
@@ -246,17 +242,9 @@ const ClassMemberDiagnosticEntries = diagnosticEntries({
 	memberName: s.string
 });
 /** @nodocs */
-export interface ClassMemberDiagnosticSchemaOutput extends s.SchemaStrictObjectOutput<
-	typeof ClassMemberDiagnosticEntries
-> {}
-/** @nodocs */
-export interface ClassMemberDiagnosticSchemaInput extends s.SchemaStrictObjectInput<
-	typeof ClassMemberDiagnosticEntries
-> {}
-/** @nodocs */
 export interface ClassMemberDiagnosticSchema extends s.Schema<
-	ClassMemberDiagnosticSchemaOutput,
-	ClassMemberDiagnosticSchemaInput,
+	ClassMemberDiagnostic,
+	ClassMemberDiagnosticInput,
 	'object',
 	typeof ClassMemberDiagnosticEntries
 > {}
@@ -266,7 +254,13 @@ export interface ClassMemberDiagnosticSchema extends s.Schema<
 export const ClassMemberDiagnostic: ClassMemberDiagnosticSchema = s.object(
 	ClassMemberDiagnosticEntries
 );
-export type ClassMemberDiagnostic = s.Infer<typeof ClassMemberDiagnostic>;
+export interface ClassMemberDiagnostic extends s.SchemaStrictObjectOutput<
+	typeof ClassMemberDiagnosticEntries
+> {}
+/** The input `ClassMemberDiagnostic` parses, with any field it defaults optional. */
+export interface ClassMemberDiagnosticInput extends s.SchemaStrictObjectInput<
+	typeof ClassMemberDiagnosticEntries
+> {}
 
 const SveltePropDiagnosticEntries = diagnosticEntries({
 	kind: s.literal('svelte_prop_failed'),
@@ -276,17 +270,9 @@ const SveltePropDiagnosticEntries = diagnosticEntries({
 	propName: s.string
 });
 /** @nodocs */
-export interface SveltePropDiagnosticSchemaOutput extends s.SchemaStrictObjectOutput<
-	typeof SveltePropDiagnosticEntries
-> {}
-/** @nodocs */
-export interface SveltePropDiagnosticSchemaInput extends s.SchemaStrictObjectInput<
-	typeof SveltePropDiagnosticEntries
-> {}
-/** @nodocs */
 export interface SveltePropDiagnosticSchema extends s.Schema<
-	SveltePropDiagnosticSchemaOutput,
-	SveltePropDiagnosticSchemaInput,
+	SveltePropDiagnostic,
+	SveltePropDiagnosticInput,
 	'object',
 	typeof SveltePropDiagnosticEntries
 > {}
@@ -307,7 +293,13 @@ export interface SveltePropDiagnosticSchema extends s.Schema<
 export const SveltePropDiagnostic: SveltePropDiagnosticSchema = s.object(
 	SveltePropDiagnosticEntries
 );
-export type SveltePropDiagnostic = s.Infer<typeof SveltePropDiagnostic>;
+export interface SveltePropDiagnostic extends s.SchemaStrictObjectOutput<
+	typeof SveltePropDiagnosticEntries
+> {}
+/** The input `SveltePropDiagnostic` parses, with any field it defaults optional. */
+export interface SveltePropDiagnosticInput extends s.SchemaStrictObjectInput<
+	typeof SveltePropDiagnosticEntries
+> {}
 
 const ModuleSkippedDiagnosticEntries = diagnosticEntries({
 	kind: s.literal('module_skipped'),
@@ -315,17 +307,9 @@ const ModuleSkippedDiagnosticEntries = diagnosticEntries({
 	reason: s.one_of(['not_in_program', 'no_analyzer', 'requires_program'])
 });
 /** @nodocs */
-export interface ModuleSkippedDiagnosticSchemaOutput extends s.SchemaStrictObjectOutput<
-	typeof ModuleSkippedDiagnosticEntries
-> {}
-/** @nodocs */
-export interface ModuleSkippedDiagnosticSchemaInput extends s.SchemaStrictObjectInput<
-	typeof ModuleSkippedDiagnosticEntries
-> {}
-/** @nodocs */
 export interface ModuleSkippedDiagnosticSchema extends s.Schema<
-	ModuleSkippedDiagnosticSchemaOutput,
-	ModuleSkippedDiagnosticSchemaInput,
+	ModuleSkippedDiagnostic,
+	ModuleSkippedDiagnosticInput,
 	'object',
 	typeof ModuleSkippedDiagnosticEntries
 > {}
@@ -346,23 +330,21 @@ export interface ModuleSkippedDiagnosticSchema extends s.Schema<
 export const ModuleSkippedDiagnostic: ModuleSkippedDiagnosticSchema = s.object(
 	ModuleSkippedDiagnosticEntries
 );
-export type ModuleSkippedDiagnostic = s.Infer<typeof ModuleSkippedDiagnostic>;
+export interface ModuleSkippedDiagnostic extends s.SchemaStrictObjectOutput<
+	typeof ModuleSkippedDiagnosticEntries
+> {}
+/** The input `ModuleSkippedDiagnostic` parses, with any field it defaults optional. */
+export interface ModuleSkippedDiagnosticInput extends s.SchemaStrictObjectInput<
+	typeof ModuleSkippedDiagnosticEntries
+> {}
 
 const ModuleUnreadableDiagnosticEntries = diagnosticEntries({
 	kind: s.literal('module_unreadable')
 });
 /** @nodocs */
-export interface ModuleUnreadableDiagnosticSchemaOutput extends s.SchemaStrictObjectOutput<
-	typeof ModuleUnreadableDiagnosticEntries
-> {}
-/** @nodocs */
-export interface ModuleUnreadableDiagnosticSchemaInput extends s.SchemaStrictObjectInput<
-	typeof ModuleUnreadableDiagnosticEntries
-> {}
-/** @nodocs */
 export interface ModuleUnreadableDiagnosticSchema extends s.Schema<
-	ModuleUnreadableDiagnosticSchemaOutput,
-	ModuleUnreadableDiagnosticSchemaInput,
+	ModuleUnreadableDiagnostic,
+	ModuleUnreadableDiagnosticInput,
 	'object',
 	typeof ModuleUnreadableDiagnosticEntries
 > {}
@@ -377,21 +359,19 @@ export interface ModuleUnreadableDiagnosticSchema extends s.Schema<
 export const ModuleUnreadableDiagnostic: ModuleUnreadableDiagnosticSchema = s.object(
 	ModuleUnreadableDiagnosticEntries
 );
-export type ModuleUnreadableDiagnostic = s.Infer<typeof ModuleUnreadableDiagnostic>;
+export interface ModuleUnreadableDiagnostic extends s.SchemaStrictObjectOutput<
+	typeof ModuleUnreadableDiagnosticEntries
+> {}
+/** The input `ModuleUnreadableDiagnostic` parses, with any field it defaults optional. */
+export interface ModuleUnreadableDiagnosticInput extends s.SchemaStrictObjectInput<
+	typeof ModuleUnreadableDiagnosticEntries
+> {}
 
 const ImportParseDiagnosticEntries = diagnosticEntries({ kind: s.literal('import_parse_failed') });
 /** @nodocs */
-export interface ImportParseDiagnosticSchemaOutput extends s.SchemaStrictObjectOutput<
-	typeof ImportParseDiagnosticEntries
-> {}
-/** @nodocs */
-export interface ImportParseDiagnosticSchemaInput extends s.SchemaStrictObjectInput<
-	typeof ImportParseDiagnosticEntries
-> {}
-/** @nodocs */
 export interface ImportParseDiagnosticSchema extends s.Schema<
-	ImportParseDiagnosticSchemaOutput,
-	ImportParseDiagnosticSchemaInput,
+	ImportParseDiagnostic,
+	ImportParseDiagnosticInput,
 	'object',
 	typeof ImportParseDiagnosticEntries
 > {}
@@ -404,7 +384,13 @@ export interface ImportParseDiagnosticSchema extends s.Schema<
 export const ImportParseDiagnostic: ImportParseDiagnosticSchema = s.object(
 	ImportParseDiagnosticEntries
 );
-export type ImportParseDiagnostic = s.Infer<typeof ImportParseDiagnostic>;
+export interface ImportParseDiagnostic extends s.SchemaStrictObjectOutput<
+	typeof ImportParseDiagnosticEntries
+> {}
+/** The input `ImportParseDiagnostic` parses, with any field it defaults optional. */
+export interface ImportParseDiagnosticInput extends s.SchemaStrictObjectInput<
+	typeof ImportParseDiagnosticEntries
+> {}
 
 const DuplicateCommentDiagnosticEntries = diagnosticEntries({
 	kind: s.literal('duplicate_comment'),
@@ -412,17 +398,9 @@ const DuplicateCommentDiagnosticEntries = diagnosticEntries({
 	commentType: s.one_of(['module_comment', 'doc_comment'])
 });
 /** @nodocs */
-export interface DuplicateCommentDiagnosticSchemaOutput extends s.SchemaStrictObjectOutput<
-	typeof DuplicateCommentDiagnosticEntries
-> {}
-/** @nodocs */
-export interface DuplicateCommentDiagnosticSchemaInput extends s.SchemaStrictObjectInput<
-	typeof DuplicateCommentDiagnosticEntries
-> {}
-/** @nodocs */
 export interface DuplicateCommentDiagnosticSchema extends s.Schema<
-	DuplicateCommentDiagnosticSchemaOutput,
-	DuplicateCommentDiagnosticSchemaInput,
+	DuplicateCommentDiagnostic,
+	DuplicateCommentDiagnosticInput,
 	'object',
 	typeof DuplicateCommentDiagnosticEntries
 > {}
@@ -433,23 +411,21 @@ export interface DuplicateCommentDiagnosticSchema extends s.Schema<
 export const DuplicateCommentDiagnostic: DuplicateCommentDiagnosticSchema = s.object(
 	DuplicateCommentDiagnosticEntries
 );
-export type DuplicateCommentDiagnostic = s.Infer<typeof DuplicateCommentDiagnostic>;
+export interface DuplicateCommentDiagnostic extends s.SchemaStrictObjectOutput<
+	typeof DuplicateCommentDiagnosticEntries
+> {}
+/** The input `DuplicateCommentDiagnostic` parses, with any field it defaults optional. */
+export interface DuplicateCommentDiagnosticInput extends s.SchemaStrictObjectInput<
+	typeof DuplicateCommentDiagnosticEntries
+> {}
 
 const ComponentCommentMismatchDiagnosticEntries = diagnosticEntries({
 	kind: s.literal('component_comment_mismatch')
 });
 /** @nodocs */
-export interface ComponentCommentMismatchDiagnosticSchemaOutput extends s.SchemaStrictObjectOutput<
-	typeof ComponentCommentMismatchDiagnosticEntries
-> {}
-/** @nodocs */
-export interface ComponentCommentMismatchDiagnosticSchemaInput extends s.SchemaStrictObjectInput<
-	typeof ComponentCommentMismatchDiagnosticEntries
-> {}
-/** @nodocs */
 export interface ComponentCommentMismatchDiagnosticSchema extends s.Schema<
-	ComponentCommentMismatchDiagnosticSchemaOutput,
-	ComponentCommentMismatchDiagnosticSchemaInput,
+	ComponentCommentMismatchDiagnostic,
+	ComponentCommentMismatchDiagnosticInput,
 	'object',
 	typeof ComponentCommentMismatchDiagnosticEntries
 > {}
@@ -466,7 +442,13 @@ export interface ComponentCommentMismatchDiagnosticSchema extends s.Schema<
  */
 export const ComponentCommentMismatchDiagnostic: ComponentCommentMismatchDiagnosticSchema =
 	s.object(ComponentCommentMismatchDiagnosticEntries);
-export type ComponentCommentMismatchDiagnostic = s.Infer<typeof ComponentCommentMismatchDiagnostic>;
+export interface ComponentCommentMismatchDiagnostic extends s.SchemaStrictObjectOutput<
+	typeof ComponentCommentMismatchDiagnosticEntries
+> {}
+/** The input `ComponentCommentMismatchDiagnostic` parses, with any field it defaults optional. */
+export interface ComponentCommentMismatchDiagnosticInput extends s.SchemaStrictObjectInput<
+	typeof ComponentCommentMismatchDiagnosticEntries
+> {}
 
 const MisplacedTagDiagnosticEntries = diagnosticEntries({
 	kind: s.literal('misplaced_tag'),
@@ -497,17 +479,9 @@ const MisplacedTagDiagnosticEntries = diagnosticEntries({
 	functionName: s.optional(s.string)
 });
 /** @nodocs */
-export interface MisplacedTagDiagnosticSchemaOutput extends s.SchemaStrictObjectOutput<
-	typeof MisplacedTagDiagnosticEntries
-> {}
-/** @nodocs */
-export interface MisplacedTagDiagnosticSchemaInput extends s.SchemaStrictObjectInput<
-	typeof MisplacedTagDiagnosticEntries
-> {}
-/** @nodocs */
 export interface MisplacedTagDiagnosticSchema extends s.Schema<
-	MisplacedTagDiagnosticSchemaOutput,
-	MisplacedTagDiagnosticSchemaInput,
+	MisplacedTagDiagnostic,
+	MisplacedTagDiagnosticInput,
 	'object',
 	typeof MisplacedTagDiagnosticEntries
 > {}
@@ -541,7 +515,13 @@ export interface MisplacedTagDiagnosticSchema extends s.Schema<
 export const MisplacedTagDiagnostic: MisplacedTagDiagnosticSchema = s.object(
 	MisplacedTagDiagnosticEntries
 );
-export type MisplacedTagDiagnostic = s.Infer<typeof MisplacedTagDiagnostic>;
+export interface MisplacedTagDiagnostic extends s.SchemaStrictObjectOutput<
+	typeof MisplacedTagDiagnosticEntries
+> {}
+/** The input `MisplacedTagDiagnostic` parses, with any field it defaults optional. */
+export interface MisplacedTagDiagnosticInput extends s.SchemaStrictObjectInput<
+	typeof MisplacedTagDiagnosticEntries
+> {}
 
 const ImplementationDocHiddenDiagnosticEntries = diagnosticEntries({
 	kind: s.literal('implementation_doc_hidden'),
@@ -549,17 +529,9 @@ const ImplementationDocHiddenDiagnosticEntries = diagnosticEntries({
 	functionName: s.string
 });
 /** @nodocs */
-export interface ImplementationDocHiddenDiagnosticSchemaOutput extends s.SchemaStrictObjectOutput<
-	typeof ImplementationDocHiddenDiagnosticEntries
-> {}
-/** @nodocs */
-export interface ImplementationDocHiddenDiagnosticSchemaInput extends s.SchemaStrictObjectInput<
-	typeof ImplementationDocHiddenDiagnosticEntries
-> {}
-/** @nodocs */
 export interface ImplementationDocHiddenDiagnosticSchema extends s.Schema<
-	ImplementationDocHiddenDiagnosticSchemaOutput,
-	ImplementationDocHiddenDiagnosticSchemaInput,
+	ImplementationDocHiddenDiagnostic,
+	ImplementationDocHiddenDiagnosticInput,
 	'object',
 	typeof ImplementationDocHiddenDiagnosticEntries
 > {}
@@ -581,7 +553,13 @@ export interface ImplementationDocHiddenDiagnosticSchema extends s.Schema<
 export const ImplementationDocHiddenDiagnostic: ImplementationDocHiddenDiagnosticSchema = s.object(
 	ImplementationDocHiddenDiagnosticEntries
 );
-export type ImplementationDocHiddenDiagnostic = s.Infer<typeof ImplementationDocHiddenDiagnostic>;
+export interface ImplementationDocHiddenDiagnostic extends s.SchemaStrictObjectOutput<
+	typeof ImplementationDocHiddenDiagnosticEntries
+> {}
+/** The input `ImplementationDocHiddenDiagnostic` parses, with any field it defaults optional. */
+export interface ImplementationDocHiddenDiagnosticInput extends s.SchemaStrictObjectInput<
+	typeof ImplementationDocHiddenDiagnosticEntries
+> {}
 
 const UnknownParamDiagnosticEntries = diagnosticEntries({
 	kind: s.literal('unknown_param'),
@@ -591,17 +569,9 @@ const UnknownParamDiagnosticEntries = diagnosticEntries({
 	functionName: s.string
 });
 /** @nodocs */
-export interface UnknownParamDiagnosticSchemaOutput extends s.SchemaStrictObjectOutput<
-	typeof UnknownParamDiagnosticEntries
-> {}
-/** @nodocs */
-export interface UnknownParamDiagnosticSchemaInput extends s.SchemaStrictObjectInput<
-	typeof UnknownParamDiagnosticEntries
-> {}
-/** @nodocs */
 export interface UnknownParamDiagnosticSchema extends s.Schema<
-	UnknownParamDiagnosticSchemaOutput,
-	UnknownParamDiagnosticSchemaInput,
+	UnknownParamDiagnostic,
+	UnknownParamDiagnosticInput,
 	'object',
 	typeof UnknownParamDiagnosticEntries
 > {}
@@ -614,7 +584,13 @@ export interface UnknownParamDiagnosticSchema extends s.Schema<
 export const UnknownParamDiagnostic: UnknownParamDiagnosticSchema = s.object(
 	UnknownParamDiagnosticEntries
 );
-export type UnknownParamDiagnostic = s.Infer<typeof UnknownParamDiagnostic>;
+export interface UnknownParamDiagnostic extends s.SchemaStrictObjectOutput<
+	typeof UnknownParamDiagnosticEntries
+> {}
+/** The input `UnknownParamDiagnostic` parses, with any field it defaults optional. */
+export interface UnknownParamDiagnosticInput extends s.SchemaStrictObjectInput<
+	typeof UnknownParamDiagnosticEntries
+> {}
 
 const UnknownCsspropDiagnosticEntries = diagnosticEntries({
 	kind: s.literal('unknown_cssprop'),
@@ -624,17 +600,9 @@ const UnknownCsspropDiagnosticEntries = diagnosticEntries({
 	componentName: s.string
 });
 /** @nodocs */
-export interface UnknownCsspropDiagnosticSchemaOutput extends s.SchemaStrictObjectOutput<
-	typeof UnknownCsspropDiagnosticEntries
-> {}
-/** @nodocs */
-export interface UnknownCsspropDiagnosticSchemaInput extends s.SchemaStrictObjectInput<
-	typeof UnknownCsspropDiagnosticEntries
-> {}
-/** @nodocs */
 export interface UnknownCsspropDiagnosticSchema extends s.Schema<
-	UnknownCsspropDiagnosticSchemaOutput,
-	UnknownCsspropDiagnosticSchemaInput,
+	UnknownCsspropDiagnostic,
+	UnknownCsspropDiagnosticInput,
 	'object',
 	typeof UnknownCsspropDiagnosticEntries
 > {}
@@ -655,7 +623,13 @@ export interface UnknownCsspropDiagnosticSchema extends s.Schema<
 export const UnknownCsspropDiagnostic: UnknownCsspropDiagnosticSchema = s.object(
 	UnknownCsspropDiagnosticEntries
 );
-export type UnknownCsspropDiagnostic = s.Infer<typeof UnknownCsspropDiagnostic>;
+export interface UnknownCsspropDiagnostic extends s.SchemaStrictObjectOutput<
+	typeof UnknownCsspropDiagnosticEntries
+> {}
+/** The input `UnknownCsspropDiagnostic` parses, with any field it defaults optional. */
+export interface UnknownCsspropDiagnosticInput extends s.SchemaStrictObjectInput<
+	typeof UnknownCsspropDiagnosticEntries
+> {}
 
 const MalformedTagDiagnosticEntries = diagnosticEntries({
 	kind: s.literal('malformed_tag'),
@@ -665,17 +639,9 @@ const MalformedTagDiagnosticEntries = diagnosticEntries({
 	declarationName: s.string
 });
 /** @nodocs */
-export interface MalformedTagDiagnosticSchemaOutput extends s.SchemaStrictObjectOutput<
-	typeof MalformedTagDiagnosticEntries
-> {}
-/** @nodocs */
-export interface MalformedTagDiagnosticSchemaInput extends s.SchemaStrictObjectInput<
-	typeof MalformedTagDiagnosticEntries
-> {}
-/** @nodocs */
 export interface MalformedTagDiagnosticSchema extends s.Schema<
-	MalformedTagDiagnosticSchemaOutput,
-	MalformedTagDiagnosticSchemaInput,
+	MalformedTagDiagnostic,
+	MalformedTagDiagnosticInput,
 	'object',
 	typeof MalformedTagDiagnosticEntries
 > {}
@@ -694,7 +660,13 @@ export interface MalformedTagDiagnosticSchema extends s.Schema<
 export const MalformedTagDiagnostic: MalformedTagDiagnosticSchema = s.object(
 	MalformedTagDiagnosticEntries
 );
-export type MalformedTagDiagnostic = s.Infer<typeof MalformedTagDiagnostic>;
+export interface MalformedTagDiagnostic extends s.SchemaStrictObjectOutput<
+	typeof MalformedTagDiagnosticEntries
+> {}
+/** The input `MalformedTagDiagnostic` parses, with any field it defaults optional. */
+export interface MalformedTagDiagnosticInput extends s.SchemaStrictObjectInput<
+	typeof MalformedTagDiagnosticEntries
+> {}
 
 const DuplicateTagDiagnosticEntries = diagnosticEntries({
 	kind: s.literal('duplicate_tag'),
@@ -706,17 +678,9 @@ const DuplicateTagDiagnosticEntries = diagnosticEntries({
 	key: s.string
 });
 /** @nodocs */
-export interface DuplicateTagDiagnosticSchemaOutput extends s.SchemaStrictObjectOutput<
-	typeof DuplicateTagDiagnosticEntries
-> {}
-/** @nodocs */
-export interface DuplicateTagDiagnosticSchemaInput extends s.SchemaStrictObjectInput<
-	typeof DuplicateTagDiagnosticEntries
-> {}
-/** @nodocs */
 export interface DuplicateTagDiagnosticSchema extends s.Schema<
-	DuplicateTagDiagnosticSchemaOutput,
-	DuplicateTagDiagnosticSchemaInput,
+	DuplicateTagDiagnostic,
+	DuplicateTagDiagnosticInput,
 	'object',
 	typeof DuplicateTagDiagnosticEntries
 > {}
@@ -734,7 +698,13 @@ export interface DuplicateTagDiagnosticSchema extends s.Schema<
 export const DuplicateTagDiagnostic: DuplicateTagDiagnosticSchema = s.object(
 	DuplicateTagDiagnosticEntries
 );
-export type DuplicateTagDiagnostic = s.Infer<typeof DuplicateTagDiagnostic>;
+export interface DuplicateTagDiagnostic extends s.SchemaStrictObjectOutput<
+	typeof DuplicateTagDiagnosticEntries
+> {}
+/** The input `DuplicateTagDiagnostic` parses, with any field it defaults optional. */
+export interface DuplicateTagDiagnosticInput extends s.SchemaStrictObjectInput<
+	typeof DuplicateTagDiagnosticEntries
+> {}
 
 const CsspropDefaultMismatchDiagnosticEntries = diagnosticEntries({
 	kind: s.literal('cssprop_default_mismatch'),
@@ -748,17 +718,9 @@ const CsspropDefaultMismatchDiagnosticEntries = diagnosticEntries({
 	fallback: s.string
 });
 /** @nodocs */
-export interface CsspropDefaultMismatchDiagnosticSchemaOutput extends s.SchemaStrictObjectOutput<
-	typeof CsspropDefaultMismatchDiagnosticEntries
-> {}
-/** @nodocs */
-export interface CsspropDefaultMismatchDiagnosticSchemaInput extends s.SchemaStrictObjectInput<
-	typeof CsspropDefaultMismatchDiagnosticEntries
-> {}
-/** @nodocs */
 export interface CsspropDefaultMismatchDiagnosticSchema extends s.Schema<
-	CsspropDefaultMismatchDiagnosticSchemaOutput,
-	CsspropDefaultMismatchDiagnosticSchemaInput,
+	CsspropDefaultMismatchDiagnostic,
+	CsspropDefaultMismatchDiagnosticInput,
 	'object',
 	typeof CsspropDefaultMismatchDiagnosticEntries
 > {}
@@ -780,7 +742,13 @@ export interface CsspropDefaultMismatchDiagnosticSchema extends s.Schema<
 export const CsspropDefaultMismatchDiagnostic: CsspropDefaultMismatchDiagnosticSchema = s.object(
 	CsspropDefaultMismatchDiagnosticEntries
 );
-export type CsspropDefaultMismatchDiagnostic = s.Infer<typeof CsspropDefaultMismatchDiagnostic>;
+export interface CsspropDefaultMismatchDiagnostic extends s.SchemaStrictObjectOutput<
+	typeof CsspropDefaultMismatchDiagnosticEntries
+> {}
+/** The input `CsspropDefaultMismatchDiagnostic` parses, with any field it defaults optional. */
+export interface CsspropDefaultMismatchDiagnosticInput extends s.SchemaStrictObjectInput<
+	typeof CsspropDefaultMismatchDiagnosticEntries
+> {}
 
 const DuplicateDeclarationDiagnosticEntries = diagnosticEntries({
 	kind: s.literal('duplicate_declaration'),
@@ -797,17 +765,9 @@ const DuplicateDeclarationDiagnosticEntries = diagnosticEntries({
 	modules: s.pipe(s.array(s.string), s.min_length(2))
 });
 /** @nodocs */
-export interface DuplicateDeclarationDiagnosticSchemaOutput extends s.SchemaStrictObjectOutput<
-	typeof DuplicateDeclarationDiagnosticEntries
-> {}
-/** @nodocs */
-export interface DuplicateDeclarationDiagnosticSchemaInput extends s.SchemaStrictObjectInput<
-	typeof DuplicateDeclarationDiagnosticEntries
-> {}
-/** @nodocs */
 export interface DuplicateDeclarationDiagnosticSchema extends s.Schema<
-	DuplicateDeclarationDiagnosticSchemaOutput,
-	DuplicateDeclarationDiagnosticSchemaInput,
+	DuplicateDeclarationDiagnostic,
+	DuplicateDeclarationDiagnosticInput,
 	'object',
 	typeof DuplicateDeclarationDiagnosticEntries
 > {}
@@ -823,23 +783,21 @@ export interface DuplicateDeclarationDiagnosticSchema extends s.Schema<
 export const DuplicateDeclarationDiagnostic: DuplicateDeclarationDiagnosticSchema = s.object(
 	DuplicateDeclarationDiagnosticEntries
 );
-export type DuplicateDeclarationDiagnostic = s.Infer<typeof DuplicateDeclarationDiagnostic>;
+export interface DuplicateDeclarationDiagnostic extends s.SchemaStrictObjectOutput<
+	typeof DuplicateDeclarationDiagnosticEntries
+> {}
+/** The input `DuplicateDeclarationDiagnostic` parses, with any field it defaults optional. */
+export interface DuplicateDeclarationDiagnosticInput extends s.SchemaStrictObjectInput<
+	typeof DuplicateDeclarationDiagnosticEntries
+> {}
 
 const SourceMapFailedDiagnosticEntries = diagnosticEntries({
 	kind: s.literal('source_map_failed')
 });
 /** @nodocs */
-export interface SourceMapFailedDiagnosticSchemaOutput extends s.SchemaStrictObjectOutput<
-	typeof SourceMapFailedDiagnosticEntries
-> {}
-/** @nodocs */
-export interface SourceMapFailedDiagnosticSchemaInput extends s.SchemaStrictObjectInput<
-	typeof SourceMapFailedDiagnosticEntries
-> {}
-/** @nodocs */
 export interface SourceMapFailedDiagnosticSchema extends s.Schema<
-	SourceMapFailedDiagnosticSchemaOutput,
-	SourceMapFailedDiagnosticSchemaInput,
+	SourceMapFailedDiagnostic,
+	SourceMapFailedDiagnosticInput,
 	'object',
 	typeof SourceMapFailedDiagnosticEntries
 > {}
@@ -860,21 +818,19 @@ export interface SourceMapFailedDiagnosticSchema extends s.Schema<
 export const SourceMapFailedDiagnostic: SourceMapFailedDiagnosticSchema = s.object(
 	SourceMapFailedDiagnosticEntries
 );
-export type SourceMapFailedDiagnostic = s.Infer<typeof SourceMapFailedDiagnostic>;
+export interface SourceMapFailedDiagnostic extends s.SchemaStrictObjectOutput<
+	typeof SourceMapFailedDiagnosticEntries
+> {}
+/** The input `SourceMapFailedDiagnostic` parses, with any field it defaults optional. */
+export interface SourceMapFailedDiagnosticInput extends s.SchemaStrictObjectInput<
+	typeof SourceMapFailedDiagnosticEntries
+> {}
 
 const TransformFailedDiagnosticEntries = diagnosticEntries({ kind: s.literal('transform_failed') });
 /** @nodocs */
-export interface TransformFailedDiagnosticSchemaOutput extends s.SchemaStrictObjectOutput<
-	typeof TransformFailedDiagnosticEntries
-> {}
-/** @nodocs */
-export interface TransformFailedDiagnosticSchemaInput extends s.SchemaStrictObjectInput<
-	typeof TransformFailedDiagnosticEntries
-> {}
-/** @nodocs */
 export interface TransformFailedDiagnosticSchema extends s.Schema<
-	TransformFailedDiagnosticSchemaOutput,
-	TransformFailedDiagnosticSchemaInput,
+	TransformFailedDiagnostic,
+	TransformFailedDiagnosticInput,
 	'object',
 	typeof TransformFailedDiagnosticEntries
 > {}
@@ -890,7 +846,13 @@ export interface TransformFailedDiagnosticSchema extends s.Schema<
 export const TransformFailedDiagnostic: TransformFailedDiagnosticSchema = s.object(
 	TransformFailedDiagnosticEntries
 );
-export type TransformFailedDiagnostic = s.Infer<typeof TransformFailedDiagnostic>;
+export interface TransformFailedDiagnostic extends s.SchemaStrictObjectOutput<
+	typeof TransformFailedDiagnosticEntries
+> {}
+/** The input `TransformFailedDiagnostic` parses, with any field it defaults optional. */
+export interface TransformFailedDiagnosticInput extends s.SchemaStrictObjectInput<
+	typeof TransformFailedDiagnosticEntries
+> {}
 
 const ResolverFailedDiagnosticEntries = diagnosticEntries({
 	kind: s.literal('resolver_failed'),
@@ -898,17 +860,9 @@ const ResolverFailedDiagnosticEntries = diagnosticEntries({
 	specifier: s.string
 });
 /** @nodocs */
-export interface ResolverFailedDiagnosticSchemaOutput extends s.SchemaStrictObjectOutput<
-	typeof ResolverFailedDiagnosticEntries
-> {}
-/** @nodocs */
-export interface ResolverFailedDiagnosticSchemaInput extends s.SchemaStrictObjectInput<
-	typeof ResolverFailedDiagnosticEntries
-> {}
-/** @nodocs */
 export interface ResolverFailedDiagnosticSchema extends s.Schema<
-	ResolverFailedDiagnosticSchemaOutput,
-	ResolverFailedDiagnosticSchemaInput,
+	ResolverFailedDiagnostic,
+	ResolverFailedDiagnosticInput,
 	'object',
 	typeof ResolverFailedDiagnosticEntries
 > {}
@@ -928,7 +882,13 @@ export interface ResolverFailedDiagnosticSchema extends s.Schema<
 export const ResolverFailedDiagnostic: ResolverFailedDiagnosticSchema = s.object(
 	ResolverFailedDiagnosticEntries
 );
-export type ResolverFailedDiagnostic = s.Infer<typeof ResolverFailedDiagnostic>;
+export interface ResolverFailedDiagnostic extends s.SchemaStrictObjectOutput<
+	typeof ResolverFailedDiagnosticEntries
+> {}
+/** The input `ResolverFailedDiagnostic` parses, with any field it defaults optional. */
+export interface ResolverFailedDiagnosticInput extends s.SchemaStrictObjectInput<
+	typeof ResolverFailedDiagnosticEntries
+> {}
 
 const AliasLostDiagnosticEntries = diagnosticEntries({
 	kind: s.literal('alias_lost'),
@@ -936,17 +896,9 @@ const AliasLostDiagnosticEntries = diagnosticEntries({
 	aliasName: s.string
 });
 /** @nodocs */
-export interface AliasLostDiagnosticSchemaOutput extends s.SchemaStrictObjectOutput<
-	typeof AliasLostDiagnosticEntries
-> {}
-/** @nodocs */
-export interface AliasLostDiagnosticSchemaInput extends s.SchemaStrictObjectInput<
-	typeof AliasLostDiagnosticEntries
-> {}
-/** @nodocs */
 export interface AliasLostDiagnosticSchema extends s.Schema<
-	AliasLostDiagnosticSchemaOutput,
-	AliasLostDiagnosticSchemaInput,
+	AliasLostDiagnostic,
+	AliasLostDiagnosticInput,
 	'object',
 	typeof AliasLostDiagnosticEntries
 > {}
@@ -969,23 +921,21 @@ export interface AliasLostDiagnosticSchema extends s.Schema<
  * Always `warning`, query-time category (recomputed each `query()`).
  */
 export const AliasLostDiagnostic: AliasLostDiagnosticSchema = s.object(AliasLostDiagnosticEntries);
-export type AliasLostDiagnostic = s.Infer<typeof AliasLostDiagnostic>;
+export interface AliasLostDiagnostic extends s.SchemaStrictObjectOutput<
+	typeof AliasLostDiagnosticEntries
+> {}
+/** The input `AliasLostDiagnostic` parses, with any field it defaults optional. */
+export interface AliasLostDiagnosticInput extends s.SchemaStrictObjectInput<
+	typeof AliasLostDiagnosticEntries
+> {}
 
 const CommonjsUnsupportedDiagnosticEntries = diagnosticEntries({
 	kind: s.literal('commonjs_unsupported')
 });
 /** @nodocs */
-export interface CommonjsUnsupportedDiagnosticSchemaOutput extends s.SchemaStrictObjectOutput<
-	typeof CommonjsUnsupportedDiagnosticEntries
-> {}
-/** @nodocs */
-export interface CommonjsUnsupportedDiagnosticSchemaInput extends s.SchemaStrictObjectInput<
-	typeof CommonjsUnsupportedDiagnosticEntries
-> {}
-/** @nodocs */
 export interface CommonjsUnsupportedDiagnosticSchema extends s.Schema<
-	CommonjsUnsupportedDiagnosticSchemaOutput,
-	CommonjsUnsupportedDiagnosticSchemaInput,
+	CommonjsUnsupportedDiagnostic,
+	CommonjsUnsupportedDiagnosticInput,
 	'object',
 	typeof CommonjsUnsupportedDiagnosticEntries
 > {}
@@ -1009,21 +959,19 @@ export interface CommonjsUnsupportedDiagnosticSchema extends s.Schema<
 export const CommonjsUnsupportedDiagnostic: CommonjsUnsupportedDiagnosticSchema = s.object(
 	CommonjsUnsupportedDiagnosticEntries
 );
-export type CommonjsUnsupportedDiagnostic = s.Infer<typeof CommonjsUnsupportedDiagnostic>;
+export interface CommonjsUnsupportedDiagnostic extends s.SchemaStrictObjectOutput<
+	typeof CommonjsUnsupportedDiagnosticEntries
+> {}
+/** The input `CommonjsUnsupportedDiagnostic` parses, with any field it defaults optional. */
+export interface CommonjsUnsupportedDiagnosticInput extends s.SchemaStrictObjectInput<
+	typeof CommonjsUnsupportedDiagnosticEntries
+> {}
 
 const CssParseFailedDiagnosticEntries = diagnosticEntries({ kind: s.literal('css_parse_failed') });
 /** @nodocs */
-export interface CssParseFailedDiagnosticSchemaOutput extends s.SchemaStrictObjectOutput<
-	typeof CssParseFailedDiagnosticEntries
-> {}
-/** @nodocs */
-export interface CssParseFailedDiagnosticSchemaInput extends s.SchemaStrictObjectInput<
-	typeof CssParseFailedDiagnosticEntries
-> {}
-/** @nodocs */
 export interface CssParseFailedDiagnosticSchema extends s.Schema<
-	CssParseFailedDiagnosticSchemaOutput,
-	CssParseFailedDiagnosticSchemaInput,
+	CssParseFailedDiagnostic,
+	CssParseFailedDiagnosticInput,
 	'object',
 	typeof CssParseFailedDiagnosticEntries
 > {}
@@ -1042,7 +990,13 @@ export interface CssParseFailedDiagnosticSchema extends s.Schema<
 export const CssParseFailedDiagnostic: CssParseFailedDiagnosticSchema = s.object(
 	CssParseFailedDiagnosticEntries
 );
-export type CssParseFailedDiagnostic = s.Infer<typeof CssParseFailedDiagnostic>;
+export interface CssParseFailedDiagnostic extends s.SchemaStrictObjectOutput<
+	typeof CssParseFailedDiagnosticEntries
+> {}
+/** The input `CssParseFailedDiagnostic` parses, with any field it defaults optional. */
+export interface CssParseFailedDiagnosticInput extends s.SchemaStrictObjectInput<
+	typeof CssParseFailedDiagnosticEntries
+> {}
 
 const CssLangUnsupportedDiagnosticEntries = diagnosticEntries({
 	kind: s.literal('css_lang_unsupported'),
@@ -1050,17 +1004,9 @@ const CssLangUnsupportedDiagnosticEntries = diagnosticEntries({
 	lang: s.string
 });
 /** @nodocs */
-export interface CssLangUnsupportedDiagnosticSchemaOutput extends s.SchemaStrictObjectOutput<
-	typeof CssLangUnsupportedDiagnosticEntries
-> {}
-/** @nodocs */
-export interface CssLangUnsupportedDiagnosticSchemaInput extends s.SchemaStrictObjectInput<
-	typeof CssLangUnsupportedDiagnosticEntries
-> {}
-/** @nodocs */
 export interface CssLangUnsupportedDiagnosticSchema extends s.Schema<
-	CssLangUnsupportedDiagnosticSchemaOutput,
-	CssLangUnsupportedDiagnosticSchemaInput,
+	CssLangUnsupportedDiagnostic,
+	CssLangUnsupportedDiagnosticInput,
 	'object',
 	typeof CssLangUnsupportedDiagnosticEntries
 > {}
@@ -1077,7 +1023,13 @@ export interface CssLangUnsupportedDiagnosticSchema extends s.Schema<
 export const CssLangUnsupportedDiagnostic: CssLangUnsupportedDiagnosticSchema = s.object(
 	CssLangUnsupportedDiagnosticEntries
 );
-export type CssLangUnsupportedDiagnostic = s.Infer<typeof CssLangUnsupportedDiagnostic>;
+export interface CssLangUnsupportedDiagnostic extends s.SchemaStrictObjectOutput<
+	typeof CssLangUnsupportedDiagnosticEntries
+> {}
+/** The input `CssLangUnsupportedDiagnostic` parses, with any field it defaults optional. */
+export interface CssLangUnsupportedDiagnosticInput extends s.SchemaStrictObjectInput<
+	typeof CssLangUnsupportedDiagnosticEntries
+> {}
 
 /**
  * Discriminated union of all diagnostic variants. Ingest-time kinds:
