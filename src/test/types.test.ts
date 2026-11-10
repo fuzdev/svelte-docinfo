@@ -161,17 +161,17 @@ describe('string records', () => {
 	});
 });
 
-describe('parse helpers', () => {
-	const catchError = (fn: () => unknown): Error => {
-		try {
-			fn();
-		} catch (error) {
-			assert(error instanceof Error);
-			return error;
-		}
-		assert.fail('expected a throw');
-	};
+const catchError = (fn: () => unknown): Error => {
+	try {
+		fn();
+	} catch (error) {
+		assert(error instanceof Error);
+		return error;
+	}
+	assert.fail('expected a throw');
+};
 
+describe('parse helpers', () => {
 	test('the message lists every issue as `path: message`, one per line', () => {
 		const error = catchError(() =>
 			parseAnalyzeResult({
@@ -280,6 +280,50 @@ test('numeric fields reject ±Infinity', () => {
 		parseModuleJson(make(3));
 		for (const n of [Infinity, -Infinity]) {
 			assert.throws(() => parseModuleJson(make(n)), /received -?Infinity/);
+		}
+	}
+});
+
+test('line fields take positive integers only', () => {
+	const cases: Array<[path: string, make: (n: number) => unknown]> = [
+		[
+			'declarations.0.sourceLine',
+			(n) => ({ path: 'a.ts', declarations: [{ name: 'a', kind: 'type', sourceLine: n }] })
+		],
+		[
+			'declarations.0.members.0.sourceLine',
+			(n) => ({
+				path: 'a.ts',
+				declarations: [
+					{
+						name: 'a',
+						kind: 'interface',
+						members: [{ name: 'b', kind: 'variable', sourceLine: n }]
+					}
+				]
+			})
+		],
+		[
+			'reExports.0.sourceLine',
+			(n) => ({ path: 'a.ts', reExports: [{ name: 'a', module: 'b.ts', sourceLine: n }] })
+		],
+		[
+			'externalReExports.0.sourceLine',
+			(n) => ({ path: 'a.ts', externalReExports: [{ name: 'a', specifier: 'pkg', sourceLine: n }] })
+		]
+	];
+	for (const [path, make] of cases) {
+		parseModuleJson(make(1));
+		for (const [n, expected] of [
+			[0, 'expected >= 1, received number'],
+			[-1, 'expected >= 1, received number'],
+			[1.5, 'expected safe_integer, received number'],
+			[2 ** 53, 'expected safe_integer, received number']
+		] as const) {
+			assert.strictEqual(
+				catchError(() => parseModuleJson(make(n))).message,
+				`${path}: ${expected}`
+			);
 		}
 	}
 });

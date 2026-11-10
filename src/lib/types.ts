@@ -127,6 +127,9 @@ export type Reactivity = s.Infer<typeof Reactivity>;
 // option's, so each container repeats the whole tree below it, which
 // multiplies the declarations' size. `dist-types.test.ts` guards it.
 
+/** A 1-based source line: a positive integer. */
+const SourceLine = s.pipe(s.number, s.safe_integer, s.min_value(1));
+
 const GenericParamJsonEntries = {
 	/** Parameter name like `T`. */
 	name: s.string,
@@ -730,7 +733,7 @@ const ComponentCssPropertyJsonEntries = {
 	 * `var()` read, or for a documented property the component never reads,
 	 * of its `@cssprop` tag.
 	 */
-	sourceLine: s.pipe(s.number, s.safe_integer, s.min_value(1)),
+	sourceLine: SourceLine,
 	/**
 	 * Whether a `@cssprop` tag in the component's doc comment documents the
 	 * property, as opposed to the fallback-read heuristic (or an `@property`
@@ -845,11 +848,11 @@ const declarationSharedFields = {
 	/** TypeScript modifiers like `readonly`, `static`, or `protected`. */
 	modifiers: s.with_default_fn(s.array(DeclarationModifier), () => []),
 	/**
-	 * 1-indexed line number in source file.
+	 * 1-based line in the source file, a positive integer.
 	 * Synthesized aliases (see `aliasOf`) carry the local export specifier's line, not the
 	 * canonical's.
 	 */
-	sourceLine: s.optional(s.number),
+	sourceLine: s.optional(SourceLine),
 	/** Generic type parameters like `<T, U>`. */
 	genericParams: s.with_default_fn(s.array(GenericParamJson), () => []),
 	...docFields,
@@ -1685,11 +1688,11 @@ const ReExportJsonEntries = {
 	 */
 	typeOnly: s.with_default(s.boolean, false),
 	/**
-	 * 1-based line of the export specifier in this module's source. When
-	 * identical `(name, module)` edges are deduped (Svelte default-slot
-	 * re-keying), the smallest line is kept.
+	 * 1-based line of the export specifier in this module's source, a
+	 * positive integer. When identical `(name, module)` edges are deduped
+	 * (Svelte default-slot re-keying), the smallest line is kept.
 	 */
-	sourceLine: s.optional(s.number)
+	sourceLine: s.optional(SourceLine)
 };
 /** @nodocs */
 export interface ReExportJsonSchema extends s.Schema<
@@ -1762,8 +1765,8 @@ const ExternalReExportJsonEntries = {
 	originalName: s.optional(s.string),
 	/** Whether the statement or specifier is type-only — see `ReExportJson.typeOnly`. */
 	typeOnly: s.with_default(s.boolean, false),
-	/** 1-based line of the export specifier in this module's source. */
-	sourceLine: s.optional(s.number)
+	/** 1-based line of the export specifier in this module's source, a positive integer. */
+	sourceLine: s.optional(SourceLine)
 };
 /** @nodocs */
 export interface ExternalReExportJsonSchema extends s.Schema<
