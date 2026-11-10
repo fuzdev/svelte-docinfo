@@ -118,13 +118,14 @@ export const Reactivity = s.one_of(['$state', '$state.raw', '$derived', '$derive
 export type Reactivity = s.Infer<typeof Reactivity>;
 
 // Each exported object schema is named through interfaces so the emitted
-// declarations reference it by name: `FooSchema` for the schema, and
-// `FooSchemaOutput`/`FooSchemaInput` for its output and input, which extend
-// the types `s.object` computes from the entries (`FooEntries`). Unnamed, an
-// object schema's type carries its output and input written out structurally,
-// and a variant's carries every option's, so each container repeats the
-// whole tree below it, which multiplies the declarations' size.
-// `dist-types.test.ts` guards it.
+// declarations reference it by name: `FooSchema` (`@nodocs`) for the schema,
+// over the public `Foo` and `FooInput` for its output and input, which extend
+// the types `s.object` computes from the entries (`FooEntries`). `Foo` merges
+// with the const, whose JSDoc documents both, so TypeScript's errors and
+// hovers print the public name. Unnamed, an object schema's type carries its
+// output and input written out structurally, and a variant's carries every
+// option's, so each container repeats the whole tree below it, which
+// multiplies the declarations' size. `dist-types.test.ts` guards it.
 
 const GenericParamJsonEntries = {
 	/** Parameter name like `T`. */
@@ -135,17 +136,9 @@ const GenericParamJsonEntries = {
 	defaultType: s.optional(s.string)
 };
 /** @nodocs */
-export interface GenericParamJsonSchemaOutput extends s.SchemaStrictObjectOutput<
-	typeof GenericParamJsonEntries
-> {}
-/** @nodocs */
-export interface GenericParamJsonSchemaInput extends s.SchemaStrictObjectInput<
-	typeof GenericParamJsonEntries
-> {}
-/** @nodocs */
 export interface GenericParamJsonSchema extends s.Schema<
-	GenericParamJsonSchemaOutput,
-	GenericParamJsonSchemaInput,
+	GenericParamJson,
+	GenericParamJsonInput,
 	'object',
 	typeof GenericParamJsonEntries
 > {}
@@ -156,7 +149,13 @@ export interface GenericParamJsonSchema extends s.Schema<
  * that declare generic type parameters.
  */
 export const GenericParamJson: GenericParamJsonSchema = s.object(GenericParamJsonEntries);
-export type GenericParamJson = s.Infer<typeof GenericParamJson>;
+export interface GenericParamJson extends s.SchemaStrictObjectOutput<
+	typeof GenericParamJsonEntries
+> {}
+/** The input `GenericParamJson` parses, with any field it defaults optional. */
+export interface GenericParamJsonInput extends s.SchemaStrictObjectInput<
+	typeof GenericParamJsonEntries
+> {}
 
 /**
  * Structured type information — the machine-readable counterpart to the flat
@@ -525,17 +524,9 @@ const ParameterJsonEntries = {
 	propertyDescriptions: s.optional(StringRecord)
 };
 /** @nodocs */
-export interface ParameterJsonSchemaOutput extends s.SchemaStrictObjectOutput<
-	typeof ParameterJsonEntries
-> {}
-/** @nodocs */
-export interface ParameterJsonSchemaInput extends s.SchemaStrictObjectInput<
-	typeof ParameterJsonEntries
-> {}
-/** @nodocs */
 export interface ParameterJsonSchema extends s.Schema<
-	ParameterJsonSchemaOutput,
-	ParameterJsonSchemaInput,
+	ParameterJson,
+	ParameterJsonInput,
 	'object',
 	typeof ParameterJsonEntries
 > {}
@@ -552,8 +543,11 @@ export interface ParameterJsonSchema extends s.Schema<
  * of its own.
  */
 export const ParameterJson: ParameterJsonSchema = s.object(ParameterJsonEntries);
-export type ParameterJson = s.Infer<typeof ParameterJson>;
-export type ParameterJsonInput = s.InferInput<typeof ParameterJson>;
+export interface ParameterJson extends s.SchemaStrictObjectOutput<typeof ParameterJsonEntries> {}
+/** The input `ParameterJson` parses, with any field it defaults optional. */
+export interface ParameterJsonInput extends s.SchemaStrictObjectInput<
+	typeof ParameterJsonEntries
+> {}
 
 /**
  * Doc-comment fields shared across declarations, members, and component props.
@@ -674,17 +668,9 @@ const ComponentPropJsonEntries = {
 	...docFields
 };
 /** @nodocs */
-export interface ComponentPropJsonSchemaOutput extends s.SchemaStrictObjectOutput<
-	typeof ComponentPropJsonEntries
-> {}
-/** @nodocs */
-export interface ComponentPropJsonSchemaInput extends s.SchemaStrictObjectInput<
-	typeof ComponentPropJsonEntries
-> {}
-/** @nodocs */
 export interface ComponentPropJsonSchema extends s.Schema<
-	ComponentPropJsonSchemaOutput,
-	ComponentPropJsonSchemaInput,
+	ComponentPropJson,
+	ComponentPropJsonInput,
 	'object',
 	typeof ComponentPropJsonEntries
 > {}
@@ -698,8 +684,13 @@ export interface ComponentPropJsonSchema extends s.Schema<
  * `export let` prop).
  */
 export const ComponentPropJson: ComponentPropJsonSchema = s.object(ComponentPropJsonEntries);
-export type ComponentPropJson = s.Infer<typeof ComponentPropJson>;
-export type ComponentPropJsonInput = s.InferInput<typeof ComponentPropJson>;
+export interface ComponentPropJson extends s.SchemaStrictObjectOutput<
+	typeof ComponentPropJsonEntries
+> {}
+/** The input `ComponentPropJson` parses, with any field it defaults optional. */
+export interface ComponentPropJsonInput extends s.SchemaStrictObjectInput<
+	typeof ComponentPropJsonEntries
+> {}
 
 const ComponentCssPropertyJsonEntries = {
 	/** The custom property's name as written, `--` included (`--a_color`); case-sensitive, as in CSS. */
@@ -750,17 +741,9 @@ const ComponentCssPropertyJsonEntries = {
 	documented: s.with_default(s.boolean, false)
 };
 /** @nodocs */
-export interface ComponentCssPropertyJsonSchemaOutput extends s.SchemaStrictObjectOutput<
-	typeof ComponentCssPropertyJsonEntries
-> {}
-/** @nodocs */
-export interface ComponentCssPropertyJsonSchemaInput extends s.SchemaStrictObjectInput<
-	typeof ComponentCssPropertyJsonEntries
-> {}
-/** @nodocs */
 export interface ComponentCssPropertyJsonSchema extends s.Schema<
-	ComponentCssPropertyJsonSchemaOutput,
-	ComponentCssPropertyJsonSchemaInput,
+	ComponentCssPropertyJson,
+	ComponentCssPropertyJsonInput,
 	'object',
 	typeof ComponentCssPropertyJsonEntries
 > {}
@@ -778,8 +761,13 @@ export interface ComponentCssPropertyJsonSchema extends s.Schema<
 export const ComponentCssPropertyJson: ComponentCssPropertyJsonSchema = s.object(
 	ComponentCssPropertyJsonEntries
 );
-export type ComponentCssPropertyJson = s.Infer<typeof ComponentCssPropertyJson>;
-export type ComponentCssPropertyJsonInput = s.InferInput<typeof ComponentCssPropertyJson>;
+export interface ComponentCssPropertyJson extends s.SchemaStrictObjectOutput<
+	typeof ComponentCssPropertyJsonEntries
+> {}
+/** The input `ComponentCssPropertyJson` parses, with any field it defaults optional. */
+export interface ComponentCssPropertyJsonInput extends s.SchemaStrictObjectInput<
+	typeof ComponentCssPropertyJsonEntries
+> {}
 
 const OverloadJsonEntries = {
 	/** Full TypeScript type signature for this overload. */
@@ -798,17 +786,9 @@ const OverloadJsonEntries = {
 	returnDescription: s.optional(s.string)
 };
 /** @nodocs */
-export interface OverloadJsonSchemaOutput extends s.SchemaStrictObjectOutput<
-	typeof OverloadJsonEntries
-> {}
-/** @nodocs */
-export interface OverloadJsonSchemaInput extends s.SchemaStrictObjectInput<
-	typeof OverloadJsonEntries
-> {}
-/** @nodocs */
 export interface OverloadJsonSchema extends s.Schema<
-	OverloadJsonSchemaOutput,
-	OverloadJsonSchemaInput,
+	OverloadJson,
+	OverloadJsonInput,
 	'object',
 	typeof OverloadJsonEntries
 > {}
@@ -819,8 +799,9 @@ export interface OverloadJsonSchema extends s.Schema<
  * is captured here. The implementation signature is excluded.
  */
 export const OverloadJson: OverloadJsonSchema = s.object(OverloadJsonEntries);
-export type OverloadJson = s.Infer<typeof OverloadJson>;
-export type OverloadJsonInput = s.InferInput<typeof OverloadJson>;
+export interface OverloadJson extends s.SchemaStrictObjectOutput<typeof OverloadJsonEntries> {}
+/** The input `OverloadJson` parses, with any field it defaults optional. */
+export interface OverloadJsonInput extends s.SchemaStrictObjectInput<typeof OverloadJsonEntries> {}
 
 /**
  * The subset of declaration kinds that appear as nested members in classes, interfaces, and types.
@@ -927,17 +908,9 @@ const FunctionMemberJsonEntries = {
 	defaultValue: s.optional(s.string)
 };
 /** @nodocs */
-export interface FunctionMemberJsonSchemaOutput extends s.SchemaStrictObjectOutput<
-	typeof FunctionMemberJsonEntries
-> {}
-/** @nodocs */
-export interface FunctionMemberJsonSchemaInput extends s.SchemaStrictObjectInput<
-	typeof FunctionMemberJsonEntries
-> {}
-/** @nodocs */
 export interface FunctionMemberJsonSchema extends s.Schema<
-	FunctionMemberJsonSchemaOutput,
-	FunctionMemberJsonSchemaInput,
+	FunctionMemberJson,
+	FunctionMemberJsonInput,
 	'object',
 	typeof FunctionMemberJsonEntries
 > {}
@@ -954,7 +927,13 @@ export interface FunctionMemberJsonSchema extends s.Schema<
  * `'(call)'`.
  */
 export const FunctionMemberJson: FunctionMemberJsonSchema = s.object(FunctionMemberJsonEntries);
-export type FunctionMemberJson = s.Infer<typeof FunctionMemberJson>;
+export interface FunctionMemberJson extends s.SchemaStrictObjectOutput<
+	typeof FunctionMemberJsonEntries
+> {}
+/** The input `FunctionMemberJson` parses, with any field it defaults optional. */
+export interface FunctionMemberJsonInput extends s.SchemaStrictObjectInput<
+	typeof FunctionMemberJsonEntries
+> {}
 
 const VariableMemberJsonEntries = {
 	...declarationSharedFields,
@@ -979,17 +958,9 @@ const VariableMemberJsonEntries = {
 	typeInfo: s.optional(TypeJson)
 };
 /** @nodocs */
-export interface VariableMemberJsonSchemaOutput extends s.SchemaStrictObjectOutput<
-	typeof VariableMemberJsonEntries
-> {}
-/** @nodocs */
-export interface VariableMemberJsonSchemaInput extends s.SchemaStrictObjectInput<
-	typeof VariableMemberJsonEntries
-> {}
-/** @nodocs */
 export interface VariableMemberJsonSchema extends s.Schema<
-	VariableMemberJsonSchemaOutput,
-	VariableMemberJsonSchemaInput,
+	VariableMemberJson,
+	VariableMemberJsonInput,
 	'object',
 	typeof VariableMemberJsonEntries
 > {}
@@ -1002,7 +973,13 @@ export interface VariableMemberJsonSchema extends s.Schema<
  * Always `false` for index signatures and enum values.
  */
 export const VariableMemberJson: VariableMemberJsonSchema = s.object(VariableMemberJsonEntries);
-export type VariableMemberJson = s.Infer<typeof VariableMemberJson>;
+export interface VariableMemberJson extends s.SchemaStrictObjectOutput<
+	typeof VariableMemberJsonEntries
+> {}
+/** The input `VariableMemberJson` parses, with any field it defaults optional. */
+export interface VariableMemberJsonInput extends s.SchemaStrictObjectInput<
+	typeof VariableMemberJsonEntries
+> {}
 
 const ConstructorMemberJsonEntries = {
 	...declarationSharedFields,
@@ -1011,17 +988,9 @@ const ConstructorMemberJsonEntries = {
 	name: s.union([s.literal('constructor'), s.literal('(construct)')])
 };
 /** @nodocs */
-export interface ConstructorMemberJsonSchemaOutput extends s.SchemaStrictObjectOutput<
-	typeof ConstructorMemberJsonEntries
-> {}
-/** @nodocs */
-export interface ConstructorMemberJsonSchemaInput extends s.SchemaStrictObjectInput<
-	typeof ConstructorMemberJsonEntries
-> {}
-/** @nodocs */
 export interface ConstructorMemberJsonSchema extends s.Schema<
-	ConstructorMemberJsonSchemaOutput,
-	ConstructorMemberJsonSchemaInput,
+	ConstructorMemberJson,
+	ConstructorMemberJsonInput,
 	'object',
 	typeof ConstructorMemberJsonEntries
 > {}
@@ -1041,7 +1010,13 @@ export interface ConstructorMemberJsonSchema extends s.Schema<
 export const ConstructorMemberJson: ConstructorMemberJsonSchema = s.object(
 	ConstructorMemberJsonEntries
 );
-export type ConstructorMemberJson = s.Infer<typeof ConstructorMemberJson>;
+export interface ConstructorMemberJson extends s.SchemaStrictObjectOutput<
+	typeof ConstructorMemberJsonEntries
+> {}
+/** The input `ConstructorMemberJson` parses, with any field it defaults optional. */
+export interface ConstructorMemberJsonInput extends s.SchemaStrictObjectInput<
+	typeof ConstructorMemberJsonEntries
+> {}
 
 /**
  * Metadata for a nested declaration within a class, interface, type, or enum.
@@ -1061,8 +1036,9 @@ export const MemberJson: VariantSchema<
 > = s.variant('kind', [FunctionMemberJson, VariableMemberJson, ConstructorMemberJson]);
 // written out, not `s.Infer`, so the union keeps its name at use sites
 export type MemberJson = FunctionMemberJson | VariableMemberJson | ConstructorMemberJson;
+/** The input `MemberJson` parses, with any field it defaults optional. */
 export type MemberJsonInput =
-	FunctionMemberJsonSchemaInput | VariableMemberJsonSchemaInput | ConstructorMemberJsonSchemaInput;
+	FunctionMemberJsonInput | VariableMemberJsonInput | ConstructorMemberJsonInput;
 
 // DeclarationJson Variants
 
@@ -1126,17 +1102,9 @@ const FunctionDeclarationJsonEntries = {
 	kind: s.literal('function')
 };
 /** @nodocs */
-export interface FunctionDeclarationJsonSchemaOutput extends s.SchemaStrictObjectOutput<
-	typeof FunctionDeclarationJsonEntries
-> {}
-/** @nodocs */
-export interface FunctionDeclarationJsonSchemaInput extends s.SchemaStrictObjectInput<
-	typeof FunctionDeclarationJsonEntries
-> {}
-/** @nodocs */
 export interface FunctionDeclarationJsonSchema extends s.Schema<
-	FunctionDeclarationJsonSchemaOutput,
-	FunctionDeclarationJsonSchemaInput,
+	FunctionDeclarationJson,
+	FunctionDeclarationJsonInput,
 	'object',
 	typeof FunctionDeclarationJsonEntries
 > {}
@@ -1144,7 +1112,13 @@ export interface FunctionDeclarationJsonSchema extends s.Schema<
 export const FunctionDeclarationJson: FunctionDeclarationJsonSchema = s.object(
 	FunctionDeclarationJsonEntries
 );
-export type FunctionDeclarationJson = s.Infer<typeof FunctionDeclarationJson>;
+export interface FunctionDeclarationJson extends s.SchemaStrictObjectOutput<
+	typeof FunctionDeclarationJsonEntries
+> {}
+/** The input `FunctionDeclarationJson` parses, with any field it defaults optional. */
+export interface FunctionDeclarationJsonInput extends s.SchemaStrictObjectInput<
+	typeof FunctionDeclarationJsonEntries
+> {}
 
 const ClassDeclarationJsonEntries = {
 	...declarationSharedFields,
@@ -1190,17 +1164,9 @@ const ClassDeclarationJsonEntries = {
 	members: s.with_default_fn(s.array(MemberJson), () => [])
 };
 /** @nodocs */
-export interface ClassDeclarationJsonSchemaOutput extends s.SchemaStrictObjectOutput<
-	typeof ClassDeclarationJsonEntries
-> {}
-/** @nodocs */
-export interface ClassDeclarationJsonSchemaInput extends s.SchemaStrictObjectInput<
-	typeof ClassDeclarationJsonEntries
-> {}
-/** @nodocs */
 export interface ClassDeclarationJsonSchema extends s.Schema<
-	ClassDeclarationJsonSchemaOutput,
-	ClassDeclarationJsonSchemaInput,
+	ClassDeclarationJson,
+	ClassDeclarationJsonInput,
 	'object',
 	typeof ClassDeclarationJsonEntries
 > {}
@@ -1208,7 +1174,13 @@ export interface ClassDeclarationJsonSchema extends s.Schema<
 export const ClassDeclarationJson: ClassDeclarationJsonSchema = s.object(
 	ClassDeclarationJsonEntries
 );
-export type ClassDeclarationJson = s.Infer<typeof ClassDeclarationJson>;
+export interface ClassDeclarationJson extends s.SchemaStrictObjectOutput<
+	typeof ClassDeclarationJsonEntries
+> {}
+/** The input `ClassDeclarationJson` parses, with any field it defaults optional. */
+export interface ClassDeclarationJsonInput extends s.SchemaStrictObjectInput<
+	typeof ClassDeclarationJsonEntries
+> {}
 
 const InterfaceDeclarationJsonEntries = {
 	...declarationSharedFields,
@@ -1291,17 +1263,9 @@ const InterfaceDeclarationJsonEntries = {
 	mergedValue: s.with_default(s.boolean, false)
 };
 /** @nodocs */
-export interface InterfaceDeclarationJsonSchemaOutput extends s.SchemaStrictObjectOutput<
-	typeof InterfaceDeclarationJsonEntries
-> {}
-/** @nodocs */
-export interface InterfaceDeclarationJsonSchemaInput extends s.SchemaStrictObjectInput<
-	typeof InterfaceDeclarationJsonEntries
-> {}
-/** @nodocs */
 export interface InterfaceDeclarationJsonSchema extends s.Schema<
-	InterfaceDeclarationJsonSchemaOutput,
-	InterfaceDeclarationJsonSchemaInput,
+	InterfaceDeclarationJson,
+	InterfaceDeclarationJsonInput,
 	'object',
 	typeof InterfaceDeclarationJsonEntries
 > {}
@@ -1309,7 +1273,13 @@ export interface InterfaceDeclarationJsonSchema extends s.Schema<
 export const InterfaceDeclarationJson: InterfaceDeclarationJsonSchema = s.object(
 	InterfaceDeclarationJsonEntries
 );
-export type InterfaceDeclarationJson = s.Infer<typeof InterfaceDeclarationJson>;
+export interface InterfaceDeclarationJson extends s.SchemaStrictObjectOutput<
+	typeof InterfaceDeclarationJsonEntries
+> {}
+/** The input `InterfaceDeclarationJson` parses, with any field it defaults optional. */
+export interface InterfaceDeclarationJsonInput extends s.SchemaStrictObjectInput<
+	typeof InterfaceDeclarationJsonEntries
+> {}
 
 const TypeDeclarationJsonEntries = {
 	...declarationSharedFields,
@@ -1379,23 +1349,21 @@ const TypeDeclarationJsonEntries = {
 	mergedValue: s.with_default(s.boolean, false)
 };
 /** @nodocs */
-export interface TypeDeclarationJsonSchemaOutput extends s.SchemaStrictObjectOutput<
-	typeof TypeDeclarationJsonEntries
-> {}
-/** @nodocs */
-export interface TypeDeclarationJsonSchemaInput extends s.SchemaStrictObjectInput<
-	typeof TypeDeclarationJsonEntries
-> {}
-/** @nodocs */
 export interface TypeDeclarationJsonSchema extends s.Schema<
-	TypeDeclarationJsonSchemaOutput,
-	TypeDeclarationJsonSchemaInput,
+	TypeDeclarationJson,
+	TypeDeclarationJsonInput,
 	'object',
 	typeof TypeDeclarationJsonEntries
 > {}
 /** A type alias declaration. Has `members`, `externalTypes`. */
 export const TypeDeclarationJson: TypeDeclarationJsonSchema = s.object(TypeDeclarationJsonEntries);
-export type TypeDeclarationJson = s.Infer<typeof TypeDeclarationJson>;
+export interface TypeDeclarationJson extends s.SchemaStrictObjectOutput<
+	typeof TypeDeclarationJsonEntries
+> {}
+/** The input `TypeDeclarationJson` parses, with any field it defaults optional. */
+export interface TypeDeclarationJsonInput extends s.SchemaStrictObjectInput<
+	typeof TypeDeclarationJsonEntries
+> {}
 
 const VariableDeclarationJsonEntries = {
 	...declarationSharedFields,
@@ -1414,17 +1382,9 @@ const VariableDeclarationJsonEntries = {
 	typeInfo: s.optional(TypeJson)
 };
 /** @nodocs */
-export interface VariableDeclarationJsonSchemaOutput extends s.SchemaStrictObjectOutput<
-	typeof VariableDeclarationJsonEntries
-> {}
-/** @nodocs */
-export interface VariableDeclarationJsonSchemaInput extends s.SchemaStrictObjectInput<
-	typeof VariableDeclarationJsonEntries
-> {}
-/** @nodocs */
 export interface VariableDeclarationJsonSchema extends s.Schema<
-	VariableDeclarationJsonSchemaOutput,
-	VariableDeclarationJsonSchemaInput,
+	VariableDeclarationJson,
+	VariableDeclarationJsonInput,
 	'object',
 	typeof VariableDeclarationJsonEntries
 > {}
@@ -1435,7 +1395,13 @@ export interface VariableDeclarationJsonSchema extends s.Schema<
 export const VariableDeclarationJson: VariableDeclarationJsonSchema = s.object(
 	VariableDeclarationJsonEntries
 );
-export type VariableDeclarationJson = s.Infer<typeof VariableDeclarationJson>;
+export interface VariableDeclarationJson extends s.SchemaStrictObjectOutput<
+	typeof VariableDeclarationJsonEntries
+> {}
+/** The input `VariableDeclarationJson` parses, with any field it defaults optional. */
+export interface VariableDeclarationJsonInput extends s.SchemaStrictObjectInput<
+	typeof VariableDeclarationJsonEntries
+> {}
 
 const EnumDeclarationJsonEntries = {
 	...declarationSharedFields,
@@ -1445,23 +1411,21 @@ const EnumDeclarationJsonEntries = {
 	members: s.with_default_fn(s.array(MemberJson), () => [])
 };
 /** @nodocs */
-export interface EnumDeclarationJsonSchemaOutput extends s.SchemaStrictObjectOutput<
-	typeof EnumDeclarationJsonEntries
-> {}
-/** @nodocs */
-export interface EnumDeclarationJsonSchemaInput extends s.SchemaStrictObjectInput<
-	typeof EnumDeclarationJsonEntries
-> {}
-/** @nodocs */
 export interface EnumDeclarationJsonSchema extends s.Schema<
-	EnumDeclarationJsonSchemaOutput,
-	EnumDeclarationJsonSchemaInput,
+	EnumDeclarationJson,
+	EnumDeclarationJsonInput,
 	'object',
 	typeof EnumDeclarationJsonEntries
 > {}
 /** An enum declaration. Has `members` for enum values. */
 export const EnumDeclarationJson: EnumDeclarationJsonSchema = s.object(EnumDeclarationJsonEntries);
-export type EnumDeclarationJson = s.Infer<typeof EnumDeclarationJson>;
+export interface EnumDeclarationJson extends s.SchemaStrictObjectOutput<
+	typeof EnumDeclarationJsonEntries
+> {}
+/** The input `EnumDeclarationJson` parses, with any field it defaults optional. */
+export interface EnumDeclarationJsonInput extends s.SchemaStrictObjectInput<
+	typeof EnumDeclarationJsonEntries
+> {}
 
 const ComponentDeclarationJsonEntries = {
 	...declarationSharedFields,
@@ -1571,17 +1535,9 @@ const ComponentDeclarationJsonEntries = {
 	lang: s.optional(s.one_of(['js']))
 };
 /** @nodocs */
-export interface ComponentDeclarationJsonSchemaOutput extends s.SchemaStrictObjectOutput<
-	typeof ComponentDeclarationJsonEntries
-> {}
-/** @nodocs */
-export interface ComponentDeclarationJsonSchemaInput extends s.SchemaStrictObjectInput<
-	typeof ComponentDeclarationJsonEntries
-> {}
-/** @nodocs */
 export interface ComponentDeclarationJsonSchema extends s.Schema<
-	ComponentDeclarationJsonSchemaOutput,
-	ComponentDeclarationJsonSchemaInput,
+	ComponentDeclarationJson,
+	ComponentDeclarationJsonInput,
 	'object',
 	typeof ComponentDeclarationJsonEntries
 > {}
@@ -1592,7 +1548,13 @@ export interface ComponentDeclarationJsonSchema extends s.Schema<
 export const ComponentDeclarationJson: ComponentDeclarationJsonSchema = s.object(
 	ComponentDeclarationJsonEntries
 );
-export type ComponentDeclarationJson = s.Infer<typeof ComponentDeclarationJson>;
+export interface ComponentDeclarationJson extends s.SchemaStrictObjectOutput<
+	typeof ComponentDeclarationJsonEntries
+> {}
+/** The input `ComponentDeclarationJson` parses, with any field it defaults optional. */
+export interface ComponentDeclarationJsonInput extends s.SchemaStrictObjectInput<
+	typeof ComponentDeclarationJsonEntries
+> {}
 
 const SnippetDeclarationJsonEntries = {
 	...declarationSharedFields,
@@ -1602,17 +1564,9 @@ const SnippetDeclarationJsonEntries = {
 	parameters: s.with_default_fn(s.array(ParameterJson), () => [])
 };
 /** @nodocs */
-export interface SnippetDeclarationJsonSchemaOutput extends s.SchemaStrictObjectOutput<
-	typeof SnippetDeclarationJsonEntries
-> {}
-/** @nodocs */
-export interface SnippetDeclarationJsonSchemaInput extends s.SchemaStrictObjectInput<
-	typeof SnippetDeclarationJsonEntries
-> {}
-/** @nodocs */
 export interface SnippetDeclarationJsonSchema extends s.Schema<
-	SnippetDeclarationJsonSchemaOutput,
-	SnippetDeclarationJsonSchemaInput,
+	SnippetDeclarationJson,
+	SnippetDeclarationJsonInput,
 	'object',
 	typeof SnippetDeclarationJsonEntries
 > {}
@@ -1620,7 +1574,13 @@ export interface SnippetDeclarationJsonSchema extends s.Schema<
 export const SnippetDeclarationJson: SnippetDeclarationJsonSchema = s.object(
 	SnippetDeclarationJsonEntries
 );
-export type SnippetDeclarationJson = s.Infer<typeof SnippetDeclarationJson>;
+export interface SnippetDeclarationJson extends s.SchemaStrictObjectOutput<
+	typeof SnippetDeclarationJsonEntries
+> {}
+/** The input `SnippetDeclarationJson` parses, with any field it defaults optional. */
+export interface SnippetDeclarationJsonInput extends s.SchemaStrictObjectInput<
+	typeof SnippetDeclarationJsonEntries
+> {}
 
 const NamespaceDeclarationJsonEntries = {
 	...declarationSharedFields,
@@ -1630,17 +1590,9 @@ const NamespaceDeclarationJsonEntries = {
 	module: s.string
 };
 /** @nodocs */
-export interface NamespaceDeclarationJsonSchemaOutput extends s.SchemaStrictObjectOutput<
-	typeof NamespaceDeclarationJsonEntries
-> {}
-/** @nodocs */
-export interface NamespaceDeclarationJsonSchemaInput extends s.SchemaStrictObjectInput<
-	typeof NamespaceDeclarationJsonEntries
-> {}
-/** @nodocs */
 export interface NamespaceDeclarationJsonSchema extends s.Schema<
-	NamespaceDeclarationJsonSchemaOutput,
-	NamespaceDeclarationJsonSchemaInput,
+	NamespaceDeclarationJson,
+	NamespaceDeclarationJsonInput,
 	'object',
 	typeof NamespaceDeclarationJsonEntries
 > {}
@@ -1659,7 +1611,13 @@ export interface NamespaceDeclarationJsonSchema extends s.Schema<
 export const NamespaceDeclarationJson: NamespaceDeclarationJsonSchema = s.object(
 	NamespaceDeclarationJsonEntries
 );
-export type NamespaceDeclarationJson = s.Infer<typeof NamespaceDeclarationJson>;
+export interface NamespaceDeclarationJson extends s.SchemaStrictObjectOutput<
+	typeof NamespaceDeclarationJsonEntries
+> {}
+/** The input `NamespaceDeclarationJson` parses, with any field it defaults optional. */
+export interface NamespaceDeclarationJsonInput extends s.SchemaStrictObjectInput<
+	typeof NamespaceDeclarationJsonEntries
+> {}
 
 /**
  * Metadata for an exported declaration (function, type, class, component, etc.).
@@ -1702,16 +1660,17 @@ export type DeclarationJson =
 	| ComponentDeclarationJson
 	| SnippetDeclarationJson
 	| NamespaceDeclarationJson;
+/** The input `DeclarationJson` parses, with any field it defaults optional. */
 export type DeclarationJsonInput =
-	| FunctionDeclarationJsonSchemaInput
-	| ClassDeclarationJsonSchemaInput
-	| InterfaceDeclarationJsonSchemaInput
-	| TypeDeclarationJsonSchemaInput
-	| VariableDeclarationJsonSchemaInput
-	| EnumDeclarationJsonSchemaInput
-	| ComponentDeclarationJsonSchemaInput
-	| SnippetDeclarationJsonSchemaInput
-	| NamespaceDeclarationJsonSchemaInput;
+	| FunctionDeclarationJsonInput
+	| ClassDeclarationJsonInput
+	| InterfaceDeclarationJsonInput
+	| TypeDeclarationJsonInput
+	| VariableDeclarationJsonInput
+	| EnumDeclarationJsonInput
+	| ComponentDeclarationJsonInput
+	| SnippetDeclarationJsonInput
+	| NamespaceDeclarationJsonInput;
 
 const ReExportJsonEntries = {
 	/** Exported name — the canonical declaration's name in `module`. */
@@ -1733,17 +1692,9 @@ const ReExportJsonEntries = {
 	sourceLine: s.optional(s.number)
 };
 /** @nodocs */
-export interface ReExportJsonSchemaOutput extends s.SchemaStrictObjectOutput<
-	typeof ReExportJsonEntries
-> {}
-/** @nodocs */
-export interface ReExportJsonSchemaInput extends s.SchemaStrictObjectInput<
-	typeof ReExportJsonEntries
-> {}
-/** @nodocs */
 export interface ReExportJsonSchema extends s.Schema<
-	ReExportJsonSchemaOutput,
-	ReExportJsonSchemaInput,
+	ReExportJson,
+	ReExportJsonInput,
 	'object',
 	typeof ReExportJsonEntries
 > {}
@@ -1794,8 +1745,9 @@ export interface ReExportJsonSchema extends s.Schema<
  * line and type-only-ness (see `ModuleJson.starExports`).
  */
 export const ReExportJson: ReExportJsonSchema = s.object(ReExportJsonEntries);
-export type ReExportJson = s.Infer<typeof ReExportJson>;
-export type ReExportJsonInput = s.InferInput<typeof ReExportJson>;
+export interface ReExportJson extends s.SchemaStrictObjectOutput<typeof ReExportJsonEntries> {}
+/** The input `ReExportJson` parses, with any field it defaults optional. */
+export interface ReExportJsonInput extends s.SchemaStrictObjectInput<typeof ReExportJsonEntries> {}
 
 const ExternalReExportJsonEntries = {
 	/** Public exported name from this module. */
@@ -1814,17 +1766,9 @@ const ExternalReExportJsonEntries = {
 	sourceLine: s.optional(s.number)
 };
 /** @nodocs */
-export interface ExternalReExportJsonSchemaOutput extends s.SchemaStrictObjectOutput<
-	typeof ExternalReExportJsonEntries
-> {}
-/** @nodocs */
-export interface ExternalReExportJsonSchemaInput extends s.SchemaStrictObjectInput<
-	typeof ExternalReExportJsonEntries
-> {}
-/** @nodocs */
 export interface ExternalReExportJsonSchema extends s.Schema<
-	ExternalReExportJsonSchemaOutput,
-	ExternalReExportJsonSchemaInput,
+	ExternalReExportJson,
+	ExternalReExportJsonInput,
 	'object',
 	typeof ExternalReExportJsonEntries
 > {}
@@ -1849,8 +1793,13 @@ export interface ExternalReExportJsonSchema extends s.Schema<
 export const ExternalReExportJson: ExternalReExportJsonSchema = s.object(
 	ExternalReExportJsonEntries
 );
-export type ExternalReExportJson = s.Infer<typeof ExternalReExportJson>;
-export type ExternalReExportJsonInput = s.InferInput<typeof ExternalReExportJson>;
+export interface ExternalReExportJson extends s.SchemaStrictObjectOutput<
+	typeof ExternalReExportJsonEntries
+> {}
+/** The input `ExternalReExportJson` parses, with any field it defaults optional. */
+export interface ExternalReExportJsonInput extends s.SchemaStrictObjectInput<
+	typeof ExternalReExportJsonEntries
+> {}
 
 const ModuleJsonEntries = {
 	/**
@@ -1940,17 +1889,9 @@ const ModuleJsonEntries = {
 	partial: s.with_default(s.boolean, false)
 };
 /** @nodocs */
-export interface ModuleJsonSchemaOutput extends s.SchemaStrictObjectOutput<
-	typeof ModuleJsonEntries
-> {}
-/** @nodocs */
-export interface ModuleJsonSchemaInput extends s.SchemaStrictObjectInput<
-	typeof ModuleJsonEntries
-> {}
-/** @nodocs */
 export interface ModuleJsonSchema extends s.Schema<
-	ModuleJsonSchemaOutput,
-	ModuleJsonSchemaInput,
+	ModuleJson,
+	ModuleJsonInput,
 	'object',
 	typeof ModuleJsonEntries
 > {}
@@ -1962,8 +1903,9 @@ export interface ModuleJsonSchema extends s.Schema<
  * Each module contains its exported `declarations`, dependency graph, and optional `moduleComment`.
  */
 export const ModuleJson: ModuleJsonSchema = s.object(ModuleJsonEntries);
-export type ModuleJson = s.Infer<typeof ModuleJson>;
-export type ModuleJsonInput = s.InferInput<typeof ModuleJson>;
+export interface ModuleJson extends s.SchemaStrictObjectOutput<typeof ModuleJsonEntries> {}
+/** The input `ModuleJson` parses, with any field it defaults optional. */
+export interface ModuleJsonInput extends s.SchemaStrictObjectInput<typeof ModuleJsonEntries> {}
 
 /**
  * Validate a `ModuleJson`, restoring the defaults the wire form omits.

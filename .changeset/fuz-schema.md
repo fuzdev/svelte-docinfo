@@ -10,7 +10,7 @@ To migrate code that uses a schema directly:
 
 - `v.parse(Schema, x)` → `s.parse_or_throw(Schema, x)` and `v.safeParse(Schema, x)` → `s.parse(Schema, x)`, with `import * as s from '@fuzdev/fuz_schema/schema.js'`. Composing a schema into one of yours needs fuz_schema too.
 - `Schema.entries` → `Schema.def`. `AnalyzeResultJson` is a plain object schema now (`s.object` refuses an array itself), so it has entries again.
-- `AnalyzeResultJsonEntriesInput` is gone; use `AnalyzeResultJsonSchemaInput`.
+- The output types are interfaces under their public names, each merged with its schema const: `ModuleJson`, `DeclarationJson`'s variants (`FunctionDeclarationJson`, …), `MemberJson`'s, the diagnostic variants, and `AnalyzeResultJson`, so TypeScript's errors and hovers print those names. Every object schema's input type is exported as `FooInput` (`ModuleJsonInput`, `FunctionDeclarationJsonInput`, `TypeExtractionDiagnosticInput`, `AnalyzeResultJsonInput`, …), where only some had one before. `AnalyzeResultJsonEntriesInput` is gone; use `AnalyzeResultJsonInput`.
 - The schemas no longer carry a `~standard` property. Where a library asks for a [Standard Schema](https://standardschema.dev/), wrap one: `to_standard_schema(ModuleJson)`, from `@fuzdev/fuz_schema/standard_schema.js`.
 
 A parse helper that fails throws fuz_schema's `SchemaError` in place of valibot's `ValiError`, with the structured list on `.issues`. Its `message` has one line per issue, as `path: expected X, received Y`, and every unknown key of an object is reported, not just the first:

@@ -223,10 +223,12 @@ topic guides and references; `tomes.ts` orders them). Examples: `examples/vite/`
   (`createSourceOptionsWithInclude`), the baseline exclusions.
 - `types.ts` — the output schemas (`@fuzdev/fuz_schema`): `ModuleJson`, `DeclarationJson`,
   `MemberJson`, `TypeJson`, `OverloadJson`, …, plus `parseModuleJson`. Field-level policy
-  lives here. Each object schema is built from a `FooEntries` const and typed through
-  `@nodocs` interfaces: `FooSchema`, and `FooSchemaOutput`/`FooSchemaInput` extending the
-  output and input `s.object` computes; variants are `VariantSchema<…>` and the variant
-  unions are written out; the recursive `TypeJson`/`TupleElementJson` are `s.Schema<…>`.
+  lives here. Each object schema is built from a `FooEntries` const and typed by the
+  `@nodocs` interface `FooSchema`, over the public interfaces `Foo` (merged with the const,
+  so it documents with `mergedValue`, its docs on the const) and `FooInput`, extending the
+  output and input `s.object` computes, which the interface path documents as members
+  (computed heritage); variants are `VariantSchema<…>` and the variant unions are written
+  out over those names; the recursive `TypeJson`/`TupleElementJson` are `s.Schema<…>`.
   That keeps emitted declarations referential and small: unnamed, every container repeats
   the whole tree below it. `diagnostics.ts` (whose shared base fields are a written-out
   `BaseDiagnosticEntries` type) and `AnalyzeResultJson` follow suit; `dist-types.test.ts`
