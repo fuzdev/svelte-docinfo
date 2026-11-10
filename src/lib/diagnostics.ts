@@ -67,7 +67,7 @@
 
 import * as s from '@fuzdev/fuz_schema/schema.ts';
 
-import { parseWithSummary, type VariantSchema } from './schema.ts';
+import { parseWithSummary } from './schema.ts';
 
 // Severity
 
@@ -1037,38 +1037,7 @@ export interface CssLangUnsupportedDiagnosticInput extends s.SchemaStrictObjectI
  * `resolver_failed`; discovery-time: `module_unreadable`; every other kind is
  * query-time.
  */
-// the explicit `VariantSchema` annotation keeps the emitted declaration
-// referential (each variant by name, not re-inlined), and means a new variant
-// must land in both the type-parameter tuple and the runtime array
-export const Diagnostic: VariantSchema<
-	'kind',
-	[
-		typeof TypeExtractionDiagnostic,
-		typeof SignatureAnalysisDiagnostic,
-		typeof ClassMemberDiagnostic,
-		typeof SveltePropDiagnostic,
-		typeof ModuleSkippedDiagnostic,
-		typeof ModuleUnreadableDiagnostic,
-		typeof ImportParseDiagnostic,
-		typeof DuplicateCommentDiagnostic,
-		typeof ComponentCommentMismatchDiagnostic,
-		typeof MisplacedTagDiagnostic,
-		typeof ImplementationDocHiddenDiagnostic,
-		typeof UnknownParamDiagnostic,
-		typeof UnknownCsspropDiagnostic,
-		typeof MalformedTagDiagnostic,
-		typeof DuplicateTagDiagnostic,
-		typeof CsspropDefaultMismatchDiagnostic,
-		typeof SourceMapFailedDiagnostic,
-		typeof DuplicateDeclarationDiagnostic,
-		typeof TransformFailedDiagnostic,
-		typeof ResolverFailedDiagnostic,
-		typeof AliasLostDiagnostic,
-		typeof CommonjsUnsupportedDiagnostic,
-		typeof CssParseFailedDiagnostic,
-		typeof CssLangUnsupportedDiagnostic
-	]
-> = s.variant('kind', [
+export const Diagnostic = s.variant('kind', [
 	TypeExtractionDiagnostic,
 	SignatureAnalysisDiagnostic,
 	ClassMemberDiagnostic,
