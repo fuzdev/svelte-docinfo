@@ -25,6 +25,7 @@
 				{
 					"name": "a",
 					"kind": "variable",
+					"docComment": "Description 1",
 					"typeSignature": "string"
 				},
 				{
@@ -49,6 +50,7 @@
 				{
 					"name": "a",
 					"kind": "variable",
+					"docComment": "Description 1",
 					"typeSignature": "string"
 				},
 				{
