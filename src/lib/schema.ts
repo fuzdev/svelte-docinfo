@@ -4,7 +4,8 @@
  *
  * `VariantSchema` is the type their variant exports are annotated with, and
  * `parseWithSummary` is what the public `parse*` helpers throw through, so a
- * failure names every reported issue with its path, not just the first ten.
+ * failure names every reported issue with its path, not just the first ten,
+ * and says when the list may be cut off.
  *
  * A leaf: it imports only fuz_schema, so any schema module can depend on it
  * without pulling in another.
@@ -33,15 +34,23 @@ export type VariantSchema<
 	{ readonly key: TKey; readonly options: T }
 >;
 
+// fuz_schema builds at most this many issues for a parse and puts nothing on
+// the result to say that more failed, so a result holding exactly this many
+// may be cut off. The cap is fixed in fuz_schema and not exported: this
+// mirrors it, and a change there makes the note below silently stop appearing
+// (the `parse helpers` tests in `types.test.ts` fail then)
+const ISSUE_CAP = 100;
+
 /**
  * Validate `value` against `schema`, throwing an error that lists every issue
  * the parse reports.
  *
  * `s.parse_or_throw`'s message stops at ten issues; this one lists every issue
- * the parse builds (fuz_schema caps a parse at a hundred), one per line, as
- * `s.format_issue` writes it: `path: expected X, received Y`, or the bare
- * text for an issue at the root. Unknown keys of a strict object are each
- * reported.
+ * the parse builds, one per line, as `s.format_issue` writes it:
+ * `path: expected X, received Y`, or the bare text for an issue at the root.
+ * Unknown keys of a strict object are each reported. fuz_schema builds at most
+ * a hundred issues for a parse, so a message of a hundred ends with a line
+ * saying there may be more.
  *
  * @param schema - the schema to validate against
  * @param value - the value to validate
@@ -57,6 +66,10 @@ export const parseWithSummary = <TSchema extends s.Schema>(
 	const result = s.parse(schema, value);
 	if (result.ok) return result.value;
 	const error = new s.SchemaError(result.issues);
-	error.message = result.issues.map(s.format_issue).join('\n');
+	const lines = result.issues.map(s.format_issue);
+	if (result.issues.length === ISSUE_CAP) {
+		lines.push(`(only the first ${ISSUE_CAP} issues are reported, there may be more)`);
+	}
+	error.message = lines.join('\n');
 	throw error;
 };

@@ -17,7 +17,7 @@ from a single function call to full control over file discovery and diagnostics.
 This example lists `svelte` and `svelte2tsx` as explicit dependencies
 because the `file:../..` link doesn't auto-install peer dependencies. The
 remaining peer, `typescript`, resolves through the linked package's own
-`node_modules`, as do its regular dependencies (`valibot` among them).
+`node_modules`, as do its regular dependencies (`@fuzdev/fuz_schema` among them).
 
 ## Run
 
