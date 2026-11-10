@@ -301,7 +301,7 @@ describe('index signature membership by declaration origin', () => {
 	});
 });
 
-describe('interface members are own-only, call/construct signatures included', () => {
+describe('an interface enumerates no named base’s members, call/construct signatures included', () => {
 	test('an inherited external call signature is not enumerated, and is attributed', () => {
 		const { declaration } = run(
 			[
@@ -322,7 +322,7 @@ describe('interface members are own-only, call/construct signatures included', (
 	});
 
 	test('an inherited local call signature is not enumerated either', () => {
-		// own-only is the interface charter, not an externality rule: inherited
+		// a named base's members are its own, not an externality rule: inherited
 		// local props aren't enumerated, so an inherited local `(call)` isn't
 		// the one exception — `extends` points at the base, documented at its
 		// own declaration
@@ -1038,5 +1038,88 @@ describe('member call-signature membership by declaration origin', () => {
 		// local callables are untouched by the filter
 		const local = declaration.members?.find((mm) => mm.name === 'local');
 		assert.strictEqual(local?.kind, 'function');
+	});
+});
+
+describe('an interface enumerates what its computed heritage contributes', () => {
+	test('external contributions through a computed entry drop and label, as on the alias', () => {
+		const files = [
+			EXT,
+			{
+				path: '/src/lib/test.ts',
+				content: `
+					import type {ExtCallable, ExtNamed} from './external/ext.js';
+					type X = ExtCallable & ExtNamed & { a: string; (b: number): number };
+					export interface I extends X {}
+					export type T = ExtCallable & ExtNamed & { a: string; (b: number): number };
+				`
+			}
+		];
+		const { declaration } = run(files, 'I', ts.isInterfaceDeclaration);
+		const { declaration: alias } = run(files, 'T', ts.isTypeAliasDeclaration);
+		assert.deepEqual(memberNames(declaration), ['a', '(call)']);
+		assert.deepEqual(memberNames(declaration), memberNames(alias));
+		const call = declaration.members?.find((m) => m.name === '(call)');
+		assert.ok(call, 'the computed entry’s local call signature should be enumerated');
+		assert.strictEqual(call.typeSignature, '(b: number): number');
+		assert.strictEqual(call.overloads, undefined);
+		assert.deepEqual(declaration.externalTypes, ['ExtCallable', 'ExtNamed']);
+		assert.deepEqual(declaration.externalTypes, alias.externalTypes);
+	});
+
+	test('a name another merged block declares is own', () => {
+		const { declaration } = run(
+			[
+				{
+					path: '/src/lib/test.ts',
+					content: `
+						type B = { a: string; b: string };
+						export interface I extends B {}
+						export interface I { a: string }
+					`
+				}
+			],
+			'I',
+			ts.isInterfaceDeclaration
+		);
+		assert.deepEqual(memberNames(declaration), ['b']);
+	});
+
+	test('a name an earlier external bag supplies stays the bag’s', () => {
+		const { declaration } = run(
+			[
+				EXT,
+				{
+					path: '/src/lib/test.ts',
+					content: `
+						import type {ExtNamed} from './external/ext.js';
+						type B = { x: string; c: number };
+						export interface I extends ExtNamed, B {}
+					`
+				}
+			],
+			'I',
+			ts.isInterfaceDeclaration
+		);
+		assert.deepEqual(memberNames(declaration), ['c']);
+		assert.deepEqual(declaration.externalTypes, ['ExtNamed']);
+	});
+
+	test('an alias of a named interface is a named base', () => {
+		const { declaration } = run(
+			[
+				{
+					path: '/src/lib/test.ts',
+					content: `
+						interface Base { a: string }
+						type B = Base;
+						export interface I extends B { c: number }
+					`
+				}
+			],
+			'I',
+			ts.isInterfaceDeclaration
+		);
+		assert.deepEqual(memberNames(declaration), ['c']);
 	});
 });

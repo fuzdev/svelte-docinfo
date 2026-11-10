@@ -1,0 +1,91 @@
+{
+	"modules": [
+		{
+			"path": "input.ts",
+			"declarations": [
+				{
+					"name": "A1",
+					"kind": "interface",
+					"docComment": "A computed type over an external bag drops the bag's members, labeled in\n`externalTypes`.",
+					"typeSignature": "A1",
+					"sourceLine": 8,
+					"extends": [
+						"Omit<C, 'c2'>"
+					],
+					"externalTypes": [
+						"Omit<C, 'c2'>"
+					],
+					"members": [
+						{
+							"name": "a",
+							"kind": "variable",
+							"typeSignature": "string"
+						}
+					]
+				},
+				{
+					"name": "A2",
+					"kind": "type",
+					"docComment": "The type-alias twin of `A1`, documenting the same members and labels.",
+					"typeSignature": "A2",
+					"sourceLine": 13,
+					"externalTypes": [
+						"Omit<C, 'c2'>"
+					],
+					"typeInfo": {
+						"kind": "intersection",
+						"alias": "A2",
+						"members": [
+							{
+								"kind": "reference",
+								"name": "Omit",
+								"typeArgs": [
+									{
+										"kind": "reference",
+										"name": "C"
+									},
+									{
+										"kind": "literal",
+										"value": "c2",
+										"text": "\"c2\""
+									}
+								]
+							},
+							{
+								"kind": "object",
+								"text": "{ a: string; }"
+							}
+						]
+					},
+					"members": [
+						{
+							"name": "a",
+							"kind": "variable",
+							"typeSignature": "string"
+						}
+					]
+				},
+				{
+					"name": "A3",
+					"kind": "interface",
+					"docComment": "A mapped type's synthesized index signature stays, as on an alias.",
+					"typeSignature": "A3",
+					"sourceLine": 16,
+					"extends": [
+						"Partial<D>"
+					],
+					"externalTypes": [
+						"Partial<D>"
+					],
+					"members": [
+						{
+							"name": "[key: string]",
+							"kind": "variable",
+							"typeSignature": "unknown"
+						}
+					]
+				}
+			]
+		}
+	]
+}

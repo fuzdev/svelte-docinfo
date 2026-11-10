@@ -94,7 +94,8 @@
 		<p>
 			An exported alias neither way recovers warns <code>alias_lost</code> (see
 			<TomeLink slug="diagnostics" />). Declaring it as an interface keeps its name:
-			<Code lang="ts" inline content={'interface Foo extends z.infer<typeof S> {}'} />.
+			<Code lang="ts" inline content={'interface Foo extends z.infer<typeof S> {}'} />, which
+			documents the inferred properties as its members.
 		</p>
 	</TomeSection>
 

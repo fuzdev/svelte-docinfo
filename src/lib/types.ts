@@ -1232,11 +1232,12 @@ const InterfaceDeclarationJsonEntries = {
 	 * External types the heritage composition reaches whose contributions
 	 * `members` never enumerates.
 	 *
-	 * Interface members are own-only, so nothing is *filtered* — inherited
-	 * content simply isn't listed. This field names the external types behind
-	 * that absence: `interface Props extends HTMLButtonAttributes` records the
-	 * bag directly, and `interface Props extends LocalBase` (where `LocalBase`
-	 * reaches a bag) records it transitively — the same answer the component
+	 * A named base's members aren't listed, and a computed heritage entry's
+	 * external properties are filtered out (see `members`). This field names
+	 * the external types behind that absence: `interface Props extends
+	 * HTMLButtonAttributes` records the bag directly, and `interface Props
+	 * extends LocalBase` (where `LocalBase` reaches a bag) records it
+	 * transitively — the same answer the component
 	 * annotated with this interface gets, where `extends` alone dead-ends at a
 	 * possibly-unexported local name. Inherited *local* content is the
 	 * `extends` field's business: the base is documented at its own
@@ -1250,10 +1251,32 @@ const InterfaceDeclarationJsonEntries = {
 	externalTypes: s.with_default_fn(s.array(s.string), () => []),
 	/**
 	 * Interface members: property signatures, method signatures, index
-	 * signatures, call/construct signatures — own members only, inherited
-	 * members excluded whatever their origin (call/construct signatures
-	 * included: a base interface's `(call)` is not enumerated here). Source
-	 * order, except call/construct signatures, which come last.
+	 * signatures, call/construct signatures — the interface's own, plus what
+	 * each `extends` entry that isn't a named interface or class contributes.
+	 *
+	 * A named base (`extends Base`, `extends Base<string>`, an alias of
+	 * either), local or external, keeps its members, call/construct signatures
+	 * included: `extends` names it, and it is documented at its own
+	 * declaration. A computed entry has no declaration of its own — a mapped,
+	 * conditional, or utility-type instantiation (`z.infer<typeof S>`,
+	 * `Omit<Base, 'a'>`, `Partial<Base>`), an intersection, an object type
+	 * behind an alias — so it contributes what the same type documents as a
+	 * type alias's `members`, external-origin contributions dropped and
+	 * labeled in `externalTypes`. A name the interface declares itself wins;
+	 * otherwise the first heritage entry with the name supplies it, as in
+	 * TypeScript's inheritance. A call or construct signature likewise goes to
+	 * the first entry that reaches it: `extends Base, Base & {…}` leaves
+	 * `Base`'s to `Base`, `extends Base & {…}, Base` lists them. Own members
+	 * come in source order, then the contributed properties entry by entry,
+	 * then their index signatures, with call/construct signatures last (own
+	 * before contributed, as overloads of one member, each signature once).
+	 *
+	 * A merged interface documents the block `selectDeclarationNode` picks,
+	 * the first in declaration order: its members and its `extends` (own call
+	 * and construct signatures excepted, which come from every block). Another
+	 * block's members and heritage document nothing, and a name another block
+	 * declares still drops from the documented block's heritage contribution,
+	 * since TypeScript takes it from that block.
 	 */
 	members: s.with_default_fn(s.array(MemberJson), () => []),
 	/**

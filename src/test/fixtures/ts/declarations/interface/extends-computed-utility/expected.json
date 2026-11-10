@@ -1,0 +1,154 @@
+{
+	"modules": [
+		{
+			"path": "input.ts",
+			"declarations": [
+				{
+					"name": "B",
+					"kind": "interface",
+					"docComment": "Description 1",
+					"typeSignature": "B",
+					"sourceLine": 4,
+					"members": [
+						{
+							"name": "a",
+							"kind": "variable",
+							"docComment": "Description 2",
+							"typeSignature": "string"
+						},
+						{
+							"name": "b",
+							"kind": "variable",
+							"docComment": "Description 3",
+							"typeSignature": "number"
+						},
+						{
+							"name": "c",
+							"kind": "variable",
+							"typeSignature": "boolean",
+							"optional": true
+						}
+					]
+				},
+				{
+					"name": "A1",
+					"kind": "interface",
+					"docComment": "Description 4",
+					"typeSignature": "A1",
+					"sourceLine": 13,
+					"extends": [
+						"Omit<B, 'b'>"
+					],
+					"members": [
+						{
+							"name": "a",
+							"kind": "variable",
+							"docComment": "Description 2",
+							"typeSignature": "string"
+						},
+						{
+							"name": "c",
+							"kind": "variable",
+							"typeSignature": "boolean",
+							"optional": true
+						}
+					]
+				},
+				{
+					"name": "A2",
+					"kind": "interface",
+					"docComment": "Description 5",
+					"typeSignature": "A2",
+					"sourceLine": 16,
+					"extends": [
+						"Pick<B, 'a'>"
+					],
+					"members": [
+						{
+							"name": "d",
+							"kind": "variable",
+							"typeSignature": "string"
+						},
+						{
+							"name": "a",
+							"kind": "variable",
+							"docComment": "Description 2",
+							"typeSignature": "string"
+						}
+					]
+				},
+				{
+					"name": "A3",
+					"kind": "interface",
+					"docComment": "Description 6",
+					"typeSignature": "A3",
+					"sourceLine": 21,
+					"extends": [
+						"Partial<B>"
+					],
+					"members": [
+						{
+							"name": "a",
+							"kind": "variable",
+							"docComment": "Description 2",
+							"typeSignature": "string",
+							"optional": true
+						},
+						{
+							"name": "b",
+							"kind": "variable",
+							"docComment": "Description 3",
+							"typeSignature": "number",
+							"optional": true
+						},
+						{
+							"name": "c",
+							"kind": "variable",
+							"typeSignature": "boolean",
+							"optional": true
+						}
+					]
+				},
+				{
+					"name": "A4",
+					"kind": "interface",
+					"docComment": "Description 7",
+					"typeSignature": "A4",
+					"sourceLine": 24,
+					"extends": [
+						"Readonly<B>"
+					],
+					"members": [
+						{
+							"name": "a",
+							"kind": "variable",
+							"docComment": "Description 2",
+							"typeSignature": "string",
+							"modifiers": [
+								"readonly"
+							]
+						},
+						{
+							"name": "b",
+							"kind": "variable",
+							"docComment": "Description 3",
+							"typeSignature": "number",
+							"modifiers": [
+								"readonly"
+							]
+						},
+						{
+							"name": "c",
+							"kind": "variable",
+							"typeSignature": "boolean",
+							"modifiers": [
+								"readonly"
+							],
+							"optional": true
+						}
+					]
+				}
+			]
+		}
+	]
+}

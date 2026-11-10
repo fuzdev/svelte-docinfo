@@ -1,0 +1,56 @@
+{
+	"modules": [
+		{
+			"path": "input.ts",
+			"declarations": [
+				{
+					"name": "A",
+					"kind": "interface",
+					"docComment": "Description 3",
+					"typeSignature": "A",
+					"sourceLine": 12,
+					"extends": [
+						"s.Infer<typeof A>"
+					],
+					"members": [
+						{
+							"name": "a",
+							"kind": "variable",
+							"docComment": "Description 1",
+							"typeSignature": "string"
+						},
+						{
+							"name": "b",
+							"kind": "variable",
+							"typeSignature": "number"
+						}
+					],
+					"mergedValue": true
+				},
+				{
+					"name": "B",
+					"kind": "interface",
+					"docComment": "Description 4",
+					"typeSignature": "B",
+					"sourceLine": 15,
+					"extends": [
+						"s.ObjectOutput<typeof AEntries>"
+					],
+					"members": [
+						{
+							"name": "a",
+							"kind": "variable",
+							"docComment": "Description 1",
+							"typeSignature": "string"
+						},
+						{
+							"name": "b",
+							"kind": "variable",
+							"typeSignature": "number"
+						}
+					]
+				}
+			]
+		}
+	]
+}

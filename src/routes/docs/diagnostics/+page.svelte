@@ -319,7 +319,7 @@
 							<code>@nodocs</code> aliases. <strong>Consequence:</strong> unannotated positions
 							document the alias's structure instead of its name. Where applicable, a nominal symbol
 							(<Code lang="ts" inline content={'interface Foo extends z.infer<typeof S> {}'} />)
-							restores it.
+							restores it, and documents the inferred properties as its members.
 						</td>
 					</tr>
 					<tr>

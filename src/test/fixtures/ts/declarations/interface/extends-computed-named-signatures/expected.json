@@ -1,0 +1,75 @@
+{
+	"path": "input.ts",
+	"declarations": [
+		{
+			"name": "A1",
+			"kind": "interface",
+			"docComment": "A named base supplying first keeps its signatures, though the computed\nentry reaches them too.",
+			"typeSignature": "A1",
+			"sourceLine": 15,
+			"extends": [
+				"B",
+				"C"
+			],
+			"members": [
+				{
+					"name": "c",
+					"kind": "variable",
+					"typeSignature": "number"
+				}
+			]
+		},
+		{
+			"name": "A2",
+			"kind": "interface",
+			"docComment": "A computed entry supplying first contributes the base's signatures, each\nonce.",
+			"typeSignature": "A2",
+			"sourceLine": 21,
+			"extends": [
+				"C",
+				"B"
+			],
+			"members": [
+				{
+					"name": "b",
+					"kind": "variable",
+					"typeSignature": "string"
+				},
+				{
+					"name": "c",
+					"kind": "variable",
+					"typeSignature": "number"
+				},
+				{
+					"name": "[key: string]",
+					"kind": "variable",
+					"typeSignature": "unknown"
+				},
+				{
+					"name": "(call)",
+					"kind": "function",
+					"docComment": "Description 1",
+					"typeSignature": "(a: string): number",
+					"parameters": [
+						{
+							"name": "a",
+							"type": "string"
+						}
+					],
+					"returnType": "number"
+				},
+				{
+					"name": "(construct)",
+					"kind": "constructor",
+					"typeSignature": "(a: string): B",
+					"parameters": [
+						{
+							"name": "a",
+							"type": "string"
+						}
+					]
+				}
+			]
+		}
+	]
+}

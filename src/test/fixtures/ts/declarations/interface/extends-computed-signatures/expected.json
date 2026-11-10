@@ -1,0 +1,75 @@
+{
+	"path": "input.ts",
+	"declarations": [
+		{
+			"name": "A",
+			"kind": "interface",
+			"docComment": "A computed heritage's call, construct, and index signatures, unless the\ninterface declares the key type itself.",
+			"typeSignature": "A",
+			"sourceLine": 13,
+			"extends": [
+				"B"
+			],
+			"members": [
+				{
+					"name": "[key: number]",
+					"kind": "variable",
+					"typeSignature": "\"a\""
+				},
+				{
+					"name": "[key: string]",
+					"kind": "variable",
+					"typeSignature": "unknown"
+				},
+				{
+					"name": "(call)",
+					"kind": "function",
+					"docComment": "Description 2",
+					"typeSignature": "(a: number): number",
+					"parameters": [
+						{
+							"name": "a",
+							"type": "number"
+						}
+					],
+					"overloads": [
+						{
+							"typeSignature": "(a: number): number",
+							"parameters": [
+								{
+									"name": "a",
+									"type": "number"
+								}
+							],
+							"returnType": "number",
+							"docComment": "Description 2"
+						},
+						{
+							"typeSignature": "(a: string): number",
+							"parameters": [
+								{
+									"name": "a",
+									"type": "string"
+								}
+							],
+							"returnType": "number",
+							"docComment": "Description 1"
+						}
+					],
+					"returnType": "number"
+				},
+				{
+					"name": "(construct)",
+					"kind": "constructor",
+					"typeSignature": "(a: string): B",
+					"parameters": [
+						{
+							"name": "a",
+							"type": "string"
+						}
+					]
+				}
+			]
+		}
+	]
+}

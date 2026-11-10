@@ -1,0 +1,54 @@
+{
+	"path": "input.ts",
+	"declarations": [
+		{
+			"name": "A1",
+			"kind": "interface",
+			"docComment": "Only the first block documents: the second block's `a` documents nothing,\nand drops from the heritage's contribution too.",
+			"typeSignature": "A1",
+			"sourceLine": 13,
+			"extends": [
+				"Partial<B>"
+			],
+			"members": [
+				{
+					"name": "c",
+					"kind": "variable",
+					"typeSignature": "boolean"
+				},
+				{
+					"name": "b",
+					"kind": "variable",
+					"typeSignature": "number",
+					"optional": true
+				}
+			]
+		},
+		{
+			"name": "A2",
+			"kind": "interface",
+			"docComment": "The second block's members and heritage document nothing, its own call\nsignature aside.",
+			"typeSignature": "A2",
+			"sourceLine": 24,
+			"members": [
+				{
+					"name": "c",
+					"kind": "variable",
+					"typeSignature": "boolean"
+				},
+				{
+					"name": "(call)",
+					"kind": "function",
+					"typeSignature": "(x: 1): 1",
+					"parameters": [
+						{
+							"name": "x",
+							"type": "1"
+						}
+					],
+					"returnType": "1"
+				}
+			]
+		}
+	]
+}
