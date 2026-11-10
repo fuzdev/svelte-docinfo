@@ -223,14 +223,21 @@ export type AnalyzeResultJson = s.Infer<typeof AnalyzeResultJson>;
  * booleans that `compactReplacer` stripped come back, and anything that
  * doesn't match the schema throws.
  *
+ * The result is not a fresh copy: an object that needed no default is the
+ * one in `value`, so the result can be `value` itself or share objects with
+ * it, and mutating one then mutates the other.
+ *
  * @param value - an analysis result, typically from `JSON.parse`
  * @returns the validated result with every default present
  * @throws Error when `value` doesn't match the schema; the message lists the
  *   reported issues, one per line, as `path: message`
  *   (`modules.0.declarations.1.kind: expected …, received …`), the dot path omitted for an
- *   issue at the root. The class is the schema library's (fuz_schema's `SchemaError`, the
+ *   issue at the root, and ends with a line saying there may be more when it holds a
+ *   hundred. The class is the schema library's (fuz_schema's `SchemaError`, the
  *   structured list on `issues`), so catch it as a plain `Error` unless you
  *   depend on fuz_schema
+ * @throws RangeError when `value` nests deeper than the call stack allows, as a
+ *   `TypeJson` tree thousands of levels deep does
  *
  * @example
  * ```ts

@@ -211,7 +211,8 @@ topic guides and references; `tomes.ts` orders them). Examples: `examples/vite/`
 - `concurrency.ts` — `MAX_FILE_CONCURRENCY`, `MAX_RESOLVE_CONCURRENCY`, `mapConcurrent`.
 - `error.ts` — `toErrorMessage`.
 - `schema.ts` (not in the barrel) — `parseWithSummary` (the `parse*` helpers throw through
-  it, listing every issue) and the `@nodocs` `VariantSchema` type; a leaf importing only
+  it, listing every reported issue, with a closing line when fuz_schema's cap of a hundred
+  may have cut the list) and the `@nodocs` `VariantSchema` type; a leaf importing only
   `@fuzdev/fuz_schema`.
 - `source-config.ts` — `ModuleSourceOptions`, `DEFAULT_SOURCE_OPTIONS`,
   `createSourceOptions`/`normalizeSourceOptions`, `ExcludeOption`, `isSource`,

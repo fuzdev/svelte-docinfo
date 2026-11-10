@@ -1177,11 +1177,15 @@ const DiagnosticArray = s.array(Diagnostic);
  * independent of the schema library behind `Diagnostic`. For a whole
  * analysis result use `parseAnalyzeResult`.
  *
+ * The result is `value` itself when it matches: no diagnostic has a default
+ * to fill in, so nothing is copied.
+ *
  * @param value - an array of diagnostics, typically from `JSON.parse`
  * @returns the validated diagnostics
  * @throws Error when `value` doesn't match the schema; the message lists the
  *   reported issues, one per line, as `path: message` (`0.kind: expected …, received …`), the dot
- *   path omitted for an issue at the root. The class is the schema library's
+ *   path omitted for an issue at the root, and ends with a line saying there
+ *   may be more when it holds a hundred. The class is the schema library's
  *   (fuz_schema's `SchemaError`, the structured list on `issues`), so catch it
  *   as a plain `Error` unless you depend on fuz_schema
  */

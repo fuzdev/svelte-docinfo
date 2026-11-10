@@ -198,6 +198,26 @@ describe('parse helpers', () => {
 		assert.strictEqual(error.message.split('\n').length, 12);
 	});
 
+	test('a message of a hundred issues says there may be more', () => {
+		const withBad = (count: number): unknown => ({
+			path: 'a.ts',
+			dependencies: Array.from({ length: count }, (_, i) => i)
+		});
+		// fuz_schema builds at most a hundred issues and its result doesn't say more failed
+		for (const count of [100, 250]) {
+			const error = catchError(() => parseModuleJson(withBad(count)));
+			assert(error instanceof s.SchemaError);
+			assert.strictEqual(error.issues.length, 100);
+			const lines = error.message.split('\n');
+			assert.strictEqual(lines.length, 101);
+			assert.strictEqual(lines[99], 'dependencies.99: expected string, received number');
+			assert.strictEqual(lines[100], '(only the first 100 issues are reported, there may be more)');
+		}
+		const under = catchError(() => parseModuleJson(withBad(99)));
+		assert.strictEqual(under.message.split('\n').length, 99);
+		assert.notMatch(under.message, /there may be more/);
+	});
+
 	test('an issue at the root has no path prefix', () => {
 		assert.strictEqual(
 			catchError(() => parseModuleJson(null)).message,

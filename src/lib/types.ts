@@ -26,14 +26,14 @@
  *
  * ## Discriminated union
  *
- * `DeclarationJson` is an `s.variant` on `kind` with 9 variants:
+ * `DeclarationJson` is an `s.variant` on `kind` over these variants:
  * `FunctionDeclarationJson`, `ClassDeclarationJson`, `InterfaceDeclarationJson`,
  * `TypeDeclarationJson`, `VariableDeclarationJson`, `EnumDeclarationJson`,
  * `ComponentDeclarationJson`, `SnippetDeclarationJson`, `NamespaceDeclarationJson`.
  * Each variant has only the fields relevant to that kind, enforced by
  * `s.object`. Use `isKind` (in `declaration-helpers.ts`) to narrow.
  *
- * `MemberJson` is similarly an `s.variant` on `kind` with 3 variants:
+ * `MemberJson` is similarly an `s.variant` on `kind`, over
  * `FunctionMemberJson`, `VariableMemberJson`, `ConstructorMemberJson`.
  * Each variant has only the fields relevant to that member kind.
  *
@@ -1949,12 +1949,19 @@ export type ModuleJsonInput = s.InferInput<typeof ModuleJson>;
  * stripped (empty arrays, `false` booleans), independent of the schema
  * library behind `ModuleJson`.
  *
+ * The result is not a fresh copy: an object that needed no default is the
+ * one in `value`, so the result can be `value` itself or share objects with
+ * it, and mutating one then mutates the other.
+ *
  * @param value - a module, typically from `JSON.parse` of compact output
  * @returns the validated module with every default present
  * @throws Error when `value` doesn't match the schema; the message lists the
  *   reported issues, one per line, as `path: message` (`declarations.1.kind: expected …, received …`),
- *   the dot path omitted for an issue at the root. The class is the schema
+ *   the dot path omitted for an issue at the root, and ends with a line saying
+ *   there may be more when it holds a hundred. The class is the schema
  *   library's (fuz_schema's `SchemaError`, the structured list on `issues`), so
  *   catch it as a plain `Error` unless you depend on fuz_schema
+ * @throws RangeError when `value` nests deeper than the call stack allows, as a
+ *   `TypeJson` tree thousands of levels deep does
  */
 export const parseModuleJson = (value: unknown): ModuleJson => parseWithSummary(ModuleJson, value);
