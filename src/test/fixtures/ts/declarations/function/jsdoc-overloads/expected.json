@@ -121,6 +121,8 @@
 						{
 							"name": "rest",
 							"type": "string | undefined",
+							"rest": true,
+							"description": "Description 7",
 							"typeInfo": {
 								"kind": "union",
 								"members": [
@@ -133,9 +135,7 @@
 										"text": "undefined"
 									}
 								]
-							},
-							"rest": true,
-							"description": "Description 7"
+							}
 						}
 					],
 					"returnType": "void",
@@ -171,12 +171,12 @@
 						}
 					],
 					"returnType": "T",
+					"docComment": "Description 1.",
 					"genericParams": [
 						{
 							"name": "T"
 						}
-					],
-					"docComment": "Description 1."
+					]
 				},
 				{
 					"typeSignature": "<U extends string, V = number>(a: U, b: V): [U, V]",
@@ -191,6 +191,7 @@
 						}
 					],
 					"returnType": "[U, V]",
+					"docComment": "Description 2.",
 					"genericParams": [
 						{
 							"name": "U",
@@ -200,8 +201,7 @@
 							"name": "V",
 							"defaultType": "number"
 						}
-					],
-					"docComment": "Description 2."
+					]
 				}
 			],
 			"returnType": "T"

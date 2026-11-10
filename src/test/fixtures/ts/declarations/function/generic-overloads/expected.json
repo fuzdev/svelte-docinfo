@@ -28,12 +28,12 @@
 						}
 					],
 					"returnType": "T",
+					"docComment": "Description.",
 					"genericParams": [
 						{
 							"name": "T"
 						}
-					],
-					"docComment": "Description."
+					]
 				},
 				{
 					"typeSignature": "<T, U>(a: T, b: U): [T, U]",

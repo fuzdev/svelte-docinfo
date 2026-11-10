@@ -31,13 +31,13 @@
 						}
 					],
 					"returnType": "T",
+					"docComment": "Description 1.",
+					"returnDescription": "Description 3",
 					"genericParams": [
 						{
 							"name": "T"
 						}
-					],
-					"docComment": "Description 1.",
-					"returnDescription": "Description 3"
+					]
 				},
 				{
 					"typeSignature": "<T>(a: number, b?: string | undefined): number",
@@ -55,13 +55,13 @@
 						}
 					],
 					"returnType": "number",
+					"docComment": "Description 1.",
+					"returnDescription": "Description 6",
 					"genericParams": [
 						{
 							"name": "T"
 						}
-					],
-					"docComment": "Description 1.",
-					"returnDescription": "Description 6"
+					]
 				}
 			],
 			"returnType": "T",

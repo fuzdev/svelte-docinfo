@@ -98,6 +98,7 @@
 						{
 							"name": "y",
 							"type": "\"c\" | \"a\"",
+							"optional": true,
 							"typeInfo": {
 								"kind": "union",
 								"members": [
@@ -112,8 +113,7 @@
 										"text": "\"c\""
 									}
 								]
-							},
-							"optional": true
+							}
 						}
 					],
 					"returnType": "\"d\" | \"b\"",
@@ -215,6 +215,7 @@
 				{
 					"name": "y",
 					"type": "\"c\" | \"a\"",
+					"optional": true,
 					"typeInfo": {
 						"kind": "union",
 						"members": [
@@ -229,12 +230,12 @@
 								"text": "\"c\""
 							}
 						]
-					},
-					"optional": true
+					}
 				},
 				{
 					"name": "z",
 					"type": "\"d\" | \"b\"",
+					"optional": true,
 					"typeInfo": {
 						"kind": "union",
 						"members": [
@@ -249,8 +250,7 @@
 								"text": "\"d\""
 							}
 						]
-					},
-					"optional": true
+					}
 				}
 			],
 			"returnType": "\"c\" | \"b\" | \"a\"",

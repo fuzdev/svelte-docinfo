@@ -11,6 +11,8 @@
 				{
 					"name": "x",
 					"type": "\"b\" | \"a\"",
+					"optional": true,
+					"defaultValue": "ab()",
 					"typeInfo": {
 						"kind": "union",
 						"members": [
@@ -25,9 +27,7 @@
 								"text": "\"a\""
 							}
 						]
-					},
-					"optional": true,
-					"defaultValue": "ab()"
+					}
 				}
 			],
 			"returnType": "\"b\" | \"a\"",

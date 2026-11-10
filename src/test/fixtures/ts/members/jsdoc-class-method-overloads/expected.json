@@ -79,13 +79,13 @@
 								}
 							],
 							"returnType": "T",
+							"docComment": "Description 1.",
+							"returnDescription": "Description 3",
 							"genericParams": [
 								{
 									"name": "T"
 								}
-							],
-							"docComment": "Description 1.",
-							"returnDescription": "Description 3"
+							]
 						},
 						{
 							"typeSignature": "(a: number): number",
@@ -136,6 +136,8 @@
 								{
 									"name": "rest",
 									"type": "number | undefined",
+									"rest": true,
+									"description": "Description 2",
 									"typeInfo": {
 										"kind": "union",
 										"members": [
@@ -148,9 +150,7 @@
 												"text": "undefined"
 											}
 										]
-									},
-									"rest": true,
-									"description": "Description 2"
+									}
 								}
 							],
 							"returnType": "number",

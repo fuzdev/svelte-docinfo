@@ -79,13 +79,13 @@
 								}
 							],
 							"returnType": "T",
+							"docComment": "Description 1.",
+							"returnDescription": "Description 3",
 							"genericParams": [
 								{
 									"name": "T"
 								}
-							],
-							"docComment": "Description 1.",
-							"returnDescription": "Description 3"
+							]
 						},
 						{
 							"typeSignature": "(a: number): number",
