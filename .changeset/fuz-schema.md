@@ -4,7 +4,7 @@
 
 feat: replace valibot with `@fuzdev/fuz_schema` for the output schemas
 
-**Breaking.** The exported schemas are now [fuz_schema](https://schema.fuz.dev/) schemas, and `@fuzdev/fuz_schema` replaces `valibot` as a regular dependency. Analysis output is unchanged as data: the same values, TypeScript types, and defaults, with the keys of an object sometimes in another order (below). The parse helpers (`parseAnalyzeResult`, `parseModuleJson`, `parseDiagnostics`) are unchanged too, and stay the stable entry point.
+**Breaking.** The exported schemas are now [fuz_schema](https://schema.fuz.dev/) schemas, and `@fuzdev/fuz_schema` replaces `valibot` as a regular dependency. Analysis output is unchanged as data: the same values, TypeScript types, and defaults, with the keys of an object sometimes in another order (below). The parse helpers (`parseAnalyzeResult`, `parseModuleJson`, `parseDiagnostics`) are unchanged too, but for stricter line fields (below), and stay the stable entry point.
 
 To migrate code that uses a schema directly:
 
@@ -12,6 +12,8 @@ To migrate code that uses a schema directly:
 - `Schema.entries` → `Schema.def`. `AnalyzeResultJson` is a plain object schema now (`s.object` refuses an array itself), so it has entries again.
 - The output types are interfaces under their public names, each merged with its schema const: `ModuleJson`, `DeclarationJson`'s variants (`FunctionDeclarationJson`, …), `MemberJson`'s, the diagnostic variants, and `AnalyzeResultJson`, so TypeScript's errors and hovers print those names. Every object schema's input type is exported as `FooInput` (`ModuleJsonInput`, `FunctionDeclarationJsonInput`, `TypeExtractionDiagnosticInput`, `AnalyzeResultJsonInput`, …), where only some had one before. `AnalyzeResultJsonEntriesInput` is gone; use `AnalyzeResultJsonInput`.
 - The schemas no longer carry a `~standard` property. Where a library asks for a [Standard Schema](https://standardschema.dev/), wrap one: `to_standard_schema(ModuleJson)`, from `@fuzdev/fuz_schema/standard_schema.js`.
+
+Line fields take positive integers only: the declaration and member `sourceLine`, and `ReExportJson.sourceLine` and `ExternalReExportJson.sourceLine`, now reject `0`, negatives, and fractions, like `ComponentCssPropertyJson.sourceLine` and the diagnostics' `line` and `column` already did. The analyzer never produces such a value, so only hand-written JSON is affected.
 
 A parse helper that fails throws fuz_schema's `SchemaError` in place of valibot's `ValiError`, with the structured list on `.issues`. Its `message` has one line per issue, as `path: expected X, received Y`, and every unknown key of an object is reported, not just the first:
 

@@ -171,7 +171,7 @@
 					<code>typeSignature</code>: the full type as a string, rendered by the TypeScript checker
 					(see <TomeLink slug="structured-types" hash="Module-paths">module paths</TomeLink>)
 				</li>
-				<li><code>sourceLine</code>: line number in the source file</li>
+				<li><code>sourceLine</code>: 1-based line number in the source file</li>
 				<li>
 					<code>modifiers</code>: e.g., <Code lang="ts" inline content={'"readonly"'} />,
 					<Code lang="ts" inline content={'"static"'} />,
