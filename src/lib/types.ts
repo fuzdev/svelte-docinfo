@@ -51,7 +51,7 @@
 
 import * as s from '@fuzdev/fuz_schema/schema.ts';
 
-import { parseWithSummary, type VariantSchema } from './schema.ts';
+import { parseWithSummary } from './schema.ts';
 
 /**
  * The kind of top-level exported declaration.
@@ -122,10 +122,15 @@ export type Reactivity = s.Infer<typeof Reactivity>;
 // over the public `Foo` and `FooInput` for its output and input, which extend
 // the types `s.object` computes from the entries (`FooEntries`). `Foo` merges
 // with the const, whose JSDoc documents both, so TypeScript's errors and
-// hovers print the public name. Unnamed, an object schema's type carries its
-// output and input written out structurally, and a variant's carries every
-// option's, so each container repeats the whole tree below it, which
-// multiplies the declarations' size. `dist-types.test.ts` guards it.
+// hovers print the public name. Unnamed, a declaration writes out an object
+// schema's entries wherever the schema is held, so each container repeats the
+// whole tree below it, which multiplies the declarations' size.
+// `dist-types.test.ts` guards it. `FooSchema` extends `s.Schema` over `Foo`
+// and `FooInput`, not `s.ObjectSchema<typeof FooEntries>`, whose output is the
+// computed type: a schema holding it, like `ModuleJson.declarations`, would
+// print that structurally in place of the name. A variant over such options
+// needs no annotation: fuz_schema types it
+// `s.VariantSchema<'kind', readonly [FooSchema, …]>`, each option by name.
 
 /** A 1-based source line: a positive integer. */
 const SourceLine = s.pipe(s.number, s.safe_integer, s.min_value(1));
@@ -1033,10 +1038,11 @@ export interface ConstructorMemberJsonInput extends s.SchemaStrictObjectInput<
  *
  * Nesting is exactly one level deep — members never contain their own members.
  */
-export const MemberJson: VariantSchema<
-	'kind',
-	[typeof FunctionMemberJson, typeof VariableMemberJson, typeof ConstructorMemberJson]
-> = s.variant('kind', [FunctionMemberJson, VariableMemberJson, ConstructorMemberJson]);
+export const MemberJson = s.variant('kind', [
+	FunctionMemberJson,
+	VariableMemberJson,
+	ConstructorMemberJson
+]);
 // written out, not `s.Infer`, so the union keeps its name at use sites
 export type MemberJson = FunctionMemberJson | VariableMemberJson | ConstructorMemberJson;
 /** The input `MemberJson` parses, with any field it defaults optional. */
@@ -1628,20 +1634,7 @@ export interface NamespaceDeclarationJsonInput extends s.SchemaStrictObjectInput
  * Discriminated union on `kind` — each variant has only the fields relevant to that kind.
  * Use `isKind` (in `declaration-helpers.ts`) to narrow, or check `declaration.kind` directly.
  */
-export const DeclarationJson: VariantSchema<
-	'kind',
-	[
-		typeof FunctionDeclarationJson,
-		typeof ClassDeclarationJson,
-		typeof InterfaceDeclarationJson,
-		typeof TypeDeclarationJson,
-		typeof VariableDeclarationJson,
-		typeof EnumDeclarationJson,
-		typeof ComponentDeclarationJson,
-		typeof SnippetDeclarationJson,
-		typeof NamespaceDeclarationJson
-	]
-> = s.variant('kind', [
+export const DeclarationJson = s.variant('kind', [
 	FunctionDeclarationJson,
 	ClassDeclarationJson,
 	InterfaceDeclarationJson,

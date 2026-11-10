@@ -215,8 +215,7 @@ topic guides and references; `tomes.ts` orders them). Examples: `examples/vite/`
 - `error.ts` — `toErrorMessage`.
 - `schema.ts` (not in the barrel) — `parseWithSummary` (the `parse*` helpers throw through
   it, listing every reported issue, with a closing line when fuz_schema's cap of a hundred
-  may have cut the list) and the `@nodocs` `VariantSchema` type; a leaf importing only
-  `@fuzdev/fuz_schema`.
+  may have cut the list); a leaf importing only `@fuzdev/fuz_schema`.
 - `source-config.ts` — `ModuleSourceOptions`, `DEFAULT_SOURCE_OPTIONS`,
   `createSourceOptions`/`normalizeSourceOptions`, `ExcludeOption`, `isSource`,
   `extractPath`, `extractDependencies`, include widening
@@ -227,8 +226,9 @@ topic guides and references; `tomes.ts` orders them). Examples: `examples/vite/`
   `@nodocs` interface `FooSchema`, over the public interfaces `Foo` (merged with the const,
   so it documents with `mergedValue`, its docs on the const) and `FooInput`, extending the
   output and input `s.object` computes, which the interface path documents as members
-  (computed heritage); variants are `VariantSchema<…>` and the variant unions are written
-  out over those names; the recursive `TypeJson`/`TupleElementJson` are `s.Schema<…>`.
+  (computed heritage); variants go unannotated (fuz_schema types them
+  `s.VariantSchema<…>` over the options' names) and the variant unions are written out
+  over those names; the recursive `TypeJson`/`TupleElementJson` are `s.Schema<…>`.
   That keeps emitted declarations referential and small: unnamed, every container repeats
   the whole tree below it. `diagnostics.ts` (whose shared base fields are a written-out
   `BaseDiagnosticEntries` type) and `AnalyzeResultJson` follow suit; `dist-types.test.ts`

@@ -94,11 +94,11 @@ const SCHEMA_HELPERS_MODULE = 'schema';
 // The TS2589 check only bites once most schemas have lost their names, and
 // the per-schema check below only sees exported consts, so this is the
 // backstop for structure inlined some other way (a nested unexported schema,
-// a shared fragment). The ceiling leaves about a quarter of headroom over the
-// current emit for ordinary schema growth, and sits far below what wholesale
-// inlining produces. Raise it deliberately when the schemas really grow,
+// a shared fragment). The ceiling leaves headroom over the current emit for
+// ordinary schema growth, and sits far below what wholesale inlining
+// produces. Raise it deliberately when the schemas really grow,
 // after checking nothing was inlined.
-const SCHEMA_DECLARATIONS_BUDGET = 240_000;
+const SCHEMA_DECLARATIONS_BUDGET = 180_000;
 
 const isSchema = (value: unknown): boolean => s.is_schema(value);
 
