@@ -1,0 +1,30 @@
+{
+	"path": "input.ts",
+	"declarations": [
+		{
+			"name": "A",
+			"kind": "interface",
+			"docComment": "A named base keeps its members; the computed entries contribute theirs, the\nfirst entry with a name supplying it.",
+			"typeSignature": "A",
+			"sourceLine": 24,
+			"extends": [
+				"B",
+				"C",
+				"D"
+			],
+			"members": [
+				{
+					"name": "c",
+					"kind": "variable",
+					"docComment": "Description 3",
+					"typeSignature": "boolean"
+				},
+				{
+					"name": "d",
+					"kind": "variable",
+					"typeSignature": "string"
+				}
+			]
+		}
+	]
+}

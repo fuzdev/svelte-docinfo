@@ -230,7 +230,8 @@ Where each behavior is locked. Unit and behavior-level mechanics live in
   channels, `alias_lost` where neither can, and unaliased props expanding, bare
   and in arrays and tuples; legacy props through the shims'
   `__sveltets_2_PropsWithChildren` and a reserved `$$Props`
-  (`types/component-props-alias`)
+  (`types/component-props-alias`); a `<script module>` interface over real fuz_schema
+  inferred types documenting their members (`types/interface-extends-fuz-schema`)
 - `externalTypes`:
   - `interface Props extends` a bag (`types/interface-extends-*`): single,
     generic, multiple, attribute-forwarding, through a local base, diamond,
@@ -311,6 +312,20 @@ Where each behavior is locked. Unit and behavior-level mechanics live in
   CommonJS module warning `commonjs_unsupported` and documenting nothing but its
   module comment, and an ES module's `module.exports` assignment staying
   ordinary code (`module/commonjs/*`)
+- Interface members a computed `extends` entry contributes
+  (`declarations/interface/extends-computed-*`): an inferred schema type and a mapped
+  output over its entries, with the const merge (`-inferred`; the real fuz_schema twin is
+  svelte `types/interface-extends-fuz-schema`), own members winning a name and coming first
+  (`-own-clash`), a named base keeping its members beside computed entries, the first entry
+  with a name supplying it (`-and-named`), `Omit`/`Pick`/`Partial`/`Readonly` over a project
+  interface (`-utility`), over an external bag, dropped and labeled like the alias twin, and
+  a mapped type's synthesized index signature (`-external`), a generic interface and an
+  instantiation (`-generic`), call, construct, and index signatures with an own key type
+  winning (`-signatures`), a named base's signatures staying its own when it comes first and
+  listing once through the computed entry when that comes first (`-named-signatures`), an
+  alias over the interface and a class implementing it (`-alias-implements`), and a merged
+  interface documenting its first block only, another block's name dropping from the
+  heritage's contribution (`-merged-blocks`)
 - Structured types and name recovery: `types/type-info*`,
   `declarations/*/type-info-recovery`, `declarations/*/alias-lost-*`; merged
   value+type symbols: `declarations/*/merged-value-*`; union members in

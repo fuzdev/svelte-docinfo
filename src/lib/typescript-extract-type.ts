@@ -2,7 +2,8 @@
  * Per-declaration extractors for TypeScript type aliases, interfaces, and enums.
  *
  * `extractTypeInfo` handles type aliases and interfaces (including index/method/
- * call/construct signatures and intersection filtering). `extractEnumInfo`
+ * call/construct signatures, intersection filtering, and the members an
+ * interface's computed heritage contributes). `extractEnumInfo`
  * handles regular and const enums. Both mutate a `DeclarationJsonBuild` with
  * rich metadata derived from the TypeScript checker. Called by
  * `analyzeDeclaration` in `typescript-exports.ts` once kind dispatch is
@@ -43,7 +44,10 @@ import {
 	typeAliasTypeNode,
 	typeAliasTypeParameters
 } from './typescript-extract-type-json.ts';
-import { extractTypeAliasProperties } from './typescript-extract-type-properties.ts';
+import {
+	extractComputedHeritageMembers,
+	extractTypeAliasProperties
+} from './typescript-extract-type-properties.ts';
 
 /**
  * Extract type/interface information with rich property metadata.
@@ -107,14 +111,15 @@ export const extractTypeInfo = (
 	}
 
 	if (ts.isInterfaceDeclaration(node)) {
+		const heritageTypes = (node.heritageClauses ?? [])
+			.filter((hc) => hc.token === ts.SyntaxKind.ExtendsKeyword)
+			.flatMap((hc) => hc.types);
 		if (node.heritageClauses) {
-			const heritageTypes = node.heritageClauses
-				.filter((hc) => hc.token === ts.SyntaxKind.ExtendsKeyword)
-				.flatMap((hc) => hc.types);
 			declaration.extends = heritageTypes.map((t) => t.getText());
-			// members are own-only, so the external types the heritage composition
-			// reaches are never enumerated — record them like the alias/component
-			// paths record what filtering drops
+			// no member enumerates an external type the heritage composition reaches
+			// (a named bag isn't enumerated, a computed entry's external properties
+			// are filtered) — record them like the alias/component paths record
+			// what filtering drops
 			applyHeritageExternalTypes(declaration, heritageTypes, ctx);
 		}
 
@@ -296,31 +301,49 @@ export const extractTypeInfo = (
 			}
 		}
 
-		// Extract call and construct signatures from interface type, own-only
-		// like every other interface member kind: `getCallSignatures()` resolves
-		// inherited signatures too, but props and index signatures come from
-		// `node.members`, so an inherited `(call)` — local base or external bag
-		// alike — would be the one member enumerating inheritance. A signature is
-		// own when its declaration sits in any declaration of this interface
-		// symbol (merged blocks included).
+		// the members a computed `extends` entry contributes, after the own ones —
+		// policy in the `extractComputedHeritageMembers` TSDoc
+		const contributed = extractComputedHeritageMembers(node, heritageTypes, declaration, ctx);
+
+		// Extract call and construct signatures from the interface type, keeping
+		// the own and the computed heritage's, like every other interface member
+		// kind: `getCallSignatures()` resolves every inherited signature, own
+		// first, then each base's in heritage order (TypeScript concatenates
+		// them), so a named base's `(call)` — local base or external bag alike —
+		// would otherwise be the one member enumerating named inheritance. A
+		// signature is own when its declaration sits in any declaration of this
+		// interface symbol (merged blocks included), and contributed when a
+		// computed entry claims its declaration, which survives instantiation.
+		// Each declaration is listed once (two entries reaching one signature
+		// each bring a copy; distinct instantiations of one generic declaration
+		// collapse too, see Not Supported in CLAUDE.md).
 		//
 		// That guarantee is what lets TSDoc resolve through the signature's own
-		// declaration, exactly like the type-alias path: the node can no longer
-		// be a base interface's, so it is the right doc source even when the
-		// signature lives in a merged block other than the one being processed.
+		// declaration, exactly like the type-alias path: the node can't be a
+		// named base's, so it is the right doc source even when the signature
+		// lives in a merged block other than the one being processed, or in the
+		// computed type's written signature.
 		const interfaceType = nodeType ?? checker.getTypeAtLocation(node);
 		const ownDecls: Set<ts.Node> = new Set(
 			checker.getSymbolAtLocation(node.name)?.getDeclarations() ?? [node]
 		);
-		const ownOnly = (sigs: ReadonlyArray<ts.Signature>): ReadonlyArray<ts.Signature> =>
-			sigs.filter((sig) => {
+		const keptSignatures = (
+			sigs: ReadonlyArray<ts.Signature>,
+			contributedDecls: ReadonlySet<ts.Node>
+		): ReadonlyArray<ts.Signature> => {
+			const listed: Set<ts.Node> = new Set();
+			return sigs.filter((sig) => {
 				const decl: ts.SignatureDeclaration | undefined = sig.getDeclaration();
-				return decl !== undefined && ownDecls.has(decl.parent);
+				if (decl === undefined || listed.has(decl)) return false;
+				if (!ownDecls.has(decl.parent) && !contributedDecls.has(decl)) return false;
+				listed.add(decl);
+				return true;
 			});
+		};
 		const errorContext = { node, kindLabel: 'interface' };
 
 		emitCallOrConstructSignature(
-			() => ownOnly(interfaceType.getCallSignatures()),
+			() => keptSignatures(interfaceType.getCallSignatures(), contributed.call),
 			'call',
 			(sig) => sig.getDeclaration(),
 			node,
@@ -330,7 +353,7 @@ export const extractTypeInfo = (
 		);
 
 		emitCallOrConstructSignature(
-			() => ownOnly(interfaceType.getConstructSignatures()),
+			() => keptSignatures(interfaceType.getConstructSignatures(), contributed.construct),
 			'construct',
 			(sig) => sig.getDeclaration(),
 			node,

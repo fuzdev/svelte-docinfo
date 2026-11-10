@@ -1882,13 +1882,15 @@ export const filterDocumentedProperties = (
  * interface/class counterpart of `filterDocumentedProperties`' annotation
  * walk, and the one place the two heritage-bearing extractors express it.
  *
- * Interfaces and classes enumerate own members only, so nothing is *filtered*
- * — what the field records there is the external types the heritage
- * composition reaches whose contributions `members` therefore never
- * enumerates: `interface Props extends HTMLButtonAttributes` records the bag,
- * directly or through a local base chain, exactly as the same interface
- * annotating `$props()` records it on the component. Local bases reached and
- * fully enumerated nowhere are the `extends` field's business, not this one.
+ * Classes enumerate own members only, and interfaces don't enumerate a
+ * named base's (a computed entry's external properties are filtered, by
+ * `extractComputedHeritageMembers`) — what the field records there is the
+ * external types the heritage composition reaches whose contributions
+ * `members` therefore never enumerates: `interface Props extends
+ * HTMLButtonAttributes` records the bag, directly or through a local base
+ * chain, exactly as the same interface annotating `$props()` records it on
+ * the component. Local bases reached and fully enumerated nowhere are the
+ * `extends` field's business, not this one.
  *
  * Only `extends` entries are passed by either caller: an interface has no
  * other clause kind, and a class's `implements` adds no members.

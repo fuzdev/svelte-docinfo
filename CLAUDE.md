@@ -52,7 +52,10 @@ topic guides and references; `tomes.ts` orders them). Examples: `examples/vite/`
   `populatePropertyMember`: a callable becomes `kind: 'function'`, anything else gets
   `typeSignature` + `typeInfo`. External-origin call signatures are filtered first, so
   `run?: typeof spawn` stays a `variable`. Class fields stay `variable` even when
-  function-typed. Interfaces enumerate own members only. Literal member names are unquoted
+  function-typed. Interfaces enumerate their own members plus what a computed `extends`
+  entry contributes (`z.infer<typeof S>`, `Omit<Base, 'a'>`), projected as the alias path
+  projects the same type; a named interface or class base keeps its members
+  (`extractComputedHeritageMembers`). Literal member names are unquoted
   (`memberNameText`); computed names are skipped.
   - **JS classes** read as the checker does: JSDoc modifiers (`extractModifiers`),
     `@implements`/`@extends {Base<T>}` heritage, and `this.x = …` assignments as `variable`
@@ -658,6 +661,17 @@ semantics and reports unresolvable stars instead of guessing. Lock-in tests:
 - JS expando assignments outside a class (`A.prototype.x = …`, `A.x = …`) aren't class
   members, though a type alias over the class lists the instance ones (the checker's
   property set, `@private` ones included).
+- A merged interface documents one block, the first in declaration order
+  (`selectDeclarationNode`): its members and `extends` only, own call and construct signatures
+  aside, which come from every block. Another block's members and computed heritage document
+  nothing, and a name another block declares drops from the documented block's heritage
+  contribution too.
+- A generic call or construct signature an interface's `extends` reaches at two instantiations
+  lists once, for the first entry to reach its declaration: `extends Box<string>, Box<number> &
+  {…}` lists neither, and `extends Box<number> & {…}, Box<string> & {…}` only `(v: number)`,
+  where the alias twin lists both.
+- An interface extending an alias of `typeof C`, where `C` writes no constructor, lists no
+  `(construct)` (the synthesized signature has no declaration); the alias twin lists it.
 - Standalone `namespace Foo {}` documents as a bare `kind: 'variable'` (`export * as ns` is
   supported). Decorators aren't modeled.
 - `@nodocs` on members and component props is ignored with no warning.

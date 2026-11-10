@@ -1,0 +1,63 @@
+{
+	"path": "TypesInterfaceExtendsFuzSchema.svelte",
+	"declarations": [
+		{
+			"name": "TypesInterfaceExtendsFuzSchema",
+			"kind": "component",
+			"sourceLine": 19,
+			"props": [
+				{
+					"name": "prop",
+					"type": "A"
+				}
+			]
+		},
+		{
+			"name": "A",
+			"kind": "interface",
+			"docComment": "An interface over an inferred schema type documents the inferred members.",
+			"typeSignature": "A",
+			"sourceLine": 13,
+			"extends": [
+				"s.Infer<typeof A>"
+			],
+			"members": [
+				{
+					"name": "a",
+					"kind": "variable",
+					"typeSignature": "string"
+				},
+				{
+					"name": "b",
+					"kind": "variable",
+					"typeSignature": "number",
+					"optional": true
+				}
+			],
+			"mergedValue": true
+		},
+		{
+			"name": "B",
+			"kind": "interface",
+			"docComment": "Description 3",
+			"typeSignature": "B",
+			"sourceLine": 16,
+			"extends": [
+				"s.SchemaStrictObjectOutput<typeof AEntries>"
+			],
+			"members": [
+				{
+					"name": "a",
+					"kind": "variable",
+					"typeSignature": "string"
+				},
+				{
+					"name": "b",
+					"kind": "variable",
+					"typeSignature": "number",
+					"optional": true
+				}
+			]
+		}
+	]
+}

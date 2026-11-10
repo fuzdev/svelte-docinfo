@@ -963,7 +963,8 @@ export interface AliasLostDiagnosticSchema extends s.Schema<
  * (`.brand()`) — readable degradations with no author-side fix worth
  * demanding. `@nodocs` on the declaration suppresses. The author-side escape
  * for a flagged alias is a nominal symbol, e.g.
- * `interface Foo extends z.infer<typeof S> {}` where applicable.
+ * `interface Foo extends z.infer<typeof S> {}` where applicable, whose
+ * `members` are the inferred properties (the interface's computed heritage).
  *
  * Always `warning`, query-time category (recomputed each `query()`).
  */

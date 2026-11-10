@@ -1,0 +1,54 @@
+{
+	"path": "input.ts",
+	"declarations": [
+		{
+			"name": "A",
+			"kind": "interface",
+			"docComment": "Description 2",
+			"typeSignature": "A",
+			"sourceLine": 7,
+			"extends": [
+				"B"
+			],
+			"members": [
+				{
+					"name": "a",
+					"kind": "variable",
+					"docComment": "Description 1",
+					"typeSignature": "string"
+				}
+			]
+		},
+		{
+			"name": "C",
+			"kind": "type",
+			"docComment": "An alias over the interface lists the interface's members once.",
+			"typeSignature": "A",
+			"sourceLine": 10,
+			"members": [
+				{
+					"name": "a",
+					"kind": "variable",
+					"docComment": "Description 1",
+					"typeSignature": "string"
+				}
+			]
+		},
+		{
+			"name": "D",
+			"kind": "class",
+			"docComment": "A class implementing the interface documents its own members only.",
+			"sourceLine": 13,
+			"implements": [
+				"A"
+			],
+			"members": [
+				{
+					"name": "a",
+					"kind": "variable",
+					"typeSignature": "string"
+				}
+			]
+		}
+	]
+}

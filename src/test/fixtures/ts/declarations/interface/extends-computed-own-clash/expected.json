@@ -1,0 +1,41 @@
+{
+	"path": "input.ts",
+	"declarations": [
+		{
+			"name": "A",
+			"kind": "interface",
+			"docComment": "Own members win over a computed heritage's, and come first.",
+			"typeSignature": "A",
+			"sourceLine": 12,
+			"extends": [
+				"B"
+			],
+			"members": [
+				{
+					"name": "a",
+					"kind": "variable",
+					"docComment": "Description 3",
+					"typeSignature": "string"
+				},
+				{
+					"name": "fn",
+					"kind": "function",
+					"typeSignature": "(): void",
+					"returnType": "void"
+				},
+				{
+					"name": "b",
+					"kind": "variable",
+					"docComment": "Description 2",
+					"typeSignature": "number",
+					"optional": true
+				},
+				{
+					"name": "c",
+					"kind": "variable",
+					"typeSignature": "boolean"
+				}
+			]
+		}
+	]
+}

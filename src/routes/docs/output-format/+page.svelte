@@ -249,6 +249,15 @@
 				Function and variable members also carry <code>optional</code> when the property or method
 				is optional (<code>?</code>, or a mapped modifier such as <code>Partial</code>).
 			</p>
+			<p>
+				An interface lists its own members, then what each computed <code>extends</code> entry
+				contributes, as the same type would list them as a type alias's members:
+				<Code lang="ts" inline content={"interface Foo extends Omit<Base, 'a'> {}"} /> lists
+				<code>Base</code>'s other properties, and
+				<Code lang="ts" inline content={'interface Foo extends z.infer<typeof S> {}'} /> the
+				schema's. Members inherited from a named interface or class stay with that base, which
+				<code>extends</code> names.
+			</p>
 			<p>Nesting is exactly one level deep: members never contain members.</p>
 			<p>
 				Member <code>name</code> is the source identifier, or a synthesized name where none exists:
@@ -256,8 +265,9 @@
 				<Code lang="ts" inline content={'"(construct)"'} /> and
 				<Code lang="ts" inline content={'"(call)"'} /> (construct and call signatures on an
 				interface or type alias), and index-signature names like
-				<Code lang="ts" inline content={'"[key: string]"'} /> (the parameter name as written for
-				interfaces; a synthesized <code>key</code> for type aliases).
+				<Code lang="ts" inline content={'"[key: string]"'} /> (the parameter name as written for an
+				interface's own; a synthesized <code>key</code> for type aliases and for what an interface's
+				computed heritage contributes).
 			</p>
 		</TomeSection>
 
