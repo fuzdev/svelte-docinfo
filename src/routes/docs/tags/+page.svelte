@@ -74,8 +74,11 @@
 							<code>throws</code> array on the parent declaration. A braced type
 							(<code>{`@throws {TypeError} - description`}</code>, unions included) lands in
 							<code>type</code>; the description may be empty or multiline. Without braces the first
-							word is the type (<code>@throws TypeError if …</code>), so <code>@throws if …</code>
-							records <code>if</code> as the type. A lone unbraced word is the description
+							word is the type, bare or in backticks (<code>@throws TypeError if …</code>,
+							<code>{'@throws `TypeError` if …'}</code>), recorded without the backticks, so
+							<code>@throws if …</code> records <code>if</code> as the type. Only a single word
+							qualifies: <code>{'`a.b`'}</code> or <code>{'`Foo<T>`'}</code> stays in the
+							description. A lone unbraced word, backticked or not, is the description
 						</td>
 					</tr>
 					<tr>

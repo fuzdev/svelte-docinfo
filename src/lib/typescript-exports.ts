@@ -1521,7 +1521,7 @@ const warnAliasLost = (node: TypeAliasLike, name: string, ctx: ExtractContext): 
  *
  * @returns the parsed comment, or `undefined` if no `@module` comment is found
  *   or it holds nothing but `@module`
- * @see {@link https://typedoc.org/documents/Tags._module.html|TypeDoc @module documentation}
+ * @see [TypeDoc `@module` documentation](https://typedoc.org/documents/Tags._module.html)
  */
 export const extractModuleComment = (sourceFile: ts.SourceFile): TsdocParsedComment | undefined => {
 	const fullText = sourceFile.getFullText();

@@ -72,7 +72,8 @@
  * Due to TS Compiler API limitations:
  * - TS API includes dash separator in `@param` tag text; we strip the leading `- ` as it's syntax, not content
  * - `@throws` braced types (`{TypeError}`) parse into the tag's typeExpression, not its text —
- *   the type is read from there; unbraced text falls back to a first-word-as-type regex
+ *   the type is read from there; unbraced text falls back to a first-word-as-type regex,
+ *   the single word bare or in backticks (recorded without them)
  * - TS API strips URL protocols from `@see` tag text; we use `getText()` to preserve original format including `{@link}` syntax
  *
  * @see `declaration-build.ts` for `DeclarationJsonBuild`
@@ -801,10 +802,15 @@ const parseCommentParts = (
 					description: tagText ? cleanTagDescription(tagText) : ''
 				});
 			} else if (tagText) {
-				// Unbraced text: heuristically extract a leading word as the error type
-				const match = /^\{?(\w+)\}?\s+([\s\S]+)/.exec(tagText);
+				// Unbraced text: heuristically extract a leading word as the error type,
+				// bare or in backticks (`` `TypeError` ``), as house styles that backtick
+				// every identifier write it
+				const match = /^(?:\{?(\w+)\}?|`(\w+)`)\s+([\s\S]+)/.exec(tagText);
 				if (match) {
-					(throws ??= []).push({ type: match[1], description: cleanTagDescription(match[2]!) });
+					(throws ??= []).push({
+						type: match[1] ?? match[2],
+						description: cleanTagDescription(match[3]!)
+					});
 				} else {
 					(throws ??= []).push({ description: cleanTagDescription(tagText) });
 				}

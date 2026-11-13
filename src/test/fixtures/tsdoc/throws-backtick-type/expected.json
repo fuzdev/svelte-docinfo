@@ -1,0 +1,30 @@
+{
+	"text": "Description.",
+	"params": {
+		"a": "Description 1"
+	},
+	"throws": [
+		{
+			"type": "RangeError",
+			"description": "Description 2"
+		},
+		{
+			"type": "TypeError",
+			"description": "Description 3"
+		},
+		{
+			"description": "`a.b` Description 4"
+		},
+		{
+			"type": "a",
+			"description": "Description 5"
+		},
+		{
+			"type": "SyntaxError",
+			"description": "Description 6"
+		},
+		{
+			"description": "`EvalError`"
+		}
+	]
+}

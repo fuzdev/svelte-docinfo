@@ -1088,7 +1088,8 @@
 							"typeSignature": "(width: number, height: number): Rectangle",
 							"throws": [
 								{
-									"description": "`RangeError` when either dimension is negative"
+									"type": "RangeError",
+									"description": "when either dimension is negative"
 								}
 							],
 							"parameters": [
