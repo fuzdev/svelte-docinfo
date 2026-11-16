@@ -51,8 +51,8 @@ which was more limited, lacking the fancy TS compiler usage, and grew slowly ove
 
 ## Quick start
 
-Given a project with a `tsconfig.json` (at or above the project root) and two files,
-`src/lib/math.ts`:
+Given a project with a `tsconfig.json` (at or above the project root) and three files,
+`src/lib/maths.ts`:
 
 ```ts
 /**
@@ -66,6 +66,24 @@ export function add(a: number, b: number): number {
 }
 ```
 
+`src/lib/calculator.svelte.ts`:
+
+```ts
+import { add } from './maths.ts';
+
+/** Reactive calculator state. */
+export class CalculatorState {
+	/** First operand. */
+	a = $state(0);
+	/** Second operand. */
+	b = $state(0);
+	/** Operation mode. */
+	mode: 'add' | 'multiply' = $state('add');
+	/** The result, kept current. */
+	readonly result = $derived(this.mode === 'add' ? add(this.a, this.b) : this.a * this.b);
+}
+```
+
 and `src/lib/Calculator.svelte`:
 
 ```svelte
@@ -74,28 +92,20 @@ and `src/lib/Calculator.svelte`:
 	Calculator component for demonstrating Svelte analysis.
 -->
 <script lang="ts">
-	import { add } from './math.ts';
+	import type { CalculatorState } from './calculator.svelte.ts';
 
 	let {
-		a = $bindable(0),
-		b = 0,
-		mode = 'add',
+		calc,
 		disabled = false
 	}: {
-		/** First operand (bindable). */
-		a?: number;
-		/** Second operand. */
-		b?: number;
-		/** Operation mode. */
-		mode?: 'add' | 'multiply';
+		/** The calculator's state. */
+		calc: CalculatorState;
 		/** Disable the calculator. */
 		disabled?: boolean;
 	} = $props();
-
-	const result = $derived(mode === 'add' ? add(a, b) : a * b);
 </script>
 
-<output>{result}</output>
+<output>{calc.result}</output>
 ```
 
 Three ways to use it:
@@ -146,35 +156,7 @@ here (the Vite module compacts `modules` only); the API returns it with defaults
 					"docComment": "Calculator component for demonstrating Svelte analysis.",
 					"sourceLine": 5,
 					"props": [
-						{
-							"name": "a",
-							"type": "number",
-							"optional": true,
-							"description": "First operand (bindable).",
-							"defaultValue": "0",
-							"bindable": true
-						},
-						{
-							"name": "b",
-							"type": "number",
-							"optional": true,
-							"description": "Second operand.",
-							"defaultValue": "0"
-						},
-						{
-							"name": "mode",
-							"type": "\"add\" | \"multiply\"",
-							"typeInfo": {
-								"kind": "union",
-								"members": [
-									{ "kind": "literal", "value": "add", "text": "\"add\"" },
-									{ "kind": "literal", "value": "multiply", "text": "\"multiply\"" }
-								]
-							},
-							"optional": true,
-							"description": "Operation mode.",
-							"defaultValue": "'add'"
-						},
+						{ "name": "calc", "type": "CalculatorState", "description": "The calculator's state." },
 						{
 							"name": "disabled",
 							"type": "boolean",
@@ -185,10 +167,61 @@ here (the Vite module compacts `modules` only); the API returns it with defaults
 					]
 				}
 			],
-			"dependencies": ["math.ts"]
+			"dependencies": ["calculator.svelte.ts"]
 		},
 		{
-			"path": "math.ts",
+			"path": "calculator.svelte.ts",
+			"declarations": [
+				{
+					"name": "CalculatorState",
+					"kind": "class",
+					"docComment": "Reactive calculator state.",
+					"sourceLine": 4,
+					"members": [
+						{
+							"name": "a",
+							"kind": "variable",
+							"docComment": "First operand.",
+							"typeSignature": "number",
+							"reactivity": "$state"
+						},
+						{
+							"name": "b",
+							"kind": "variable",
+							"docComment": "Second operand.",
+							"typeSignature": "number",
+							"reactivity": "$state"
+						},
+						{
+							"name": "mode",
+							"kind": "variable",
+							"docComment": "Operation mode.",
+							"typeSignature": "\"add\" | \"multiply\"",
+							"reactivity": "$state",
+							"typeInfo": {
+								"kind": "union",
+								"members": [
+									{ "kind": "literal", "value": "add", "text": "\"add\"" },
+									{ "kind": "literal", "value": "multiply", "text": "\"multiply\"" }
+								]
+							}
+						},
+						{
+							"name": "result",
+							"kind": "variable",
+							"docComment": "The result, kept current.",
+							"typeSignature": "number",
+							"modifiers": ["readonly"],
+							"reactivity": "$derived"
+						}
+					]
+				}
+			],
+			"dependencies": ["maths.ts"],
+			"dependents": ["Calculator.svelte"]
+		},
+		{
+			"path": "maths.ts",
 			"declarations": [
 				{
 					"name": "add",
@@ -204,14 +237,14 @@ here (the Vite module compacts `modules` only); the API returns it with defaults
 					"returnDescription": "the sum"
 				}
 			],
-			"dependents": ["Calculator.svelte"]
+			"dependents": ["calculator.svelte.ts"]
 		}
 	]
 }
 ```
 
-The component's import of `add` links the two modules as `dependencies` and `dependents`.
-`result` is a script-local, not an export, so it isn't documented.
+Each import links two modules as `dependencies` and `dependents`, type-only imports included,
+and class fields initialized with runes carry their `reactivity`.
 
 The compact form leaves out defaulted fields: empty arrays (like `diagnostics` here) and
 `false` flags. To restore them and validate the shape, parse it with `parseAnalyzeResult`
