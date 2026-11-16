@@ -74,19 +74,28 @@ and `src/lib/Calculator.svelte`:
 	Calculator component for demonstrating Svelte analysis.
 -->
 <script lang="ts">
+	import { add } from './math.ts';
+
 	let {
-		result = $bindable(0),
+		a = $bindable(0),
+		b = 0,
 		mode = 'add',
 		disabled = false
 	}: {
-		/** Current result (bindable). */
-		result?: number;
+		/** First operand (bindable). */
+		a?: number;
+		/** Second operand. */
+		b?: number;
 		/** Operation mode. */
 		mode?: 'add' | 'multiply';
 		/** Disable the calculator. */
 		disabled?: boolean;
 	} = $props();
+
+	const result = $derived(mode === 'add' ? add(a, b) : a * b);
 </script>
+
+<output>{result}</output>
 ```
 
 Three ways to use it:
@@ -138,12 +147,19 @@ here (the Vite module compacts `modules` only); the API returns it with defaults
 					"sourceLine": 5,
 					"props": [
 						{
-							"name": "result",
+							"name": "a",
 							"type": "number",
 							"optional": true,
-							"description": "Current result (bindable).",
+							"description": "First operand (bindable).",
 							"defaultValue": "0",
 							"bindable": true
+						},
+						{
+							"name": "b",
+							"type": "number",
+							"optional": true,
+							"description": "Second operand.",
+							"defaultValue": "0"
 						},
 						{
 							"name": "mode",
@@ -168,7 +184,8 @@ here (the Vite module compacts `modules` only); the API returns it with defaults
 						}
 					]
 				}
-			]
+			],
+			"dependencies": ["math.ts"]
 		},
 		{
 			"path": "math.ts",
@@ -186,11 +203,15 @@ here (the Vite module compacts `modules` only); the API returns it with defaults
 					"returnType": "number",
 					"returnDescription": "the sum"
 				}
-			]
+			],
+			"dependents": ["Calculator.svelte"]
 		}
 	]
 }
 ```
+
+The component's import of `add` links the two modules as `dependencies` and `dependents`.
+`result` is a script-local, not an export, so it isn't documented.
 
 The compact form leaves out defaulted fields: empty arrays (like `diagnostics` here) and
 `false` flags. To restore them and validate the shape, parse it with `parseAnalyzeResult`
