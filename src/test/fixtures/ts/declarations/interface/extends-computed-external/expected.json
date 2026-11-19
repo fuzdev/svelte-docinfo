@@ -12,6 +12,23 @@
 					"extends": [
 						"Omit<C, 'c2'>"
 					],
+					"extendsInfo": [
+						{
+							"kind": "reference",
+							"name": "Omit",
+							"typeArgs": [
+								{
+									"kind": "reference",
+									"name": "C"
+								},
+								{
+									"kind": "literal",
+									"value": "c2",
+									"text": "\"c2\""
+								}
+							]
+						}
+					],
 					"externalTypes": [
 						"Omit<C, 'c2'>"
 					],
@@ -73,6 +90,18 @@
 					"sourceLine": 16,
 					"extends": [
 						"Partial<D>"
+					],
+					"extendsInfo": [
+						{
+							"kind": "reference",
+							"name": "Partial",
+							"typeArgs": [
+								{
+									"kind": "reference",
+									"name": "D"
+								}
+							]
+						}
 					],
 					"externalTypes": [
 						"Partial<D>"

@@ -1,0 +1,332 @@
+{
+	"modules": [
+		{
+			"path": "a.ts",
+			"declarations": [
+				{
+					"name": "A",
+					"kind": "interface",
+					"typeSignature": "A",
+					"sourceLine": 1,
+					"members": [
+						{
+							"name": "a",
+							"kind": "variable",
+							"typeSignature": "number"
+						}
+					]
+				},
+				{
+					"name": "K",
+					"kind": "interface",
+					"typeSignature": "K<T, U>",
+					"sourceLine": 5,
+					"genericParams": [
+						{
+							"name": "T",
+							"defaultType": "unknown"
+						},
+						{
+							"name": "U",
+							"defaultType": "string"
+						}
+					],
+					"members": [
+						{
+							"name": "t",
+							"kind": "variable",
+							"typeSignature": "T"
+						},
+						{
+							"name": "u",
+							"kind": "variable",
+							"typeSignature": "U"
+						}
+					]
+				}
+			],
+			"dependents": [
+				"input.ts"
+			]
+		},
+		{
+			"path": "input.ts",
+			"declarations": [
+				{
+					"name": "B",
+					"kind": "class",
+					"sourceLine": 3,
+					"genericParams": [
+						{
+							"name": "T"
+						}
+					],
+					"members": [
+						{
+							"name": "b",
+							"kind": "variable",
+							"typeSignature": "T"
+						}
+					]
+				},
+				{
+					"name": "C",
+					"kind": "interface",
+					"typeSignature": "C",
+					"sourceLine": 7,
+					"members": [
+						{
+							"name": "c",
+							"kind": "variable",
+							"typeSignature": "number"
+						}
+					]
+				},
+				{
+					"name": "D",
+					"kind": "class",
+					"sourceLine": 13,
+					"extends": [
+						"B<RenamedA>"
+					],
+					"extendsInfo": [
+						{
+							"kind": "reference",
+							"name": "B",
+							"typeArgs": [
+								{
+									"kind": "reference",
+									"name": "A"
+								}
+							]
+						}
+					],
+					"implements": [
+						"C",
+						"RenamedA"
+					],
+					"implementsInfo": [
+						{
+							"kind": "reference",
+							"name": "C"
+						},
+						{
+							"kind": "reference",
+							"name": "A"
+						}
+					],
+					"members": [
+						{
+							"name": "a",
+							"kind": "variable",
+							"typeSignature": "number"
+						},
+						{
+							"name": "c",
+							"kind": "variable",
+							"typeSignature": "number"
+						}
+					]
+				},
+				{
+					"name": "E",
+					"kind": "class",
+					"sourceLine": 18,
+					"extends": [
+						"mixin(B)<string>"
+					],
+					"extendsInfo": [
+						{
+							"kind": "other",
+							"text": "mixin(B)<string>"
+						}
+					]
+				},
+				{
+					"name": "G",
+					"kind": "type",
+					"typeSignature": "G<T>",
+					"sourceLine": 20,
+					"genericParams": [
+						{
+							"name": "T"
+						}
+					]
+				},
+				{
+					"name": "F",
+					"kind": "interface",
+					"typeSignature": "F<T>",
+					"sourceLine": 22,
+					"genericParams": [
+						{
+							"name": "T"
+						}
+					],
+					"extends": [
+						"B<T>",
+						"C",
+						"G<RenamedA>"
+					],
+					"extendsInfo": [
+						{
+							"kind": "reference",
+							"name": "B",
+							"typeArgs": [
+								{
+									"kind": "other",
+									"text": "T"
+								}
+							]
+						},
+						{
+							"kind": "reference",
+							"name": "C"
+						},
+						{
+							"kind": "reference",
+							"name": "G",
+							"typeArgs": [
+								{
+									"kind": "reference",
+									"name": "A"
+								}
+							]
+						}
+					],
+					"members": [
+						{
+							"name": "a",
+							"kind": "variable",
+							"typeSignature": "number | null",
+							"typeInfo": {
+								"kind": "union",
+								"members": [
+									{
+										"kind": "intrinsic",
+										"text": "number"
+									},
+									{
+										"kind": "intrinsic",
+										"text": "null"
+									}
+								]
+							}
+						}
+					]
+				},
+				{
+					"name": "H",
+					"kind": "class",
+					"sourceLine": 24,
+					"genericParams": [
+						{
+							"name": "T"
+						},
+						{
+							"name": "U",
+							"defaultType": "unknown"
+						}
+					],
+					"members": [
+						{
+							"name": "t",
+							"kind": "variable",
+							"typeSignature": "T"
+						},
+						{
+							"name": "u",
+							"kind": "variable",
+							"typeSignature": "U"
+						}
+					]
+				},
+				{
+					"name": "I",
+					"kind": "class",
+					"sourceLine": 29,
+					"extends": [
+						"H<string>"
+					],
+					"extendsInfo": [
+						{
+							"kind": "reference",
+							"name": "H",
+							"typeArgs": [
+								{
+									"kind": "intrinsic",
+									"text": "string"
+								}
+							]
+						}
+					]
+				},
+				{
+					"name": "J",
+					"kind": "type",
+					"typeSignature": "K<T, T>",
+					"sourceLine": 31,
+					"genericParams": [
+						{
+							"name": "T"
+						}
+					],
+					"typeInfo": {
+						"kind": "reference",
+						"name": "K",
+						"typeArgs": [
+							{
+								"kind": "other",
+								"text": "T"
+							},
+							{
+								"kind": "other",
+								"text": "T"
+							}
+						]
+					},
+					"members": [
+						{
+							"name": "t",
+							"kind": "variable",
+							"typeSignature": "T"
+						},
+						{
+							"name": "u",
+							"kind": "variable",
+							"typeSignature": "T"
+						}
+					]
+				},
+				{
+					"name": "L",
+					"kind": "interface",
+					"typeSignature": "L",
+					"sourceLine": 33,
+					"extends": [
+						"J<number>"
+					],
+					"extendsInfo": [
+						{
+							"kind": "reference",
+							"name": "K",
+							"typeArgs": [
+								{
+									"kind": "intrinsic",
+									"text": "number"
+								},
+								{
+									"kind": "intrinsic",
+									"text": "number"
+								}
+							]
+						}
+					]
+				}
+			],
+			"dependencies": [
+				"a.ts"
+			]
+		}
+	]
+}

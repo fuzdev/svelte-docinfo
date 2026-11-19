@@ -278,7 +278,10 @@ const emitPropertyMembers = (
 			propTsdoc,
 			propDecl ?? location,
 			prop.getName(),
-			annotation
+			annotation,
+			// a method wherever any declaration says so; a property with none
+			// (a mapped type's) is a property
+			!!decls?.some((decl) => ts.isMethodSignature(decl) || ts.isMethodDeclaration(decl))
 		);
 
 		(declaration.members ??= []).push(member);

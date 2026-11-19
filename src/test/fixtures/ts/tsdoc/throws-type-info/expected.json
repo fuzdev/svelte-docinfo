@@ -1,0 +1,116 @@
+{
+	"path": "input.ts",
+	"declarations": [
+		{
+			"name": "fn",
+			"kind": "function",
+			"typeSignature": "(): void",
+			"sourceLine": 12,
+			"throws": [
+				{
+					"type": "A<string>",
+					"typeInfo": {
+						"kind": "reference",
+						"name": "A",
+						"typeArgs": [
+							{
+								"kind": "intrinsic",
+								"text": "string"
+							}
+						]
+					},
+					"description": "Description 1"
+				},
+				{
+					"type": "A | C",
+					"typeInfo": {
+						"kind": "union",
+						"members": [
+							{
+								"kind": "reference",
+								"name": "A",
+								"typeArgs": [
+									{
+										"kind": "intrinsic",
+										"text": "unknown"
+									}
+								]
+							},
+							{
+								"kind": "reference",
+								"name": "C"
+							}
+						]
+					},
+					"description": "Description 2"
+				},
+				{
+					"type": "A",
+					"description": "Description 3"
+				},
+				{
+					"type": "A",
+					"description": "Description 4"
+				},
+				{
+					"type": "Unknown<string>",
+					"description": "Description 5"
+				}
+			],
+			"returnType": "void"
+		},
+		{
+			"name": "A",
+			"kind": "class",
+			"sourceLine": 1,
+			"genericParams": [
+				{
+					"name": "T",
+					"defaultType": "unknown"
+				}
+			],
+			"members": [
+				{
+					"name": "a",
+					"kind": "variable",
+					"typeSignature": "T"
+				}
+			]
+		},
+		{
+			"name": "C",
+			"kind": "class",
+			"sourceLine": 14
+		},
+		{
+			"name": "B",
+			"kind": "interface",
+			"typeSignature": "B",
+			"sourceLine": 16,
+			"members": [
+				{
+					"name": "fn",
+					"kind": "function",
+					"typeSignature": "(): void",
+					"throws": [
+						{
+							"type": "A<number>",
+							"typeInfo": {
+								"kind": "reference",
+								"name": "A",
+								"typeArgs": [
+									{
+										"kind": "intrinsic",
+										"text": "number"
+									}
+								]
+							},
+							"description": "Description 1"
+						}
+					],
+					"returnType": "void"
+				}
+			]
+		}
+	]
+}

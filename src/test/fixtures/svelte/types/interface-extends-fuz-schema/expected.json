@@ -21,6 +21,12 @@
 			"extends": [
 				"s.Infer<typeof A>"
 			],
+			"extendsInfo": [
+				{
+					"kind": "object",
+					"text": "{ a: string; b?: number | undefined; }"
+				}
+			],
 			"members": [
 				{
 					"name": "a",
@@ -45,6 +51,12 @@
 			"sourceLine": 16,
 			"extends": [
 				"s.SchemaStrictObjectOutput<typeof AEntries>"
+			],
+			"extendsInfo": [
+				{
+					"kind": "object",
+					"text": "{ a: string; b?: number | undefined; }"
+				}
 			],
 			"members": [
 				{

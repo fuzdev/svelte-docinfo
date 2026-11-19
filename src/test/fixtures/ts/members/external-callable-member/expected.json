@@ -29,7 +29,8 @@
 								}
 							],
 							"returnType": "number",
-							"optional": true
+							"optional": true,
+							"property": true
 						}
 					]
 				}

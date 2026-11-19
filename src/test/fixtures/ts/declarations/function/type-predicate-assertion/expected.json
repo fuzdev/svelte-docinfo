@@ -1,0 +1,213 @@
+{
+	"path": "input.ts",
+	"declarations": [
+		{
+			"name": "fn1",
+			"kind": "function",
+			"typeSignature": "(a: unknown): asserts a is A",
+			"sourceLine": 13,
+			"parameters": [
+				{
+					"name": "a",
+					"type": "unknown"
+				}
+			],
+			"returnType": "void",
+			"returnPredicate": {
+				"parameterName": "a",
+				"asserts": true,
+				"type": "A"
+			}
+		},
+		{
+			"name": "fn2",
+			"kind": "function",
+			"typeSignature": "(a: unknown): asserts a",
+			"sourceLine": 17,
+			"parameters": [
+				{
+					"name": "a",
+					"type": "unknown"
+				}
+			],
+			"returnType": "void",
+			"returnPredicate": {
+				"parameterName": "a",
+				"asserts": true
+			}
+		},
+		{
+			"name": "fn4",
+			"kind": "function",
+			"typeSignature": "(a: string): a is \"a\"",
+			"sourceLine": 23,
+			"parameters": [
+				{
+					"name": "a",
+					"type": "string"
+				}
+			],
+			"overloads": [
+				{
+					"typeSignature": "(a: string): a is \"a\"",
+					"parameters": [
+						{
+							"name": "a",
+							"type": "string"
+						}
+					],
+					"returnType": "boolean",
+					"returnPredicate": {
+						"parameterName": "a",
+						"type": "\"a\""
+					}
+				},
+				{
+					"typeSignature": "(a: number): boolean",
+					"parameters": [
+						{
+							"name": "a",
+							"type": "number"
+						}
+					],
+					"returnType": "boolean"
+				}
+			],
+			"returnType": "boolean",
+			"returnPredicate": {
+				"parameterName": "a",
+				"type": "\"a\""
+			}
+		},
+		{
+			"name": "A",
+			"kind": "class",
+			"sourceLine": 1,
+			"members": [
+				{
+					"name": "a",
+					"kind": "variable",
+					"typeSignature": "number"
+				},
+				{
+					"name": "fn1",
+					"kind": "function",
+					"typeSignature": "(): this is B",
+					"returnType": "boolean",
+					"returnPredicate": {
+						"parameterName": "this",
+						"type": "B"
+					}
+				},
+				{
+					"name": "fn2",
+					"kind": "function",
+					"typeSignature": "(): asserts this is B",
+					"returnType": "void",
+					"returnPredicate": {
+						"parameterName": "this",
+						"asserts": true,
+						"type": "B"
+					}
+				}
+			]
+		},
+		{
+			"name": "B",
+			"kind": "class",
+			"sourceLine": 9,
+			"extends": [
+				"A"
+			],
+			"extendsInfo": [
+				{
+					"kind": "reference",
+					"name": "A"
+				}
+			],
+			"members": [
+				{
+					"name": "b",
+					"kind": "variable",
+					"typeSignature": "number"
+				}
+			]
+		},
+		{
+			"name": "fn3",
+			"kind": "function",
+			"typeSignature": "(a: unknown): a is A | B | null",
+			"sourceLine": 21,
+			"parameters": [
+				{
+					"name": "a",
+					"type": "unknown"
+				}
+			],
+			"returnType": "boolean",
+			"returnPredicate": {
+				"parameterName": "a",
+				"type": "A | B | null",
+				"typeInfo": {
+					"kind": "union",
+					"members": [
+						{
+							"kind": "reference",
+							"name": "A"
+						},
+						{
+							"kind": "reference",
+							"name": "B"
+						},
+						{
+							"kind": "intrinsic",
+							"text": "null"
+						}
+					]
+				}
+			}
+		},
+		{
+			"name": "C",
+			"kind": "interface",
+			"typeSignature": "C",
+			"sourceLine": 29,
+			"members": [
+				{
+					"name": "fn1",
+					"kind": "function",
+					"typeSignature": "(a: unknown): a is A",
+					"parameters": [
+						{
+							"name": "a",
+							"type": "unknown"
+						}
+					],
+					"returnType": "boolean",
+					"returnPredicate": {
+						"parameterName": "a",
+						"type": "A"
+					},
+					"property": true
+				},
+				{
+					"name": "fn2",
+					"kind": "function",
+					"typeSignature": "(a: unknown): asserts a is A",
+					"parameters": [
+						{
+							"name": "a",
+							"type": "unknown"
+						}
+					],
+					"returnType": "void",
+					"returnPredicate": {
+						"parameterName": "a",
+						"asserts": true,
+						"type": "A"
+					}
+				}
+			]
+		}
+	]
+}

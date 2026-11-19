@@ -11,6 +11,26 @@
 				"B",
 				"C"
 			],
+			"extendsInfo": [
+				{
+					"kind": "function",
+					"text": "B"
+				},
+				{
+					"kind": "intersection",
+					"alias": "C",
+					"members": [
+						{
+							"kind": "function",
+							"text": "B"
+						},
+						{
+							"kind": "object",
+							"text": "{ c: number; }"
+						}
+					]
+				}
+			],
 			"members": [
 				{
 					"name": "c",
@@ -28,6 +48,26 @@
 			"extends": [
 				"C",
 				"B"
+			],
+			"extendsInfo": [
+				{
+					"kind": "intersection",
+					"alias": "C",
+					"members": [
+						{
+							"kind": "function",
+							"text": "B"
+						},
+						{
+							"kind": "object",
+							"text": "{ c: number; }"
+						}
+					]
+				},
+				{
+					"kind": "function",
+					"text": "B"
+				}
 			],
 			"members": [
 				{

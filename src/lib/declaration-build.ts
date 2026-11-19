@@ -16,7 +16,9 @@
 import type {
 	DeclarationKind,
 	DeclarationModifier,
-	GenericParamJson,
+	GenericParamJsonInput,
+	ReturnPredicateJsonInput,
+	ThrowsJsonInput,
 	MemberKind,
 	ParameterJsonInput,
 	OverloadJsonInput,
@@ -47,23 +49,28 @@ export interface MemberJsonBuild {
 	typeSignature?: string;
 	modifiers?: Array<DeclarationModifier>;
 	sourceLine?: number;
-	genericParams?: Array<GenericParamJson>;
+	genericParams?: Array<GenericParamJsonInput>;
 	parameters?: Array<ParameterJsonInput>;
 	returnType?: string;
 	returnTypeInfo?: TypeJson;
+	returnPredicate?: ReturnPredicateJsonInput;
+	thisType?: string;
+	thisTypeInfo?: TypeJson;
 	returnDescription?: string;
 	overloads?: Array<OverloadJsonInput>;
 	examples?: Array<string>;
 	deprecatedMessage?: string;
 	internalMessage?: string;
 	seeAlso?: Array<string>;
-	throws?: Array<{ type?: string; description: string }>;
+	throws?: Array<ThrowsJsonInput>;
 	since?: string;
 	mutates?: Record<string, string>;
 	reactivity?: Reactivity;
 	partial?: boolean;
 	/** Whether the member has a `?` token in its declaration. Function and variable members only. */
 	optional?: boolean;
+	/** Whether a function member is a function-typed property, not a method. */
+	property?: boolean;
 	/** Default value documented via `@default`. Variable and function members only. */
 	defaultValue?: string;
 	/** Structured type. Variable members only; see `TypeJson`. */
@@ -87,19 +94,24 @@ export interface DeclarationJsonBuild {
 	parameters?: Array<ParameterJsonInput>;
 	returnType?: string;
 	returnTypeInfo?: TypeJson;
+	returnPredicate?: ReturnPredicateJsonInput;
+	thisType?: string;
+	thisTypeInfo?: TypeJson;
 	returnDescription?: string;
-	genericParams?: Array<GenericParamJson>;
+	genericParams?: Array<GenericParamJsonInput>;
 	overloads?: Array<OverloadJsonInput>;
 	examples?: Array<string>;
 	deprecatedMessage?: string;
 	internalMessage?: string;
 	seeAlso?: Array<string>;
-	throws?: Array<{ type?: string; description: string }>;
+	throws?: Array<ThrowsJsonInput>;
 	since?: string;
 	mutates?: Record<string, string>;
 	extends?: Array<string>;
+	extendsInfo?: Array<TypeJson>;
 	externalTypes?: Array<string>;
 	implements?: Array<string>;
+	implementsInfo?: Array<TypeJson>;
 	members?: Array<MemberJsonBuild>;
 	props?: Array<ComponentPropJsonInput>;
 	acceptsChildren?: boolean;

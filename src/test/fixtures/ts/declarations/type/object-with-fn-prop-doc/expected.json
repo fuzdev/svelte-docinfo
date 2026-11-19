@@ -25,7 +25,8 @@
 						}
 					],
 					"returnType": "number",
-					"returnDescription": "the sum of `a` and `b`"
+					"returnDescription": "the sum of `a` and `b`",
+					"property": true
 				}
 			]
 		}

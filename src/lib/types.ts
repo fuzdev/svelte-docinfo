@@ -135,36 +135,6 @@ export type Reactivity = s.Infer<typeof Reactivity>;
 /** A 1-based source line: a positive integer. */
 const SourceLine = s.pipe(s.number, s.safe_integer, s.min_value(1));
 
-const GenericParamJsonEntries = {
-	/** Parameter name like `T`. */
-	name: s.string,
-	/** Constraint like `string` from `T extends string`. */
-	constraint: s.optional(s.string),
-	/** Default type like `unknown` from `T = unknown`. */
-	defaultType: s.optional(s.string)
-};
-/** @nodocs */
-export interface GenericParamJsonSchema extends s.Schema<
-	GenericParamJson,
-	GenericParamJsonInput,
-	'object',
-	typeof GenericParamJsonEntries
-> {}
-/**
- * Generic type parameter metadata extracted from declarations like `<T extends string = unknown>`.
- *
- * Present on functions, classes, interfaces, type aliases, and Svelte components
- * that declare generic type parameters.
- */
-export const GenericParamJson: GenericParamJsonSchema = s.object(GenericParamJsonEntries);
-export interface GenericParamJson extends s.SchemaStrictObjectOutput<
-	typeof GenericParamJsonEntries
-> {}
-/** The input `GenericParamJson` parses, with any field it defaults optional. */
-export interface GenericParamJsonInput extends s.SchemaStrictObjectInput<
-	typeof GenericParamJsonEntries
-> {}
-
 /**
  * Structured type information — the machine-readable counterpart to the flat
  * type strings (`ParameterJson.type`, `ComponentPropJson.type`, the
@@ -470,6 +440,60 @@ export const TupleElementJson: s.Schema<TupleElementJson> = s.object({
 });
 
 /**
+ * A modifier keyword written on a type parameter: `const` (`<const T>`), or
+ * the variance annotations `in` and `out` (`interface A<in out T>`).
+ */
+export const GenericParamModifier = s.one_of(['const', 'in', 'out']);
+export type GenericParamModifier = s.Infer<typeof GenericParamModifier>;
+
+const GenericParamJsonEntries = {
+	/** Parameter name like `T`. */
+	name: s.string,
+	/**
+	 * Modifier keywords written on the parameter, in the order TypeScript
+	 * prints them (`const`, `in`, `out`).
+	 */
+	modifiers: s.with_default_fn(s.array(GenericParamModifier), () => []),
+	/** Constraint like `string` from `T extends string`, as source text. */
+	constraint: s.optional(s.string),
+	/**
+	 * Structured constraint; absent when `constraint` is the whole story (see
+	 * `TypeJson`). The checker's reading of the written type, so it can spell
+	 * a type differently from the source text beside it (`Array<A>` reads as
+	 * an `array` node).
+	 */
+	constraintInfo: s.optional(TypeJson),
+	/** Default type like `unknown` from `T = unknown`, as source text. */
+	defaultType: s.optional(s.string),
+	/**
+	 * Structured default type; absent when `defaultType` is the whole story
+	 * (see `TypeJson`). The checker's reading, like `constraintInfo`.
+	 */
+	defaultTypeInfo: s.optional(TypeJson)
+};
+/** @nodocs */
+export interface GenericParamJsonSchema extends s.Schema<
+	GenericParamJson,
+	GenericParamJsonInput,
+	'object',
+	typeof GenericParamJsonEntries
+> {}
+/**
+ * Generic type parameter metadata extracted from declarations like `<T extends string = unknown>`.
+ *
+ * Present on functions, classes, interfaces, type aliases, and Svelte components
+ * that declare generic type parameters.
+ */
+export const GenericParamJson: GenericParamJsonSchema = s.object(GenericParamJsonEntries);
+export interface GenericParamJson extends s.SchemaStrictObjectOutput<
+	typeof GenericParamJsonEntries
+> {}
+/** The input `GenericParamJson` parses, with any field it defaults optional. */
+export interface GenericParamJsonInput extends s.SchemaStrictObjectInput<
+	typeof GenericParamJsonEntries
+> {}
+
+/**
  * A map of author-written string keys to strings (`@mutates` targets, dotted
  * `@param` sub-paths).
  *
@@ -487,6 +511,16 @@ const ParameterJsonEntries = {
 	 * never the name.
 	 */
 	name: s.string,
+	/**
+	 * A destructured parameter's binding pattern (`{ a, b = 1 }`, `[a, b]`),
+	 * printed on one line with its defaults kept and comments dropped (a string
+	 * default that spans lines keeps its line breaks). Such a parameter has no
+	 * name of its own, so `name` is the one TypeScript gives it by position
+	 * (`__0` for the first parameter, `__1` for the second, a `this` parameter
+	 * counted); a renderer shows the pattern in its place.
+	 * Absent on an identifier-named parameter.
+	 */
+	pattern: s.optional(s.string),
 	/** Resolved TypeScript type string (e.g., `string`, `Record<string, unknown>`). */
 	type: s.string,
 	/** Structured type; absent when `type` is the whole story (see `TypeJson`). */
@@ -527,7 +561,8 @@ const ParameterJsonEntries = {
 	 *
 	 * Matching is by the parameter's name, so destructured parameters
 	 * (`fn({a, b}: T)`) are not covered — TypeScript names them `__0`, with no
-	 * author-facing identifier for a `@param` key to reference.
+	 * author-facing identifier for a `@param` key to reference (`pattern`
+	 * carries what the author wrote).
 	 */
 	propertyDescriptions: s.optional(StringRecord)
 };
@@ -557,6 +592,80 @@ export interface ParameterJsonInput extends s.SchemaStrictObjectInput<
 	typeof ParameterJsonEntries
 > {}
 
+const ThrowsJsonEntries = {
+	/** The thrown type as written: a braced type's text, or an unbraced tag's leading word. */
+	type: s.optional(s.string),
+	/** Structured `type`; absent when `type` is the whole story (see `TypeJson`). */
+	typeInfo: s.optional(TypeJson),
+	/** The tag's description; empty for a bare `@throws {A}`. */
+	description: s.string
+};
+/** @nodocs */
+export interface ThrowsJsonSchema extends s.Schema<
+	ThrowsJson,
+	ThrowsJsonInput,
+	'object',
+	typeof ThrowsJsonEntries
+> {}
+/** One `@throws` tag: the thrown type, when the tag names one, and its description. */
+export const ThrowsJson: ThrowsJsonSchema = s.object(ThrowsJsonEntries);
+export interface ThrowsJson extends s.SchemaStrictObjectOutput<typeof ThrowsJsonEntries> {}
+/** The input `ThrowsJson` parses, with any field it defaults optional. */
+export interface ThrowsJsonInput extends s.SchemaStrictObjectInput<typeof ThrowsJsonEntries> {}
+
+const ReturnPredicateJsonEntries = {
+	/** The parameter the predicate narrows, or `this` for a `this is A` predicate. */
+	parameterName: s.string,
+	/** Whether it is an assertion (`asserts x is A`, `asserts x`), which returns `void`. */
+	asserts: s.with_default(s.boolean, false),
+	/** The type narrowed to; absent for a bare `asserts x`. */
+	type: s.optional(s.string),
+	/** Structured `type`; absent when `type` is the whole story (see `TypeJson`). */
+	typeInfo: s.optional(TypeJson)
+};
+/** @nodocs */
+export interface ReturnPredicateJsonSchema extends s.Schema<
+	ReturnPredicateJson,
+	ReturnPredicateJsonInput,
+	'object',
+	typeof ReturnPredicateJsonEntries
+> {}
+/**
+ * A signature's type predicate (`x is A`) or assertion (`asserts x is A`,
+ * `asserts x`), which the return type beside it can't show: `returnType` is
+ * the checker's type for the return value, `boolean` or `void`. A renderer
+ * writes the return clause from this instead: `asserts ` when `asserts`, then
+ * `parameterName`, then ` is ` and `type` when there is one.
+ */
+export const ReturnPredicateJson: ReturnPredicateJsonSchema = s.object(ReturnPredicateJsonEntries);
+export interface ReturnPredicateJson extends s.SchemaStrictObjectOutput<
+	typeof ReturnPredicateJsonEntries
+> {}
+/** The input `ReturnPredicateJson` parses, with any field it defaults optional. */
+export interface ReturnPredicateJsonInput extends s.SchemaStrictObjectInput<
+	typeof ReturnPredicateJsonEntries
+> {}
+
+/**
+ * Signature fields shared by everything with a return type: function
+ * declarations, function members, overloads, and callback props.
+ */
+const signatureFields = {
+	/**
+	 * The signature's type predicate or assertion, when it declares one;
+	 * `returnType` stays the checker's `boolean` or `void`.
+	 */
+	returnPredicate: s.optional(ReturnPredicateJson),
+	/**
+	 * The type of a declared `this` parameter (`function f(this: A)`, or a JS
+	 * `@this {A}` tag), which `parameters` leaves out, since a caller doesn't
+	 * pass it as an argument.
+	 */
+	thisType: s.optional(s.string),
+	/** Structured `thisType`; absent when `thisType` is the whole story (see `TypeJson`). */
+	thisTypeInfo: s.optional(TypeJson)
+} as const;
+
 /**
  * Doc-comment fields shared across declarations, members, and component props.
  *
@@ -570,11 +679,14 @@ const docFields = {
 	deprecatedMessage: s.optional(s.string),
 	/** Related items from `@see` tags, in raw TSDoc format. */
 	seeAlso: s.with_default_fn(s.array(s.string), () => []),
-	/** Exceptions from `@throws` tags. */
-	throws: s.with_default_fn(
-		s.array(s.object({ type: s.optional(s.string), description: s.string })),
-		() => []
-	),
+	/**
+	 * Exceptions from `@throws` tags. `type` is the tag's written type, and
+	 * `typeInfo` its structured form, present for a braced type
+	 * (`@throws {A<B>}`) that isn't the whole story as text (see `TypeJson`);
+	 * an unbraced tag's leading word never has one, nor does a tag in a
+	 * component's HTML `@component` comment, which is read as text.
+	 */
+	throws: s.with_default_fn(s.array(ThrowsJson), () => []),
 	/** Version introduced, from `@since` tag. */
 	since: s.optional(s.string),
 	/**
@@ -673,6 +785,7 @@ const ComponentPropJsonEntries = {
 	returnType: s.optional(s.string),
 	/** Structured return type; absent when `returnType` is the whole story (see `TypeJson`). */
 	returnTypeInfo: s.optional(TypeJson),
+	...signatureFields,
 	...docFields
 };
 /** @nodocs */
@@ -786,6 +899,7 @@ const OverloadJsonEntries = {
 	returnType: s.optional(s.string),
 	/** Structured return type; absent when `returnType` is the whole story (see `TypeJson`). */
 	returnTypeInfo: s.optional(TypeJson),
+	...signatureFields,
 	/** Generic type parameters for this overload. */
 	genericParams: s.with_default_fn(s.array(GenericParamJson), () => []),
 	/** JSDoc/TSDoc comment specific to this overload. */
@@ -883,6 +997,7 @@ const returnFields = {
 	returnType: s.optional(s.string),
 	/** Structured return type; absent when `returnType` is the whole story (see `TypeJson`). */
 	returnTypeInfo: s.optional(TypeJson),
+	...signatureFields,
 	/** Return value description from `@returns` tag. */
 	returnDescription: s.optional(s.string)
 } as const;
@@ -906,6 +1021,17 @@ const FunctionMemberJsonEntries = {
 	name: s.string,
 	/** Whether the member has a `?` token in its declaration. */
 	optional: s.with_default(s.boolean, false),
+	/**
+	 * Whether the member is a function-typed property (`now: () => number`)
+	 * and not a method (`now(): number`), on an interface or a type alias. The
+	 * two classify alike, as callables, so a renderer reads this to write the
+	 * property form, the only one that takes `readonly` or a default. Set
+	 * unless one of the property's declarations uses method syntax, so a
+	 * property with no declaration (a mapped type's) is one too. Never set on
+	 * a class member: a class's methods are methods, and a field holding a
+	 * function is a `variable`.
+	 */
+	property: s.with_default(s.boolean, false),
 	/**
 	 * Default value documented via `@default` — for a callable member,
 	 * typically the behavior used when the callback is omitted. Always
@@ -1150,6 +1276,16 @@ const ClassDeclarationJsonEntries = {
 	 */
 	extends: s.with_default_fn(s.array(s.string), () => []),
 	/**
+	 * Structured form of each `extends` entry, index-aligned with it: always
+	 * one node per entry, so the usual absence contract (see `TypeJson`) is
+	 * relaxed here and a bare `Base` is a `reference` node. The checker's
+	 * reading of the entry, so a locally renamed import carries its exported
+	 * name, where the text beside it keeps the local one; a base that isn't a
+	 * class or interface by name (`extends mixin(B)`, a const holding a class)
+	 * is a terminal node over its text.
+	 */
+	extendsInfo: s.with_default_fn(s.array(TypeJson), () => []),
+	/**
 	 * External types the `extends` chain reaches whose contributions `members`
 	 * never enumerates — the class counterpart of
 	 * `InterfaceDeclarationJson.externalTypes`, descending through local base
@@ -1164,6 +1300,8 @@ const ClassDeclarationJsonEntries = {
 	externalTypes: s.with_default_fn(s.array(s.string), () => []),
 	/** Implemented interfaces. */
 	implements: s.with_default_fn(s.array(s.string), () => []),
+	/** Structured form of each `implements` entry, index-aligned with it, as `extendsInfo` is. */
+	implementsInfo: s.with_default_fn(s.array(TypeJson), () => []),
 	/**
 	 * Class members: methods, properties, constructors, getters/setters — own
 	 * members only, inherited members excluded whatever their origin. Source
@@ -1209,6 +1347,16 @@ const InterfaceDeclarationJsonEntries = {
 	 *   for the resolved external reach.
 	 */
 	extends: s.with_default_fn(s.array(s.string), () => []),
+	/**
+	 * Structured form of each `extends` entry, index-aligned with it: always
+	 * one node per entry, so the usual absence contract (see `TypeJson`) is
+	 * relaxed here and a bare `Base` is a `reference` node. The checker's
+	 * reading of the entry, so a locally renamed import carries its exported
+	 * name, where the text beside it keeps the local one; a base that isn't a
+	 * class or interface by name (`extends mixin(B)`, a const holding a class)
+	 * is a terminal node over its text.
+	 */
+	extendsInfo: s.with_default_fn(s.array(TypeJson), () => []),
 	/**
 	 * External types the heritage composition reaches whose contributions
 	 * `members` never enumerates.

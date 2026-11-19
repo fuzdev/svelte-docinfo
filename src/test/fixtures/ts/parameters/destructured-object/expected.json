@@ -10,6 +10,7 @@
 			"parameters": [
 				{
 					"name": "__0",
+					"pattern": "{ a, b }",
 					"type": "{ a: string; b: number; }"
 				}
 			],

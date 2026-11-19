@@ -92,7 +92,7 @@ export const extractFunctionInfo = (
 		}
 	}
 	if (typeParameters?.length) {
-		declaration.genericParams = typeParameters.map(parseGenericParam);
+		declaration.genericParams = typeParameters.map((param) => parseGenericParam(param, ctx));
 	}
 };
 

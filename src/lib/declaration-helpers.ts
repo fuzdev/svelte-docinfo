@@ -88,14 +88,17 @@ export const compactReplacer = (key: string, value: unknown): unknown =>
  *
  * @example
  * ```ts
- * getDisplayName({name: 'Map', kind: 'type', genericParams: [{name: 'K'}, {name: 'V'}]})
+ * getDisplayName({name: 'Map', kind: 'type', genericParams: [{name: 'K', modifiers: []}, {name: 'V', modifiers: []}]})
  * // => 'Map<K, V>'
  * ```
  */
 export const getDisplayName = (declaration: DeclarationJson | MemberJson): string => {
 	if (!declaration.genericParams.length) return declaration.name;
 	const params = declaration.genericParams.map((p) => {
-		let param = p.name;
+		// tolerate compact (unparsed) generic params, which a consumer that
+		// defaults only the top-level array passes with no `modifiers`
+		const modifiers: ReadonlyArray<string> | undefined = p.modifiers;
+		let param = modifiers?.length ? `${modifiers.join(' ')} ${p.name}` : p.name;
 		if (p.constraint) param += ` extends ${p.constraint}`;
 		if (p.defaultType) param += ` = ${p.defaultType}`;
 		return param;

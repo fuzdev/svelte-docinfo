@@ -33,6 +33,7 @@ import {
 	getNodeLocation,
 	getNonOptionalType,
 	memberNameText,
+	heritageTypeInfo,
 	parseGenericParam,
 	populateCallableMember,
 	populatePropertyMember,
@@ -103,7 +104,7 @@ export const extractTypeInfo = (
 			? node.typeParameters
 			: undefined;
 	if (typeParams?.length) {
-		declaration.genericParams = typeParams.map(parseGenericParam);
+		declaration.genericParams = typeParams.map((param) => parseGenericParam(param, ctx));
 	}
 
 	if (isTypeAliasLike(node) && nodeType) {
@@ -116,6 +117,7 @@ export const extractTypeInfo = (
 			.flatMap((hc) => hc.types);
 		if (node.heritageClauses) {
 			declaration.extends = heritageTypes.map((t) => t.getText());
+			if (heritageTypes.length) declaration.extendsInfo = heritageTypeInfo(heritageTypes, ctx);
 			// no member enumerates an external type the heritage composition reaches
 			// (a named bag isn't enumerated, a computed entry's external properties
 			// are filtered) — record them like the alias/component paths record
@@ -214,7 +216,9 @@ export const extractTypeInfo = (
 
 				// Extract generic type parameters
 				if (member.typeParameters?.length) {
-					methodDeclaration.genericParams = member.typeParameters.map(parseGenericParam);
+					methodDeclaration.genericParams = member.typeParameters.map((param) =>
+						parseGenericParam(param, ctx)
+					);
 				}
 
 				// Extract TSDoc

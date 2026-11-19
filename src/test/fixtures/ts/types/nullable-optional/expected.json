@@ -69,7 +69,8 @@
 					"kind": "function",
 					"typeSignature": "(): void",
 					"returnType": "void",
-					"optional": true
+					"optional": true,
+					"property": true
 				},
 				{
 					"name": "g",
@@ -113,7 +114,8 @@
 							}
 						]
 					},
-					"optional": true
+					"optional": true,
+					"property": true
 				}
 			]
 		}

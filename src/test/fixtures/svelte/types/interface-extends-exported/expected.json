@@ -26,6 +26,12 @@
 			"extends": [
 				"HTMLButtonAttributes"
 			],
+			"extendsInfo": [
+				{
+					"kind": "reference",
+					"name": "HTMLButtonAttributes"
+				}
+			],
 			"externalTypes": [
 				"HTMLButtonAttributes"
 			],

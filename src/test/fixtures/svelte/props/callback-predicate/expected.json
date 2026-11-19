@@ -1,0 +1,78 @@
+{
+	"path": "PropsCallbackPredicate.svelte",
+	"declarations": [
+		{
+			"name": "PropsCallbackPredicate",
+			"kind": "component",
+			"sourceLine": 7,
+			"props": [
+				{
+					"name": "prop1",
+					"type": "(x: unknown) => x is A",
+					"parameters": [
+						{
+							"name": "x",
+							"type": "unknown"
+						}
+					],
+					"returnType": "boolean",
+					"returnPredicate": {
+						"parameterName": "x",
+						"type": "A"
+					}
+				},
+				{
+					"name": "prop2",
+					"type": "(x: unknown) => asserts x is A[]",
+					"optional": true,
+					"parameters": [
+						{
+							"name": "x",
+							"type": "unknown"
+						}
+					],
+					"returnType": "void",
+					"returnPredicate": {
+						"parameterName": "x",
+						"asserts": true,
+						"type": "A[]",
+						"typeInfo": {
+							"kind": "array",
+							"element": {
+								"kind": "reference",
+								"name": "A"
+							}
+						}
+					}
+				},
+				{
+					"name": "prop3",
+					"type": "(this: A, { a }: A) => void",
+					"optional": true,
+					"parameters": [
+						{
+							"name": "__1",
+							"pattern": "{ a }",
+							"type": "A"
+						}
+					],
+					"returnType": "void",
+					"thisType": "A"
+				}
+			]
+		},
+		{
+			"name": "A",
+			"kind": "interface",
+			"typeSignature": "A",
+			"sourceLine": 2,
+			"members": [
+				{
+					"name": "a",
+					"kind": "variable",
+					"typeSignature": "number"
+				}
+			]
+		}
+	]
+}

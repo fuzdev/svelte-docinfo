@@ -1,0 +1,31 @@
+{
+	"path": "input.js",
+	"declarations": [
+		{
+			"name": "fn",
+			"kind": "function",
+			"typeSignature": "(this: A, a: number): number",
+			"sourceLine": 10,
+			"parameters": [
+				{
+					"name": "a",
+					"type": "number"
+				}
+			],
+			"returnType": "number",
+			"thisType": "A"
+		},
+		{
+			"name": "A",
+			"kind": "class",
+			"sourceLine": 1,
+			"members": [
+				{
+					"name": "a",
+					"kind": "variable",
+					"typeSignature": "number"
+				}
+			]
+		}
+	]
+}

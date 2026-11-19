@@ -806,7 +806,17 @@
 					"genericParams": [
 						{
 							"name": "P",
-							"constraint": "Parser<unknown>"
+							"constraint": "Parser<unknown>",
+							"constraintInfo": {
+								"kind": "reference",
+								"name": "Parser",
+								"typeArgs": [
+									{
+										"kind": "intrinsic",
+										"text": "unknown"
+									}
+								]
+							}
 						}
 					],
 					"typeInfo": {
@@ -1058,6 +1068,12 @@
 					"since": "0.6.0",
 					"implements": [
 						"HasArea"
+					],
+					"implementsInfo": [
+						{
+							"kind": "reference",
+							"name": "HasArea"
+						}
 					],
 					"members": [
 						{

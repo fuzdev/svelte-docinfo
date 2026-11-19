@@ -42,6 +42,7 @@ import {
 	isPrivateMemberDeclaration,
 	memberNameText,
 	optionalWidened,
+	heritageTypeInfo,
 	parseGenericParam,
 	populateCallableMember,
 	signatureTypeParameters,
@@ -76,6 +77,7 @@ export const extractClassInfo = (
 	const extendsType = classExtendsType(node);
 	if (extendsType) {
 		declaration.extends = [extendsType.getText()];
+		declaration.extendsInfo = heritageTypeInfo([extendsType], ctx);
 		// members are own-only, so external content inherited through the
 		// extends chain is never enumerated — record its contributors like the
 		// interface path does. `implements` adds no members and contributes
@@ -83,12 +85,15 @@ export const extractClassInfo = (
 		applyHeritageExternalTypes(declaration, [extendsType], ctx);
 	}
 	const implementsTypes = classImplementsTypes(node);
-	if (implementsTypes.length) declaration.implements = implementsTypes.map((t) => t.getText());
+	if (implementsTypes.length) {
+		declaration.implements = implementsTypes.map((t) => t.getText());
+		declaration.implementsInfo = heritageTypeInfo(implementsTypes, ctx);
+	}
 
 	// the checker's reading, so a JS class's `@template` tags count like `<T>`
 	const typeParameters = ts.getEffectiveTypeParameterDeclarations(node);
 	if (typeParameters.length) {
-		declaration.genericParams = typeParameters.map(parseGenericParam);
+		declaration.genericParams = typeParameters.map((param) => parseGenericParam(param, ctx));
 	}
 
 	// Extract members with full metadata
@@ -129,8 +134,10 @@ export const extractClassInfo = (
 				if (constructorProcessed) continue;
 				constructorProcessed = true;
 			} else if (ts.isMethodDeclaration(member)) {
-				if (processedMethods.has(memberName)) continue;
-				processedMethods.add(memberName);
+				// a static and an instance method of one name are two members
+				const methodKey = memberKey(member, memberName);
+				if (processedMethods.has(methodKey)) continue;
+				processedMethods.add(methodKey);
 			}
 
 			const memberKind: MemberKind = isConstructor
@@ -235,7 +242,9 @@ export const extractClassInfo = (
 					if (!isConstructor) {
 						const typeParams = signatureTypeParameters(member);
 						if (typeParams?.length) {
-							memberDeclaration.genericParams = typeParams.map(parseGenericParam);
+							memberDeclaration.genericParams = typeParams.map((param) =>
+								parseGenericParam(param, ctx)
+							);
 						}
 					}
 				}
@@ -270,7 +279,11 @@ export const extractClassInfo = (
 	// Extract accessors (getters/setters) - group by name to merge pairs
 	const accessors: Map<
 		string,
-		{ getter: ts.GetAccessorDeclaration | null; setter: ts.SetAccessorDeclaration | null }
+		{
+			name: string;
+			getter: ts.GetAccessorDeclaration | null;
+			setter: ts.SetAccessorDeclaration | null;
+		}
 	> = new Map();
 	// a pair with either side private is dropped whole, as on a type alias over
 	// the class, where the merged property is private when any declaration is
@@ -281,25 +294,31 @@ export const extractClassInfo = (
 		if (ts.isGetAccessor(member) || ts.isSetAccessor(member)) {
 			const accessorName = memberNameText(member.name) ?? member.name.getText();
 			if (!accessorName) continue;
+			// a static and an instance accessor of one name are two members
+			const accessorKey = memberKey(member, accessorName);
 
 			if (isPrivateMemberDeclaration(member)) {
-				privateAccessors.add(accessorName);
+				privateAccessors.add(accessorKey);
 				continue;
 			}
 
-			const existing = accessors.get(accessorName) ?? { getter: null, setter: null };
+			const existing = accessors.get(accessorKey) ?? {
+				name: accessorName,
+				getter: null,
+				setter: null
+			};
 			if (ts.isGetAccessor(member)) {
 				existing.getter = member;
 			} else {
 				existing.setter = member;
 			}
-			accessors.set(accessorName, existing);
+			accessors.set(accessorKey, existing);
 		}
 	}
 
 	// Create declarations for accessor pairs
-	for (const [accessorName, { getter, setter }] of accessors) {
-		if (privateAccessors.has(accessorName)) continue;
+	for (const [accessorKey, { name: accessorName, getter, setter }] of accessors) {
+		if (privateAccessors.has(accessorKey)) continue;
 		const accessorDeclaration: MemberJsonBuild = {
 			name: accessorName,
 			kind: 'variable'
@@ -620,6 +639,13 @@ const isInConstructorOf = (expr: ts.Node, node: ts.ClassDeclaration): boolean =>
 	}
 	return false;
 };
+
+/**
+ * A member's name qualified by its side of the class, so a static and an
+ * instance member of one name key apart.
+ */
+const memberKey = (member: ts.ClassElement, name: string): string =>
+	(ts.getCombinedModifierFlags(member) & ts.ModifierFlags.Static ? 'static ' : '') + name;
 
 /**
  * A class's `extends` entry, the checker's reading: the clause's type, or in

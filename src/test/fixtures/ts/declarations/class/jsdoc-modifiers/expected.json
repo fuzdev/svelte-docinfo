@@ -111,6 +111,12 @@
 			"extends": [
 				"A"
 			],
+			"extendsInfo": [
+				{
+					"kind": "reference",
+					"name": "A"
+				}
+			],
 			"members": [
 				{
 					"name": "i",

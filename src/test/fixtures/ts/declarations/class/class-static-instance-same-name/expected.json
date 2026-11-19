@@ -1,0 +1,108 @@
+{
+	"path": "input.ts",
+	"declarations": [
+		{
+			"name": "A",
+			"kind": "class",
+			"sourceLine": 1,
+			"members": [
+				{
+					"name": "a",
+					"kind": "function",
+					"typeSignature": "(): string",
+					"modifiers": [
+						"static"
+					],
+					"returnType": "string"
+				},
+				{
+					"name": "a",
+					"kind": "function",
+					"typeSignature": "(): number",
+					"returnType": "number"
+				},
+				{
+					"name": "b",
+					"kind": "function",
+					"typeSignature": "(): number",
+					"returnType": "number"
+				},
+				{
+					"name": "b",
+					"kind": "function",
+					"typeSignature": "(a: string): string",
+					"modifiers": [
+						"static"
+					],
+					"parameters": [
+						{
+							"name": "a",
+							"type": "string"
+						}
+					],
+					"overloads": [
+						{
+							"typeSignature": "(a: string): string",
+							"parameters": [
+								{
+									"name": "a",
+									"type": "string"
+								}
+							],
+							"returnType": "string"
+						},
+						{
+							"typeSignature": "(a: number): string",
+							"parameters": [
+								{
+									"name": "a",
+									"type": "number"
+								}
+							],
+							"returnType": "string"
+						}
+					],
+					"returnType": "string"
+				},
+				{
+					"name": "c",
+					"kind": "variable",
+					"typeSignature": "number",
+					"modifiers": [
+						"static"
+					]
+				},
+				{
+					"name": "c",
+					"kind": "variable",
+					"typeSignature": "string"
+				}
+			]
+		},
+		{
+			"name": "B",
+			"kind": "class",
+			"sourceLine": 20,
+			"members": [
+				{
+					"name": "a",
+					"kind": "variable",
+					"typeSignature": "number",
+					"modifiers": [
+						"getter",
+						"static"
+					]
+				},
+				{
+					"name": "a",
+					"kind": "variable",
+					"typeSignature": "string",
+					"modifiers": [
+						"getter",
+						"setter"
+					]
+				}
+			]
+		}
+	]
+}

@@ -57,7 +57,8 @@
 							"defaultValue": "1"
 						}
 					],
-					"returnType": "any"
+					"returnType": "any",
+					"thisType": "{ n: number; }"
 				}
 			]
 		},
@@ -88,7 +89,8 @@
 							"rest": true
 						}
 					],
-					"returnType": "boolean"
+					"returnType": "boolean",
+					"property": true
 				}
 			]
 		}

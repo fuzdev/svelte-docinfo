@@ -8,6 +8,12 @@
 			"extends": [
 				"B"
 			],
+			"extendsInfo": [
+				{
+					"kind": "reference",
+					"name": "B"
+				}
+			],
 			"members": [
 				{
 					"name": "b",

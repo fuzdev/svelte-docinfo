@@ -296,7 +296,8 @@
 							"optional": true
 						}
 					],
-					"returnType": "T"
+					"returnType": "T",
+					"property": true
 				}
 			]
 		}

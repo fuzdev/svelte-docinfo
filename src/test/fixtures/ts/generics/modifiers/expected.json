@@ -1,0 +1,160 @@
+{
+	"path": "input.ts",
+	"declarations": [
+		{
+			"name": "fn2",
+			"kind": "function",
+			"typeSignature": "<const T, U>(a: T, b: U): [T, U]",
+			"sourceLine": 3,
+			"genericParams": [
+				{
+					"name": "T",
+					"modifiers": [
+						"const"
+					]
+				},
+				{
+					"name": "U"
+				}
+			],
+			"parameters": [
+				{
+					"name": "a",
+					"type": "T"
+				},
+				{
+					"name": "b",
+					"type": "U"
+				}
+			],
+			"returnType": "[T, U]"
+		},
+		{
+			"name": "fn1",
+			"kind": "function",
+			"typeSignature": "<const T extends readonly [unknown]>(a: T): T",
+			"sourceLine": 1,
+			"genericParams": [
+				{
+					"name": "T",
+					"modifiers": [
+						"const"
+					],
+					"constraint": "readonly [unknown]"
+				}
+			],
+			"parameters": [
+				{
+					"name": "a",
+					"type": "T"
+				}
+			],
+			"returnType": "T"
+		},
+		{
+			"name": "A",
+			"kind": "interface",
+			"typeSignature": "A<T, U, V>",
+			"sourceLine": 7,
+			"genericParams": [
+				{
+					"name": "T",
+					"modifiers": [
+						"in"
+					]
+				},
+				{
+					"name": "U",
+					"modifiers": [
+						"out"
+					]
+				},
+				{
+					"name": "V",
+					"modifiers": [
+						"in",
+						"out"
+					]
+				}
+			],
+			"members": [
+				{
+					"name": "a",
+					"kind": "function",
+					"typeSignature": "(x: T): U",
+					"parameters": [
+						{
+							"name": "x",
+							"type": "T"
+						}
+					],
+					"returnType": "U",
+					"property": true
+				},
+				{
+					"name": "b",
+					"kind": "function",
+					"typeSignature": "(x: V): V",
+					"parameters": [
+						{
+							"name": "x",
+							"type": "V"
+						}
+					],
+					"returnType": "V",
+					"property": true
+				}
+			]
+		},
+		{
+			"name": "B",
+			"kind": "class",
+			"sourceLine": 12,
+			"genericParams": [
+				{
+					"name": "T",
+					"modifiers": [
+						"const",
+						"in",
+						"out"
+					]
+				}
+			],
+			"members": [
+				{
+					"name": "a",
+					"kind": "variable",
+					"typeSignature": "(x: T) => T"
+				}
+			]
+		},
+		{
+			"name": "C",
+			"kind": "interface",
+			"typeSignature": "C",
+			"sourceLine": 16,
+			"members": [
+				{
+					"name": "fn",
+					"kind": "function",
+					"typeSignature": "<const T>(a: T): T",
+					"genericParams": [
+						{
+							"name": "T",
+							"modifiers": [
+								"const"
+							]
+						}
+					],
+					"parameters": [
+						{
+							"name": "a",
+							"type": "T"
+						}
+					],
+					"returnType": "T"
+				}
+			]
+		}
+	]
+}

@@ -10,6 +10,16 @@
 				"B",
 				"C"
 			],
+			"extendsInfo": [
+				{
+					"kind": "reference",
+					"name": "B"
+				},
+				{
+					"kind": "reference",
+					"name": "C"
+				}
+			],
 			"members": [
 				{
 					"name": "c",

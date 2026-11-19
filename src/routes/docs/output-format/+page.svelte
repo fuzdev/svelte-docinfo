@@ -107,7 +107,8 @@
 				<li>
 					<Code lang="ts" inline content={'"function"'} />: adds <code>parameters</code>,
 					<code>returnType</code>, <code>returnTypeInfo</code>, <code>returnDescription</code>,
-					<code>overloads</code>
+					<code>overloads</code>, and the <a href="#Signature-facts">signature facts</a>
+					<code>returnPredicate</code>, <code>thisType</code>, <code>thisTypeInfo</code>
 				</li>
 				<li>
 					<Code lang="ts" inline content={'"variable"'} />: adds <code>typeInfo</code>, optional
@@ -116,11 +117,15 @@
 				</li>
 				<li>
 					<Code lang="ts" inline content={'"class"'} />: adds <code>members</code>,
-					<code>extends</code>, <code>implements</code>, <code>externalTypes</code>
+					<code>extends</code>, <code>implements</code>, <code>externalTypes</code>, and
+					<code>extendsInfo</code> and <code>implementsInfo</code>, a
+					<DeclarationLink name="TypeJson" /> tree for each <code>extends</code> and
+					<code>implements</code> entry, at the same index
 				</li>
 				<li>
 					<Code lang="ts" inline content={'"interface"'} />: adds <code>members</code>,
-					<code>extends</code>, <code>externalTypes</code>, <code>mergedValue</code>
+					<code>extends</code>, <code>extendsInfo</code>, <code>externalTypes</code>,
+					<code>mergedValue</code>
 				</li>
 				<li>
 					<Code lang="ts" inline content={'"type"'} />: adds <code>typeInfo</code>,
@@ -180,7 +185,9 @@
 				<li><code>genericParams</code>: type parameters with constraints and defaults</li>
 				<li>
 					<code>examples</code>, <code>deprecatedMessage</code>, <code>seeAlso</code>,
-					<code>throws</code>, <code>since</code>: from standard JSDoc tags
+					<code>throws</code>, <code>since</code>: from standard JSDoc tags. A <code>throws</code>
+					entry's braced type (<code>@throws {'{A<B>}'}</code>) carries a <code>typeInfo</code> tree
+					when it adds structure
 				</li>
 				<li>
 					<code>internalMessage</code>: from <code>@internal</code>, a marker rather than an
@@ -227,9 +234,13 @@
 				<li>
 					<Code lang="ts" inline content={'"function"'} />: methods and call signatures. Adds
 					<code>parameters</code>, <code>returnType</code>, <code>returnTypeInfo</code>,
-					<code>returnDescription</code>, <code>overloads</code>, and optional
-					<code>defaultValue</code> (from <code>@default</code>, documenting the behavior when a
-					callable option is omitted). A property typed by an external function
+					<code>returnDescription</code>, <code>overloads</code>, the
+					<a href="#Signature-facts">signature facts</a>, and optional <code>defaultValue</code>
+					(from <code>@default</code>, documenting the behavior when a callable option is omitted).
+					On an interface or a type alias, <code>property</code> is <code>true</code> for a
+					function-typed property (<Code lang="ts" inline content="now: () => number" />) and absent
+					for a method (<Code lang="ts" inline content="now(): number" />), so a renderer can write
+					the form the source used. A property typed by an external function
 					(<Code lang="ts" inline content="run?: typeof spawn" />) is a
 					<Code lang="ts" inline content={'"variable"'} /> with the flat type text rather than the
 					package's overloads and docs; a mixed callable keeps its local signatures
@@ -363,6 +374,12 @@
 					<code>name</code>: parameter name (e.g., <Code lang="ts" inline content={'"options"'} />;
 					a rest parameter's dots live in <code>rest</code>, not the name)
 				</li>
+				<li>
+					<code>pattern</code>: a destructured parameter's binding pattern
+					(<Code lang="ts" inline content={'{ a, b = 1 }'} />), on one line with its defaults. Such
+					a parameter has no name of its own, so <code>name</code> is the one TypeScript gives it by
+					position (<code>__0</code>, <code>__1</code>)
+				</li>
 				<li><code>type</code>: resolved TypeScript type as a string</li>
 				<li>
 					<code>typeInfo</code>: structured <DeclarationLink name="TypeJson" /> tree, when it adds
@@ -411,6 +428,10 @@
 					<code>returnTypeInfo</code>: structured <DeclarationLink name="TypeJson" /> tree for the
 					return type, when it adds structure
 				</li>
+				<li>
+					<code>returnPredicate</code>, <code>thisType</code>, <code>thisTypeInfo</code>: the
+					<a href="#Signature-facts">signature facts</a>, per overload
+				</li>
 				<li><code>genericParams</code>: type parameters for this overload</li>
 				<li><code>docComment</code>: per-overload JSDoc text, if present</li>
 				<li><code>returnDescription</code>: from <code>@returns</code> on this overload</li>
@@ -451,8 +472,44 @@
 				<li>
 					<code>name</code>: type parameter name (e.g., <Code lang="ts" inline content={'"T"'} />)
 				</li>
-				<li><code>constraint</code>: <code>extends</code> constraint, if present</li>
-				<li><code>defaultType</code>: default type, if present</li>
+				<li>
+					<code>modifiers</code>: the keywords written on the parameter,
+					<Code lang="ts" inline content={'"const"'} />, <Code lang="ts" inline content={'"in"'} />,
+					<Code lang="ts" inline content={'"out"'} />
+				</li>
+				<li><code>constraint</code>: <code>extends</code> constraint as source text, if present</li>
+				<li><code>defaultType</code>: default type as source text, if present</li>
+				<li>
+					<code>constraintInfo</code>, <code>defaultTypeInfo</code>: structured
+					<DeclarationLink name="TypeJson" /> trees for the two, when they add structure
+				</li>
+			</ul>
+		</TomeSection>
+
+		<TomeSection>
+			<TomeSectionHeader text="Signature facts" />
+			<p>
+				These fields carry what a signature declares beyond its parameters and return type. They sit
+				beside <code>returnType</code> on functions, function members, overloads, and callback
+				props.
+			</p>
+			<ul>
+				<li>
+					<code>returnPredicate</code>: a <DeclarationLink name="ReturnPredicateJson" /> for a type
+					predicate or assertion. <code>returnType</code> stays the checker's <code>boolean</code>
+					or <code>void</code>, so <Code lang="ts" inline content="asserts x is A" /> is
+					<Code lang="ts" inline content={'{parameterName: "x", asserts: true, type: "A"}'} />.
+					<code>parameterName</code> is <code>this</code> for
+					<Code lang="ts" inline content="this is A" />, <code>type</code> is absent for a bare
+					<Code lang="ts" inline content="asserts x" />, and <code>typeInfo</code> is the type's
+					tree when it adds structure
+				</li>
+				<li>
+					<code>thisType</code> and <code>thisTypeInfo</code>: the type of a declared
+					<code>this</code> parameter (<Code lang="ts" inline content="function f(this: A)" />, or a
+					JS <code>@this</code> tag), which <code>parameters</code> leaves out, since a caller
+					doesn't pass it as an argument
+				</li>
 			</ul>
 		</TomeSection>
 

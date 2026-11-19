@@ -39,9 +39,31 @@
 			"extends": [
 				"C<string>"
 			],
+			"extendsInfo": [
+				{
+					"kind": "reference",
+					"name": "C",
+					"typeArgs": [
+						{
+							"kind": "intrinsic",
+							"text": "string"
+						}
+					]
+				}
+			],
 			"implements": [
 				"A",
 				"B"
+			],
+			"implementsInfo": [
+				{
+					"kind": "reference",
+					"name": "A"
+				},
+				{
+					"kind": "reference",
+					"name": "B"
+				}
 			],
 			"members": [
 				{
@@ -67,6 +89,12 @@
 			"sourceLine": 32,
 			"implements": [
 				"A"
+			],
+			"implementsInfo": [
+				{
+					"kind": "reference",
+					"name": "A"
+				}
 			],
 			"members": [
 				{

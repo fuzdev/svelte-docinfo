@@ -12,6 +12,18 @@
 					"extends": [
 						"s.Infer<typeof A>"
 					],
+					"extendsInfo": [
+						{
+							"kind": "reference",
+							"name": "ObjectOutput",
+							"typeArgs": [
+								{
+									"kind": "object",
+									"text": "{ a: Schema<string>; b: Schema<number>; }"
+								}
+							]
+						}
+					],
 					"members": [
 						{
 							"name": "a",
@@ -35,6 +47,18 @@
 					"sourceLine": 15,
 					"extends": [
 						"s.ObjectOutput<typeof AEntries>"
+					],
+					"extendsInfo": [
+						{
+							"kind": "reference",
+							"name": "ObjectOutput",
+							"typeArgs": [
+								{
+									"kind": "object",
+									"text": "{ a: Schema<string>; b: Schema<number>; }"
+								}
+							]
+						}
 					],
 					"members": [
 						{

@@ -324,6 +324,12 @@
 			"extends": [
 				"H"
 			],
+			"extendsInfo": [
+				{
+					"kind": "reference",
+					"name": "H"
+				}
+			],
 			"members": [
 				{
 					"name": "d",
@@ -367,6 +373,12 @@
 			"sourceLine": 138,
 			"extends": [
 				"H"
+			],
+			"extendsInfo": [
+				{
+					"kind": "reference",
+					"name": "H"
+				}
 			],
 			"members": [
 				{
@@ -438,6 +450,12 @@
 			"extends": [
 				"K"
 			],
+			"extendsInfo": [
+				{
+					"kind": "reference",
+					"name": "K"
+				}
+			],
 			"members": [
 				{
 					"name": "constructor",
@@ -488,6 +506,12 @@
 			"sourceLine": 199,
 			"extends": [
 				"H"
+			],
+			"extendsInfo": [
+				{
+					"kind": "reference",
+					"name": "H"
+				}
 			],
 			"members": [
 				{

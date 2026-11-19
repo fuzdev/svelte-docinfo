@@ -8,6 +8,12 @@
 			"implements": [
 				"B"
 			],
+			"implementsInfo": [
+				{
+					"kind": "reference",
+					"name": "B"
+				}
+			],
 			"members": [
 				{
 					"name": "a",

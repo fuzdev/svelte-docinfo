@@ -85,7 +85,15 @@
 import ts from 'typescript';
 
 import type { DeclarationJsonBuild, MemberJsonBuild } from './declaration-build.ts';
-import type { ModuleJsonInput } from './types.ts';
+import type { ModuleJsonInput, ThrowsJsonInput } from './types.ts';
+
+/**
+ * The type node of each braced `@throws {A}` entry `parseComment` produced,
+ * keyed by the entry object. Parsing has no checker, so the extractors read
+ * the node back to resolve the entry's `typeInfo` (`applyThrowsTypeInfo`),
+ * and a parsed comment stays plain data.
+ */
+export const throwsTypeNodes: WeakMap<ThrowsJsonInput, ts.TypeNode> = new WeakMap();
 
 /**
  * Parsed JSDoc/TSDoc comment with structured metadata.
@@ -100,8 +108,11 @@ export interface TsdocParsedComment {
 	params: Record<string, string>;
 	/** Return value description from `@returns` (or its JSDoc `@return` synonym). */
 	returns?: string;
-	/** Thrown errors from `@throws`. */
-	throws?: Array<{ type?: string; description: string }>;
+	/**
+	 * Thrown errors from `@throws`. A braced tag's type node is kept beside
+	 * its entry in `throwsTypeNodes`, for the checker to read.
+	 */
+	throws?: Array<ThrowsJsonInput>;
 	/** Code examples from `@example`. */
 	examples?: Array<string>;
 	/** Deprecation message from `@deprecated`. */
@@ -771,7 +782,7 @@ const parseCommentParts = (
 	// and writing such a key (`@param __proto__`) would pollute the prototype.
 	const params: Record<string, string> = Object.create(null);
 	let returns: string | undefined;
-	let throws: Array<{ type?: string; description: string }> | undefined;
+	let throws: Array<ThrowsJsonInput> | undefined;
 	let examples: Array<string> | undefined;
 	let deprecatedMessage: string | undefined;
 	let internalMessage: string | undefined;
@@ -797,10 +808,12 @@ const parseCommentParts = (
 			// the description (or nothing at all, for a bare `@throws {TypeError}`)
 			const typeNode = ts.isJSDocThrowsTag(tag) ? tag.typeExpression?.type : undefined;
 			if (typeNode) {
-				(throws ??= []).push({
+				const entry: ThrowsJsonInput = {
 					type: typeNode.getText(sourceFile),
 					description: tagText ? cleanTagDescription(tagText) : ''
-				});
+				};
+				throwsTypeNodes.set(entry, typeNode);
+				(throws ??= []).push(entry);
 			} else if (tagText) {
 				// Unbraced text: heuristically extract a leading word as the error type,
 				// bare or in backticks (`` `TypeError` ``), as house styles that backtick

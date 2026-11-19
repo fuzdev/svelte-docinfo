@@ -15,6 +15,7 @@
 				}
 			],
 			"returnType": "string",
+			"thisType": "{ value: string; }",
 			"returnDescription": "Description 2"
 		}
 	]

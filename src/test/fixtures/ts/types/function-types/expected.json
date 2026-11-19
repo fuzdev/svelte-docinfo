@@ -18,7 +18,8 @@
 							"type": "string"
 						}
 					],
-					"returnType": "void"
+					"returnType": "void",
+					"property": true
 				},
 				{
 					"name": "b",
@@ -35,7 +36,8 @@
 							"optional": true
 						}
 					],
-					"returnType": "string"
+					"returnType": "string",
+					"property": true
 				},
 				{
 					"name": "c",
@@ -48,7 +50,8 @@
 							"rest": true
 						}
 					],
-					"returnType": "number"
+					"returnType": "number",
+					"property": true
 				}
 			]
 		}

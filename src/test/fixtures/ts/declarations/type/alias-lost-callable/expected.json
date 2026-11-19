@@ -19,7 +19,8 @@
 							"type": "string"
 						}
 					],
-					"returnType": "{ a: string; }"
+					"returnType": "{ a: string; }",
+					"property": true
 				},
 				{
 					"name": "handler",

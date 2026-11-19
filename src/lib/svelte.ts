@@ -32,7 +32,7 @@ import ts from 'typescript';
 
 import type {
 	ComponentPropJsonInput,
-	GenericParamJson,
+	GenericParamJsonInput,
 	ParameterJsonInput,
 	TypeJson
 } from './types.ts';
@@ -59,6 +59,8 @@ import {
 	optionalWidened,
 	extractSignatureParameters,
 	applyReturnType,
+	applyThrowsTypeInfo,
+	type SignatureReturnTarget,
 	isExternalSignature,
 	isStrayComponentTypedef,
 	selectDeclarationNode,
@@ -423,11 +425,16 @@ const hasDefaultSlot = (nodes: ComponentNodes, checker: ts.TypeChecker): boolean
  *
  * @returns array of `GenericParamJson`, or undefined if no generics found
  */
-const extractGenericParams = (nodes: ComponentNodes): Array<GenericParamJson> | undefined => {
+const extractGenericParams = (
+	nodes: ComponentNodes,
+	ctx: ExtractContext
+): Array<GenericParamJsonInput> | undefined => {
 	const typeParameters = nodes.renderClass?.typeParameters?.length
 		? nodes.renderClass.typeParameters
 		: nodes.renderFunction?.typeParameters;
-	return typeParameters?.length ? typeParameters.map(parseGenericParam) : undefined;
+	return typeParameters?.length
+		? typeParameters.map((param) => parseGenericParam(param, ctx))
+		: undefined;
 };
 
 /**
@@ -863,7 +870,7 @@ const assemblePropInfo = (
 	propDecl: ts.Node | undefined,
 	anchor: PropsAnchor,
 	parameters?: Array<ParameterJsonInput>,
-	callbackReturn?: { returnType?: string; returnTypeInfo?: TypeJson }
+	callbackReturn?: SignatureReturnTarget
 ): ComponentPropJsonInput => {
 	const tsdoc = propDecl ? parseComment(propDecl) : undefined;
 
@@ -892,8 +899,7 @@ const assemblePropInfo = (
 		result.parameters = parameters;
 	}
 	if (callbackReturn?.returnType !== undefined) {
-		result.returnType = callbackReturn.returnType;
-		if (callbackReturn.returnTypeInfo) result.returnTypeInfo = callbackReturn.returnTypeInfo;
+		Object.assign(result, callbackReturn);
 	}
 	return result;
 };
@@ -1149,6 +1155,9 @@ export const reclassifySnippetDeclaration = (declaration: DeclarationJsonBuild):
 	// snippets don't have meaningful return types or overloads
 	delete declaration.returnType;
 	delete declaration.returnTypeInfo;
+	delete declaration.returnPredicate;
+	delete declaration.thisType;
+	delete declaration.thisTypeInfo;
 	delete declaration.returnDescription;
 	delete declaration.overloads;
 };
@@ -1552,7 +1561,7 @@ const extractPropsViaChecker = (
 		let typeString = 'any';
 		let typeInfo: TypeJson | undefined;
 		let callableParams: Array<ParameterJsonInput> | undefined;
-		let callbackReturn: { returnType?: string; returnTypeInfo?: TypeJson } | undefined;
+		let callbackReturn: SignatureReturnTarget | undefined;
 		try {
 			const propType = checker.getTypeOfSymbolAtLocation(prop, propsTypeNode);
 			// For optional properties, the checker includes `undefined` in the union.
@@ -1596,7 +1605,7 @@ const extractPropsViaChecker = (
 					// both or neither: parameters without a `returnType` would read
 					// as a snippet's
 					const parameters = extractSignatureParameters(signature, ctx, undefined);
-					const returned: { returnType?: string; returnTypeInfo?: TypeJson } = {};
+					const returned: SignatureReturnTarget = {};
 					applyReturnType(returned, signature, ctx);
 					callableParams = parameters;
 					callbackReturn = returned;
@@ -1965,7 +1974,7 @@ export const analyzeSvelteModule = (
 	}
 
 	// Extract generic params
-	const genericParams = extractGenericParams(componentNodes);
+	const genericParams = extractGenericParams(componentNodes, ctx);
 	if (genericParams?.length) {
 		componentDecl.genericParams = genericParams;
 	}
@@ -2151,6 +2160,8 @@ export const analyzeSvelteModule = (
 	// `@nodocs` is read from whichever doc source won (in-script JSDoc over the
 	// HTML `@component` comment), so an HTML `@nodocs` is ignored when in-script
 	// JSDoc supplies the doc
+	// the module declarations' were resolved by `analyzeExports`
+	applyThrowsTypeInfo([componentDecl], ctx);
 	const allDeclarations: Array<DeclarationAnalysis> = [
 		{ declaration: componentDecl, nodocs: componentTsdoc?.tsdoc.nodocs === true },
 		...moduleDeclarations

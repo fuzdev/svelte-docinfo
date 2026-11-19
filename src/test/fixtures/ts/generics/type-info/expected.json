@@ -1,0 +1,192 @@
+{
+	"path": "input.ts",
+	"declarations": [
+		{
+			"name": "fn1",
+			"kind": "function",
+			"typeSignature": "<T extends A, U extends B<A> = B<A>, V extends A | B<A> | null = null>(a: T, b: U, c: V): [T, U, V]",
+			"sourceLine": 9,
+			"genericParams": [
+				{
+					"name": "T",
+					"constraint": "A"
+				},
+				{
+					"name": "U",
+					"constraint": "B<A>",
+					"constraintInfo": {
+						"kind": "reference",
+						"name": "B",
+						"typeArgs": [
+							{
+								"kind": "reference",
+								"name": "A"
+							}
+						]
+					},
+					"defaultType": "B<A>",
+					"defaultTypeInfo": {
+						"kind": "reference",
+						"name": "B",
+						"typeArgs": [
+							{
+								"kind": "reference",
+								"name": "A"
+							}
+						]
+					}
+				},
+				{
+					"name": "V",
+					"constraint": "A | B<A> | null",
+					"constraintInfo": {
+						"kind": "union",
+						"members": [
+							{
+								"kind": "reference",
+								"name": "A"
+							},
+							{
+								"kind": "reference",
+								"name": "B",
+								"typeArgs": [
+									{
+										"kind": "reference",
+										"name": "A"
+									}
+								]
+							},
+							{
+								"kind": "intrinsic",
+								"text": "null"
+							}
+						]
+					},
+					"defaultType": "null"
+				}
+			],
+			"parameters": [
+				{
+					"name": "a",
+					"type": "T"
+				},
+				{
+					"name": "b",
+					"type": "U"
+				},
+				{
+					"name": "c",
+					"type": "V"
+				}
+			],
+			"returnType": "[T, U, V]"
+		},
+		{
+			"name": "A",
+			"kind": "interface",
+			"typeSignature": "A",
+			"sourceLine": 1,
+			"members": [
+				{
+					"name": "a",
+					"kind": "variable",
+					"typeSignature": "number"
+				}
+			]
+		},
+		{
+			"name": "B",
+			"kind": "interface",
+			"typeSignature": "B<T>",
+			"sourceLine": 5,
+			"genericParams": [
+				{
+					"name": "T"
+				}
+			],
+			"members": [
+				{
+					"name": "b",
+					"kind": "variable",
+					"typeSignature": "T"
+				}
+			]
+		},
+		{
+			"name": "C",
+			"kind": "type",
+			"typeSignature": "C<T, U>",
+			"sourceLine": 17,
+			"genericParams": [
+				{
+					"name": "T",
+					"constraint": "keyof A",
+					"defaultType": "'a'"
+				},
+				{
+					"name": "U",
+					"constraint": "string",
+					"defaultType": "string"
+				}
+			],
+			"typeInfo": {
+				"kind": "tuple",
+				"elements": [
+					{
+						"type": {
+							"kind": "other",
+							"text": "T"
+						}
+					},
+					{
+						"type": {
+							"kind": "other",
+							"text": "U"
+						}
+					}
+				]
+			}
+		},
+		{
+			"name": "D",
+			"kind": "class",
+			"sourceLine": 19,
+			"genericParams": [
+				{
+					"name": "T",
+					"constraint": "[A, B<A>]",
+					"constraintInfo": {
+						"kind": "tuple",
+						"elements": [
+							{
+								"type": {
+									"kind": "reference",
+									"name": "A"
+								}
+							},
+							{
+								"type": {
+									"kind": "reference",
+									"name": "B",
+									"typeArgs": [
+										{
+											"kind": "reference",
+											"name": "A"
+										}
+									]
+								}
+							}
+						]
+					}
+				}
+			],
+			"members": [
+				{
+					"name": "a",
+					"kind": "variable",
+					"typeSignature": "T"
+				}
+			]
+		}
+	]
+}

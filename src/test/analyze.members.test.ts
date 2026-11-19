@@ -101,7 +101,7 @@ export type T = {
 			alias.members.find((m) => m.name === 'fromProperty')
 		]) {
 			assert(member?.kind === 'function', 'expected a function member');
-			assert.deepStrictEqual(member.genericParams, [{ name: 'X' }]);
+			assert.deepStrictEqual(member.genericParams, [{ name: 'X', modifiers: [] }]);
 		}
 	});
 

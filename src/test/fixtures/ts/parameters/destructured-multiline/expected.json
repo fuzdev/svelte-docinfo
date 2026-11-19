@@ -1,0 +1,25 @@
+{
+	"path": "input.ts",
+	"declarations": [
+		{
+			"name": "fn",
+			"kind": "function",
+			"typeSignature": "({ a, b, c: [d, ...e] }: { a: string; b?: string | undefined; c?: any; }, f: number, g: number): unknown",
+			"sourceLine": 1,
+			"parameters": [
+				{
+					"name": "__0",
+					"pattern": "{ a, b = `x\ny`, c: [d, ...e] = [] }",
+					"type": "{ a: string; b?: string | undefined; c?: any; }"
+				},
+				{
+					"name": "__1",
+					"pattern": "[f, g]",
+					"type": "[number, number]",
+					"rest": true
+				}
+			],
+			"returnType": "unknown"
+		}
+	]
+}

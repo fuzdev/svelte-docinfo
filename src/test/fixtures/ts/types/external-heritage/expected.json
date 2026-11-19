@@ -12,6 +12,12 @@
 					"extends": [
 						"B"
 					],
+					"extendsInfo": [
+						{
+							"kind": "reference",
+							"name": "B"
+						}
+					],
 					"externalTypes": [
 						"B"
 					],
@@ -32,6 +38,12 @@
 					"sourceLine": 10,
 					"extends": [
 						"A"
+					],
+					"extendsInfo": [
+						{
+							"kind": "reference",
+							"name": "A"
+						}
 					],
 					"externalTypes": [
 						"B"

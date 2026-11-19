@@ -20,6 +20,7 @@
 						}
 					],
 					"returnType": "void",
+					"property": true,
 					"defaultValue": "noop"
 				},
 				{

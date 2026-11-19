@@ -13,7 +13,21 @@
 				},
 				{
 					"name": "U",
-					"constraint": "Record<string, unknown>"
+					"constraint": "Record<string, unknown>",
+					"constraintInfo": {
+						"kind": "reference",
+						"name": "Record",
+						"typeArgs": [
+							{
+								"kind": "intrinsic",
+								"text": "string"
+							},
+							{
+								"kind": "intrinsic",
+								"text": "unknown"
+							}
+						]
+					}
 				}
 			],
 			"props": [

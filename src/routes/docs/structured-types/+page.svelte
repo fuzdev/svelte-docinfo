@@ -29,6 +29,17 @@
 			parameters, and tuple elements; <code>returnTypeInfo</code> on functions, function members,
 			overloads, and callback props.
 		</p>
+		<p>
+			A <code>returnPredicate</code>'s <code>typeInfo</code> and <code>thisTypeInfo</code> sit
+			beside their flat strings the same way. Types the output carries as source text have trees
+			too: a generic parameter's <code>constraintInfo</code> and <code>defaultTypeInfo</code>, a
+			<code>@throws</code> entry's <code>typeInfo</code>, and a class's or interface's
+			<code>extendsInfo</code> and <code>implementsInfo</code>. The heritage arrays hold one tree
+			per entry, whatever its shape, so they line up by index with <code>extends</code> and
+			<code>implements</code>; the rest follow the rule below. Such a tree is the checker's reading
+			of the written type, so it can spell it differently from the text beside it
+			(<Code lang="ts" inline content="Array<A>" /> reads as an array of <code>A</code>).
+		</p>
 	</section>
 
 	<TomeSection>

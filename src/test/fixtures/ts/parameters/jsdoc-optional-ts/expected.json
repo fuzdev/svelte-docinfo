@@ -107,10 +107,12 @@
 			"parameters": [
 				{
 					"name": "__0",
+					"pattern": "{ x }",
 					"type": "{ x: number; }"
 				},
 				{
 					"name": "__1",
+					"pattern": "{ y }",
 					"type": "{ y?: number | undefined; }",
 					"optional": true
 				}

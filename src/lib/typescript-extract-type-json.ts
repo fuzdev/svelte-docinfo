@@ -1498,6 +1498,11 @@ export interface ResolveTypeInfoOptions {
 	ownAliasName?: string;
 	/** The declaration's written type annotation, when one exists. */
 	writtenNode?: ts.TypeNode;
+	/**
+	 * Emit the node whatever its shape, for a position that has to carry one:
+	 * a heritage entry, whose trees align by index with the text entries.
+	 */
+	always?: boolean;
 }
 
 /**
@@ -1570,7 +1575,7 @@ export const resolveTypeInfo = (
 		dropUndefined,
 		skipAliasName: ownAliasName
 	});
-	if (hasTypeStructure(node)) return node;
+	if (options?.always || hasTypeStructure(node)) return node;
 	// a recovered bare reference at the root carries the name the flat string
 	// lost — re-derived with root semantics (depth 0, member-set eligibility
 	// matching the build) so this check can't disagree with the build above

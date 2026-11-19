@@ -24,8 +24,11 @@ topic guides and references; `tomes.ts` orders them). Examples: `examples/vite/`
 - **Structured types** — optional `typeInfo` (`TypeJson`, a recursive fuz_schema
   schema) beside the flat type strings, on variables, type aliases, variable members,
   component props, parameters, and tuple elements; `returnTypeInfo` on functions, function
-  members, and overloads. Policy: the `TypeJson` schema TSDoc (`types.ts`) and
-  `typescript-extract-type-json.ts`.
+  members, and overloads. Types the output carries as source text have trees beside them
+  too (`resolveWrittenTypeInfo`): a generic's `constraintInfo`/`defaultTypeInfo`, a braced
+  `@throws` entry's `typeInfo` (`applyThrowsTypeInfo`), and `extendsInfo`/`implementsInfo`,
+  which hold one node per heritage entry whatever its shape, aligned by index. Policy: the
+  `TypeJson` schema TSDoc (`types.ts`) and `typescript-extract-type-json.ts`.
   - **Absence** — absent when the flat string is the whole story (intrinsics, bare
     references, object/function roots); relaxed at type-alias roots, where the flat string
     is just the alias name, and at recovered roots.
@@ -50,7 +53,8 @@ topic guides and references; `tomes.ts` orders them). Examples: `examples/vite/`
     the project didn't declare. Unrecovered losses emit `alias_lost`.
 - **Member projection** — type-alias and interface properties share
   `populatePropertyMember`: a callable becomes `kind: 'function'`, anything else gets
-  `typeSignature` + `typeInfo`. External-origin call signatures are filtered first, so
+  `typeSignature` + `typeInfo`. A callable written as a property (`now: () => number`, or
+  one with no method-syntax declaration) carries `property: true`; a method doesn't. External-origin call signatures are filtered first, so
   `run?: typeof spawn` stays a `variable`. Class fields stay `variable` even when
   function-typed. Interfaces enumerate their own members plus what a computed `extends`
   entry contributes (`z.infer<typeof S>`, `Omit<Base, 'a'>`), projected as the alias path
@@ -95,6 +99,12 @@ topic guides and references; `tomes.ts` orders them). Examples: `examples/vite/`
   - `@default` lands on variables, component props, and function/variable members, never
     on top-level functions, overloads, or constructors.
   - Text is kept raw (inline `{@link}` survives); rendering is the consumer's concern.
+- **Signature facts** (`applyReturnType`) — beside `returnType`, which stays the checker's
+  `boolean` or `void`, `returnPredicate` (`{parameterName, asserts, type, typeInfo}`) carries
+  a type predicate or assertion, and `thisType`/`thisTypeInfo` a declared `this` parameter,
+  which `parameters` leaves out. A destructured parameter keeps TypeScript's positional
+  `name` (`__0`) and carries its binding pattern, printed on one line, in `pattern`.
+  `GenericParamJson.modifiers` lists a type parameter's `const`, `in`, and `out`.
 - **Overloads** — every public signature with its own JSDoc (`extractOverloads`);
   `@param`/`@returns` flow to their overload, and the primary overload (the one the
   member's docs come from, by identity) documents the symbol. Symbol-scope tags on another
@@ -466,17 +476,19 @@ placeholder for a Svelte file whose transform threw).
 `'function' | 'variable' | 'constructor'`.
 
 **Shared fields** (all variants and members): `name`, `kind`, `docComment`,
-`typeSignature`, `modifiers`, `sourceLine`, `genericParams`, `examples`,
+`typeSignature`, `modifiers`, `sourceLine`, `genericParams` (`GenericParamJson`: `name`,
+`modifiers`, `constraint`, `constraintInfo`, `defaultType`, `defaultTypeInfo`), `examples`,
 `deprecatedMessage`, `internalMessage`, `seeAlso`, `throws`, `since`, `mutates`,
 `partial`. Top-level only: `alsoExportedFrom`, `aliasOf`.
 
 **Per-variant fields**:
 
-- `function` — `parameters`, `returnType`, `returnTypeInfo`, `returnDescription`,
-  `overloads`
+- `function` — `parameters`, `returnType`, `returnTypeInfo`, `returnPredicate`, `thisType`,
+  `thisTypeInfo`, `returnDescription`, `overloads`
 - `variable` — `reactivity`, `typeInfo`, `defaultValue`
-- `class` — `members`, `extends`, `implements`, `externalTypes`
-- `interface` — `members`, `extends`, `externalTypes`, `mergedValue`
+- `class` — `members`, `extends`, `extendsInfo`, `implements`, `implementsInfo`,
+  `externalTypes`
+- `interface` — `members`, `extends`, `extendsInfo`, `externalTypes`, `mergedValue`
 - `type` — `members`, `externalTypes`, `typeInfo`, `mergedValue`
 - `enum` — `members`
 - `component` — `props`, `externalTypes`, `acceptsChildren`, `cssCustomProperties`
@@ -484,15 +496,17 @@ placeholder for a Svelte file whose transform threw).
   `documented`), `lang`
 - `snippet` — `parameters`
 - `namespace` — `module`
-- members: `function` — `parameters`, `returnType`, `returnTypeInfo`, `returnDescription`,
-  `overloads`, `optional`, `defaultValue`; `variable` — `reactivity`, `typeInfo`,
+- members: `function` — the `function` variant's fields, plus `optional`, `property`,
+  `defaultValue`; `variable` — `reactivity`, `typeInfo`,
   `optional`, `defaultValue`; `constructor` — `parameters`, `overloads`
 
-`ComponentPropJson`, `ParameterJson`, and `TupleElementJson` carry `typeInfo`.
+`ComponentPropJson`, `ParameterJson`, and `TupleElementJson` carry `typeInfo`;
+`ParameterJson` also `pattern`.
 `ComponentPropJson` also carries `parameters` (snippets and callbacks),
-`returnType`/`returnTypeInfo` (callbacks only), `description`, `defaultValue`, and the
+`returnType`/`returnTypeInfo` and the signature facts (callbacks only), `description`, `defaultValue`, and the
 shared doc fields (`docFields` in `types.ts`); `ParameterJson` carries none of `docFields`.
-`OverloadJson` carries `returnTypeInfo`.
+`OverloadJson` carries `returnTypeInfo` and the signature facts. A `throws` entry is a
+`ThrowsJson` (`type`, `typeInfo`, `description`).
 
 **Contracts that span fields** (full statements on the `types.ts` field docs):
 

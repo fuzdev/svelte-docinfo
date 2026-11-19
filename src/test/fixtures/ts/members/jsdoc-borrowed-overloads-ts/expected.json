@@ -83,7 +83,8 @@
 							"docComment": "Description 2."
 						}
 					],
-					"returnType": "string"
+					"returnType": "string",
+					"property": true
 				}
 			]
 		},
@@ -128,7 +129,8 @@
 							"docComment": "Description 2."
 						}
 					],
-					"returnType": "string"
+					"returnType": "string",
+					"property": true
 				}
 			]
 		},
@@ -173,7 +175,8 @@
 							"docComment": "Description 5."
 						}
 					],
-					"returnType": "string"
+					"returnType": "string",
+					"property": true
 				}
 			]
 		}

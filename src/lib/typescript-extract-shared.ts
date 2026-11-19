@@ -18,7 +18,10 @@
 import ts from 'typescript';
 
 import type {
-	GenericParamJson,
+	GenericParamJsonInput,
+	GenericParamModifier,
+	ReturnPredicateJsonInput,
+	ThrowsJsonInput,
 	DeclarationKind,
 	DeclarationModifier,
 	MemberKind,
@@ -44,6 +47,7 @@ import {
 	jsdocParamTagDefault,
 	parseComment,
 	parseHiddenJSDocImplementationComment,
+	throwsTypeNodes,
 	type TsdocParsedComment
 } from './tsdoc.ts';
 import {
@@ -605,6 +609,12 @@ export const extractSignatureParameters = (
 
 		const parameter: ParameterJson = {
 			name: param.name,
+			// a destructured parameter has no name but the positional one
+			// TypeScript gives it, so its pattern rides beside that
+			pattern:
+				paramDecl && ts.isParameter(paramDecl) && !ts.isIdentifier(paramDecl.name)
+					? printBindingPattern(paramDecl.name)
+					: undefined,
 			type: typeString,
 			optional,
 			rest,
@@ -615,6 +625,27 @@ export const extractSignatureParameters = (
 		if (typeInfo) parameter.typeInfo = typeInfo;
 		return parameter;
 	});
+};
+
+const bindingPatternPrinter = ts.createPrinter({ removeComments: true });
+
+/**
+ * A binding pattern on one line, defaults kept and comments dropped, however
+ * the source lays it out. A string or template default that spans lines keeps
+ * its line breaks.
+ */
+const printBindingPattern = (pattern: ts.BindingPattern): string => {
+	const printed = bindingPatternPrinter.printNode(
+		ts.EmitHint.Unspecified,
+		pattern,
+		pattern.getSourceFile()
+	);
+	// join the lines, leaving a string or template default's own line breaks
+	// alone: the alternation consumes each literal whole, escapes included
+	return printed.replace(
+		/'(?:[^'\\]|\\[\s\S])*'|"(?:[^"\\]|\\[\s\S])*"|`(?:[^`\\]|\\[\s\S])*`|\s*\n\s*/g,
+		(match) => (/^['"`]/.test(match) ? match : ' ')
+	);
 };
 
 /**
@@ -706,11 +737,13 @@ const collectSymbolScopeTags = (
  * Set `returnType` + `returnTypeInfo` on a build target from a signature's
  * return type — the one projection of the flat/structured return pair, so the
  * two fields always print from the same `ts.Type` (returns are never
- * `optional`, hence the constant `false`). The written return annotation, when
+ * `optional`, hence the constant `false`) — and with them the two signature
+ * facts neither shows: `returnPredicate` for a type predicate or assertion,
+ * and `thisType` + `thisTypeInfo` for a declared `this` parameter. The written return annotation, when
  * one exists, feeds the tree's name recovery for aliases TypeScript dropped.
  */
 export const applyReturnType = (
-	target: { returnType?: string; returnTypeInfo?: TypeJson },
+	target: SignatureReturnTarget,
 	sig: ts.Signature,
 	ctx: ExtractContext
 ): void => {
@@ -730,7 +763,62 @@ export const applyReturnType = (
 		writtenNode: returnNode
 	});
 	if (returnTypeInfo) target.returnTypeInfo = returnTypeInfo;
+
+	// a type predicate or assertion, which the return type (`boolean`, `void`)
+	// doesn't show. Its written type is the predicate node's own
+	const predicate = checker.getTypePredicateOfSignature(sig);
+	if (predicate) {
+		const returnPredicate: ReturnPredicateJsonInput = {
+			parameterName:
+				predicate.kind === ts.TypePredicateKind.This ||
+				predicate.kind === ts.TypePredicateKind.AssertsThis
+					? 'this'
+					: predicate.parameterName
+		};
+		if (
+			predicate.kind === ts.TypePredicateKind.AssertsThis ||
+			predicate.kind === ts.TypePredicateKind.AssertsIdentifier
+		) {
+			returnPredicate.asserts = true;
+		}
+		if (predicate.type) {
+			returnPredicate.type = checker.typeToString(predicate.type);
+			const typeInfo = resolveTypeInfo(predicate.type, checker, ctx.aliasRegistry, false, {
+				writtenNode: returnNode && ts.isTypePredicateNode(returnNode) ? returnNode.type : undefined
+			});
+			if (typeInfo) returnPredicate.typeInfo = typeInfo;
+		}
+		target.returnPredicate = returnPredicate;
+	}
+
+	// a declared `this` parameter, which `sig.parameters` leaves out: a
+	// TypeScript `this: A`, or a JS `@this {A}` tag, whose parameter the
+	// checker synthesizes with no declaration
+	const thisParam = sig.thisParameter;
+	if (thisParam) {
+		const thisDecl = thisParam.valueDeclaration;
+		const thisType = thisDecl
+			? checker.getTypeOfSymbolAtLocation(thisParam, thisDecl)
+			: checker.getTypeOfSymbol(thisParam);
+		target.thisType = checker.typeToString(thisType);
+		const thisTypeInfo = resolveTypeInfo(thisType, checker, ctx.aliasRegistry, false, {
+			writtenNode:
+				thisDecl && ts.isParameter(thisDecl)
+					? writtenTypeAnnotation(thisDecl)
+					: decl && ts.getJSDocThisTag(decl)?.typeExpression.type
+		});
+		if (thisTypeInfo) target.thisTypeInfo = thisTypeInfo;
+	}
 };
+
+/** The fields `applyReturnType` sets. */
+export interface SignatureReturnTarget {
+	returnType?: string;
+	returnTypeInfo?: TypeJson;
+	returnPredicate?: ReturnPredicateJsonInput;
+	thisType?: string;
+	thisTypeInfo?: TypeJson;
+}
 
 /**
  * A signature declaration's own type parameters, the checker's reading
@@ -827,7 +915,8 @@ const extractOverloads = (
 
 		// Extract per-overload generic type parameters
 		const typeParams = signatureTypeParameters(decl);
-		if (typeParams?.length) overload.genericParams = typeParams.map(parseGenericParam);
+		if (typeParams?.length)
+			overload.genericParams = typeParams.map((param) => parseGenericParam(param, ctx));
 
 		// Detect the primary overload, whose symbol-scope tags already reach
 		// the parent (rule in the TSDoc above). Non-primary overloads with
@@ -1034,6 +1123,7 @@ export const memberNameText = (name: ts.PropertyName): string | undefined =>
  * member's classification.
  *
  * @param annotation - the written type annotation, when one exists (feeds `typeInfo` name recovery)
+ * @param isMethod - whether the property is declared with method syntax, which leaves a callable member's `property` unset
  * @mutates member - sets kind, doc fields, and either the callable field set or typeSignature/typeInfo
  * @mutates ctx.diagnostics - via `populateCallableMember`
  */
@@ -1045,7 +1135,8 @@ export const populatePropertyMember = (
 	tsdoc: TsdocParsedComment | undefined,
 	paramValidationNode: ts.Node,
 	name: string,
-	annotation: ts.TypeNode | undefined
+	annotation: ts.TypeNode | undefined,
+	isMethod = false
 ): void => {
 	const { checker } = ctx;
 	// an optional property resolves to a union with `undefined`, which reports no
@@ -1073,11 +1164,13 @@ export const populatePropertyMember = (
 		.filter((sig) => !isExternalSignature(sig, ctx.isExternalFile));
 	if (callSigs.length > 0) {
 		member.kind = 'function';
+		if (!isMethod) member.property = true;
 		populateCallableMember(member, callSigs, ctx, tsdoc, paramValidationNode, name);
 		// generic signatures carry genericParams like method signatures and
 		// (call) members do — read from the primary signature's declaration
 		const typeParams = signatureTypeParameters(callSigs[0]!.getDeclaration());
-		if (typeParams?.length) member.genericParams = typeParams.map(parseGenericParam);
+		if (typeParams?.length)
+			member.genericParams = typeParams.map((param) => parseGenericParam(param, ctx));
 	} else {
 		member.typeSignature = getTypeSignature(propType, checker, widened);
 		const typeInfo = resolveTypeInfo(propType, checker, ctx.aliasRegistry, widened, {
@@ -1986,23 +2079,147 @@ export const getNodeLocation = (node: ts.Node): { file: string; line: number; co
  * @param param - the TypeScript type parameter declaration node
  * @returns structured `GenericParamJson` with name, constraint, and default type
  */
-export const parseGenericParam = (param: ts.TypeParameterDeclaration): GenericParamJson => {
-	const result: GenericParamJson = {
-		name: param.name.text
+export const parseGenericParam = (
+	param: ts.TypeParameterDeclaration,
+	ctx: ExtractContext
+): GenericParamJsonInput => {
+	const flags = ts.getCombinedModifierFlags(param);
+	// always written, empty included: a defaulted field would have the parse
+	// rebuild every object holding the parameter, in schema key order
+	const result: GenericParamJsonInput = {
+		name: param.name.text,
+		modifiers: GENERIC_PARAM_MODIFIERS.filter(([flag]) => flags & flag).map(([, name]) => name)
 	};
 
 	const constraint = ts.getEffectiveConstraintOfTypeParameter(param);
 	if (constraint) {
-		result.constraint = (
-			ts.isJSDocTypeExpression(constraint) ? constraint.type : constraint
-		).getText();
+		const constraintNode = ts.isJSDocTypeExpression(constraint) ? constraint.type : constraint;
+		result.constraint = constraintNode.getText();
+		const constraintInfo = resolveWrittenTypeInfo(constraintNode, ctx);
+		if (constraintInfo) result.constraintInfo = constraintInfo;
 	}
 
 	if (param.default) {
 		result.defaultType = param.default.getText();
+		const defaultTypeInfo = resolveWrittenTypeInfo(param.default, ctx);
+		if (defaultTypeInfo) result.defaultTypeInfo = defaultTypeInfo;
 	}
 
 	return result;
+};
+
+/** The type-parameter modifiers, each one's flag and output name, in the order TypeScript prints them. */
+const GENERIC_PARAM_MODIFIERS: ReadonlyArray<readonly [ts.ModifierFlags, GenericParamModifier]> = [
+	[ts.ModifierFlags.Const, 'const'],
+	[ts.ModifierFlags.In, 'in'],
+	[ts.ModifierFlags.Out, 'out']
+];
+
+/**
+ * The structured type of a written type node whose flat sibling is its source
+ * text: a generic's constraint or default, a heritage entry, a braced
+ * `@throws` type. The tree is the checker's reading of the node, which also
+ * feeds name recovery, so it can spell the type differently from the text
+ * beside it.
+ *
+ * @param always - emit a node whatever its shape (`ResolveTypeInfoOptions.always`)
+ * @returns `undefined` under the absence contract, and when the checker can't
+ * resolve the node at all (an unknown name, or a throw)
+ */
+export const resolveWrittenTypeInfo = (
+	node: ts.TypeNode,
+	ctx: ExtractContext,
+	always = false
+): TypeJson | undefined => {
+	try {
+		const type = ctx.checker.getTypeFromTypeNode(node);
+		// an unresolvable name reads as the error type, which prints as `any`
+		if ((type as { intrinsicName?: string }).intrinsicName === 'error') return undefined;
+		const typeInfo = resolveTypeInfo(type, ctx.checker, ctx.aliasRegistry, false, {
+			writtenNode: node,
+			always
+		});
+		// a reference reads with its defaulted type arguments filled in (`Base`
+		// as `Base<unknown>`), which the text beside it doesn't say, so the
+		// root keeps to the arguments that were written
+		// Only where the tree names the entity that was written: an alias the
+		// tree looked through (`type L = Base<A, A>`) has arguments that don't
+		// line up with the written ones
+		if (
+			typeInfo?.kind === 'reference' &&
+			typeInfo.typeArgs &&
+			(ts.isTypeReferenceNode(node) || ts.isExpressionWithTypeArguments(node)) &&
+			writtenEntitySymbol(node, ctx.checker) === (type.aliasSymbol ?? type.symbol)
+		) {
+			const written = node.typeArguments?.length ?? 0;
+			if (written === 0) {
+				if (!always) return undefined;
+				const { typeArgs: _, ...bare } = typeInfo;
+				return bare;
+			}
+			if (written < typeInfo.typeArgs.length) {
+				return { ...typeInfo, typeArgs: typeInfo.typeArgs.slice(0, written) };
+			}
+		}
+		return typeInfo;
+	} catch (_) {
+		return undefined;
+	}
+};
+
+/**
+ * The symbol a written type reference or heritage entry names, import aliases
+ * resolved, or `undefined` when it names none (an expression base).
+ */
+const writtenEntitySymbol = (
+	node: ts.TypeReferenceNode | ts.ExpressionWithTypeArguments,
+	checker: ts.TypeChecker
+): ts.Symbol | undefined => {
+	const name = ts.isTypeReferenceNode(node) ? node.typeName : node.expression;
+	const symbol = checker.getSymbolAtLocation(
+		ts.isQualifiedName(name) ? name.right : ts.isPropertyAccessExpression(name) ? name.name : name
+	);
+	return symbol && symbol.flags & ts.SymbolFlags.Alias ? checker.getAliasedSymbol(symbol) : symbol;
+};
+
+/**
+ * The structured form of each heritage entry, index-aligned with the text
+ * entries, so always one node per entry: an entry the checker can't resolve
+ * is a terminal node over its text.
+ */
+export const heritageTypeInfo = (
+	types: ReadonlyArray<ts.ExpressionWithTypeArguments>,
+	ctx: ExtractContext
+): Array<TypeJson> =>
+	types.map(
+		(type) => resolveWrittenTypeInfo(type, ctx, true) ?? { kind: 'other', text: type.getText() }
+	);
+
+/**
+ * Resolve the `typeInfo` of each braced `@throws` entry on a declaration, its
+ * members, and its props, from the type nodes `parseComment` kept
+ * (`throwsTypeNodes`). One pass over a module's finished declarations, so no
+ * site that applies docs has to thread the checker through.
+ *
+ * @mutates declarations - replaces `throws` entries that gain a `typeInfo`
+ */
+export const applyThrowsTypeInfo = (
+	declarations: ReadonlyArray<DeclarationJsonBuild>,
+	ctx: ExtractContext
+): void => {
+	const apply = (target: { throws?: Array<ThrowsJsonInput> }): void => {
+		if (!target.throws?.length) return;
+		target.throws = target.throws.map((entry) => {
+			const node = throwsTypeNodes.get(entry);
+			const typeInfo = node && resolveWrittenTypeInfo(node, ctx);
+			return typeInfo ? { type: entry.type, typeInfo, description: entry.description } : entry;
+		});
+	};
+	for (const declaration of declarations) {
+		apply(declaration);
+		declaration.members?.forEach(apply);
+		declaration.props?.forEach(apply);
+	}
 };
 
 /**
@@ -2106,7 +2323,8 @@ export const emitCallOrConstructSignature = (
 		);
 
 		const typeParams = signatureTypeParameters(sig.getDeclaration());
-		if (typeParams?.length) member.genericParams = typeParams.map(parseGenericParam);
+		if (typeParams?.length)
+			member.genericParams = typeParams.map((param) => parseGenericParam(param, ctx));
 
 		if (signatures.length > 1) {
 			// a `(call)`/`(construct)` member's JSDoc is its first signature's

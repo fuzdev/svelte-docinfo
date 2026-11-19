@@ -10,6 +10,18 @@
 			"extends": [
 				"Partial<B>"
 			],
+			"extendsInfo": [
+				{
+					"kind": "reference",
+					"name": "Partial",
+					"typeArgs": [
+						{
+							"kind": "reference",
+							"name": "B"
+						}
+					]
+				}
+			],
 			"members": [
 				{
 					"name": "c",

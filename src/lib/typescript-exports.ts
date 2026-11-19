@@ -43,6 +43,7 @@ import { type ModuleSourceOptions, extractDependencies, extractPath } from './so
 import { createIsExternalPath } from './typescript-program.ts';
 import { toPosixPath } from './paths.ts';
 import {
+	applyThrowsTypeInfo,
 	getLocalExportStatement,
 	getNodeLocation,
 	inferDeclarationKind,
@@ -1306,6 +1307,12 @@ export const analyzeExports = (
 			declarations.push({ declaration, nodocs });
 		}
 	}
+
+	// braced `@throws` types, resolved once the declarations are whole
+	applyThrowsTypeInfo(
+		declarations.map((analysis) => analysis.declaration),
+		ctx
+	);
 
 	return {
 		moduleDoc,

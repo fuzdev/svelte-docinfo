@@ -15,6 +15,12 @@
 			"implements": [
 				"B"
 			],
+			"implementsInfo": [
+				{
+					"kind": "reference",
+					"name": "B"
+				}
+			],
 			"members": [
 				{
 					"name": "b",
@@ -67,6 +73,12 @@
 			"sourceLine": 31,
 			"extends": [
 				"Error"
+			],
+			"extendsInfo": [
+				{
+					"kind": "reference",
+					"name": "Error"
+				}
 			],
 			"externalTypes": [
 				"Error"

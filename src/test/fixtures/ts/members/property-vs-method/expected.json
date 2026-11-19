@@ -1,0 +1,163 @@
+{
+	"path": "input.ts",
+	"declarations": [
+		{
+			"name": "A",
+			"kind": "interface",
+			"typeSignature": "A",
+			"sourceLine": 1,
+			"members": [
+				{
+					"name": "a",
+					"kind": "function",
+					"typeSignature": "(): number",
+					"modifiers": [
+						"readonly"
+					],
+					"returnType": "number",
+					"property": true
+				},
+				{
+					"name": "b",
+					"kind": "function",
+					"typeSignature": "(): number",
+					"returnType": "number"
+				},
+				{
+					"name": "c",
+					"kind": "function",
+					"typeSignature": "(x: string): boolean",
+					"parameters": [
+						{
+							"name": "x",
+							"type": "string"
+						}
+					],
+					"returnType": "boolean",
+					"optional": true,
+					"property": true,
+					"defaultValue": "() => true"
+				},
+				{
+					"name": "d",
+					"kind": "function",
+					"typeSignature": "(x: string): boolean",
+					"parameters": [
+						{
+							"name": "x",
+							"type": "string"
+						}
+					],
+					"returnType": "boolean",
+					"optional": true
+				},
+				{
+					"name": "e",
+					"kind": "function",
+					"typeSignature": "<T>(x: T): T",
+					"genericParams": [
+						{
+							"name": "T"
+						}
+					],
+					"parameters": [
+						{
+							"name": "x",
+							"type": "T"
+						}
+					],
+					"returnType": "T",
+					"property": true
+				}
+			]
+		},
+		{
+			"name": "B",
+			"kind": "type",
+			"typeSignature": "B",
+			"sourceLine": 10,
+			"members": [
+				{
+					"name": "a",
+					"kind": "function",
+					"typeSignature": "(): number",
+					"modifiers": [
+						"readonly"
+					],
+					"returnType": "number",
+					"property": true
+				},
+				{
+					"name": "b",
+					"kind": "function",
+					"typeSignature": "(): number",
+					"returnType": "number"
+				}
+			]
+		},
+		{
+			"name": "C",
+			"kind": "type",
+			"typeSignature": "C",
+			"sourceLine": 15,
+			"members": [
+				{
+					"name": "a",
+					"kind": "function",
+					"typeSignature": "(x: \"a\"): void",
+					"parameters": [
+						{
+							"name": "x",
+							"type": "\"a\""
+						}
+					],
+					"returnType": "void",
+					"property": true
+				},
+				{
+					"name": "b",
+					"kind": "function",
+					"typeSignature": "(x: \"b\"): void",
+					"parameters": [
+						{
+							"name": "x",
+							"type": "\"b\""
+						}
+					],
+					"returnType": "void",
+					"property": true
+				}
+			]
+		},
+		{
+			"name": "D",
+			"kind": "type",
+			"typeSignature": "Pick<A, \"a\" | \"b\">",
+			"sourceLine": 17
+		},
+		{
+			"name": "E",
+			"kind": "class",
+			"sourceLine": 19,
+			"members": [
+				{
+					"name": "a",
+					"kind": "variable",
+					"typeSignature": "() => number"
+				},
+				{
+					"name": "b",
+					"kind": "function",
+					"typeSignature": "(): number",
+					"returnType": "number"
+				}
+			]
+		},
+		{
+			"name": "F",
+			"kind": "type",
+			"typeSignature": "Pick<E, \"a\" | \"b\">",
+			"sourceLine": 26
+		}
+	]
+}

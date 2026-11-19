@@ -10,6 +10,12 @@
 			"extends": [
 				"B"
 			],
+			"extendsInfo": [
+				{
+					"kind": "reference",
+					"name": "B"
+				}
+			],
 			"members": [
 				{
 					"name": "a",
@@ -41,6 +47,12 @@
 			"sourceLine": 13,
 			"implements": [
 				"A"
+			],
+			"implementsInfo": [
+				{
+					"kind": "reference",
+					"name": "A"
+				}
 			],
 			"members": [
 				{

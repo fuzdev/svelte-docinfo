@@ -84,7 +84,8 @@
 							"rest": true
 						}
 					],
-					"returnType": "boolean"
+					"returnType": "boolean",
+					"property": true
 				}
 			]
 		}

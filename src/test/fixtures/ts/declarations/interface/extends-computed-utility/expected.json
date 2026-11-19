@@ -39,6 +39,23 @@
 					"extends": [
 						"Omit<B, 'b'>"
 					],
+					"extendsInfo": [
+						{
+							"kind": "reference",
+							"name": "Omit",
+							"typeArgs": [
+								{
+									"kind": "reference",
+									"name": "B"
+								},
+								{
+									"kind": "literal",
+									"value": "b",
+									"text": "\"b\""
+								}
+							]
+						}
+					],
 					"members": [
 						{
 							"name": "a",
@@ -63,6 +80,23 @@
 					"extends": [
 						"Pick<B, 'a'>"
 					],
+					"extendsInfo": [
+						{
+							"kind": "reference",
+							"name": "Pick",
+							"typeArgs": [
+								{
+									"kind": "reference",
+									"name": "B"
+								},
+								{
+									"kind": "literal",
+									"value": "a",
+									"text": "\"a\""
+								}
+							]
+						}
+					],
 					"members": [
 						{
 							"name": "d",
@@ -85,6 +119,18 @@
 					"sourceLine": 21,
 					"extends": [
 						"Partial<B>"
+					],
+					"extendsInfo": [
+						{
+							"kind": "reference",
+							"name": "Partial",
+							"typeArgs": [
+								{
+									"kind": "reference",
+									"name": "B"
+								}
+							]
+						}
 					],
 					"members": [
 						{
@@ -117,6 +163,18 @@
 					"sourceLine": 24,
 					"extends": [
 						"Readonly<B>"
+					],
+					"extendsInfo": [
+						{
+							"kind": "reference",
+							"name": "Readonly",
+							"typeArgs": [
+								{
+									"kind": "reference",
+									"name": "B"
+								}
+							]
+						}
 					],
 					"members": [
 						{
