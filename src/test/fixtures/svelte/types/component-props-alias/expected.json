@@ -410,8 +410,14 @@
 									{
 										"name": "first",
 										"type": {
-											"kind": "object",
-											"text": "{ d: number; }"
+											"kind": "reference",
+											"name": "ComponentProps",
+											"typeArgs": [
+												{
+													"kind": "other",
+													"text": "typeof Other4"
+												}
+											]
 										}
 									},
 									{
@@ -568,8 +574,14 @@
 								"elements": [
 									{
 										"type": {
-											"kind": "object",
-											"text": "{ d: number; }"
+											"kind": "reference",
+											"name": "ComponentProps",
+											"typeArgs": [
+												{
+													"kind": "other",
+													"text": "typeof Other4"
+												}
+											]
 										},
 										"optional": true
 									}

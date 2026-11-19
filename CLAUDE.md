@@ -30,12 +30,13 @@ topic guides and references; `tomes.ts` orders them). Examples: `examples/vite/`
   which hold one node per heritage entry whatever its shape, aligned by index. These trees
   follow the written text: written type arguments and names (as exported), array syntax
   over the written element, computed types (`keyof`, `typeof`, indexed access) as
-  terminal text nested and no tree at the root; unions and tuples inside them keep the
-  checker's reading. Policy: the
+  terminal text nested and no tree at the root; union members and tuple elements follow
+  their written members as annotated sites do (below). Policy: the
   `TypeJson` schema TSDoc (`types.ts`) and `typescript-extract-type-json.ts`.
   - **Absence** — absent when the flat string is the whole story (intrinsics, bare
     references, object/function roots); relaxed at type-alias roots, where the flat string
-    is just the alias name, and at recovered roots.
+    is just the alias name, at recovered roots, at an object or function root printed
+    from its written literal, and wherever a member followed its written node.
   - **Shape** — union/intersection members keep alias names. Union members take the written
     order (the alias right-hand side, else the site annotation, falling back to the
     checker's order), nullish last. A lost union written as one member (`Lost | null`, at
@@ -46,7 +47,8 @@ topic guides and references; `tomes.ts` orders them). Examples: `examples/vite/`
     `function`; a class's, enum's, or namespace's value side (`typeof A`) is terminal
     `other` text, never a `reference` to the instance type. Object literals and functions
     stay terminal `text` (the checker's, with the optional widening stripped inside,
-    `printTypeText`), untruncated up to 1000
+    `printTypeText`, or the written literal's where the checker's loses a written name,
+    below), untruncated up to 1000
     chars, then the checker's shortened rendering. Depth caps at 5, degrading to
     `{kind: 'other'}`.
   - **Written annotations** — where a site has a written annotation, the tree follows it
@@ -54,14 +56,27 @@ topic guides and references; `tomes.ts` orders them). Examples: `examples/vite/`
     `resolveWrittenTypeInfo` (written arguments and name, `Uuid` over its branded
     expansion), a computed type is `{kind: 'other', text}` over its source even at the
     root (the flat string prints the expansion), and a written intersection the checker
-    distributed over a union is an `intersection` of the written members. A name the
+    distributed over a union is an `intersection` of the written members. A written union's
+    members and a written tuple's elements each follow their own written node
+    (`followWrittenMember`; `keyof A | null` keeps `keyof A`), where that reads as
+    something other than the usual build (`followedOver`), and a followed member keeps a
+    tree its flat string would otherwise stand in for. A written union or tuple whose type
+    is written two ways at one site (`[keyof A | null, 'a' | null]` over one `'a' | null`)
+    orders but never follows (`WrittenUnionEntry.ambiguous`). An object or function type literal
+    whose checker printing loses a name the source wrote (a lost alias, a computed type)
+    is terminal text printed from the written node (`writtenLiteralNode`: one line,
+    comments dropped, import renames resolved, a computed subtype the checker names by
+    that name), at the root too; one the checker prints with every written name keeps
+    the checker's text, or stays absent at the root. A name the
     usual reading already carries wins: a registry hit over a written generic
     (`Infer<typeof S>` stays `SOutput`), a checker alias or flat-string name over computed
     text (`A['b']` stays `B`). Not followed: a type-alias declaration root (it documents
     its definition), an annotation that isn't the site's own type (a snippet parameter's),
     JSDoc's remapped names (`{Object<K, V>}`, `{String}`), a `typeof` over a value from a
     package or `.d.ts`, any `typeof` in a Svelte component's script (svelte2tsx writes
-    its own for legacy props), svelte2tsx's names, and a module-private alias's name. A
+    its own for legacy props), svelte2tsx's names, a module-private alias's name, and the
+    members of an alias's right-hand side (they order a union, but only a site's own
+    annotation is followed). A
     tree the flat string already matches stays absent; a bare written reference whose flat
     string prints filled-in defaults keeps its node.
   - **Default type arguments** — a reference drops trailing type arguments identical to

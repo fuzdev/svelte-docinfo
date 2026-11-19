@@ -181,7 +181,12 @@ const SourceLine = s.pipe(s.number, s.safe_integer, s.min_value(1));
  * conditional, mapped, or template literal type) is `{kind: 'other', text}`
  * over its source text, root included, unless the flat string already prints
  * it so, and a written intersection the checker distributed over a union is
- * an `intersection` of the written members. Type-alias declaration roots,
+ * an `intersection` of the written members. A written union's members and a
+ * written tuple's elements follow their own written nodes the same way
+ * (`keyof A | null` keeps `keyof A`). An object or function type literal whose
+ * checker printing loses a name the source wrote (a lost alias expanded) is
+ * terminal text printed from the written literal, root included
+ * (`{ theme: Theme; }`), one line with comments dropped. Type-alias declaration roots,
  * annotations over another type than the site's, `typeof` over a value from a
  * package, and module-private alias names keep the checker's reading. Any
  * reference drops trailing type arguments identical to their parameter's

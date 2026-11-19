@@ -40,8 +40,8 @@
 			a reference keeps its written type arguments and the name written (a callable alias included),
 			array syntax reads as an array of the written element, and a computed type
 			(<Code lang="ts" inline content="keyof A" />, <Code lang="ts" inline content="typeof a" />) is
-			a terminal node over its text, with no tree at all when it's the whole type. Inside a union or
-			tuple it can still spell a type differently from the text beside it, as other trees do.
+			a terminal node over its text, with no tree at all when it's the whole type. A union's members
+			and a tuple's elements follow the same rules, one by one.
 		</p>
 	</section>
 
@@ -71,8 +71,15 @@
 			default isn't filled in. A computed type (<Code lang="ts" inline content="keyof A" />,
 			<Code lang="ts" inline content="typeof a" />, <Code lang="ts" inline content="A['b']" />) is
 			an <code>other</code> node over its source text, even as the whole type, since the flat string
-			prints what it computes to. A name the checker or the alias registry already gives the type
-			wins over both, so a renderer never trades a linkable name for source text.
+			prints what it computes to. A union's members and a tuple's elements follow their own written
+			types the same way (<Code lang="ts" inline content="keyof A | null" /> keeps
+			<code>keyof A</code>), and an object or function type whose checker printing loses a name the
+			source wrote reads as the written type, even as the whole type:
+			<Code lang="ts" inline content={'theme?: { theme: Theme }'} /> is
+			<Code lang="ts" inline content={'{ theme: Theme; }'} /> where the flat string expands
+			<code>Theme</code>. A name the checker or the alias registry gives a computed type wins over
+			its source text, and a registry name over a written generic it stands for, so a renderer never
+			trades a linkable name for computed text.
 		</p>
 		<p>
 			A type alias's own declaration still documents its definition, a <code>typeof</code> over a
@@ -104,7 +111,9 @@
 				A named generic instantiation is a <code>reference</code> with <code>typeArgs</code>
 				(<Code lang="ts" inline content={'Snippet<[a: string]>'} />), and other callables are
 				<code>function</code> nodes. Object literal and function types are <code>object</code> and
-				<code>function</code> nodes carrying the checker's text.
+				<code>function</code> nodes carrying the checker's text, or, where that loses a name the
+				source wrote (an expanded lost alias), the written type printed on one line:
+				<Code lang="ts" inline content={'{ theme: Theme; }'} />.
 			</li>
 			<li>
 				Arrays and tuples carry <code>readonly</code>, and the optional-property

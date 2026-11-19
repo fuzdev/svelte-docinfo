@@ -796,7 +796,32 @@ const unwrapParenthesizedType = (node: ts.TypeNode): ts.TypeNode => {
  * Produced by `createWrittenUnionLookup`; `undefined` at call sites with no
  * written annotation to read.
  */
-type WrittenUnionLookup = (type: ts.UnionType) => ts.UnionTypeNode | undefined;
+type WrittenUnionLookup = (type: ts.UnionType) => WrittenUnionEntry | undefined;
+
+/**
+ * A written union node for a member set, `ambiguous` when another written
+ * union with other text shares the set: it may order the members it borrows,
+ * but its members aren't followed (`followWrittenMember`), since they may not
+ * be the ones written at the position being built.
+ */
+interface WrittenUnionEntry {
+	node: ts.UnionTypeNode;
+	ambiguous: boolean;
+}
+
+/**
+ * The key a written union and a checker union share: the member set
+ * (`unionMemberSetKey`), or for a union of one member besides `undefined`
+ * (`X | undefined`, whose member set is too small for that key), the member's
+ * own identity.
+ */
+const writtenUnionKey = (type: ts.UnionType): string | undefined => {
+	const key = unionMemberSetKey(type);
+	if (key !== undefined) return key;
+	const others = type.types.filter((t) => !(t.flags & ts.TypeFlags.Undefined));
+	const id = others.length === 1 ? (others[0] as TypeWithId).id : undefined;
+	return typeof id === 'number' && others.length < type.types.length ? `only:${id}` : undefined;
+};
 
 /**
  * Map each outermost union node in a written annotation to its member-set key
@@ -817,14 +842,21 @@ type WrittenUnionLookup = (type: ts.UnionType) => ts.UnionTypeNode | undefined;
 const buildWrittenUnionMap = (
 	node: ts.TypeNode,
 	checker: ts.TypeChecker
-): Map<string, ts.UnionTypeNode> => {
-	const map = new Map<string, ts.UnionTypeNode>();
+): Map<string, WrittenUnionEntry> => {
+	const map = new Map<string, WrittenUnionEntry>();
 	const walk = (n: ts.Node): void => {
 		if (ts.isUnionTypeNode(n) && !isNestedInUnion(n)) {
 			try {
 				const type = checker.getTypeFromTypeNode(n);
-				const key = type.isUnion() ? unionMemberSetKey(type) : undefined;
-				if (key !== undefined && !map.has(key)) map.set(key, n);
+				const key = type.isUnion() ? writtenUnionKey(type) : undefined;
+				const incumbent = key === undefined ? undefined : map.get(key);
+				if (key === undefined) {
+					// no key, no entry
+				} else if (!incumbent) {
+					map.set(key, { node: n, ambiguous: false });
+				} else if (incumbent.node.getText() !== n.getText()) {
+					incumbent.ambiguous = true;
+				}
 			} catch {
 				// a malformed or unresolved annotation contributes no entry
 			}
@@ -853,9 +885,9 @@ const createWrittenUnionLookup = (
 	checker: ts.TypeChecker
 ): WrittenUnionLookup | undefined => {
 	if (!node) return undefined;
-	let map: Map<string, ts.UnionTypeNode> | undefined;
+	let map: Map<string, WrittenUnionEntry> | undefined;
 	return (type) => {
-		const key = unionMemberSetKey(type);
+		const key = writtenUnionKey(type);
 		return key === undefined ? undefined : (map ??= buildWrittenUnionMap(node, checker)).get(key);
 	};
 };
@@ -882,6 +914,23 @@ interface NameRecovery {
 	 * name instead of elided text.
 	 */
 	suppressRegistryAtRoot: boolean;
+	/**
+	 * Written tuple nodes from the annotation at this site, when one exists
+	 * and members follow (`followMembers`).
+	 */
+	writtenTuples: WrittenTupleLookup | undefined;
+	/**
+	 * Whether union members and tuple elements with a written node follow it
+	 * (`followWrittenMember`). Off at a type-alias declaration's own site, which
+	 * documents its definition.
+	 */
+	followMembers: boolean;
+	/**
+	 * Set once a member or element took its followed node: the tree then says
+	 * what its flat string doesn't (`[keyof A]` printed as the expansion), so
+	 * `resolveTypeInfo` keeps it however little structure it has.
+	 */
+	followed: boolean;
 }
 
 /** The one `NameRecovery` constructor — see the interface for field semantics. */
@@ -889,13 +938,59 @@ const createNameRecovery = (
 	writtenNode: ts.TypeNode | undefined,
 	checker: ts.TypeChecker,
 	registry: AliasRegistry | undefined,
-	suppressRegistryAtRoot = false
+	suppressRegistryAtRoot = false,
+	followMembers = !suppressRegistryAtRoot
 ): NameRecovery => ({
 	written: createWrittenNameLookup(writtenNode, checker),
 	writtenUnions: createWrittenUnionLookup(writtenNode, checker),
 	registry,
-	suppressRegistryAtRoot
+	suppressRegistryAtRoot,
+	writtenTuples: followMembers ? createWrittenTupleLookup(writtenNode, checker) : undefined,
+	followMembers,
+	followed: false
 });
+
+/**
+ * Lookup from a checker tuple to the written tuple node it was read from at
+ * this site. Produced by `createWrittenTupleLookup`.
+ */
+type WrittenTupleLookup = (type: ts.Type) => ts.TupleTypeNode | undefined;
+
+/**
+ * A `WrittenTupleLookup` over an annotation node, or `undefined` without one.
+ * Keyed by type identity, built lazily like `createWrittenNameLookup`. Tuple
+ * types are interned, so two written tuples can share one type; when their
+ * text differs neither is returned, since either may not be the one written
+ * at the position being built.
+ */
+const createWrittenTupleLookup = (
+	node: ts.TypeNode | undefined,
+	checker: ts.TypeChecker
+): WrittenTupleLookup | undefined => {
+	if (!node) return undefined;
+	// `null` marks a tuple type written two ways, whose elements never follow
+	let map: Map<ts.Type, ts.TupleTypeNode | null> | undefined;
+	const build = (): Map<ts.Type, ts.TupleTypeNode | null> => {
+		const built = new Map<ts.Type, ts.TupleTypeNode | null>();
+		const walk = (n: ts.Node): void => {
+			if (ts.isTupleTypeNode(n)) {
+				try {
+					const type = checker.getTypeFromTypeNode(n);
+					const incumbent = built.get(type);
+					if (incumbent === undefined) built.set(type, n);
+					else if (incumbent !== null && incumbent.getText() !== n.getText()) built.set(type, null);
+				} catch {
+					// a malformed or unresolved annotation contributes no entry
+				}
+			}
+			// the callback must return undefined — see `buildWrittenNameMap`
+			ts.forEachChild(n, walk);
+		};
+		walk(node);
+		return built;
+	};
+	return (type) => (map ??= build()).get(type) ?? undefined;
+};
 
 /**
  * The reference node recovered for a type the checker has no name for, or
@@ -1099,6 +1194,8 @@ const aliasUnionNode = (type: ts.Type): ts.UnionTypeNode | undefined => {
 interface WrittenUnionOrder {
 	members: ReadonlyArray<ts.Type>;
 	groupNames: ReadonlyMap<ts.Type, string>;
+	/** The written node of each member written as itself, for `followWrittenMember`. */
+	writtenNodes: ReadonlyMap<ts.Type, ts.TypeNode>;
 }
 
 /**
@@ -1151,12 +1248,15 @@ const orderByWrittenUnion = (
 	const ordered: Array<ts.Type> = [];
 	const placed = new Set<ts.Type>();
 	const groupNames = new Map<ts.Type, string>();
-	const place = (type: ts.Type): boolean => {
+	const writtenNodes = new Map<ts.Type, ts.TypeNode>();
+	const place = (type: ts.Type, node?: ts.TypeNode): boolean => {
 		const slot = slotOf.get(type);
 		if (slot === undefined) return false;
 		if (!placed.has(slot)) {
 			placed.add(slot);
 			ordered.push(slot);
+			// a member written as its own slot can follow its written node
+			if (node !== undefined && slot === type) writtenNodes.set(slot, node);
 		}
 		return true;
 	};
@@ -1187,10 +1287,12 @@ const orderByWrittenUnion = (
 	};
 	// guards a recursive alias against revisiting its own declaration
 	const visitedAliasNodes = new Set<ts.UnionTypeNode>();
-	const visit = (written: ts.TypeNode): void => {
+	// `follow` is off inside an alias's right-hand side, whose members order
+	// the union but aren't the site's written annotation
+	const visit = (written: ts.TypeNode, follow = true): void => {
 		const node = unwrapParenthesizedType(written);
 		if (ts.isUnionTypeNode(node)) {
-			for (const member of node.types) visit(member);
+			for (const member of node.types) visit(member, follow);
 			return;
 		}
 		let type: ts.Type;
@@ -1199,11 +1301,13 @@ const orderByWrittenUnion = (
 		} catch {
 			return;
 		}
-		if (place(type) || !type.isUnion() || placeGroup(node, type)) return;
+		if (place(type, follow ? node : undefined) || !type.isUnion() || placeGroup(node, type)) {
+			return;
+		}
 		const aliasNode = aliasUnionNode(type);
 		if (aliasNode !== undefined && !visitedAliasNodes.has(aliasNode)) {
 			visitedAliasNodes.add(aliasNode);
-			visit(aliasNode);
+			visit(aliasNode, false);
 		}
 		const leaves: Array<ts.Type> = [];
 		flattenUnionMembers(sinkNullishLast(unionMemberTypes(type)), leaves);
@@ -1215,7 +1319,7 @@ const orderByWrittenUnion = (
 		if (!(slot.flags & ts.TypeFlags.Undefined)) return undefined;
 		ordered.push(slot);
 	}
-	return { members: ordered, groupNames };
+	return { members: ordered, groupNames, writtenNodes };
 };
 
 /**
@@ -1241,12 +1345,16 @@ const writtenUnionMemberTypes = (
 	const aliasNode = aliasUnionNode(type);
 	if (aliasNode !== undefined) {
 		const ordered = orderByWrittenUnion(aliasNode, unionMemberTypes(type), checker);
-		if (ordered !== undefined) return ordered;
+		// an alias's right-hand side orders its members, but only a site's own
+		// annotation is followed (`followWrittenMember`)
+		if (ordered !== undefined) return { ...ordered, writtenNodes: new Map() };
 	}
 	// consulted only past the alias source, so the site map stays unbuilt
 	// wherever aliases answer
-	const siteNode = recovery.writtenUnions?.(type);
-	return siteNode && orderByWrittenUnion(siteNode, unionMemberTypes(type), checker);
+	const site = recovery.writtenUnions?.(type);
+	if (site === undefined) return undefined;
+	const ordered = orderByWrittenUnion(site.node, unionMemberTypes(type), checker);
+	return ordered && site.ambiguous ? { ...ordered, writtenNodes: new Map() } : ordered;
 };
 
 /**
@@ -1326,10 +1434,16 @@ const buildUnion = (
 		// a written alias-lost union, recovered as written (so no `module`, like
 		// every written-channel hit)
 		const groupName = written?.groupNames.get(memberType);
+		if (groupName !== undefined) {
+			members.push({ kind: 'reference', name: groupName });
+			continue;
+		}
+		const writtenMember = recovery.followMembers
+			? written?.writtenNodes.get(memberType)
+			: undefined;
+		const built = buildTypeJson(memberType, checker, depth + 1, recovery);
 		members.push(
-			groupName === undefined
-				? buildTypeJson(memberType, checker, depth + 1, recovery)
-				: { kind: 'reference', name: groupName }
+			(writtenMember && followedOver(built, writtenMember, memberType, checker, recovery)) ?? built
 		);
 	}
 
@@ -1464,9 +1578,21 @@ const buildTuple = (
 	if (walked.length === 0) {
 		return isReadonly ? { kind: 'tuple', readonly: true } : { kind: 'tuple' };
 	}
-	const elements = walked.map((el): TupleElementJson => {
+	// a written tuple whose elements line up one to one (no rest or variadic
+	// element) lets each element follow its written node
+	const writtenTuple = recovery.writtenTuples?.(type);
+	const writtenElements =
+		writtenTuple &&
+		writtenTuple.elements.length === walked.length &&
+		!walked.some((el) => el.rest || el.variadic)
+			? writtenTuple.elements
+			: undefined;
+	const elements = walked.map((el, i): TupleElementJson => {
 		const { target, dropUndefined } = optionalWideningTarget(el.type, checker, el.optional);
-		const built = buildTypeJson(target, checker, depth + 1, recovery, { dropUndefined });
+		const writtenElement = writtenElements && writtenTupleElementType(writtenElements[i]!);
+		const usual = buildTypeJson(target, checker, depth + 1, recovery, { dropUndefined });
+		const built =
+			(writtenElement && followedOver(usual, writtenElement, target, checker, recovery)) ?? usual;
 		const node: TypeJson = el.rest ? { kind: 'array', element: built } : built;
 		// `name` leads the literal so the wire keys read name-first
 		const name = tupleElementName(el);
@@ -1801,7 +1927,7 @@ export const resolveTypeInfo = (
 		dropUndefined,
 		skipAliasName: ownAliasName
 	});
-	if (options?.always || hasTypeStructure(node)) return node;
+	if (options?.always || hasTypeStructure(node) || recovery.followed) return node;
 	// a recovered bare reference at the root carries the name the flat string
 	// lost — re-derived with root semantics (depth 0, member-set eligibility
 	// matching the build) so this check can't disagree with the build above
@@ -1866,9 +1992,12 @@ export interface WrittenTypeContext {
  *   the root it has no tree, so a renderer links the flat text; nested, or
  *   with `always`, it is `{kind: 'other', text}` over its verbatim source
  *   text, local names included.
+ * - Nested or with `always`, an object or function type literal losing a
+ *   written name in the checker's printing is `writtenLiteralNode`'s text.
  * - Anything else (a union, intersection, tuple, or literal) is the checker's
  *   reading of the node, name recovery included, so a reference inside one
- *   reads as everywhere else in `typeInfo`.
+ *   reads as everywhere else in `typeInfo`, and a union's members and a
+ *   tuple's elements follow their written nodes (`followWrittenMember`).
  *
  * Each written type argument starts a fresh tree, so the depth cap applies
  * per argument and a written chain is bounded by its source text instead.
@@ -1891,6 +2020,13 @@ export const resolveWrittenTypeInfo = (
 		const type = checker.getTypeFromTypeNode(node);
 		// an unresolvable name reads as the error type, which prints as `any`
 		if ((type as { intrinsicName?: string }).intrinsicName === 'error') return undefined;
+		// a nested object or function literal (a type argument, an array
+		// element) keeps a name its checker printing loses; at a root the flat
+		// sibling is already the source text
+		if (always && isWrittenLiteral(written)) {
+			const literal = writtenLiteralNode(written, type, ctx);
+			if (literal) return literal;
+		}
 		const typeInfo = resolveTypeInfo(type, checker, ctx.aliasRegistry, false, {
 			writtenNode: node,
 			always,
@@ -2139,9 +2275,11 @@ const isNamedReading = (node: TypeJson | undefined): boolean =>
  * - A written intersection the checker distributed over a union member
  *   (`A & {b: 1}` with `A` a union, read as a union of intersections) is an
  *   `intersection` over the written members.
- * - Anything else (a union, tuple, literal, object or function type) reads as
- *   the checker's, with the written node feeding name recovery and union
- *   order as before.
+ * - An object or function type literal whose checker printing loses a written
+ *   name is `writtenLiteralNode`'s text, root included.
+ * - Anything else (a union, tuple, or literal) reads as the checker's, with
+ *   the written node feeding name recovery and union order, and its members
+ *   and elements following their own written nodes (`followWrittenMember`).
  *
  * The optional widening never needs stripping here: the written node has no
  * `| undefined` the site's `?` added.
@@ -2151,7 +2289,8 @@ const followWrittenAnnotation = (
 	type: ts.Type,
 	checker: ts.TypeChecker,
 	aliasRegistry: AliasRegistry | undefined,
-	optional: boolean
+	optional: boolean,
+	member = false
 ): TypeJson | undefined | typeof NOT_FOLLOWED => {
 	// some sites pass an enclosing annotation as a name-recovery source (a
 	// snippet's parameters, its `Snippet<[…]>`); only the site's own type follows
@@ -2160,6 +2299,14 @@ const followWrittenAnnotation = (
 	if (nodeType !== type && nodeType !== target) return NOT_FOLLOWED;
 	const written = skipParentheses(node);
 	const ctx: WrittenTypeContext = { checker, aliasRegistry };
+	// a written `X | undefined` the optional widening strip reduced to `X`
+	// (`o?: X | undefined`) follows its `X`
+	if (ts.isUnionTypeNode(written) && !target.isUnion() && target !== type) {
+		const only = written.types.find(
+			(t) => t.kind !== ts.SyntaxKind.UndefinedKeyword && checker.getTypeFromTypeNode(t) === target
+		);
+		if (only) return followWrittenAnnotation(only, target, checker, aliasRegistry, false, member);
+	}
 	// the reading the site gets without following, a name it already carries
 	// included (a checker alias, a registry hit)
 	const reading = (): TypeJson | undefined =>
@@ -2175,7 +2322,10 @@ const followWrittenAnnotation = (
 		if (ts.isTypeQueryNode(written) && isSvelteVirtualPath(written.getSourceFile().fileName)) {
 			return NOT_FOLLOWED;
 		}
-		if (printsAsWritten(target, written, checker)) return undefined;
+		// a member has no flat sibling of its own to defer to
+		if (printsAsWritten(target, written, checker)) {
+			return member ? { kind: 'other', text: written.getText() } : undefined;
+		}
 		// a name the reading already carries (`A['b']` read as the alias
 		// `B`) says more than the computed text
 		const named = reading();
@@ -2219,6 +2369,7 @@ const followWrittenAnnotation = (
 			? bare
 			: undefined;
 	}
+	if (isWrittenLiteral(written)) return writtenLiteralNode(written, target, ctx) ?? NOT_FOLLOWED;
 	if (ts.isIntersectionTypeNode(written)) {
 		if (target.isUnion()) {
 			return {
@@ -2228,6 +2379,324 @@ const followWrittenAnnotation = (
 		}
 	}
 	return NOT_FOLLOWED;
+};
+
+/**
+ * A union member's or tuple element's tree where its written node says more
+ * than the checker's reading (`followWrittenAnnotation`, as for an annotated
+ * site), else `undefined` for the caller's usual build: `keyof A | null`
+ * keeps `keyof A` as written, `Uuid | null` keeps `Uuid`.
+ */
+const followWrittenMember = (
+	node: ts.TypeNode,
+	type: ts.Type,
+	checker: ts.TypeChecker,
+	recovery: NameRecovery
+): TypeJson | undefined => {
+	// a recursive alias's members are its own written nodes again
+	// (`type R = string | Array<R>`), and a followed member starts its own
+	// depth count, so a node already being followed builds as usual instead
+	if (followingMembers.has(node)) return undefined;
+	followingMembers.add(node);
+	try {
+		const followed = followWrittenAnnotation(node, type, checker, recovery.registry, false, true);
+		return followed === NOT_FOLLOWED ? undefined : followed;
+	} finally {
+		followingMembers.delete(node);
+	}
+};
+
+/** The written member nodes `followWrittenMember` is inside, its re-entry guard. */
+const followingMembers = new Set<ts.TypeNode>();
+
+/**
+ * A member's followed tree where it reads differently from the usual build
+ * `built`, else `undefined`. A followed node naming the same thing at its top
+ * (the same kind and name, alias, or text) defers to `built`, which counts
+ * depth from the enclosing tree, where a followed one starts its own.
+ */
+const followedOver = (
+	built: TypeJson,
+	node: ts.TypeNode,
+	type: ts.Type,
+	checker: ts.TypeChecker,
+	recovery: NameRecovery
+): TypeJson | undefined => {
+	const followed = followWrittenMember(node, type, checker, recovery);
+	if (followed === undefined || topName(followed) === topName(built)) return undefined;
+	recovery.followed = true;
+	return followed;
+};
+
+/**
+ * What a node names, a key comparing two readings of one type: names and
+ * aliases stop the walk, nameless structure recurses, and the depth-capped
+ * `other` text a tree ends in doesn't count past a name.
+ */
+const topName = (node: TypeJson): string => {
+	switch (node.kind) {
+		case 'reference':
+			return `reference:${node.name}<${(node.typeArgs ?? []).map(topName).join(',')}>`;
+		case 'union':
+		case 'intersection':
+			return `${node.kind}:${node.alias ?? node.members.map(topName).join('|')}`;
+		case 'array':
+			return `array:${topName(node.element)}`;
+		case 'tuple':
+			return `tuple:${(node.elements ?? []).map((el) => topName(el.type)).join(',')}`;
+		default:
+			return `${node.kind}:${'text' in node ? node.text : ''}`;
+	}
+};
+
+/** A written tuple element's type node, or `undefined` for a rest element. */
+const writtenTupleElementType = (element: ts.TypeNode): ts.TypeNode | undefined => {
+	if (ts.isRestTypeNode(element)) return undefined;
+	if (ts.isNamedTupleMember(element)) return element.dotDotDotToken ? undefined : element.type;
+	return ts.isOptionalTypeNode(element) ? element.type : element;
+};
+
+/** Whether a written type is an object or function type literal. */
+const isWrittenLiteral = (node: ts.TypeNode): boolean =>
+	ts.isTypeLiteralNode(node) || ts.isFunctionTypeNode(node) || ts.isConstructorTypeNode(node);
+
+/** Written names that read as the checker's own spelling, never a name it lost. */
+const SPELLING_ONLY_NAMES: ReadonlySet<string> = new Set(['Array', 'ReadonlyArray']);
+
+/**
+ * The terminal node for a written object or function type literal whose
+ * checker printing loses a name the source wrote, or `undefined` where the
+ * checker's text names everything written. A lost alias expands wherever the
+ * checker prints it (fuz_css's `Theme` inside `{ theme: Theme }`), and so
+ * does a computed type (`keyof A` as its keys), so the text then follows the
+ * source, printed as the checker prints (one line, comments dropped, the
+ * optional widening stripped as `printTypeText` strips it), with:
+ *
+ * - each name written as the name its module exports (`specifierExportedName`)
+ * - a computed subtype the checker names (`SvelteHTMLElements['li']` read as
+ *   `HTMLLiAttributes`) printed by that name, and a written generic the
+ *   alias registry names (`Infer<typeof S>` as `SOutput`) by the registry's,
+ *   the rule `followWrittenAnnotation` applies at a site's root
+ *
+ * - an import type by the name its module exports (`import('./a.ts').A` as
+ *   `A`), and a namespace import's member by its own (`ns.A` as `A`)
+ *
+ * Declines where the written text would name what nothing links: a
+ * module-private type or value the checker printed otherwise (a lost
+ * alias, or one inside a computed subtype), svelte2tsx's names, a `typeof`
+ * in a Svelte component's script (svelte2tsx writes its own), and JSDoc-only
+ * syntax or JSDoc's remapped names (`{Object}`).
+ */
+const writtenLiteralNode = (
+	node: ts.TypeNode,
+	type: ts.Type,
+	ctx: WrittenTypeContext
+): TypeJson | undefined => {
+	const { checker, aliasRegistry } = ctx;
+	const { factory } = ts;
+	const sourceFile = node.getSourceFile();
+	const inVirtual = isSvelteVirtualPath(sourceFile.fileName);
+	const isJsdoc = (node.flags & ts.NodeFlags.JSDoc) !== 0;
+	let declined = false;
+	// what the checker's printing loses: names it prints otherwise, and
+	// computed subtypes it expands
+	const lost: Array<string> = [];
+	// whether the checker prints a written reference by the name written
+	// (`Name` or `Name<…>`, possibly qualified)
+	const printsName = (ref: ts.TypeNode, name: string): boolean => {
+		let refType: ts.Type;
+		try {
+			refType = checker.getTypeFromTypeNode(ref);
+		} catch {
+			return true;
+		}
+		const printed = printType(refType, checker, false);
+		const unqualified = printed.replace(/^(?:[\p{ID_Start}_$][\p{ID_Continue}$]*\.)+/u, '');
+		return unqualified === name || unqualified.startsWith(name + '<');
+	};
+	// whether a written subtree names a module-private type or value
+	const namesUnlinkable = (sub: ts.Node): boolean => {
+		let found = false;
+		const walk = (n: ts.Node): void => {
+			if (found) return;
+			const name = ts.isTypeReferenceNode(n)
+				? n.typeName
+				: ts.isTypeQueryNode(n)
+					? n.exprName
+					: undefined;
+			if (name) {
+				let leftmost: ts.EntityName = name;
+				while (ts.isQualifiedName(leftmost)) leftmost = leftmost.left;
+				const right = ts.isQualifiedName(name) ? name.right : name;
+				for (const id of [leftmost, right]) {
+					const symbol = checker.getSymbolAtLocation(id);
+					const entity =
+						symbol && symbol.flags & ts.SymbolFlags.Alias
+							? checker.getAliasedSymbol(symbol)
+							: symbol;
+					if (
+						entity &&
+						entity.flags & (WRITTEN_NAMED_FLAGS | ts.SymbolFlags.Value) &&
+						!(entity.flags & ts.SymbolFlags.TypeParameter) &&
+						!isLinkableEntity(entity)
+					) {
+						found = true;
+					}
+				}
+			}
+			// the callback must return undefined — see `buildWrittenNameMap`
+			ts.forEachChild(n, walk);
+		};
+		walk(sub);
+		return found;
+	};
+	// whether an entity name is a namespace import (`import * as ns`)
+	const isNamespaceImport = (entity: ts.EntityName): boolean => {
+		if (!ts.isIdentifier(entity)) return false;
+		const symbol = checker.getSymbolAtLocation(entity);
+		return !!symbol?.declarations?.some(ts.isNamespaceImport);
+	};
+	// the name the checker gives a computed subtype, when it prints one
+	const checkerName = (sub: ts.TypeNode): string | undefined => {
+		let subType: ts.Type;
+		try {
+			subType = checker.getTypeFromTypeNode(sub);
+		} catch {
+			return undefined;
+		}
+		if (isModuleObjectType(subType) || isValueSideType(subType, checker)) return undefined;
+		const printed = printType(subType, checker, false);
+		const alias = linkableAliasSymbol(subType);
+		return FLAT_NAME_MATCHER.test(printed) ||
+			(alias !== undefined && printed.startsWith(alias.name + '<'))
+			? printed
+			: undefined;
+	};
+	const transformer: ts.TransformerFactory<ts.TypeNode> = (context) => {
+		const visit = (n: ts.Node): ts.Node => {
+			if (declined) return n;
+			if (n.kind >= ts.SyntaxKind.FirstJSDocNode && n.kind <= ts.SyntaxKind.LastJSDocNode) {
+				declined = true;
+				return n;
+			}
+			if (ts.isTypeQueryNode(n) && inVirtual) {
+				declined = true;
+				return n;
+			}
+			if (n !== node && ts.isTypeNode(n) && isOpaqueWrittenType(n)) {
+				const named = checkerName(n);
+				if (named !== undefined) return factory.createTypeReferenceNode(named);
+				// the checker prints what it computes to (`keyof A` as its keys);
+				// written text naming a module-private type would link nowhere
+				if (namesUnlinkable(n)) {
+					declined = true;
+					return n;
+				}
+				lost.push(n.getText());
+			}
+			// an import type reads as the name its module exports, as a reference
+			// does (`import('./a.ts').A` as `A`), never by its relative path
+			if (ts.isImportTypeNode(n) && !n.isTypeOf && n.qualifier) {
+				const name = ts.isQualifiedName(n.qualifier) ? n.qualifier.right.text : n.qualifier.text;
+				if (!printsName(n, name)) lost.push(name);
+				const visited = ts.visitEachChild(n, visit, context);
+				return factory.createTypeReferenceNode(name, visited.typeArguments);
+			}
+			if (ts.isTypeReferenceNode(n)) {
+				if (n.typeArguments?.length && aliasRegistry) {
+					let refType: ts.Type | undefined;
+					try {
+						refType = checker.getTypeFromTypeNode(n);
+					} catch {
+						refType = undefined;
+					}
+					const hit = refType && aliasRegistry.byType.get(refType);
+					if (hit) {
+						lost.push(hit.name);
+						return factory.createTypeReferenceNode(hit.name);
+					}
+				}
+				const nameNode = ts.isQualifiedName(n.typeName) ? n.typeName.right : n.typeName;
+				const text = nameNode.text;
+				if (isSvelte2tsxInternal(text) || (isJsdoc && JSDOC_REMAPPED_NAMES.has(text))) {
+					declined = true;
+					return n;
+				}
+				const symbol = checker.getSymbolAtLocation(nameNode);
+				const entity =
+					symbol && symbol.flags & ts.SymbolFlags.Alias ? checker.getAliasedSymbol(symbol) : symbol;
+				const exported =
+					symbol && ts.isIdentifier(n.typeName) ? specifierExportedName(symbol) : undefined;
+				const name = exported ?? text;
+				if (!SPELLING_ONLY_NAMES.has(name) && !printsName(n, name)) {
+					lost.push(name);
+					if (entity && entity.flags & WRITTEN_NAMED_FLAGS && !isLinkableEntity(entity)) {
+						declined = true;
+						return n;
+					}
+				}
+				const visited = ts.visitEachChild(n, visit, context);
+				// a namespace import's member reads as its own name, as a
+				// reference to it does (`ns.A` as `A`)
+				if (ts.isQualifiedName(n.typeName) && isNamespaceImport(n.typeName.left)) {
+					return factory.updateTypeReferenceNode(
+						visited,
+						factory.createIdentifier(text),
+						visited.typeArguments
+					);
+				}
+				return exported !== undefined && exported !== text
+					? factory.updateTypeReferenceNode(
+							visited,
+							factory.createIdentifier(exported),
+							visited.typeArguments
+						)
+					: visited;
+			}
+			// string literals in the checker's double quotes, as the rest of the
+			// output prints them
+			// (`NoAsciiEscaping`, as the checker's node builder sets it, so `'é'`
+			// prints `"é"`, not a `\u` escape)
+			if (ts.isStringLiteral(n) && ts.isLiteralTypeNode(n.parent)) {
+				return ts.setEmitFlags(factory.createStringLiteral(n.text), ts.EmitFlags.NoAsciiEscaping);
+			}
+			const visited = ts.visitEachChild(n, visit, context);
+			if (ts.isTypeLiteralNode(visited)) {
+				return ts.setEmitFlags(
+					factory.createTypeLiteralNode(visited.members),
+					ts.EmitFlags.SingleLine
+				);
+			}
+			if (ts.isMappedTypeNode(visited)) {
+				return ts.setEmitFlags(
+					factory.createMappedTypeNode(
+						visited.readonlyToken,
+						visited.typeParameter,
+						visited.nameType,
+						visited.questionToken,
+						visited.type,
+						visited.members
+					),
+					ts.EmitFlags.SingleLine
+				);
+			}
+			return visited;
+		};
+		return (root) => visit(root) as ts.TypeNode;
+	};
+	const result = ts.transform(node, [transformer]);
+	const transformed = result.transformed[0];
+	result.dispose();
+	if (declined || !transformed) return undefined;
+	if (lost.length === 0) return undefined;
+	const text = TEXT_PRINTER.printNode(
+		ts.EmitHint.Unspecified,
+		stripOptionalWidening(transformed, !exactOptionalCheckers.has(checker)),
+		sourceFile
+	);
+	const kind =
+		ts.isTypeLiteralNode(node) && type.getCallSignatures().length === 0 ? 'object' : 'function';
+	return { kind, text };
 };
 
 /**

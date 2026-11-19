@@ -1970,3 +1970,232 @@ describe('prop source order', () => {
 		);
 	});
 });
+
+describe('written literals and members', () => {
+	// an indexed-access right-hand side loses `aliasSymbol` (see
+	// `written-name recovery`), so the checker prints `Inferred` expanded
+	const SETUP = `interface Box {
+	out: { a: string; b: number };
+}
+export type Inferred = Box['out'];
+export interface Base<A, B = string> {
+	a: A;
+	b: B;
+}
+`;
+
+	const memberOf = async (source: string, name = 'A') => {
+		const module = await analyzeFile('src/lib/a.ts', `${SETUP}${source}`);
+		const declaration = module.declarations.find((d) => d.name === name);
+		assert(declaration?.kind === 'interface', 'expected an interface');
+		return declaration.members;
+	};
+
+	test('an object literal losing a written name reads as written, at the root', async () => {
+		const [member] = await memberOf(`export interface A {
+	o?: {
+		/** dropped with the other comments */
+		inner: Inferred; // trailing
+		n?: number;
+		k: 'a';
+	};
+}`);
+		assert(member?.kind === 'variable', 'expected a variable member');
+		// the flat string keeps the checker's expansion
+		assert.include(member.typeSignature, '{ a: string; b: number; }');
+		assert.deepStrictEqual(member.typeInfo, {
+			kind: 'object',
+			text: '{ inner: Inferred; n?: number; k: "a"; }'
+		});
+	});
+
+	test('a literal the checker prints with every written name stays absent', async () => {
+		const [member] = await memberOf(`export interface A {
+	o: { base: Base<number> };
+}`);
+		assert(member?.kind === 'variable', 'expected a variable member');
+		assert.strictEqual(member.typeInfo, undefined);
+	});
+
+	test('a function type losing a written name reads as written', async () => {
+		const [member] = await memberOf(`export interface A {
+	f: ((x: Inferred) => void) | null;
+}`);
+		assert(member?.kind === 'variable', 'expected a variable member');
+		assert.deepStrictEqual(member.typeInfo, {
+			kind: 'union',
+			members: [
+				{ kind: 'function', text: '(x: Inferred) => void' },
+				{ kind: 'intrinsic', text: 'null' }
+			]
+		});
+	});
+
+	test('an import rename prints as the exported name', async () => {
+		const { modules } = await analyzeTestProject({
+			'src/lib/dep.ts': SETUP,
+			'src/lib/a.ts': `import type { Inferred as Renamed } from './dep.js';
+
+export interface A {
+	o: { inner: Renamed };
+}`
+		});
+		const module = modules.find((m) => m.path === 'a.ts');
+		const declaration = module?.declarations.find((d) => d.name === 'A');
+		assert(declaration?.kind === 'interface', 'expected an interface');
+		const member = declaration.members[0];
+		assert(member?.kind === 'variable', 'expected a variable member');
+		assert.deepStrictEqual(member.typeInfo, { kind: 'object', text: '{ inner: Inferred; }' });
+	});
+
+	test('a module-private alias the checker expands keeps the checker text', async () => {
+		const [member] = await memberOf(`type Private = Box['out'];
+export interface A {
+	o: { inner: Private };
+}`);
+		assert(member?.kind === 'variable', 'expected a variable member');
+		assert.strictEqual(member.typeInfo, undefined);
+	});
+
+	test('a computed subtype naming a module-private type keeps the checker text', async () => {
+		// `Box` is module-private, so `Box['out']` would link nowhere
+		const [member] = await memberOf(`export interface A {
+	o: { t: Box['out'] };
+}`);
+		assert(member?.kind === 'variable', 'expected a variable member');
+		assert.strictEqual(member.typeInfo, undefined);
+	});
+
+	test('a computed union member reads as written', async () => {
+		const [member] = await memberOf(`export interface A {
+	k: keyof Base<number> | null;
+}`);
+		assert(member?.kind === 'variable', 'expected a variable member');
+		assert.deepStrictEqual(member.typeInfo, {
+			kind: 'union',
+			members: [
+				{ kind: 'other', text: 'keyof Base<number>' },
+				{ kind: 'intrinsic', text: 'null' }
+			]
+		});
+	});
+
+	test('a computed tuple element reads as written', async () => {
+		const [member] = await memberOf(`export interface A {
+	t: [first: keyof Base<number>, second?: string];
+}`);
+		assert(member?.kind === 'variable', 'expected a variable member');
+		assert.deepStrictEqual(member.typeInfo, {
+			kind: 'tuple',
+			elements: [
+				{ name: 'first', type: { kind: 'other', text: 'keyof Base<number>' } },
+				{ name: 'second', type: { kind: 'intrinsic', text: 'string' }, optional: true }
+			]
+		});
+	});
+
+	test('a union or tuple written two ways follows neither', async () => {
+		const [u, t] = await memberOf(`interface One {
+	a: 1;
+}
+export interface A {
+	u: [keyof One | null, 'a' | null];
+	t: [[keyof One], ['a']];
+}`);
+		assert(u?.kind === 'variable' && t?.kind === 'variable', 'expected variable members');
+		// neither element takes the other's written text: both read as the checker's
+		const literalOrNull: TypeJson = {
+			kind: 'union',
+			members: [
+				{ kind: 'literal', value: 'a', text: '"a"' },
+				{ kind: 'intrinsic', text: 'null' }
+			]
+		};
+		assert(u.typeInfo?.kind === 'tuple', 'expected a tuple');
+		assert.deepStrictEqual(u.typeInfo.elements?.[0]?.type, literalOrNull);
+		assert.deepStrictEqual(u.typeInfo.elements?.[1]?.type, literalOrNull);
+		// the flat string `[["a"], ["a"]]` says it all
+		assert.strictEqual(t.typeInfo, undefined);
+	});
+
+	test('a member written `X | undefined` follows its `X`', async () => {
+		const [p, o] = await memberOf(`export interface A {
+	p: { inner: Inferred } | undefined;
+	o?: { inner: Inferred } | undefined;
+}`);
+		assert(p?.kind === 'variable' && o?.kind === 'variable', 'expected variable members');
+		assert.deepStrictEqual(p.typeInfo, {
+			kind: 'union',
+			members: [
+				{ kind: 'object', text: '{ inner: Inferred; }' },
+				{ kind: 'intrinsic', text: 'undefined' }
+			]
+		});
+		assert.deepStrictEqual(o.typeInfo, { kind: 'object', text: '{ inner: Inferred; }' });
+	});
+
+	test('a computed member the flat string prints as written still reads as written', async () => {
+		const [member] = await memberOf(`interface Two {
+	a: 1;
+	b: 2;
+}
+export interface A {
+	k: keyof Two | null;
+}`);
+		assert(member?.kind === 'variable', 'expected a variable member');
+		assert.strictEqual(member.typeSignature, 'keyof Two | null');
+		assert.deepStrictEqual(member.typeInfo, {
+			kind: 'union',
+			members: [
+				{ kind: 'other', text: 'keyof Two' },
+				{ kind: 'intrinsic', text: 'null' }
+			]
+		});
+	});
+
+	test('the written text keeps non-ASCII strings and catches names a string or key repeats', async () => {
+		const [member] = await memberOf(`export interface A {
+	o: { s: 'é😀'; Inferred: Inferred };
+}`);
+		assert(member?.kind === 'variable', 'expected a variable member');
+		assert.deepStrictEqual(member.typeInfo, {
+			kind: 'object',
+			text: '{ s: "é😀"; Inferred: Inferred; }'
+		});
+	});
+
+	test("a namespace import's member and an import type read by their names", async () => {
+		const { modules } = await analyzeTestProject({
+			'src/lib/dep.ts': SETUP,
+			'src/lib/a.ts': `import type * as dep from './dep.js';
+
+export interface A {
+	n: { inner: dep.Inferred };
+	i: { inner: import('./dep.js').Inferred };
+}`
+		});
+		const module = modules.find((m) => m.path === 'a.ts');
+		const declaration = module?.declarations.find((d) => d.name === 'A');
+		assert(declaration?.kind === 'interface', 'expected an interface');
+		const [n, i] = declaration.members;
+		assert(n?.kind === 'variable' && i?.kind === 'variable', 'expected variable members');
+		assert.deepStrictEqual(n.typeInfo, { kind: 'object', text: '{ inner: Inferred; }' });
+		assert.deepStrictEqual(i.typeInfo, { kind: 'object', text: '{ inner: Inferred; }' });
+	});
+
+	test("a recursive alias's members build as usual", async () => {
+		const module = await analyzeFile(
+			'src/lib/a.ts',
+			`export type R = string | null | Array<R>;
+export const f = (r: R | Promise<R>): R => (r instanceof Promise ? null : r);`
+		);
+		const f = module.declarations.find((d) => d.name === 'f');
+		assert(f?.kind === 'function', 'expected a function');
+		assert.ok(!f.partial, 'expected no extraction failure');
+		const param = f.parameters[0];
+		assert(param?.typeInfo?.kind === 'union', 'expected a union');
+		const promise = param.typeInfo.members[1];
+		assert(promise?.kind === 'reference', 'expected a reference');
+		assert.strictEqual(promise.name, 'Promise');
+	});
+});
