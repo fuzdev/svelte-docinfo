@@ -1,5 +1,22 @@
 # svelte-docinfo
 
+## 0.19.0
+
+### Minor Changes
+
+- feat: structured fields for what a signature shows and the output dropped, all additive: ([be5eba2](https://github.com/fuzdev/svelte-docinfo/commit/be5eba2))
+  
+  - `returnPredicate` (`{parameterName, asserts, type, typeInfo}`) for a type predicate or assertion, beside a `returnType` that stays `boolean` or `void`
+  - `thisType` and `thisTypeInfo` for a declared `this` parameter
+  - `pattern` on a destructured parameter, whose `name` stays `__0`
+  - `modifiers` on a generic parameter (`const`, `in`, `out`), which `getDisplayName` now writes
+  - `property: true` on a function member written as a property (`now: () => number`) on an interface or type alias, so it can be told from a method
+- feat: `TypeJson` trees for the types carried as source text: `constraintInfo` and `defaultTypeInfo` on a generic parameter, `typeInfo` on a braced `@throws` entry, and `extendsInfo` and `implementsInfo`, one node per `extends` and `implements` entry at the same index ([be5eba2](https://github.com/fuzdev/svelte-docinfo/commit/be5eba2))
+
+### Patch Changes
+
+- fix: a class's static and instance methods of one name both document, where the second written was dropped, and so do its static and instance accessors, which merged into one member ([be5eba2](https://github.com/fuzdev/svelte-docinfo/commit/be5eba2))
+
 ## 0.18.1
 
 ### Patch Changes
