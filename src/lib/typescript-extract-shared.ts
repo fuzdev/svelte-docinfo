@@ -2118,9 +2118,35 @@ const GENERIC_PARAM_MODIFIERS: ReadonlyArray<readonly [ts.ModifierFlags, Generic
 /**
  * The structured type of a written type node whose flat sibling is its source
  * text: a generic's constraint or default, a heritage entry, a braced
- * `@throws` type. The tree is the checker's reading of the node, which also
- * feeds name recovery, so it can spell the type differently from the text
- * beside it.
+ * `@throws` type. The tree follows what was written, so it says no more than
+ * the text beside it:
+ *
+ * - A reference keeps the written type arguments, each read the same way,
+ *   never the checker's defaulted or expanded ones (`Base` stays bare, not
+ *   `Base<unknown>`), and the name written, as exported (an import rename
+ *   reads as the name its module exports). Where the checker already names
+ *   the written entity, its node stays (a recovered alias with its `module`,
+ *   an alias over a union written without arguments, with its members, since
+ *   a union node can't carry them); where it looked through or lost
+ *   a type alias, interface, or class (`L<B>` read as `Base<B, B>`, a generic
+ *   lost alias like `SchemaKeys<T>`, a callable alias or interface read as
+ *   `function`), the node is a `reference` to the name written. A reference
+ *   through an import type (`import('./a.ts').A<B>`) reads the same way.
+ * - Array syntax and `Array<A>`/`ReadonlyArray<A>` are `array` nodes over the
+ *   written element type.
+ * - A type operator, query, or computed type (`keyof A`, `typeof a`,
+ *   `typeof import('./a.ts')`, `A['b']`, a conditional, mapped, or template
+ *   literal type) is opaque: the checker would print what it computes to
+ *   (`keyof A` as the union of keys, `typeof a` as the value's whole type). At
+ *   the root it has no tree, so a renderer links the flat text; nested, or
+ *   with `always`, it is `{kind: 'other', text}` over its verbatim source
+ *   text, local names included.
+ * - Anything else (a union, intersection, tuple, or literal) is the checker's
+ *   reading of the node, name recovery included, so a reference inside one
+ *   reads as everywhere else in `typeInfo`.
+ *
+ * Each written type argument starts a fresh tree, so the depth cap applies
+ * per argument and a written chain is bounded by its source text instead.
  *
  * @param always - emit a node whatever its shape (`ResolveTypeInfoOptions.always`)
  * @returns `undefined` under the absence contract, and when the checker can't
@@ -2131,35 +2157,83 @@ export const resolveWrittenTypeInfo = (
 	ctx: ExtractContext,
 	always = false
 ): TypeJson | undefined => {
+	const written = skipParentheses(node);
+	if (isOpaqueWrittenType(written)) {
+		return always ? { kind: 'other', text: written.getText() } : undefined;
+	}
 	try {
-		const type = ctx.checker.getTypeFromTypeNode(node);
+		const { checker } = ctx;
+		const type = checker.getTypeFromTypeNode(node);
 		// an unresolvable name reads as the error type, which prints as `any`
 		if ((type as { intrinsicName?: string }).intrinsicName === 'error') return undefined;
-		const typeInfo = resolveTypeInfo(type, ctx.checker, ctx.aliasRegistry, false, {
+		const typeInfo = resolveTypeInfo(type, checker, ctx.aliasRegistry, false, {
 			writtenNode: node,
 			always
 		});
-		// a reference reads with its defaulted type arguments filled in (`Base`
-		// as `Base<unknown>`), which the text beside it doesn't say, so the
-		// root keeps to the arguments that were written
-		// Only where the tree names the entity that was written: an alias the
-		// tree looked through (`type L = Base<A, A>`) has arguments that don't
-		// line up with the written ones
+		const arrayElement = writtenArrayElement(written);
+		if (arrayElement) {
+			// present where the checker's reading is (`string[]` has no tree),
+			// and where the element alone has one (`C<typeof a>[]`)
+			const element = resolveWrittenTypeInfo(arrayElement, ctx, always);
+			if (!element && !typeInfo) return undefined;
+			return written === arrayElement.parent
+				? { kind: 'array', element: element ?? writtenTypeArgInfo(arrayElement, ctx) }
+				: {
+						kind: 'array',
+						element: element ?? writtenTypeArgInfo(arrayElement, ctx),
+						readonly: true
+					};
+		}
+		if (!isWrittenReference(written)) return typeInfo;
+		const entity = writtenEntitySymbol(written, checker);
+		if (!entity) return typeInfo;
+		const writtenArgs = written.typeArguments ?? [];
+		const args = (): Array<TypeJson> => writtenArgs.map((arg) => writtenTypeArgInfo(arg, ctx));
+		if (
+			writtenArgs.length === 1 &&
+			(entity.name === 'Array' || entity.name === 'ReadonlyArray') &&
+			(typeInfo === undefined || typeInfo.kind === 'array')
+		) {
+			const element = resolveWrittenTypeInfo(writtenArgs[0]!, ctx, always);
+			if (!element && !typeInfo) return undefined;
+			const node: TypeJson = {
+				kind: 'array',
+				element: element ?? writtenTypeArgInfo(writtenArgs[0]!, ctx)
+			};
+			return entity.name === 'ReadonlyArray' ? { ...node, readonly: true } : node;
+		}
+		const name = writtenExportedName(written, entity, checker);
 		if (
 			typeInfo?.kind === 'reference' &&
-			typeInfo.typeArgs &&
-			(ts.isTypeReferenceNode(node) || ts.isExpressionWithTypeArguments(node)) &&
-			writtenEntitySymbol(node, ctx.checker) === (type.aliasSymbol ?? type.symbol)
+			(entity === (type.aliasSymbol ?? type.symbol) || typeInfo.name === name)
 		) {
-			const written = node.typeArguments?.length ?? 0;
-			if (written === 0) {
-				if (!always) return undefined;
-				const { typeArgs: _, ...bare } = typeInfo;
-				return bare;
-			}
-			if (written < typeInfo.typeArgs.length) {
-				return { ...typeInfo, typeArgs: typeInfo.typeArgs.slice(0, written) };
-			}
+			if (writtenArgs.length > 0) return { ...typeInfo, typeArgs: args() };
+			if (!typeInfo.typeArgs) return typeInfo;
+			if (!always) return undefined;
+			const { typeArgs: _, ...bare } = typeInfo;
+			return bare;
+		}
+		// a lost alias declared without `export` and recovered by the registry
+		// keeps the name its module exports it as
+		if (
+			typeInfo?.kind === 'reference' &&
+			typeInfo.module !== undefined &&
+			writtenArgs.length === 0 &&
+			!type.aliasSymbol &&
+			!entity.declarations?.some((d) => ts.getCombinedModifierFlags(d) & ts.ModifierFlags.Export)
+		) {
+			return typeInfo;
+		}
+		// an alias the checker names (a union or intersection carrying `alias`)
+		// keeps its members, unless written with arguments, which those nodes
+		// can't carry
+		const aliasNamed =
+			type.aliasSymbol === entity &&
+			writtenArgs.length === 0 &&
+			(typeInfo?.kind === 'union' || typeInfo?.kind === 'intersection');
+		if (entity.flags & WRITTEN_NAMED_FLAGS && !aliasNamed) {
+			if (writtenArgs.length > 0) return { kind: 'reference', name, typeArgs: args() };
+			return always ? { kind: 'reference', name } : undefined;
 		}
 		return typeInfo;
 	} catch (_) {
@@ -2167,19 +2241,92 @@ export const resolveWrittenTypeInfo = (
 	}
 };
 
+/** The declarations a written reference keeps by name whatever the checker reads it as. */
+const WRITTEN_NAMED_FLAGS =
+	ts.SymbolFlags.TypeAlias | ts.SymbolFlags.Interface | ts.SymbolFlags.Class;
+
+/** A written type argument's tree, a terminal node over its text where it has none. */
+const writtenTypeArgInfo = (node: ts.TypeNode, ctx: ExtractContext): TypeJson =>
+	resolveWrittenTypeInfo(node, ctx, true) ?? { kind: 'other', text: node.getText() };
+
+const skipParentheses = (node: ts.TypeNode): ts.TypeNode =>
+	ts.isParenthesizedTypeNode(node) ? skipParentheses(node.type) : node;
+
+/** The element type of written array syntax, `A[]` or `readonly A[]`. */
+const writtenArrayElement = (node: ts.TypeNode): ts.TypeNode | undefined => {
+	if (ts.isArrayTypeNode(node)) return node.elementType;
+	if (
+		ts.isTypeOperatorNode(node) &&
+		node.operator === ts.SyntaxKind.ReadonlyKeyword &&
+		ts.isArrayTypeNode(skipParentheses(node.type))
+	) {
+		return (skipParentheses(node.type) as ts.ArrayTypeNode).elementType;
+	}
+	return undefined;
+};
+
+type WrittenReference = ts.TypeReferenceNode | ts.ExpressionWithTypeArguments | ts.ImportTypeNode;
+
+const isWrittenReference = (node: ts.TypeNode): node is WrittenReference =>
+	ts.isTypeReferenceNode(node) ||
+	ts.isExpressionWithTypeArguments(node) ||
+	(ts.isImportTypeNode(node) && !node.isTypeOf && node.qualifier !== undefined);
+
 /**
- * The symbol a written type reference or heritage entry names, import aliases
- * resolved, or `undefined` when it names none (an expression base).
+ * Whether a written type is one the checker reads as what it computes to,
+ * not as written. `readonly A[]` and `unique symbol` are type operators too,
+ * but the checker reads them as written.
+ */
+const isOpaqueWrittenType = (node: ts.TypeNode): boolean =>
+	(ts.isTypeOperatorNode(node) && node.operator === ts.SyntaxKind.KeyOfKeyword) ||
+	ts.isTypeQueryNode(node) ||
+	(ts.isImportTypeNode(node) && node.isTypeOf) ||
+	ts.isIndexedAccessTypeNode(node) ||
+	ts.isConditionalTypeNode(node) ||
+	ts.isMappedTypeNode(node) ||
+	ts.isTemplateLiteralTypeNode(node);
+
+/** The identifier a written reference ends in, `B` in `a.B` or `import('./a.ts').B`. */
+const writtenNameNode = (node: WrittenReference): ts.Node | undefined => {
+	const name = ts.isTypeReferenceNode(node)
+		? node.typeName
+		: ts.isExpressionWithTypeArguments(node)
+			? node.expression
+			: node.qualifier;
+	if (!name) return undefined;
+	return ts.isQualifiedName(name)
+		? name.right
+		: ts.isPropertyAccessExpression(name)
+			? name.name
+			: name;
+};
+
+/**
+ * The symbol a written reference names, import aliases resolved, or
+ * `undefined` when it names none (an expression base).
  */
 const writtenEntitySymbol = (
-	node: ts.TypeReferenceNode | ts.ExpressionWithTypeArguments,
+	node: WrittenReference,
 	checker: ts.TypeChecker
 ): ts.Symbol | undefined => {
-	const name = ts.isTypeReferenceNode(node) ? node.typeName : node.expression;
-	const symbol = checker.getSymbolAtLocation(
-		ts.isQualifiedName(name) ? name.right : ts.isPropertyAccessExpression(name) ? name.name : name
-	);
+	const nameNode = writtenNameNode(node);
+	const symbol = nameNode && checker.getSymbolAtLocation(nameNode);
 	return symbol && symbol.flags & ts.SymbolFlags.Alias ? checker.getAliasedSymbol(symbol) : symbol;
+};
+
+/**
+ * The name a written reference reads as: the name its module exports where an
+ * import or export specifier stands between (`specifierExportedName`), else
+ * the declaration's own.
+ */
+const writtenExportedName = (
+	node: WrittenReference,
+	entity: ts.Symbol,
+	checker: ts.TypeChecker
+): string => {
+	const nameNode = writtenNameNode(node);
+	const symbol = nameNode && checker.getSymbolAtLocation(nameNode);
+	return (symbol && specifierExportedName(symbol)) ?? entity.name;
 };
 
 /**

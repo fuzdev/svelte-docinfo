@@ -1,0 +1,622 @@
+{
+	"path": "input.ts",
+	"declarations": [
+		{
+			"name": "fn1",
+			"kind": "function",
+			"typeSignature": "<T extends keyof A>(t: T): T",
+			"sourceLine": 21,
+			"genericParams": [
+				{
+					"name": "T",
+					"constraint": "keyof A"
+				}
+			],
+			"parameters": [
+				{
+					"name": "t",
+					"type": "T"
+				}
+			],
+			"returnType": "T"
+		},
+		{
+			"name": "fn2",
+			"kind": "function",
+			"typeSignature": "<T extends C<A>, U extends B<T> = B<T>>(t: T, u: U): U",
+			"sourceLine": 25,
+			"genericParams": [
+				{
+					"name": "T",
+					"constraint": "C<A>",
+					"constraintInfo": {
+						"kind": "reference",
+						"name": "C",
+						"typeArgs": [
+							{
+								"kind": "reference",
+								"name": "A"
+							}
+						]
+					}
+				},
+				{
+					"name": "U",
+					"constraint": "B<T>",
+					"constraintInfo": {
+						"kind": "reference",
+						"name": "B",
+						"typeArgs": [
+							{
+								"kind": "other",
+								"text": "T"
+							}
+						]
+					},
+					"defaultType": "B<T>",
+					"defaultTypeInfo": {
+						"kind": "reference",
+						"name": "B",
+						"typeArgs": [
+							{
+								"kind": "other",
+								"text": "T"
+							}
+						]
+					}
+				}
+			],
+			"parameters": [
+				{
+					"name": "t",
+					"type": "T"
+				},
+				{
+					"name": "u",
+					"type": "U"
+				}
+			],
+			"returnType": "U"
+		},
+		{
+			"name": "fn3",
+			"kind": "function",
+			"typeSignature": "<T extends G = G>(t: T): T",
+			"sourceLine": 31,
+			"genericParams": [
+				{
+					"name": "T",
+					"constraint": "G",
+					"constraintInfo": {
+						"kind": "union",
+						"alias": "G",
+						"members": [
+							{
+								"kind": "literal",
+								"value": "a",
+								"text": "\"a\""
+							},
+							{
+								"kind": "literal",
+								"value": "b",
+								"text": "\"b\""
+							}
+						]
+					},
+					"defaultType": "G",
+					"defaultTypeInfo": {
+						"kind": "union",
+						"alias": "G",
+						"members": [
+							{
+								"kind": "literal",
+								"value": "a",
+								"text": "\"a\""
+							},
+							{
+								"kind": "literal",
+								"value": "b",
+								"text": "\"b\""
+							}
+						]
+					}
+				}
+			],
+			"parameters": [
+				{
+					"name": "t",
+					"type": "T"
+				}
+			],
+			"returnType": "T"
+		},
+		{
+			"name": "fn4",
+			"kind": "function",
+			"typeSignature": "<T extends I<H>>(t: T): T",
+			"sourceLine": 41,
+			"genericParams": [
+				{
+					"name": "T",
+					"constraint": "I<H>",
+					"constraintInfo": {
+						"kind": "reference",
+						"name": "I",
+						"typeArgs": [
+							{
+								"kind": "reference",
+								"name": "H"
+							}
+						]
+					}
+				}
+			],
+			"parameters": [
+				{
+					"name": "t",
+					"type": "T"
+				}
+			],
+			"returnType": "T"
+		},
+		{
+			"name": "fn5",
+			"kind": "function",
+			"typeSignature": "<T extends C<typeof a>[], U extends readonly C<keyof A>[]>(t: T, u: U): U",
+			"sourceLine": 59,
+			"genericParams": [
+				{
+					"name": "T",
+					"constraint": "C<typeof a>[]",
+					"constraintInfo": {
+						"kind": "array",
+						"element": {
+							"kind": "reference",
+							"name": "C",
+							"typeArgs": [
+								{
+									"kind": "other",
+									"text": "typeof a"
+								}
+							]
+						}
+					}
+				},
+				{
+					"name": "U",
+					"constraint": "readonly C<keyof A>[]",
+					"constraintInfo": {
+						"kind": "array",
+						"element": {
+							"kind": "reference",
+							"name": "C",
+							"typeArgs": [
+								{
+									"kind": "other",
+									"text": "keyof A"
+								}
+							]
+						},
+						"readonly": true
+					}
+				}
+			],
+			"parameters": [
+				{
+					"name": "t",
+					"type": "T"
+				},
+				{
+					"name": "u",
+					"type": "U"
+				}
+			],
+			"returnType": "U"
+		},
+		{
+			"name": "fn6",
+			"kind": "function",
+			"typeSignature": "<T extends import(\"input.ts\").C<A>>(t: T): T",
+			"sourceLine": 63,
+			"genericParams": [
+				{
+					"name": "T",
+					"constraint": "import('./input.ts').C<A>",
+					"constraintInfo": {
+						"kind": "reference",
+						"name": "C",
+						"typeArgs": [
+							{
+								"kind": "reference",
+								"name": "A"
+							}
+						]
+					}
+				}
+			],
+			"parameters": [
+				{
+					"name": "t",
+					"type": "T"
+				}
+			],
+			"returnType": "T"
+		},
+		{
+			"name": "fn7",
+			"kind": "function",
+			"typeSignature": "(): void",
+			"sourceLine": 70,
+			"throws": [
+				{
+					"type": "C<typeof a>",
+					"typeInfo": {
+						"kind": "reference",
+						"name": "C",
+						"typeArgs": [
+							{
+								"kind": "other",
+								"text": "typeof a"
+							}
+						]
+					},
+					"description": "Description 1"
+				}
+			],
+			"returnType": "void"
+		},
+		{
+			"name": "fn8",
+			"kind": "function",
+			"typeSignature": "<T extends P<A>>(t: T): T",
+			"sourceLine": 74,
+			"genericParams": [
+				{
+					"name": "T",
+					"constraint": "P<A>",
+					"constraintInfo": {
+						"kind": "reference",
+						"name": "P",
+						"typeArgs": [
+							{
+								"kind": "reference",
+								"name": "A"
+							}
+						]
+					}
+				}
+			],
+			"parameters": [
+				{
+					"name": "t",
+					"type": "T"
+				}
+			],
+			"returnType": "T"
+		},
+		{
+			"name": "A",
+			"kind": "interface",
+			"typeSignature": "A",
+			"sourceLine": 1,
+			"members": [
+				{
+					"name": "a",
+					"kind": "variable",
+					"typeSignature": "string"
+				},
+				{
+					"name": "b",
+					"kind": "variable",
+					"typeSignature": "number"
+				}
+			]
+		},
+		{
+			"name": "a",
+			"kind": "variable",
+			"typeSignature": "{ a: number; b: string; }",
+			"sourceLine": 6
+		},
+		{
+			"name": "B",
+			"kind": "type",
+			"typeSignature": "B<T>",
+			"sourceLine": 8,
+			"genericParams": [
+				{
+					"name": "T"
+				}
+			]
+		},
+		{
+			"name": "C",
+			"kind": "class",
+			"sourceLine": 10,
+			"genericParams": [
+				{
+					"name": "T",
+					"defaultType": "unknown"
+				},
+				{
+					"name": "U",
+					"defaultType": "string"
+				}
+			],
+			"members": [
+				{
+					"name": "t",
+					"kind": "variable",
+					"typeSignature": "T"
+				},
+				{
+					"name": "u",
+					"kind": "variable",
+					"typeSignature": "U"
+				}
+			]
+		},
+		{
+			"name": "D",
+			"kind": "class",
+			"sourceLine": 15,
+			"extends": [
+				"C<typeof a>"
+			],
+			"extendsInfo": [
+				{
+					"kind": "reference",
+					"name": "C",
+					"typeArgs": [
+						{
+							"kind": "other",
+							"text": "typeof a"
+						}
+					]
+				}
+			]
+		},
+		{
+			"name": "E",
+			"kind": "interface",
+			"typeSignature": "E",
+			"sourceLine": 17,
+			"extends": [
+				"C<A['a'], keyof A>"
+			],
+			"extendsInfo": [
+				{
+					"kind": "reference",
+					"name": "C",
+					"typeArgs": [
+						{
+							"kind": "other",
+							"text": "A['a']"
+						},
+						{
+							"kind": "other",
+							"text": "keyof A"
+						}
+					]
+				}
+			]
+		},
+		{
+			"name": "F",
+			"kind": "class",
+			"sourceLine": 19,
+			"extends": [
+				"C<B<A>>"
+			],
+			"extendsInfo": [
+				{
+					"kind": "reference",
+					"name": "C",
+					"typeArgs": [
+						{
+							"kind": "reference",
+							"name": "B",
+							"typeArgs": [
+								{
+									"kind": "reference",
+									"name": "A"
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"name": "G",
+			"kind": "type",
+			"typeSignature": "G",
+			"sourceLine": 29,
+			"typeInfo": {
+				"kind": "union",
+				"alias": "G",
+				"members": [
+					{
+						"kind": "literal",
+						"value": "a",
+						"text": "\"a\""
+					},
+					{
+						"kind": "literal",
+						"value": "b",
+						"text": "\"b\""
+					}
+				]
+			}
+		},
+		{
+			"name": "H",
+			"kind": "interface",
+			"typeSignature": "H",
+			"sourceLine": 35,
+			"members": [
+				{
+					"name": "h",
+					"kind": "variable",
+					"typeSignature": "{ a: string; }",
+					"typeInfo": {
+						"kind": "reference",
+						"name": "K",
+						"module": "input.ts"
+					}
+				}
+			]
+		},
+		{
+			"name": "I",
+			"kind": "type",
+			"typeSignature": "I<T>",
+			"sourceLine": 39,
+			"genericParams": [
+				{
+					"name": "T",
+					"constraint": "H"
+				}
+			],
+			"typeInfo": {
+				"kind": "other",
+				"text": "T[\"h\"]"
+			}
+		},
+		{
+			"name": "K",
+			"kind": "type",
+			"typeSignature": "{ a: string; }",
+			"sourceLine": 45,
+			"members": [
+				{
+					"name": "a",
+					"kind": "variable",
+					"typeSignature": "string"
+				}
+			]
+		},
+		{
+			"name": "L",
+			"kind": "interface",
+			"typeSignature": "L",
+			"sourceLine": 49,
+			"extends": [
+				"J"
+			],
+			"extendsInfo": [
+				{
+					"kind": "reference",
+					"name": "K",
+					"module": "input.ts"
+				}
+			],
+			"members": [
+				{
+					"name": "a",
+					"kind": "variable",
+					"typeSignature": "string"
+				}
+			]
+		},
+		{
+			"name": "M",
+			"kind": "type",
+			"typeSignature": "M",
+			"sourceLine": 51,
+			"members": [
+				{
+					"name": "(call)",
+					"kind": "function",
+					"typeSignature": "(a: string): void",
+					"parameters": [
+						{
+							"name": "a",
+							"type": "string"
+						}
+					],
+					"returnType": "void"
+				}
+			]
+		},
+		{
+			"name": "N",
+			"kind": "interface",
+			"typeSignature": "N",
+			"sourceLine": 53,
+			"members": [
+				{
+					"name": "(call)",
+					"kind": "function",
+					"typeSignature": "(a: string): void",
+					"parameters": [
+						{
+							"name": "a",
+							"type": "string"
+						}
+					],
+					"returnType": "void"
+				}
+			]
+		},
+		{
+			"name": "O",
+			"kind": "interface",
+			"typeSignature": "O",
+			"sourceLine": 57,
+			"extends": [
+				"M",
+				"N"
+			],
+			"extendsInfo": [
+				{
+					"kind": "reference",
+					"name": "M"
+				},
+				{
+					"kind": "reference",
+					"name": "N"
+				}
+			],
+			"members": [
+				{
+					"name": "(call)",
+					"kind": "function",
+					"typeSignature": "(a: string): void",
+					"parameters": [
+						{
+							"name": "a",
+							"type": "string"
+						}
+					],
+					"returnType": "void"
+				}
+			]
+		},
+		{
+			"name": "P",
+			"kind": "type",
+			"typeSignature": "P<T>",
+			"sourceLine": 72,
+			"genericParams": [
+				{
+					"name": "T"
+				}
+			],
+			"typeInfo": {
+				"kind": "intersection",
+				"alias": "P",
+				"members": [
+					{
+						"kind": "other",
+						"text": "keyof T"
+					},
+					{
+						"kind": "intrinsic",
+						"text": "string"
+					}
+				]
+			}
+		}
+	]
+}

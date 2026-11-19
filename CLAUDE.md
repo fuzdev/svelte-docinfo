@@ -27,7 +27,11 @@ topic guides and references; `tomes.ts` orders them). Examples: `examples/vite/`
   members, and overloads. Types the output carries as source text have trees beside them
   too (`resolveWrittenTypeInfo`): a generic's `constraintInfo`/`defaultTypeInfo`, a braced
   `@throws` entry's `typeInfo` (`applyThrowsTypeInfo`), and `extendsInfo`/`implementsInfo`,
-  which hold one node per heritage entry whatever its shape, aligned by index. Policy: the
+  which hold one node per heritage entry whatever its shape, aligned by index. These trees
+  follow the written text: written type arguments and names (as exported), array syntax
+  over the written element, computed types (`keyof`, `typeof`, indexed access) as
+  terminal text nested and no tree at the root; unions and tuples inside them keep the
+  checker's reading. Policy: the
   `TypeJson` schema TSDoc (`types.ts`) and `typescript-extract-type-json.ts`.
   - **Absence** — absent when the flat string is the whole story (intrinsics, bare
     references, object/function roots); relaxed at type-alias roots, where the flat string

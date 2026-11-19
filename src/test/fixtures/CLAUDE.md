@@ -326,6 +326,17 @@ Where each behavior is locked. Unit and behavior-level mechanics live in
   alias over the interface and a class implementing it (`-alias-implements`), and a merged
   interface documenting its first block only, another block's name dropping from the
   heritage's contribution (`-merged-blocks`)
+- Trees beside source-text types following the written text
+  (`generics/written-type-trees`): `typeof`, indexed-access, and `keyof` heritage
+  arguments as terminal text, a `keyof` constraint with no tree, written type
+  arguments only, a generic alias argument kept by name, a union alias keeping its
+  members, a lost generic alias and a generic union alias written with arguments
+  staying references, a local alias exported under another name reading as that
+  name, a callable alias and interface as references, array syntax, an import type,
+  and a braced `@throws` with a computed argument; heritage over an alias read as
+  the alias (`declarations/class/heritage-type-info`,
+  `declarations/interface/extends-computed-*`). `Array<A>`/`ReadonlyArray<A>` need
+  lib types, which the fixture host lacks
 - Structured types and name recovery: `types/type-info*`,
   `declarations/*/type-info-recovery`, `declarations/*/alias-lost-*`; merged
   value+type symbols: `declarations/*/merged-value-*`; union members in

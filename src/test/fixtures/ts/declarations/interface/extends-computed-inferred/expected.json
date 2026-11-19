@@ -15,11 +15,11 @@
 					"extendsInfo": [
 						{
 							"kind": "reference",
-							"name": "ObjectOutput",
+							"name": "Infer",
 							"typeArgs": [
 								{
-									"kind": "object",
-									"text": "{ a: Schema<string>; b: Schema<number>; }"
+									"kind": "other",
+									"text": "typeof A"
 								}
 							]
 						}
@@ -54,8 +54,8 @@
 							"name": "ObjectOutput",
 							"typeArgs": [
 								{
-									"kind": "object",
-									"text": "{ a: Schema<string>; b: Schema<number>; }"
+									"kind": "other",
+									"text": "typeof AEntries"
 								}
 							]
 						}

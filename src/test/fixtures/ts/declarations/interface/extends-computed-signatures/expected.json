@@ -12,8 +12,8 @@
 			],
 			"extendsInfo": [
 				{
-					"kind": "function",
-					"text": "B"
+					"kind": "reference",
+					"name": "B"
 				}
 			],
 			"members": [

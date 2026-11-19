@@ -13,8 +13,8 @@
 			],
 			"extendsInfo": [
 				{
-					"kind": "function",
-					"text": "B"
+					"kind": "reference",
+					"name": "B"
 				},
 				{
 					"kind": "intersection",
@@ -65,8 +65,8 @@
 					]
 				},
 				{
-					"kind": "function",
-					"text": "B"
+					"kind": "reference",
+					"name": "B"
 				}
 			],
 			"members": [

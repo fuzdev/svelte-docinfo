@@ -309,12 +309,8 @@
 					"extendsInfo": [
 						{
 							"kind": "reference",
-							"name": "K",
+							"name": "J",
 							"typeArgs": [
-								{
-									"kind": "intrinsic",
-									"text": "number"
-								},
 								{
 									"kind": "intrinsic",
 									"text": "number"

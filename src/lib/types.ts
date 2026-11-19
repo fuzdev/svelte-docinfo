@@ -211,7 +211,9 @@ const SourceLine = s.pipe(s.number, s.safe_integer, s.min_value(1));
  * (`type Handler = (e: Event) => void` nested in a union is
  * `{kind: 'function', text: 'Handler'}`, which a whole-string type-link lookup
  * still resolves, but a structural walk can't distinguish from a printed
- * signature).
+ * signature). The trees beside source-text types (`constraintInfo`,
+ * `extendsInfo`, …) follow the written name instead: there a written callable
+ * alias or interface is a `reference`.
  *
  * **Normalization**: the optional-widening `undefined` member is dropped from a
  * root union like the flat string drops it (`optional: true` carries it) — but
@@ -361,7 +363,9 @@ export type TypeJson =
 	 * Anything unclassified — type parameters, conditional types, module
 	 * objects (`typeof import("dep.ts")`, whose symbol name is the quoted
 	 * specifier and so is never emitted as a `reference`) — or past the depth
-	 * cap.
+	 * cap. In the trees beside source-text types, also a computed type nested
+	 * in a written one (`keyof A`, `typeof a`, `A['b']`), whose `text` is its
+	 * verbatim source, local names and line breaks included.
 	 */
 	| { kind: 'other'; text: string };
 
@@ -458,16 +462,18 @@ const GenericParamJsonEntries = {
 	constraint: s.optional(s.string),
 	/**
 	 * Structured constraint; absent when `constraint` is the whole story (see
-	 * `TypeJson`). The checker's reading of the written type, so it can spell
-	 * a type differently from the source text beside it (`Array<A>` reads as
-	 * an `array` node).
+	 * `TypeJson`). It follows the written type: a reference keeps its written
+	 * type arguments and alias names, a computed type (`keyof A`, `typeof a`,
+	 * `A['b']`) is a terminal node over its text (no tree at the root), and the
+	 * rest is the checker's reading, so it can spell a type differently from
+	 * the text beside it (`Array<A>` reads as an `array` node).
 	 */
 	constraintInfo: s.optional(TypeJson),
 	/** Default type like `unknown` from `T = unknown`, as source text. */
 	defaultType: s.optional(s.string),
 	/**
 	 * Structured default type; absent when `defaultType` is the whole story
-	 * (see `TypeJson`). The checker's reading, like `constraintInfo`.
+	 * (see `TypeJson`). It follows the written type, like `constraintInfo`.
 	 */
 	defaultTypeInfo: s.optional(TypeJson)
 };
@@ -1278,11 +1284,12 @@ const ClassDeclarationJsonEntries = {
 	/**
 	 * Structured form of each `extends` entry, index-aligned with it: always
 	 * one node per entry, so the usual absence contract (see `TypeJson`) is
-	 * relaxed here and a bare `Base` is a `reference` node. The checker's
-	 * reading of the entry, so a locally renamed import carries its exported
-	 * name, where the text beside it keeps the local one; a base that isn't a
-	 * class or interface by name (`extends mixin(B)`, a const holding a class)
-	 * is a terminal node over its text.
+	 * relaxed here and a bare `Base` is a `reference` node. It follows the
+	 * written entry as `GenericParamJson.constraintInfo` does, and a locally
+	 * renamed import carries its exported name, where the text beside it keeps
+	 * the local one; a base that isn't a class or interface by name
+	 * (`extends mixin(B)`, a const holding a class) is a terminal node over its
+	 * text.
 	 */
 	extendsInfo: s.with_default_fn(s.array(TypeJson), () => []),
 	/**
@@ -1350,11 +1357,12 @@ const InterfaceDeclarationJsonEntries = {
 	/**
 	 * Structured form of each `extends` entry, index-aligned with it: always
 	 * one node per entry, so the usual absence contract (see `TypeJson`) is
-	 * relaxed here and a bare `Base` is a `reference` node. The checker's
-	 * reading of the entry, so a locally renamed import carries its exported
-	 * name, where the text beside it keeps the local one; a base that isn't a
-	 * class or interface by name (`extends mixin(B)`, a const holding a class)
-	 * is a terminal node over its text.
+	 * relaxed here and a bare `Base` is a `reference` node. It follows the
+	 * written entry as `GenericParamJson.constraintInfo` does, and a locally
+	 * renamed import carries its exported name, where the text beside it keeps
+	 * the local one; a base that isn't a class or interface by name
+	 * (`extends mixin(B)`, a const holding a class) is a terminal node over its
+	 * text.
 	 */
 	extendsInfo: s.with_default_fn(s.array(TypeJson), () => []),
 	/**

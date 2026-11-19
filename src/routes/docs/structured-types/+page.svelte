@@ -36,9 +36,12 @@
 			<code>@throws</code> entry's <code>typeInfo</code>, and a class's or interface's
 			<code>extendsInfo</code> and <code>implementsInfo</code>. The heritage arrays hold one tree
 			per entry, whatever its shape, so they line up by index with <code>extends</code> and
-			<code>implements</code>; the rest follow the rule below. Such a tree is the checker's reading
-			of the written type, so it can spell it differently from the text beside it
-			(<Code lang="ts" inline content="Array<A>" /> reads as an array of <code>A</code>).
+			<code>implements</code>; the rest follow the rule below. Such a tree follows the written type:
+			a reference keeps its written type arguments and the name written (a callable alias included),
+			array syntax reads as an array of the written element, and a computed type
+			(<Code lang="ts" inline content="keyof A" />, <Code lang="ts" inline content="typeof a" />) is
+			a terminal node over its text, with no tree at all when it's the whole type. Inside a union or
+			tuple it can still spell a type differently from the text beside it, as other trees do.
 		</p>
 	</section>
 

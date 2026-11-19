@@ -23,8 +23,14 @@
 			],
 			"extendsInfo": [
 				{
-					"kind": "object",
-					"text": "{ a: string; b?: number | undefined; }"
+					"kind": "reference",
+					"name": "Infer",
+					"typeArgs": [
+						{
+							"kind": "other",
+							"text": "typeof A"
+						}
+					]
 				}
 			],
 			"members": [
@@ -54,8 +60,14 @@
 			],
 			"extendsInfo": [
 				{
-					"kind": "object",
-					"text": "{ a: string; b?: number | undefined; }"
+					"kind": "reference",
+					"name": "SchemaStrictObjectOutput",
+					"typeArgs": [
+						{
+							"kind": "other",
+							"text": "typeof AEntries"
+						}
+					]
 				}
 			],
 			"members": [
