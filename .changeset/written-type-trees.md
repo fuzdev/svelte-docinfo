@@ -1,5 +1,0 @@
----
-'svelte-docinfo': minor
----
-
-fix: the trees beside source-text types (`constraintInfo`, `defaultTypeInfo`, braced `@throws` `typeInfo`, `extendsInfo`, `implementsInfo`) follow the written type instead of what the checker computes it to. A reference keeps its written type arguments, never defaulted or expanded ones (`Cell<typeof A>` where it read as the schema type `typeof A` computes to), and the name written, as its module exports it: a type alias the checker looked through or lost (`L<B>` where `type L<A> = Base<A, A>`, a generic lost alias like `SchemaKeys<T>`), a callable alias or interface (`function` before), and a reference through `import('./a.ts').A<B>`. Array syntax and `Array<A>`/`ReadonlyArray<A>` read as arrays of the written element. A computed type (`keyof A`, `typeof a`, `A['b']`, a conditional, mapped, or template literal type) is `{kind: 'other', text}` over its source text when nested, and has no tree when it's the whole type, where it expanded to the union of keys or the value's whole type. Unions and tuples inside these trees keep the checker's reading, as other trees do.

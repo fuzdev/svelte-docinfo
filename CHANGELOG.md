@@ -1,5 +1,34 @@
 # svelte-docinfo
 
+## 0.20.0
+
+### Minor Changes
+
+- feat: a brand reads as its own name. A brand whose type the checker names by a generic's instantiation (`Branded<string, "Uuid">` for `type Uuid = Infer<typeof Uuid>`) recovers `{kind: 'reference', name: 'Uuid', module}` at unannotated positions, by the alias registry, and inside written unions (`x: Uuid | null`). Only the alias named by the brand's own literal registers (another alias of the same brand doesn't take its uses), a brand whose alias is its own (`type H = string & Brand<'H'>`) keeps the checker's name, and a brand's declaration still documents its definition. ([8e21e4b](https://github.com/fuzdev/svelte-docinfo/commit/8e21e4b))
+  
+  fix: terminal `object`, `function`, and `other` text drops the optional widening at every optional property, parameter, and tuple element inside it (`{ a?: string; }` where it read `{ a?: string | undefined; }`), as the tree's own nodes do; under `exactOptionalPropertyTypes` a property's `undefined` stays.
+  
+  fix: printed `typeof import("…")` text drops the `resolution-mode` import attribute the checker adds (`typeof import("a.ts", { with: { "resolution-mode": "import" } })`).
+- feat: a callable property written with a named function type (`handler: Handler`) carries `typeInfo`, a reference to that name, beside the `parameters` and `returnType` its signature expands; methods and inline function types carry none. ([8ba1daa](https://github.com/fuzdev/svelte-docinfo/commit/8ba1daa))
+  
+  feat: `ParameterJson.docName` carries the name a destructured parameter's `@param` tag gives it (`options` for `fn({a, b}: T)` under `@param options`), so a renderer can anchor it by more than the positional `__0`.
+  
+  feat: `generateImport` takes `{specifier: 'source'}` to name the module's own file (`@pkg/lib/foo.ts`) for a package whose `exports` map source extensions; the default stays the shipped `.js`.
+  
+  fix: a callable property's destructured parameter (`m: ({a}: O) => void`) takes the property's `@param` tag in its position, where it warned `unknown_param`; `@param [a, b] - x` on an array pattern no longer reads the description `, b] - x`.
+  
+  fix: a followed `typeof` query names the import it reads through by the name its module exports (`typeof config`, not `typeof local_config`).
+- fix: a destructured parameter takes the `@param` tag in its position, as TypeScript does, so `@param options` documents `fn({a}: Options)` and `@param options.a` fills its `propertyDescriptions`, where both were dropped with a false `unknown_param` ([cc58486](https://github.com/fuzdev/svelte-docinfo/commit/cc58486))
+- break: `typeInfo`, `returnTypeInfo`, and predicate trees follow a site's written annotation instead of the checker's reading. A reference keeps the name and type arguments written (`x: Uuid` where it read as `string & Brand<"Uuid">`, `x: Action` where it read as `Action<ActionSpecUnion>`); a computed type (`keyof A`, `typeof a`, `A['b']`, a conditional, mapped, or template literal type) is `{kind: 'other', text}` over its source text, root included, where it read as what it computes to, unless the usual reading already names it; a written intersection over a union (`A & {b: 1}`) is an `intersection` of the written members, where it read as the distributed union. A registry hit still wins over a written generic it stands for. Type-alias declaration roots, a `typeof` over a package's value or in a Svelte component's script, JSDoc's remapped names (`{Object<K, V>}`), and a module-private alias's name keep the checker's reading; a tree the flat string already matches stays absent. ([cc58486](https://github.com/fuzdev/svelte-docinfo/commit/cc58486))
+  
+  fix: references drop trailing type arguments identical to their parameter's default (`x: Action` where it read as `Action<ActionSpecUnion>`), keeping a bare node where the flat string prints them.
+  
+  fix: a class's, enum's, or namespace's value side nested in a type (`Array<typeof A>`) is `{kind: 'other', text: 'typeof A'}`, where it read as a `reference` to the instance type.
+- feat: an object or function type literal whose checker printing loses a name the source wrote (a lost alias expanded, a computed type) is terminal text printed from the written literal, on one line with comments dropped and import renames resolved, at a site's root too: `selected_theme?: { theme: Theme }` reads `{kind: 'object', text: '{ theme: Theme; }'}` where it had no tree beside a flat string expanding `Theme`. A literal the checker prints with every written name keeps the checker's text. ([5eed0f5](https://github.com/fuzdev/svelte-docinfo/commit/5eed0f5))
+  
+  feat: a written union's members and a written tuple's elements follow their own written types as an annotated site does (`keyof A | null` keeps `{kind: 'other', text: 'keyof A'}` where it read the keys; `Uuid | null` keeps `Uuid`; `ComponentProps<typeof X>` stays a reference in a tuple), and a tree whose members followed is kept even where its structure alone would leave it absent. An alias's right-hand side orders its union's members but isn't followed.
+- fix: the trees beside source-text types (`constraintInfo`, `defaultTypeInfo`, braced `@throws` `typeInfo`, `extendsInfo`, `implementsInfo`) follow the written type instead of what the checker computes it to. A reference keeps its written type arguments, never defaulted or expanded ones (`Cell<typeof A>` where it read as the schema type `typeof A` computes to), and the name written, as its module exports it: a type alias the checker looked through or lost (`L<B>` where `type L<A> = Base<A, A>`, a generic lost alias like `SchemaKeys<T>`), a callable alias or interface (`function` before), and a reference through `import('./a.ts').A<B>`. Array syntax and `Array<A>`/`ReadonlyArray<A>` read as arrays of the written element. A computed type (`keyof A`, `typeof a`, `A['b']`, a conditional, mapped, or template literal type) is `{kind: 'other', text}` over its source text when nested, and has no tree when it's the whole type, where it expanded to the union of keys or the value's whole type. Unions and tuples inside these trees keep the checker's reading, as other trees do. ([83a203c](https://github.com/fuzdev/svelte-docinfo/commit/83a203c))
+
 ## 0.19.0
 
 ### Minor Changes
