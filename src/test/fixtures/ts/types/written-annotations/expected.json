@@ -1,0 +1,229 @@
+{
+	"path": "input.ts",
+	"declarations": [
+		{
+			"name": "fn1",
+			"kind": "function",
+			"typeSignature": "(x: unknown): x is B & { e: 1; }",
+			"sourceLine": 26,
+			"parameters": [
+				{
+					"name": "x",
+					"type": "unknown"
+				}
+			],
+			"returnType": "boolean",
+			"returnPredicate": {
+				"parameterName": "x",
+				"type": "B & { e: 1; }",
+				"typeInfo": {
+					"kind": "intersection",
+					"members": [
+						{
+							"kind": "union",
+							"alias": "B",
+							"members": [
+								{
+									"kind": "object",
+									"text": "{ c: \"x\"; }"
+								},
+								{
+									"kind": "object",
+									"text": "{ c: \"y\"; }"
+								}
+							]
+						},
+						{
+							"kind": "object",
+							"text": "{ e: 1; }"
+						}
+					]
+				}
+			}
+		},
+		{
+			"name": "fn2",
+			"kind": "function",
+			"typeSignature": "(x: { a: number; b: string; }, y: C<string>): keyof A",
+			"sourceLine": 30,
+			"parameters": [
+				{
+					"name": "x",
+					"type": "{ a: number; b: string; }",
+					"typeInfo": {
+						"kind": "other",
+						"text": "typeof a"
+					}
+				},
+				{
+					"name": "y",
+					"type": "C<string>",
+					"typeInfo": {
+						"kind": "reference",
+						"name": "C",
+						"typeArgs": [
+							{
+								"kind": "intrinsic",
+								"text": "string"
+							}
+						]
+					}
+				}
+			],
+			"returnType": "keyof A"
+		},
+		{
+			"name": "A",
+			"kind": "interface",
+			"typeSignature": "A",
+			"sourceLine": 1,
+			"members": [
+				{
+					"name": "a",
+					"kind": "variable",
+					"typeSignature": "string"
+				},
+				{
+					"name": "b",
+					"kind": "variable",
+					"typeSignature": "number"
+				}
+			]
+		},
+		{
+			"name": "a",
+			"kind": "variable",
+			"typeSignature": "{ a: number; b: string; }",
+			"sourceLine": 6
+		},
+		{
+			"name": "B",
+			"kind": "type",
+			"typeSignature": "B",
+			"sourceLine": 8,
+			"typeInfo": {
+				"kind": "union",
+				"alias": "B",
+				"members": [
+					{
+						"kind": "object",
+						"text": "{ c: \"x\"; }"
+					},
+					{
+						"kind": "object",
+						"text": "{ c: \"y\"; }"
+					}
+				]
+			}
+		},
+		{
+			"name": "C",
+			"kind": "class",
+			"sourceLine": 10,
+			"genericParams": [
+				{
+					"name": "T",
+					"defaultType": "string"
+				}
+			],
+			"members": [
+				{
+					"name": "t",
+					"kind": "variable",
+					"typeSignature": "T"
+				}
+			]
+		},
+		{
+			"name": "D",
+			"kind": "interface",
+			"typeSignature": "D",
+			"sourceLine": 14,
+			"members": [
+				{
+					"name": "d1",
+					"kind": "variable",
+					"typeSignature": "keyof A"
+				},
+				{
+					"name": "d2",
+					"kind": "variable",
+					"typeSignature": "{ a: number; b: string; }",
+					"typeInfo": {
+						"kind": "other",
+						"text": "typeof a"
+					}
+				},
+				{
+					"name": "d3",
+					"kind": "variable",
+					"typeSignature": "string"
+				},
+				{
+					"name": "d4",
+					"kind": "variable",
+					"typeSignature": "B & { e: 1; }",
+					"typeInfo": {
+						"kind": "intersection",
+						"members": [
+							{
+								"kind": "union",
+								"alias": "B",
+								"members": [
+									{
+										"kind": "object",
+										"text": "{ c: \"x\"; }"
+									},
+									{
+										"kind": "object",
+										"text": "{ c: \"y\"; }"
+									}
+								]
+							},
+							{
+								"kind": "object",
+								"text": "{ e: 1; }"
+							}
+						]
+					}
+				},
+				{
+					"name": "d5",
+					"kind": "variable",
+					"typeSignature": "C<string>",
+					"typeInfo": {
+						"kind": "reference",
+						"name": "C"
+					}
+				},
+				{
+					"name": "d6",
+					"kind": "variable",
+					"typeSignature": "C<number>",
+					"typeInfo": {
+						"kind": "reference",
+						"name": "C",
+						"typeArgs": [
+							{
+								"kind": "intrinsic",
+								"text": "number"
+							}
+						]
+					}
+				},
+				{
+					"name": "d7",
+					"kind": "variable",
+					"typeSignature": "keyof A",
+					"optional": true
+				}
+			]
+		},
+		{
+			"name": "b",
+			"kind": "variable",
+			"typeSignature": "keyof A",
+			"sourceLine": 24
+		}
+	]
+}

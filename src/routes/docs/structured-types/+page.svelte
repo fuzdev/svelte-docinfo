@@ -62,6 +62,26 @@
 	</TomeSection>
 
 	<TomeSection>
+		<TomeSectionHeader text="Written annotations" />
+		<p>
+			Where a position has a written annotation, the tree follows what was written, while the flat
+			string stays the checker's rendering. A reference keeps the name and type arguments written:
+			<Code lang="ts" inline content="x: Uuid" /> reads as <code>Uuid</code> beside a flat
+			<Code lang="ts" inline content={'string & Brand<"Uuid">'} />, and a type argument equal to its
+			default isn't filled in. A computed type (<Code lang="ts" inline content="keyof A" />,
+			<Code lang="ts" inline content="typeof a" />, <Code lang="ts" inline content="A['b']" />) is
+			an <code>other</code> node over its source text, even as the whole type, since the flat string
+			prints what it computes to. A name the checker or the alias registry already gives the type
+			wins over both, so a renderer never trades a linkable name for source text.
+		</p>
+		<p>
+			A type alias's own declaration still documents its definition, a <code>typeof</code> over a
+			package's value keeps the checker's expansion, and a module-private alias's name gives way to
+			what it stands for, since nothing could link it.
+		</p>
+	</TomeSection>
+
+	<TomeSection>
 		<TomeSectionHeader text="Nodes" />
 		<p>
 			The node kinds are <code>intrinsic</code>, <code>literal</code>, <code>reference</code>,
@@ -103,7 +123,8 @@
 			recovers the name as <Code lang="ts" inline content={'{kind: "reference", name: "Foo"}'} />,
 			from the annotation written at that position or by matching the project's exported aliases. A
 			name recovered by matching also carries <code>module</code>, the <code>ModuleJson.path</code>
-			declaring it.
+			declaring it, and wins over a written generic it stands for: a position written
+			<Code lang="ts" inline content={'z.infer<typeof S>'} /> still reads as <code>Foo</code>.
 		</p>
 		<p>
 			An exported alias neither way recovers warns <code>alias_lost</code> (see

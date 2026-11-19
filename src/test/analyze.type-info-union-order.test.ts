@@ -135,14 +135,27 @@ export const fn = (a: ['a' | 'b', ('c' | 'd')?]): M<'a' | 'b'> => ({ a: a[0] });
 		// the instantiation has no written union of its own, and the alias
 		// declaration's members are not the instantiation's (`T` is replaced)
 		const declarations = await analyzeScrambled(`export type G<T> = T | 'a' | 'b';
-export const a: G<'c'> = 'c';`);
+export const a: G<'c'> = 'c';
+export const b = (): G<'c'> => 'c';
+export const c = b();`);
 		const g = findDeclaration(declarations, 'G');
 		assert(g.kind === 'type');
 		// at its own declaration the right-hand side is the site annotation
 		assert.deepStrictEqual(memberTexts(g.typeInfo), ['T', '"a"', '"b"']);
+		// an annotated site reads as written, the alias with its argument
 		const { typeSignature, typeInfo } = variable(declarations, 'a');
 		assert.strictEqual(typeSignature, 'G<"c">');
-		assert.deepStrictEqual(memberTexts(typeInfo), ['"c"', '"b"', '"a"']);
+		assert.deepStrictEqual(typeInfo, {
+			kind: 'reference',
+			name: 'G',
+			typeArgs: [{ kind: 'literal', value: 'c', text: '"c"' }]
+		});
+		// an unannotated one takes the checker's order
+		assert.deepStrictEqual(memberTexts(variable(declarations, 'c').typeInfo), [
+			'"c"',
+			'"b"',
+			'"a"'
+		]);
 	});
 
 	test('a named sub-union stays whole at its written position, in its own written order', async () => {

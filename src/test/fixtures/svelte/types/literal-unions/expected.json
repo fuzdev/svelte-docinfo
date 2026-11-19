@@ -35,19 +35,8 @@
 					"name": "prop2",
 					"type": "\"prefix-a\" | \"prefix-b\"",
 					"typeInfo": {
-						"kind": "union",
-						"members": [
-							{
-								"kind": "literal",
-								"value": "prefix-a",
-								"text": "\"prefix-a\""
-							},
-							{
-								"kind": "literal",
-								"value": "prefix-b",
-								"text": "\"prefix-b\""
-							}
-						]
+						"kind": "other",
+						"text": "`prefix-${'a' | 'b'}`"
 					},
 					"description": "Description 2"
 				},

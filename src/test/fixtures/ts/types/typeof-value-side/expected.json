@@ -1,0 +1,103 @@
+{
+	"path": "input.ts",
+	"declarations": [
+		{
+			"name": "A",
+			"kind": "class",
+			"sourceLine": 1,
+			"members": [
+				{
+					"name": "a",
+					"kind": "variable",
+					"typeSignature": "number"
+				}
+			]
+		},
+		{
+			"name": "B",
+			"kind": "enum",
+			"typeSignature": "B",
+			"sourceLine": 6,
+			"members": [
+				{
+					"name": "b",
+					"kind": "variable",
+					"typeSignature": "B.b"
+				}
+			]
+		},
+		{
+			"name": "a",
+			"kind": "variable",
+			"typeSignature": "[typeof A, A]",
+			"sourceLine": 10,
+			"typeInfo": {
+				"kind": "tuple",
+				"elements": [
+					{
+						"type": {
+							"kind": "other",
+							"text": "typeof A"
+						}
+					},
+					{
+						"type": {
+							"kind": "reference",
+							"name": "A"
+						}
+					}
+				]
+			}
+		},
+		{
+			"name": "b",
+			"kind": "variable",
+			"typeSignature": "{ b: typeof B; } | null",
+			"sourceLine": 12,
+			"typeInfo": {
+				"kind": "union",
+				"members": [
+					{
+						"kind": "object",
+						"text": "{ b: typeof B; }"
+					},
+					{
+						"kind": "intrinsic",
+						"text": "null"
+					}
+				]
+			}
+		},
+		{
+			"name": "c",
+			"kind": "variable",
+			"typeSignature": "typeof A | null",
+			"sourceLine": 14,
+			"typeInfo": {
+				"kind": "union",
+				"members": [
+					{
+						"kind": "other",
+						"text": "typeof A"
+					},
+					{
+						"kind": "intrinsic",
+						"text": "null"
+					}
+				]
+			}
+		},
+		{
+			"name": "C",
+			"kind": "variable",
+			"typeSignature": "typeof C",
+			"sourceLine": 17
+		},
+		{
+			"name": "d",
+			"kind": "variable",
+			"typeSignature": "[typeof B, typeof C, B]",
+			"sourceLine": 21
+		}
+	]
+}

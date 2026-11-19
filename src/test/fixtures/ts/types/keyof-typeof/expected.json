@@ -10,27 +10,16 @@
 				{
 					"name": "a",
 					"kind": "variable",
-					"typeSignature": "keyof C",
-					"typeInfo": {
-						"kind": "union",
-						"members": [
-							{
-								"kind": "literal",
-								"value": "a",
-								"text": "\"a\""
-							},
-							{
-								"kind": "literal",
-								"value": "b",
-								"text": "\"b\""
-							}
-						]
-					}
+					"typeSignature": "keyof C"
 				},
 				{
 					"name": "b",
 					"kind": "variable",
-					"typeSignature": "{ readonly a: \"value\"; readonly c: 1; }"
+					"typeSignature": "{ readonly a: \"value\"; readonly c: 1; }",
+					"typeInfo": {
+						"kind": "other",
+						"text": "typeof b"
+					}
 				}
 			]
 		}

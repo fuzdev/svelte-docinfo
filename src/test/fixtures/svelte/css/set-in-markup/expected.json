@@ -15,21 +15,7 @@
 					"type": "Component<{}, {}, string>",
 					"typeInfo": {
 						"kind": "reference",
-						"name": "Component",
-						"typeArgs": [
-							{
-								"kind": "object",
-								"text": "{}"
-							},
-							{
-								"kind": "object",
-								"text": "{}"
-							},
-							{
-								"kind": "intrinsic",
-								"text": "string"
-							}
-						]
+						"name": "Component"
 					}
 				}
 			],

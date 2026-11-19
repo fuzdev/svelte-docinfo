@@ -30,6 +30,10 @@
 				{
 					"name": "children",
 					"type": "Snippet<[]>",
+					"typeInfo": {
+						"kind": "reference",
+						"name": "Snippet"
+					},
 					"optional": true,
 					"description": "Description 4"
 				},

@@ -225,8 +225,14 @@
 							"name": "d",
 							"type": "$$ComponentProps",
 							"typeInfo": {
-								"kind": "object",
-								"text": "{ d: number; }"
+								"kind": "reference",
+								"name": "ComponentProps",
+								"typeArgs": [
+									{
+										"kind": "other",
+										"text": "typeof Other4"
+									}
+								]
 							}
 						}
 					],
@@ -295,15 +301,12 @@
 							"name": "g",
 							"type": "$$ComponentProps",
 							"typeInfo": {
-								"kind": "union",
-								"members": [
+								"kind": "reference",
+								"name": "ComponentProps",
+								"typeArgs": [
 									{
-										"kind": "reference",
-										"name": "E"
-									},
-									{
-										"kind": "reference",
-										"name": "F"
+										"kind": "other",
+										"text": "typeof Other5"
 									}
 								]
 							}
@@ -336,8 +339,14 @@
 							"typeInfo": {
 								"kind": "array",
 								"element": {
-									"kind": "object",
-									"text": "{ d: number; }"
+									"kind": "reference",
+									"name": "ComponentProps",
+									"typeArgs": [
+										{
+											"kind": "other",
+											"text": "typeof Other4"
+										}
+									]
 								}
 							}
 						}
@@ -363,8 +372,14 @@
 							"typeInfo": {
 								"kind": "array",
 								"element": {
-									"kind": "object",
-									"text": "{ d: number; }"
+									"kind": "reference",
+									"name": "ComponentProps",
+									"typeArgs": [
+										{
+											"kind": "other",
+											"text": "typeof Other4"
+										}
+									]
 								},
 								"readonly": true
 							}

@@ -397,8 +397,8 @@
 				</li>
 				<li>
 					<code>propertyDescriptions</code>: sub-path to description, from dotted
-					<code>@param obj.prop</code> tags on a named object parameter (destructured parameters
-					aren't covered)
+					<code>@param obj.prop</code> tags on an object parameter; a destructured one takes the
+					<code>@param</code> in its position, as TypeScript does
 				</li>
 			</ul>
 			<p>

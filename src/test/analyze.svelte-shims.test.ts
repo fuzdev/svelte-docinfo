@@ -171,7 +171,14 @@ describe('svelte2tsx shims', { timeout: 30_000 }, () => {
 				(d) => d.name === 'takesInter'
 			);
 			assert(takesInter?.kind === 'function', 'expected a function');
+			// a registry hit wins over the written generic it stands for, at the
+			// annotation and the inferred return alike
 			assert.deepStrictEqual(takesInter.parameters[0]?.typeInfo, {
+				kind: 'reference',
+				name: 'InterProps',
+				module: 'uses.ts'
+			});
+			assert.deepStrictEqual(takesInter.returnTypeInfo, {
 				kind: 'reference',
 				name: 'InterProps',
 				module: 'uses.ts'

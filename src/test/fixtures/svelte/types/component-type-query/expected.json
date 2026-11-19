@@ -130,19 +130,8 @@
 							"name": "prop",
 							"type": "\"a\" | \"b\"",
 							"typeInfo": {
-								"kind": "union",
-								"members": [
-									{
-										"kind": "literal",
-										"value": "a",
-										"text": "\"a\""
-									},
-									{
-										"kind": "literal",
-										"value": "b",
-										"text": "\"b\""
-									}
-								]
+								"kind": "other",
+								"text": "ComponentProps<typeof Other>['a']"
 							},
 							"optional": true
 						}

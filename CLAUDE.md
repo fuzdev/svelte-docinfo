@@ -43,9 +43,28 @@ topic guides and references; `tomes.ts` orders them). Examples: `examples/vite/`
     position. `true | false` collapses to `boolean`; the optional-widening `undefined` is
     dropped. Literal `value`s JSON can't carry (bigint, non-finite) are strings. Named
     generic instantiations are `reference` nodes with `typeArgs`; other callables are
-    `function`. Object literals and functions stay terminal `text`, untruncated up to 1000
+    `function`; a class's, enum's, or namespace's value side (`typeof A`) is terminal
+    `other` text, never a `reference` to the instance type. Object literals and functions
+    stay terminal `text`, untruncated up to 1000
     chars, then the checker's shortened rendering. Depth caps at 5, degrading to
     `{kind: 'other'}`.
+  - **Written annotations** — where a site has a written annotation, the tree follows it
+    (`followWrittenAnnotation`): a reference or array reads through
+    `resolveWrittenTypeInfo` (written arguments and name, `Uuid` over its branded
+    expansion), a computed type is `{kind: 'other', text}` over its source even at the
+    root (the flat string prints the expansion), and a written intersection the checker
+    distributed over a union is an `intersection` of the written members. A name the
+    usual reading already carries wins: a registry hit over a written generic
+    (`Infer<typeof S>` stays `SOutput`), a checker alias or flat-string name over computed
+    text (`A['b']` stays `B`). Not followed: a type-alias declaration root (it documents
+    its definition), an annotation that isn't the site's own type (a snippet parameter's),
+    JSDoc's remapped names (`{Object<K, V>}`, `{String}`), a `typeof` over a value from a
+    package or `.d.ts`, any `typeof` in a Svelte component's script (svelte2tsx writes
+    its own for legacy props), svelte2tsx's names, and a module-private alias's name. A
+    tree the flat string already matches stays absent; a bare written reference whose flat
+    string prints filled-in defaults keeps its node.
+  - **Default type arguments** — a reference drops trailing type arguments identical to
+    their parameter's default (`withoutDefaultTypeArgs`), so `x: A` isn't `A<Default>`.
   - **Name recovery** — TypeScript drops the alias of a type over an indexed access or
     conditional (`z.infer<typeof S>`). svelte2tsx-generated aliases count as none
     (`linkableAliasSymbol`). Two channels recover `{kind: 'reference', name}`: the
@@ -96,7 +115,8 @@ topic guides and references; `tomes.ts` orders them). Examples: `examples/vite/`
     silently.
   - `@mutates` splits target from description at ` - `. Dotted `@param obj.prop` fills
     `ParameterJson.propertyDescriptions`, including the tags TS nests under a braced
-    `@param {object} obj` (`collectParamTag`).
+    `@param {object} obj` (`collectParamTag`). A destructured parameter takes the `@param`
+    in its position, as TS does (`destructuredParamTagName`), with its dotted keys.
   - A parameter is `optional` whenever a caller may omit it (`checker.isOptionalParameter`:
     `?`, an initializer, JS `@param {T} [b]` or `{T=}`), in TS and JS alike. A bracketed
     `[b=0]` supplies `defaultValue` when there's no initializer (`jsdocParamTagDefault`).
@@ -523,6 +543,9 @@ shared doc fields (`docFields` in `types.ts`); `ParameterJson` carries none of `
   `exactOptionalPropertyTypes`, property sites don't strip (`optionalWidened`); parameters
   and tuple elements always do. An omittable parameter's top-level `undefined` goes whether
   widened, written, or inferred (`b: T | undefined = x` → `T`).
+  Trees follow a site's written annotation where one exists (see Written annotations
+  above), so a tree and its flat sibling can name a type differently (`Uuid` beside
+  `string & Brand<"Uuid">`); renderers show the tree and keep the flat string as hover text.
 - **`externalTypes`** (`typescript-extract-shared.ts`) — contributions from external
   packages are dropped by *declaration origin* at every granularity (named properties,
   index signatures, call/construct signatures, through intersections and utility

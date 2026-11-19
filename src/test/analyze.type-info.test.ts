@@ -1592,7 +1592,11 @@ export const viaGatedImportType = (): import('./dep-nodocs.js').GatedInferred =>
 export const viaLiteral = (): Promise<{ a: string }> => Promise.resolve({ a: '' });`
 		});
 		const module = modules.find((m) => m.path === 'a.ts');
-		for (const name of ['viaTypeof', 'viaGatedImportType']) {
+		// a written `typeof` reads as written, which is no recovery
+		const viaTypeof = module?.declarations.find((d) => d.name === 'viaTypeof');
+		assert(viaTypeof?.kind === 'function', 'expected a function declaration for viaTypeof');
+		assert.deepStrictEqual(viaTypeof.returnTypeInfo, { kind: 'other', text: 'typeof value' });
+		for (const name of ['viaGatedImportType']) {
 			const decl = module?.declarations.find((d) => d.name === name);
 			assert(decl?.kind === 'function', `expected a function declaration for ${name}`);
 			// an anonymous object at the root with nothing recovered stays absent

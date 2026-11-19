@@ -59,7 +59,11 @@
 			"parameters": [
 				{
 					"name": "x",
-					"type": "string"
+					"type": "string",
+					"typeInfo": {
+						"kind": "reference",
+						"name": "A"
+					}
 				}
 			],
 			"returnType": "string"

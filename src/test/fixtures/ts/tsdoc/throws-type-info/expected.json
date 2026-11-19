@@ -28,13 +28,7 @@
 						"members": [
 							{
 								"kind": "reference",
-								"name": "A",
-								"typeArgs": [
-									{
-										"kind": "intrinsic",
-										"text": "unknown"
-									}
-								]
+								"name": "A"
 							},
 							{
 								"kind": "reference",
@@ -46,6 +40,10 @@
 				},
 				{
 					"type": "A",
+					"typeInfo": {
+						"kind": "reference",
+						"name": "A"
+					},
 					"description": "Description 3"
 				},
 				{

@@ -12,7 +12,11 @@
 				{
 					"name": "a",
 					"type": "number",
-					"description": "Description 6"
+					"description": "Description 6",
+					"typeInfo": {
+						"kind": "reference",
+						"name": "C"
+					}
 				}
 			],
 			"returnType": "number"
@@ -31,6 +35,10 @@
 			"typeSignature": "(): string",
 			"sourceLine": 60,
 			"returnType": "string",
+			"returnTypeInfo": {
+				"kind": "reference",
+				"name": "I"
+			},
 			"returnDescription": "Description 16"
 		},
 		{
@@ -63,7 +71,11 @@
 			"name": "e",
 			"kind": "variable",
 			"typeSignature": "string",
-			"sourceLine": 53
+			"sourceLine": 53,
+			"typeInfo": {
+				"kind": "reference",
+				"name": "H"
+			}
 		},
 		{
 			"name": "f",

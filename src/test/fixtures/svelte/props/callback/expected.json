@@ -138,6 +138,16 @@
 				{
 					"name": "i",
 					"type": "MouseEventHandler<HTMLButtonElement>",
+					"typeInfo": {
+						"kind": "reference",
+						"name": "MouseEventHandler",
+						"typeArgs": [
+							{
+								"kind": "reference",
+								"name": "HTMLButtonElement"
+							}
+						]
+					},
 					"optional": true
 				},
 				{
@@ -175,14 +185,6 @@
 							{
 								"kind": "object",
 								"text": "{ x: number; }"
-							},
-							{
-								"kind": "object",
-								"text": "{}"
-							},
-							{
-								"kind": "intrinsic",
-								"text": "string"
 							}
 						]
 					},

@@ -14,17 +14,8 @@
 			"typeSignature": "string | { b: number; }",
 			"sourceLine": 11,
 			"typeInfo": {
-				"kind": "union",
-				"members": [
-					{
-						"kind": "intrinsic",
-						"text": "string"
-					},
-					{
-						"kind": "object",
-						"text": "{ b: number; }"
-					}
-				]
+				"kind": "other",
+				"text": "A['a']"
 			}
 		},
 		{

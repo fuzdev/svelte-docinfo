@@ -367,11 +367,10 @@ export function fn(ctx: {node: string; nested: {deep: boolean}}): string { retur
 			});
 		});
 
-		test('dotted @param on a destructured parameter is not matched (known limitation)', async () => {
-			// TypeScript names destructured params `__0`, so a `@param options.a` key
-			// has no parameter name to match — propertyDescriptions stays empty and
-			// the dotted key (and its bare root) emit unknown_param. Lock-in so the
-			// "named object params only" docs can't silently drift.
+		test('a destructured parameter takes its @param by position, dotted keys included', async () => {
+			// TypeScript names destructured params `__0` and matches a binding
+			// pattern's tag by position, so `@param options` documents it and
+			// `options.a` lands in its propertyDescriptions, with no unknown_param
 			const files = {
 				'src/lib/fn.ts': `
 /**
@@ -389,13 +388,9 @@ export function fn({a, b}: {a: string; b: number}): string { return a + String(b
 				const param = decl.parameters[0];
 				assert(param);
 				assert.strictEqual(param.name, '__0');
-				assert.strictEqual(param.propertyDescriptions, undefined);
-				assert.deepStrictEqual(
-					unknownParam(diagnostics)
-						.map((d) => d.paramName)
-						.sort(),
-					['options', 'options.a']
-				);
+				assert.strictEqual(param.description, 'the options');
+				assert.deepStrictEqual({ ...param.propertyDescriptions }, { a: 'the a value' });
+				assert.deepStrictEqual(unknownParam(diagnostics), []);
 			});
 		});
 

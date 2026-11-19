@@ -173,6 +173,21 @@ const SourceLine = s.pipe(s.number, s.safe_integer, s.min_value(1));
  * `text`. Object property maps are deliberately not expanded. Recursion is
  * depth-capped; nodes past the cap degrade to `{kind: 'other', text}`.
  *
+ * **Written annotations**: where a site has a written annotation the tree
+ * follows what was written, not what the checker computes it to. A reference
+ * keeps its written name and type arguments (`x: Uuid` is
+ * `{kind: 'reference', name: 'Uuid'}` though the flat string prints its
+ * branded expansion), a computed type (`keyof A`, `typeof a`, `A['b']`, a
+ * conditional, mapped, or template literal type) is `{kind: 'other', text}`
+ * over its source text, root included, unless the flat string already prints
+ * it so, and a written intersection the checker distributed over a union is
+ * an `intersection` of the written members. Type-alias declaration roots,
+ * annotations over another type than the site's, `typeof` over a value from a
+ * package, and module-private alias names keep the checker's reading. Any
+ * reference drops trailing type arguments identical to their parameter's
+ * default (`x: A` is never `A<Default>`), and a bare one whose flat string
+ * prints them keeps its node.
+ *
  * **Alias policy**: `alias` is emitted whenever the checker reports an alias
  * symbol, root or nested — for a root node it may duplicate the flat string
  * (`type: "ColorScheme"` beside `alias: "ColorScheme"`), which is accepted for
@@ -565,10 +580,11 @@ const ParameterJsonEntries = {
 	 * this parameter. Only populated for function/method/constructor
 	 * signature parameters.
 	 *
-	 * Matching is by the parameter's name, so destructured parameters
-	 * (`fn({a, b}: T)`) are not covered — TypeScript names them `__0`, with no
-	 * author-facing identifier for a `@param` key to reference (`pattern`
-	 * carries what the author wrote).
+	 * Matching is by the parameter's name. A destructured parameter
+	 * (`fn({a, b}: T)`), which TypeScript names `__0`, takes the `@param` tag
+	 * in its position as TypeScript does (`@param options` then
+	 * `@param options.a`), where that tag isn't itself dotted; its
+	 * `description` comes from the same tag.
 	 */
 	propertyDescriptions: s.optional(StringRecord)
 };

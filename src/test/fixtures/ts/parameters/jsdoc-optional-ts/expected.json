@@ -108,7 +108,11 @@
 				{
 					"name": "__0",
 					"pattern": "{ x }",
-					"type": "{ x: number; }"
+					"type": "{ x: number; }",
+					"description": "Description 1",
+					"propertyDescriptions": {
+						"z": "Description 2"
+					}
 				},
 				{
 					"name": "__1",
@@ -151,26 +155,6 @@
 		}
 	],
 	"diagnostics": [
-		{
-			"kind": "unknown_param",
-			"file": "src/lib/input.ts",
-			"line": 59,
-			"column": 1,
-			"message": "@param \"first\" on \"fn5\" doesn't match any parameter (typo or stale doc?)",
-			"severity": "warning",
-			"paramName": "first",
-			"functionName": "fn5"
-		},
-		{
-			"kind": "unknown_param",
-			"file": "src/lib/input.ts",
-			"line": 59,
-			"column": 1,
-			"message": "@param \"first.z\" on \"fn5\" doesn't match any parameter (typo or stale doc?)",
-			"severity": "warning",
-			"paramName": "first.z",
-			"functionName": "fn5"
-		},
 		{
 			"kind": "unknown_param",
 			"file": "src/lib/input.ts",

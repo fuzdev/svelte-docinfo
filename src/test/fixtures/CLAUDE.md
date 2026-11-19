@@ -337,6 +337,13 @@ Where each behavior is locked. Unit and behavior-level mechanics live in
   the alias (`declarations/class/heritage-type-info`,
   `declarations/interface/extends-computed-*`). `Array<A>`/`ReadonlyArray<A>` need
   lib types, which the fixture host lacks
+- Trees at annotated sites following the written annotation
+  (`types/written-annotations`): computed members and roots as source text, a
+  distributed intersection over written members, defaults not filled in, a bare
+  reference beside a flat string with defaults; nested `typeof` value sides as text
+  (`types/typeof-value-side`); JSDoc's remapped names keeping the checker's reading
+  (`types/jsdoc-remapped-names`); a destructured parameter's positional `@param`
+  (`parameters/destructured-docs`)
 - Structured types and name recovery: `types/type-info*`,
   `declarations/*/type-info-recovery`, `declarations/*/alias-lost-*`; merged
   value+type symbols: `declarations/*/merged-value-*`; union members in

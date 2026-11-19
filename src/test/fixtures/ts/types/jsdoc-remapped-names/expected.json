@@ -1,0 +1,24 @@
+{
+	"path": "input.js",
+	"declarations": [
+		{
+			"name": "fn",
+			"kind": "function",
+			"typeSignature": "(a: { [x: string]: number; }, b: string): {}",
+			"sourceLine": 5,
+			"parameters": [
+				{
+					"name": "a",
+					"type": "{ [x: string]: number; }",
+					"description": "Description 1"
+				},
+				{
+					"name": "b",
+					"type": "string",
+					"description": "Description 2"
+				}
+			],
+			"returnType": "{}"
+		}
+	]
+}
