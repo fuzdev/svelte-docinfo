@@ -1,5 +1,12 @@
 # svelte-docinfo
 
+## 0.18.1
+
+### Patch Changes
+
+- deps: depend on '@fuzdev/fuz_schema' `^0.5.7 || ^0.6.0`, admitting 0.6, so a consumer on 0.6 shares one copy instead of nesting a second; a caret per minor, not `>=`, since as a dependency the newest match installs, and 0.6.0's type changes compile here unchanged ([87dcde8](https://github.com/fuzdev/svelte-docinfo/commit/87dcde8))
+- fix: an unbraced `@throws` reads a backticked first word as its type, so `` @throws `TypeError` if … `` records `TypeError` where it recorded no type and kept the backticked word in the description ([00bfddf](https://github.com/fuzdev/svelte-docinfo/commit/00bfddf))
+
 ## 0.18.0
 
 ### Minor Changes
