@@ -2013,7 +2013,7 @@ export const resolveWrittenTypeInfo = (
 ): TypeJson | undefined => {
 	const written = skipParentheses(node);
 	if (isOpaqueWrittenType(written)) {
-		return always ? { kind: 'other', text: written.getText() } : undefined;
+		return always ? { kind: 'other', text: opaqueWrittenText(written, ctx.checker) } : undefined;
 	}
 	try {
 		const { checker } = ctx;
@@ -2143,6 +2143,32 @@ const isLinkableEntity = (entity: ts.Symbol): boolean =>
 /** The declarations a written reference keeps by name whatever the checker reads it as. */
 const WRITTEN_NAMED_FLAGS =
 	ts.SymbolFlags.TypeAlias | ts.SymbolFlags.Interface | ts.SymbolFlags.Class;
+
+/**
+ * A computed written type's source text, a `typeof` query's head written as
+ * the name its module exports where an import renamed it
+ * (`typeof local_name` as `typeof exported_name`, `specifierExportedName`),
+ * as a written reference reads. Otherwise verbatim.
+ */
+const opaqueWrittenText = (node: ts.TypeNode, checker: ts.TypeChecker): string => {
+	const text = node.getText();
+	if (!ts.isTypeQueryNode(node)) return text;
+	let head: ts.EntityName = node.exprName;
+	while (ts.isQualifiedName(head)) head = head.left;
+	const symbol = checker.getSymbolAtLocation(head);
+	const exported = symbol && specifierExportedName(symbol);
+	// `{default as x}` and a string-named import have no name a query can spell
+	if (
+		exported === undefined ||
+		exported === head.text ||
+		exported === 'default' ||
+		!/^[\p{ID_Start}_$][\p{ID_Continue}$]*$/u.test(exported)
+	) {
+		return text;
+	}
+	const offset = head.getStart() - node.getStart();
+	return text.slice(0, offset) + exported + text.slice(offset + head.text.length);
+};
 
 /** A written type argument's tree, a terminal node over its text where it has none. */
 const writtenTypeArgInfo = (node: ts.TypeNode, ctx: WrittenTypeContext): TypeJson =>
@@ -2324,7 +2350,7 @@ const followWrittenAnnotation = (
 		}
 		// a member has no flat sibling of its own to defer to
 		if (printsAsWritten(target, written, checker)) {
-			return member ? { kind: 'other', text: written.getText() } : undefined;
+			return member ? { kind: 'other', text: opaqueWrittenText(written, checker) } : undefined;
 		}
 		// a name the reading already carries (`A['b']` read as the alias
 		// `B`) says more than the computed text
@@ -2333,7 +2359,7 @@ const followWrittenAnnotation = (
 		// the flat sibling already prints a name (`SvelteHTMLElements['a']` as
 		// `HTMLAnchorAttributes`), which the absent tree defers to
 		if (!named && FLAT_NAME_MATCHER.test(printType(target, checker, false))) return undefined;
-		return { kind: 'other', text: written.getText() };
+		return { kind: 'other', text: opaqueWrittenText(written, checker) };
 	}
 	if (isWrittenReference(written) || writtenArrayElement(written)) {
 		const nameNode = isWrittenReference(written) ? writtenNameNode(written) : undefined;
@@ -2593,6 +2619,10 @@ const writtenLiteralNode = (
 					return n;
 				}
 				lost.push(n.getText());
+				if (ts.isTypeQueryNode(n)) {
+					const text = opaqueWrittenText(n, checker);
+					if (text !== n.getText()) return factory.createTypeReferenceNode(text);
+				}
 			}
 			// an import type reads as the name its module exports, as a reference
 			// does (`import('./a.ts').A` as `A`), never by its relative path

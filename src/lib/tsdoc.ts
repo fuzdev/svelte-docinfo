@@ -306,7 +306,11 @@ const collectParamTag = (
 	const paramName = ts.isIdentifier(tag.name) ? tag.name.text : tag.name.getText(sourceFile);
 	const tagText = jsdocCommentText(tag.comment, sourceFile);
 	if (paramName && tagText) {
-		params[paramName] = cleanTagDescription(tagText);
+		// an array pattern's rest (`, b]` of `@param [a, b] - x`) isn't description
+		const description = isArrayPatternParamTag(tag, sourceFile)
+			? tagText.slice(tagText.indexOf(']') + 1)
+			: tagText;
+		params[paramName] = cleanTagDescription(description);
 	}
 	const typeNode = tag.typeExpression?.type;
 	if (typeNode && ts.isJSDocTypeLiteral(typeNode)) {
@@ -315,6 +319,19 @@ const collectParamTag = (
 		}
 	}
 };
+
+/**
+ * Whether a `@param` tag names an array pattern (`@param [a, b] - the pair`
+ * for a parameter written `[a, b]`). TypeScript's parser reads the bracket as
+ * JSDoc's optional-parameter syntax, so the tag's name is `a` and its comment
+ * starts with the pattern's rest (`, b] - the pair`). The tag still documents
+ * the parameter in its position; its name is no name for it.
+ */
+export const isArrayPatternParamTag = (
+	tag: ts.JSDocPropertyLikeTag,
+	sourceFile: ts.SourceFile = tag.getSourceFile()
+): boolean =>
+	tag.isBracketed && /^\s*,[^\]]*\]/.test(jsdocCommentText(tag.comment, sourceFile) ?? '');
 
 /**
  * The default a bracketed `@param` tag writes (`@param {number} [b=0]` →

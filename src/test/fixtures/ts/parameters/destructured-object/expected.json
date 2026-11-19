@@ -11,6 +11,7 @@
 				{
 					"name": "__0",
 					"pattern": "{ a, b }",
+					"docName": "a",
 					"type": "{ a: string; b: number; }",
 					"description": "Description 1"
 				}

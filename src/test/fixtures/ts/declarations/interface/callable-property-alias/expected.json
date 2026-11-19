@@ -1,0 +1,169 @@
+{
+	"path": "input.ts",
+	"declarations": [
+		{
+			"name": "Handler",
+			"kind": "type",
+			"docComment": "A named function type.",
+			"typeSignature": "Handler",
+			"sourceLine": 2,
+			"members": [
+				{
+					"name": "(call)",
+					"kind": "function",
+					"typeSignature": "(event: string): void",
+					"parameters": [
+						{
+							"name": "event",
+							"type": "string"
+						}
+					],
+					"returnType": "void"
+				}
+			]
+		},
+		{
+			"name": "Mapper",
+			"kind": "type",
+			"docComment": "A named generic function type.",
+			"typeSignature": "Mapper<T>",
+			"sourceLine": 5,
+			"genericParams": [
+				{
+					"name": "T"
+				}
+			],
+			"members": [
+				{
+					"name": "(call)",
+					"kind": "function",
+					"typeSignature": "(value: T): T",
+					"parameters": [
+						{
+							"name": "value",
+							"type": "T"
+						}
+					],
+					"returnType": "T"
+				}
+			]
+		},
+		{
+			"name": "Runner",
+			"kind": "interface",
+			"docComment": "A callable interface.",
+			"typeSignature": "Runner",
+			"sourceLine": 8,
+			"members": [
+				{
+					"name": "(call)",
+					"kind": "function",
+					"typeSignature": "(task: string): Promise<void>",
+					"parameters": [
+						{
+							"name": "task",
+							"type": "string"
+						}
+					],
+					"returnType": "Promise<void>"
+				}
+			]
+		},
+		{
+			"name": "Hooks",
+			"kind": "interface",
+			"typeSignature": "Hooks",
+			"sourceLine": 12,
+			"members": [
+				{
+					"name": "handler",
+					"kind": "function",
+					"docComment": "Typed by a named function type: keeps `Handler`.",
+					"typeSignature": "(event: string): void",
+					"parameters": [
+						{
+							"name": "event",
+							"type": "string"
+						}
+					],
+					"returnType": "void",
+					"property": true,
+					"typeInfo": {
+						"kind": "reference",
+						"name": "Handler"
+					}
+				},
+				{
+					"name": "map",
+					"kind": "function",
+					"docComment": "Optional, generic: keeps `Mapper<number>`.",
+					"typeSignature": "(value: number): number",
+					"parameters": [
+						{
+							"name": "value",
+							"type": "number"
+						}
+					],
+					"returnType": "number",
+					"optional": true,
+					"property": true,
+					"typeInfo": {
+						"kind": "reference",
+						"name": "Mapper",
+						"typeArgs": [
+							{
+								"kind": "intrinsic",
+								"text": "number"
+							}
+						]
+					}
+				},
+				{
+					"name": "run",
+					"kind": "function",
+					"docComment": "Typed by a callable interface.",
+					"typeSignature": "(task: string): Promise<void>",
+					"parameters": [
+						{
+							"name": "task",
+							"type": "string"
+						}
+					],
+					"returnType": "Promise<void>",
+					"property": true,
+					"typeInfo": {
+						"kind": "reference",
+						"name": "Runner"
+					}
+				},
+				{
+					"name": "inline",
+					"kind": "function",
+					"docComment": "An inline function type: no tree.",
+					"typeSignature": "(event: string): void",
+					"parameters": [
+						{
+							"name": "event",
+							"type": "string"
+						}
+					],
+					"returnType": "void",
+					"property": true
+				},
+				{
+					"name": "method",
+					"kind": "function",
+					"docComment": "A method: no tree.",
+					"typeSignature": "(event: string): void",
+					"parameters": [
+						{
+							"name": "event",
+							"type": "string"
+						}
+					],
+					"returnType": "void"
+				}
+			]
+		}
+	]
+}

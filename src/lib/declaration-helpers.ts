@@ -127,6 +127,9 @@ export const getDisplayName = (declaration: DeclarationJson | MemberJson): strin
  * @param modulePath - module path relative to source root (e.g., `foo.ts`); the
  *   specifier names the file it ships as (`.ts`, `.tsx`, `.jsx` → `.js`, `.mts` → `.mjs`)
  * @param libraryName - package name for the import specifier (e.g., `@pkg/lib`)
+ * @param options - `specifier: 'source'` names the source file instead (`foo.ts`),
+ *   for a package whose `exports` map its source extensions (`"./*.ts"`), as
+ *   packages following the "imports name the real file" convention do
  * @returns formatted import statement string
  *
  * @example
@@ -136,14 +139,19 @@ export const getDisplayName = (declaration: DeclarationJson | MemberJson): strin
  *
  * generateImport({name: 'default', kind: 'function'}, 'foo-bar.ts', '@pkg/lib')
  * // => "import FooBar from '@pkg/lib/foo-bar.js';"
+ *
+ * generateImport({name: 'Foo', kind: 'type'}, 'foo.ts', '@pkg/lib', {specifier: 'source'})
+ * // => "import type {Foo} from '@pkg/lib/foo.ts';"
  * ```
  */
 export const generateImport = (
 	declaration: DeclarationJson,
 	modulePath: string,
-	libraryName: string
+	libraryName: string,
+	options?: GenerateImportOptions
 ): string => {
-	const specifier = `${libraryName}/${toDistModulePath(modulePath)}`;
+	const path = options?.specifier === 'source' ? modulePath : toDistModulePath(modulePath);
+	const specifier = `${libraryName}/${path}`;
 
 	// Default-slot entries — derive the import binding from the module path.
 	if (declaration.name === 'default') {
@@ -169,6 +177,16 @@ export const generateImport = (
 		(declaration.kind === 'type' || declaration.kind === 'interface') && !declaration.mergedValue;
 	return `${typeOnly ? 'import type' : 'import'} {${declaration.name}} from '${specifier}';`;
 };
+
+/** Options for `generateImport`. */
+export interface GenerateImportOptions {
+	/**
+	 * Which file the specifier names: `'dist'` (the default) the file a module
+	 * ships as (`foo.ts` → `foo.js`), `'source'` the module's own path
+	 * (`foo.ts`), for a package whose `exports` map source extensions.
+	 */
+	specifier?: 'dist' | 'source';
+}
 
 /**
  * The module path a source module ships under: `.ts`, `.tsx`, and `.jsx` →

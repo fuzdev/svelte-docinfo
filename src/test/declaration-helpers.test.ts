@@ -210,6 +210,24 @@ describe('getDisplayName', () => {
 });
 
 describe('generateImport', () => {
+	test("`specifier: 'source'` names the module's own file", () => {
+		const declaration = d({ name: 'Foo', kind: 'type' });
+		assert.strictEqual(
+			generateImport(declaration, 'foo.ts', '@pkg/lib', { specifier: 'source' }),
+			"import type {Foo} from '@pkg/lib/foo.ts';"
+		);
+		const component = d({ name: 'Bar', kind: 'component' });
+		assert.strictEqual(
+			generateImport(component, 'Bar.svelte', '@pkg/lib', { specifier: 'source' }),
+			"import Bar from '@pkg/lib/Bar.svelte';"
+		);
+		// the default names the shipped file
+		assert.strictEqual(
+			generateImport(declaration, 'foo.ts', '@pkg/lib', { specifier: 'dist' }),
+			"import type {Foo} from '@pkg/lib/foo.js';"
+		);
+	});
+
 	// [label, name, kind, modulePath, libraryName, expected]
 	const TYPE_IMPORT_CASES: Array<[string, string, string, string, string, string]> = [
 		[

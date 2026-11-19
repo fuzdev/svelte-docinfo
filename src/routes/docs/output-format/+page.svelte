@@ -240,8 +240,10 @@
 					On an interface or a type alias, <code>property</code> is <code>true</code> for a
 					function-typed property (<Code lang="ts" inline content="now: () => number" />) and absent
 					for a method (<Code lang="ts" inline content="now(): number" />), so a renderer can write
-					the form the source used. A property typed by an external function
-					(<Code lang="ts" inline content="run?: typeof spawn" />) is a
+					the form the source used. A property written with a named function type
+					(<Code lang="ts" inline content="handler: Handler" />) also carries <code>typeInfo</code>,
+					a reference to that name, which its expanded signature loses. A property typed by an
+					external function (<Code lang="ts" inline content="run?: typeof spawn" />) is a
 					<Code lang="ts" inline content={'"variable"'} /> with the flat type text rather than the
 					package's overloads and docs; a mixed callable keeps its local signatures
 				</li>
@@ -379,6 +381,13 @@
 					(<Code lang="ts" inline content={'{ a, b = 1 }'} />), on one line with its defaults. Such
 					a parameter has no name of its own, so <code>name</code> is the one TypeScript gives it by
 					position (<code>__0</code>, <code>__1</code>)
+				</li>
+				<li>
+					<code>docName</code>: the name a destructured parameter's <code>@param</code> tag gives it
+					(<code>options</code> under <code>@param options</code>), the tag TypeScript matches by
+					position, or on a callable property's function type the property's tag in that position;
+					absent when there's none and for an array pattern's tag (<code>@param [a, b]</code>),
+					whose name is no name
 				</li>
 				<li><code>type</code>: resolved TypeScript type as a string</li>
 				<li>

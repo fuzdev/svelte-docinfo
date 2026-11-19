@@ -4,9 +4,9 @@
 		{
 			"name": "CallableHolder",
 			"kind": "type",
-			"docComment": "An alias-lost callable: a callable property projects as a function member\n(signature fields — callability stays the classification, so no recovery\nthere), while inside a union the callable branch's recovery consult emits\n`{kind: 'reference', name: 'LostFn'}` instead of a terminal function node.",
+			"docComment": "An alias-lost callable: a callable property projects as a function member\n(signature fields — callability stays the classification), its written\nannotation naming it in the member's `typeInfo`, while inside a union the\ncallable branch's recovery consult emits `{kind: 'reference', name: 'LostFn'}`\ninstead of a terminal function node.",
 			"typeSignature": "CallableHolder",
-			"sourceLine": 11,
+			"sourceLine": 12,
 			"members": [
 				{
 					"name": "direct",
@@ -20,7 +20,11 @@
 						}
 					],
 					"returnType": "{ a: string; }",
-					"property": true
+					"property": true,
+					"typeInfo": {
+						"kind": "reference",
+						"name": "LostFn"
+					}
 				},
 				{
 					"name": "handler",
@@ -47,7 +51,7 @@
 			"name": "LostFn",
 			"kind": "type",
 			"typeSignature": "(x: string) => { a: string; }",
-			"sourceLine": 21,
+			"sourceLine": 22,
 			"members": [
 				{
 					"name": "(call)",

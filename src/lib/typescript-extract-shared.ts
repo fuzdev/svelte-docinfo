@@ -44,6 +44,7 @@ import {
 	functionInitializer,
 	jsdocOverloadSignatures,
 	hasDocContent,
+	isArrayPatternParamTag,
 	jsdocParamTagDefault,
 	parseComment,
 	parseHiddenJSDocImplementationComment,
@@ -576,9 +577,13 @@ export const extractSignatureParameters = (
 
 		// Get TSDoc description for this parameter. A destructured one has only
 		// the positional name `__0`, so its tag is the one TS matches by position
+		const docTag =
+			paramDecl && ts.isParameter(paramDecl) && !ts.isIdentifier(paramDecl.name)
+				? destructuredParamTag(paramDecl)
+				: undefined;
 		const docName =
 			paramDecl && ts.isParameter(paramDecl) && !ts.isIdentifier(paramDecl.name)
-				? destructuredParamTagName(paramDecl)
+				? (docTag?.name as ts.Identifier | undefined)?.text
 				: param.name;
 		const description = docName === undefined ? undefined : tsdocParams?.[docName];
 
@@ -627,6 +632,17 @@ export const extractSignatureParameters = (
 				paramDecl && ts.isParameter(paramDecl) && !ts.isIdentifier(paramDecl.name)
 					? printBindingPattern(paramDecl.name)
 					: undefined,
+			// the tag's name, unless an array pattern's, whose name is no name
+			// (`[a, b]`, or a bracketed `[a]` over an array binding)
+			docName:
+				docTag &&
+				!isArrayPatternParamTag(docTag) &&
+				!(
+					docTag.isBracketed &&
+					ts.isArrayBindingPattern((paramDecl as ts.ParameterDeclaration).name)
+				)
+					? docName
+					: undefined,
 			type: typeString,
 			optional,
 			rest,
@@ -653,9 +669,29 @@ const paramDocNames: WeakMap<object, string> = new WeakMap();
  * tags (`ts.getJSDocParameterTags`), dotted ones counted; a dotted tag in that
  * position documents a property, not the parameter, so it names nothing here.
  */
-const destructuredParamTagName = (paramDecl: ts.ParameterDeclaration): string | undefined => {
-	const tag = ts.getJSDocParameterTags(paramDecl)[0];
-	return tag && ts.isIdentifier(tag.name) ? tag.name.text : undefined;
+const destructuredParamTag = (
+	paramDecl: ts.ParameterDeclaration
+): ts.JSDocParameterTag | undefined => {
+	const tag = ts.getJSDocParameterTags(paramDecl)[0] ?? callablePropertyParamTag(paramDecl);
+	return tag && ts.isIdentifier(tag.name) ? tag : undefined;
+};
+
+/**
+ * The `@param` tag in a parameter's position on the property a function type
+ * types (`m: ({a}: O) => void` under `@param opts`), where TypeScript gives
+ * the function type's parameters no JSDoc of their own, the same positional
+ * rule TypeScript applies to a binding pattern's tags.
+ */
+const callablePropertyParamTag = (
+	paramDecl: ts.ParameterDeclaration
+): ts.JSDocParameterTag | undefined => {
+	const signature = paramDecl.parent;
+	if (!ts.isFunctionTypeNode(signature) && !ts.isConstructorTypeNode(signature)) return undefined;
+	let owner: ts.Node = signature.parent;
+	while (ts.isParenthesizedTypeNode(owner) || ts.isUnionTypeNode(owner)) owner = owner.parent;
+	if (!ts.isPropertySignature(owner) && !ts.isPropertyDeclaration(owner)) return undefined;
+	const tags = ts.getJSDocTags(owner).filter(ts.isJSDocParameterTag);
+	return tags[signature.parameters.indexOf(paramDecl)];
 };
 
 const bindingPatternPrinter = ts.createPrinter({ removeComments: true });
@@ -1202,6 +1238,12 @@ export const populatePropertyMember = (
 		const typeParams = signatureTypeParameters(callSigs[0]!.getDeclaration());
 		if (typeParams?.length)
 			member.genericParams = typeParams.map((param) => parseGenericParam(param, ctx));
+		// a property typed by a named function type (`handler: Handler`) keeps
+		// the name its signature expands
+		if (!isMethod && annotation) {
+			const typeInfo = resolveWrittenTypeInfo(annotation, ctx, true);
+			if (typeInfo?.kind === 'reference') member.typeInfo = typeInfo;
+		}
 	} else {
 		member.typeSignature = getTypeSignature(propType, checker, widened);
 		const typeInfo = resolveTypeInfo(propType, checker, ctx.aliasRegistry, widened, {

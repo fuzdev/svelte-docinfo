@@ -11,12 +11,45 @@
 				{
 					"name": "__0",
 					"pattern": "[a, b]",
+					"docName": "a",
 					"type": "[string, number]",
 					"description": "Description 1"
 				}
 			],
 			"returnType": "string",
 			"returnDescription": "Description 2"
+		},
+		{
+			"name": "fn_pattern_tag",
+			"kind": "function",
+			"docComment": "A pattern-named tag: TypeScript reads `[a` as an optional bracket, so the\ndescription must not start with the pattern's rest.",
+			"typeSignature": "([a, b]: [string, number]): string",
+			"sourceLine": 17,
+			"parameters": [
+				{
+					"name": "__0",
+					"pattern": "[a, b]",
+					"type": "[string, number]",
+					"description": "the pair"
+				}
+			],
+			"returnType": "string"
+		},
+		{
+			"name": "fn_single_tag",
+			"kind": "function",
+			"docComment": "A one-element pattern's tag reads as a bracketed name, which names nothing.",
+			"typeSignature": "([d]: [number]): number",
+			"sourceLine": 26,
+			"parameters": [
+				{
+					"name": "__0",
+					"pattern": "[d]",
+					"type": "[number]",
+					"description": "the single"
+				}
+			],
+			"returnType": "number"
 		}
 	]
 }

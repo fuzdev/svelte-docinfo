@@ -556,6 +556,16 @@ const ParameterJsonEntries = {
 	 * Absent on an identifier-named parameter.
 	 */
 	pattern: s.optional(s.string),
+	/**
+	 * The name a destructured parameter's `@param` tag gives it (`options` for
+	 * `fn({a, b}: T)` under `@param options`), the tag TypeScript matches by
+	 * position; on a callable property's function type (`m: ({a}: O) => void`),
+	 * the property's tag in that position. A renderer can anchor or link the
+	 * parameter by it where `name` is only the positional `__0`. Absent on an
+	 * identifier-named parameter, with no such tag, and for an array pattern's
+	 * tag (`@param [a, b]`), whose name is no name.
+	 */
+	docName: s.optional(s.string),
 	/** Resolved TypeScript type string (e.g., `string`, `Record<string, unknown>`). */
 	type: s.string,
 	/** Structured type; absent when `type` is the whole story (see `TypeJson`). */
@@ -1068,6 +1078,14 @@ const FunctionMemberJsonEntries = {
 	 * function is a `variable`.
 	 */
 	property: s.with_default(s.boolean, false),
+	/**
+	 * The named function type a callable property is written with
+	 * (`handler: Handler` reads `{kind: 'reference', name: 'Handler'}`), whose
+	 * signature `parameters` and `returnType` expand; absent for a method, an
+	 * inline function type, and any other written type. A renderer can head
+	 * the member `handler: Handler` and keep the signature as detail.
+	 */
+	typeInfo: s.optional(TypeJson),
 	/**
 	 * Default value documented via `@default` — for a callable member,
 	 * typically the behavior used when the callback is omitted. Always

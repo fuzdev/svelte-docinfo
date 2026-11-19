@@ -108,6 +108,7 @@
 				{
 					"name": "__0",
 					"pattern": "{ x }",
+					"docName": "first",
 					"type": "{ x: number; }",
 					"description": "Description 1",
 					"propertyDescriptions": {

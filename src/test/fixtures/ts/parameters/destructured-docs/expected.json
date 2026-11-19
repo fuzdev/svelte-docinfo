@@ -10,6 +10,7 @@
 				{
 					"name": "__0",
 					"pattern": "{ b }",
+					"docName": "a",
 					"type": "{ b: string; }",
 					"description": "Description 1",
 					"propertyDescriptions": {
@@ -45,6 +46,34 @@
 				}
 			],
 			"returnType": "string"
+		},
+		{
+			"name": "Api",
+			"kind": "interface",
+			"typeSignature": "Api",
+			"sourceLine": 19,
+			"members": [
+				{
+					"name": "m",
+					"kind": "function",
+					"docComment": "A callable property's destructured parameter takes the property's tag in\nits position.",
+					"typeSignature": "({ b }: { b: string; }): void",
+					"parameters": [
+						{
+							"name": "__0",
+							"pattern": "{ b }",
+							"docName": "opts",
+							"type": "{ b: string; }",
+							"description": "the options",
+							"propertyDescriptions": {
+								"b": "the b"
+							}
+						}
+					],
+					"returnType": "void",
+					"property": true
+				}
+			]
 		}
 	],
 	"diagnostics": [

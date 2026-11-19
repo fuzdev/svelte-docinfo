@@ -90,7 +90,11 @@
 						}
 					],
 					"returnType": "boolean",
-					"property": true
+					"property": true,
+					"typeInfo": {
+						"kind": "reference",
+						"name": "A"
+					}
 				}
 			]
 		}

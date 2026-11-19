@@ -4,9 +4,10 @@ interface FBox {
 
 /**
  * An alias-lost callable: a callable property projects as a function member
- * (signature fields — callability stays the classification, so no recovery
- * there), while inside a union the callable branch's recovery consult emits
- * `{kind: 'reference', name: 'LostFn'}` instead of a terminal function node.
+ * (signature fields — callability stays the classification), its written
+ * annotation naming it in the member's `typeInfo`, while inside a union the
+ * callable branch's recovery consult emits `{kind: 'reference', name: 'LostFn'}`
+ * instead of a terminal function node.
  */
 export type CallableHolder = {
 	/** Direct callable property — projects as a function member. */

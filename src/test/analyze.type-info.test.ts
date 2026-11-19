@@ -2199,3 +2199,35 @@ export const f = (r: R | Promise<R>): R => (r instanceof Promise ? null : r);`
 		assert.strictEqual(promise.name, 'Promise');
 	});
 });
+
+describe('written typeof queries', () => {
+	test('a renamed import reads as the name its module exports', async () => {
+		const { modules } = await analyzeTestProject({
+			'src/lib/dep.ts': `export const config = { a: 1, b: 'x' };`,
+			'src/lib/a.ts': `import { config as local_config } from './dep.js';
+
+export const f = (c: typeof local_config): number => c.a;`
+		});
+		const module = modules.find((m) => m.path === 'a.ts');
+		const f = module?.declarations.find((d) => d.name === 'f');
+		assert(f?.kind === 'function', 'expected a function');
+		assert.deepStrictEqual(f.parameters[0]?.typeInfo, { kind: 'other', text: 'typeof config' });
+	});
+
+	test('a `{default as x}` import keeps its local name, which a query can spell', async () => {
+		const { modules } = await analyzeTestProject({
+			'src/lib/dep.ts': `const config = { a: 1, b: 'x' };
+export default config;`,
+			'src/lib/a.ts': `import { default as local_config } from './dep.js';
+
+export const f = (c: typeof local_config): number => c.a;`
+		});
+		const module = modules.find((m) => m.path === 'a.ts');
+		const f = module?.declarations.find((d) => d.name === 'f');
+		assert(f?.kind === 'function', 'expected a function');
+		assert.deepStrictEqual(f.parameters[0]?.typeInfo, {
+			kind: 'other',
+			text: 'typeof local_config'
+		});
+	});
+});

@@ -15,3 +15,14 @@ export function fn1({ b }: { b: string }, c: number): string {
 export function fn2(a: { b: string }, { c }: { c: number }): string {
 	return a.b + c;
 }
+
+export interface Api {
+	/**
+	 * A callable property's destructured parameter takes the property's tag in
+	 * its position.
+	 *
+	 * @param opts - the options
+	 * @param opts.b - the b
+	 */
+	m: ({ b }: { b: string }) => void;
+}

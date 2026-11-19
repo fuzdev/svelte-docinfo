@@ -55,7 +55,8 @@ topic guides and references; `tomes.ts` orders them). Examples: `examples/vite/`
     (`followWrittenAnnotation`): a reference or array reads through
     `resolveWrittenTypeInfo` (written arguments and name, `Uuid` over its branded
     expansion), a computed type is `{kind: 'other', text}` over its source even at the
-    root (the flat string prints the expansion), and a written intersection the checker
+    root (the flat string prints the expansion; a `typeof` query's head as the name its
+    module exports, `opaqueWrittenText`), and a written intersection the checker
     distributed over a union is an `intersection` of the written members. A written union's
     members and a written tuple's elements each follow their own written node
     (`followWrittenMember`; `keyof A | null` keeps `keyof A`), where that reads as
@@ -98,7 +99,9 @@ topic guides and references; `tomes.ts` orders them). Examples: `examples/vite/`
 - **Member projection** — type-alias and interface properties share
   `populatePropertyMember`: a callable becomes `kind: 'function'`, anything else gets
   `typeSignature` + `typeInfo`. A callable written as a property (`now: () => number`, or
-  one with no method-syntax declaration) carries `property: true`; a method doesn't. External-origin call signatures are filtered first, so
+  one with no method-syntax declaration) carries `property: true`; a method doesn't. A
+  callable property written with a named function type (`handler: Handler`) carries its
+  `typeInfo` reference, the name its expanded signature loses. External-origin call signatures are filtered first, so
   `run?: typeof spawn` stays a `variable`. Class fields stay `variable` even when
   function-typed. Interfaces enumerate their own members plus what a computed `extends`
   entry contributes (`z.infer<typeof S>`, `Omit<Base, 'a'>`), projected as the alias path
@@ -137,7 +140,11 @@ topic guides and references; `tomes.ts` orders them). Examples: `examples/vite/`
   - `@mutates` splits target from description at ` - `. Dotted `@param obj.prop` fills
     `ParameterJson.propertyDescriptions`, including the tags TS nests under a braced
     `@param {object} obj` (`collectParamTag`). A destructured parameter takes the `@param`
-    in its position, as TS does (`destructuredParamTagName`), with its dotted keys.
+    in its position, as TS does (`destructuredParamTag`), with its dotted keys, and carries
+    the tag's name in `docName`; a callable property's function type, which TS gives no
+    JSDoc, takes the property's tag in that position (`callablePropertyParamTag`). An
+    array pattern's `@param [a, b] - x` (`isArrayPatternParamTag`) documents by position
+    with no `docName`.
   - A parameter is `optional` whenever a caller may omit it (`checker.isOptionalParameter`:
     `?`, an initializer, JS `@param {T} [b]` or `{T=}`), in TS and JS alike. A bracketed
     `[b=0]` supplies `defaultValue` when there's no initializer (`jsdocParamTagDefault`).
@@ -291,7 +298,8 @@ topic guides and references; `tomes.ts` orders them). Examples: `examples/vite/`
 - `declaration-build.ts` — permissive build types (`DeclarationJsonBuild`,
   `MemberJsonBuild`: every field optional but `kind`) and the per-module analysis records
   (`ModuleAnalysis`, …). The schemas validate at `parseModuleJson`.
-- `declaration-helpers.ts` — `getDisplayName`, `generateImport`, `compactReplacer`,
+- `declaration-helpers.ts` — `getDisplayName`, `generateImport` (`specifier: 'source'`
+  for a package exporting source extensions), `compactReplacer`,
   `isKind`, and the renderer contract `typeJsonToTokens`/`typeJsonToText` (a corpus test
   tokenizes every fixture tree).
 - `postprocess.ts` — pure passes: `mergeReExports`, `resolveComponentAliases`,
@@ -542,11 +550,12 @@ placeholder for a Svelte file whose transform threw).
 - `snippet` — `parameters`
 - `namespace` — `module`
 - members: `function` — the `function` variant's fields, plus `optional`, `property`,
-  `defaultValue`; `variable` — `reactivity`, `typeInfo`,
+  `typeInfo`, `defaultValue`; `variable` — `reactivity`, `typeInfo`,
   `optional`, `defaultValue`; `constructor` — `parameters`, `overloads`
 
 `ComponentPropJson`, `ParameterJson`, and `TupleElementJson` carry `typeInfo`;
-`ParameterJson` also `pattern`.
+`ParameterJson` also `pattern` and `docName`; a callable property member (`property: true`)
+also `typeInfo`.
 `ComponentPropJson` also carries `parameters` (snippets and callbacks),
 `returnType`/`returnTypeInfo` and the signature facts (callbacks only), `description`, `defaultValue`, and the
 shared doc fields (`docFields` in `types.ts`); `ParameterJson` carries none of `docFields`.
@@ -740,6 +749,8 @@ semantics and reports unresolvable stars instead of guessing. Lock-in tests:
 - Standalone `namespace Foo {}` documents as a bare `kind: 'variable'` (`export * as ns` is
   supported). Decorators aren't modeled.
 - `@nodocs` on members and component props is ignored with no warning.
+- An HTML `@component` comment's braced `@throws {T}` has no `typeInfo` (its text has no
+  type node to read).
 - `@cssprop` drops silently on a prop's or member's JSDoc and on a non-primary overload.
   A tag TS reads mid-line reports the component's line (`findCsspropTagLine` matches
   line-leading tags only), and a line-leading mention earlier in the instance script (a

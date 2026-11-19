@@ -74,7 +74,7 @@ export {
 	typeJsonToTokens,
 	typeJsonToText
 } from './declaration-helpers.ts';
-export type { TypeJsonToken } from './declaration-helpers.ts';
+export type { GenerateImportOptions, TypeJsonToken } from './declaration-helpers.ts';
 
 // Source types
 
