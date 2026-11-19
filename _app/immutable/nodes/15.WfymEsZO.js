@@ -1,0 +1,1 @@
+export{t as component}from"../chunks/BUVt3N2d.js";

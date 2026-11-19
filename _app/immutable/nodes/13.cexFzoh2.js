@@ -1,1 +1,0 @@
-export{t as component}from"../chunks/BX2aMPi_.js";
