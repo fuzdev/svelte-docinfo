@@ -100,6 +100,32 @@ describe('module paths in printed type text', () => {
 		});
 	});
 
+	test("the checker's `resolution-mode` import attribute is dropped", async () => {
+		// under `nodenext` the checker prints an ES target from its context-free
+		// CommonJS reading: `typeof import("…", { with: { "resolution-mode": "import" } })`
+		const result = await withTestProject(
+			{
+				'package.json': JSON.stringify({ name: 'p', type: 'module' }),
+				'tsconfig.json': JSON.stringify({
+					compilerOptions: {
+						module: 'nodenext',
+						moduleResolution: 'nodenext',
+						strict: true,
+						allowImportingTsExtensions: true,
+						noEmit: true
+					}
+				}),
+				'src/lib/dep.ts': `export const a = 1;`,
+				'src/lib/index.ts': `export interface R { dep: typeof import('./dep.ts'); }`
+			},
+			(projectRoot) => analyzeFromFiles({ projectRoot })
+		);
+
+		const decl = findDeclaration(result.modules, 'index.ts', 'R');
+		if (decl.kind !== 'interface') throw new Error(`expected an interface, got ${decl.kind}`);
+		assert.strictEqual(decl.members[0]?.typeSignature, 'typeof import("dep.ts")');
+	});
+
 	test('a member type signature is rewritten, not just the declaration', async () => {
 		const result = await withTestProject(
 			{

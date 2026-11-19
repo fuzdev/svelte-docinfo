@@ -7,7 +7,8 @@
  * `buildAliasRegistry` walks the export tables of the emitted modules and
  * registers each exported, non-`@nodocs`, non-generic type alias whose alias
  * the checker dropped (`isAliasLostType`) and whose resolved type passes the
- * safety gate (`containsAnonymousComponent`). It runs before declaration
+ * safety gate (`containsAnonymousComponent`), plus the brands that carry a
+ * generic's alias in place of their own (`isRenamedBrand`). It runs before declaration
  * extraction — checker caches make the duplicate `getTypeAtLocation` cheap —
  * and the registry is query-scoped: built per analysis cycle, discarded
  * after, so sessions never pin stale-program type objects.
@@ -37,6 +38,7 @@ import {
 } from './typescript-extract-shared.ts';
 import {
 	isAliasLostType,
+	isRenamedBrand,
 	isTypeAliasLike,
 	namedSymbolName,
 	linkableAliasSymbol,
@@ -163,7 +165,8 @@ const winsTieBreak = (next: AliasRegistryEntry, incumbent: AliasRegistryEntry): 
  * - is non-generic (instantiations are per-argument type objects — the
  *   declared type of a generic alias never matches a use site)
  * - carries no `@nodocs` on either declaration of a merged pair
- * - is alias-lost (`isAliasLostType`) and passes the safety gate
+ * - is alias-lost (`isAliasLostType`) and passes the safety gate, or is a
+ *   brand carrying its generic's alias (`isRenamedBrand`), which needs no gate
  *
  * Ambiguity — two aliases over one lost type (`type A = z.infer<typeof S>`
  * beside `type B` of the same, `z.infer` vs `z.output`, cross-module,
@@ -229,8 +232,12 @@ export const buildAliasRegistry = (
 			} catch {
 				continue;
 			}
-			if (!isAliasLostType(type)) continue;
-			if (!containsAnonymousComponent(type, checker, new Set(), 0)) continue;
+			// a renamed brand registers ungated: its identity is the generic's
+			// instantiation for exactly this brand name, never an interned shape
+			if (!isRenamedBrand(type, name)) {
+				if (!isAliasLostType(type)) continue;
+				if (!containsAnonymousComponent(type, checker, new Set(), 0)) continue;
+			}
 
 			const entry: AliasRegistryEntry = { name, module: modulePath };
 			const incumbent = byType.get(type);

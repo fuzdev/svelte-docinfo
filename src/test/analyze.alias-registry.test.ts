@@ -73,9 +73,22 @@ export type TwinA = s.Infer<typeof Twin>;
 export const Id = s.union([s.string, s.number]);
 export type Id = s.Infer<typeof Id>;
 
-/** A brand intersection — lost and unrecoverable but excluded from the warning. */
+/**
+ * A brand — its type carries fuz_schema's \`Branded\` alias in place of its own
+ * (\`isRenamedBrand\`), so the registry takes it, and never warns.
+ */
 export const Uid = s.brand(s.string, 'Uid');
 export type Uid = s.Infer<typeof Uid>;
+/** A second brand, same base: its own instantiation, so its own name. */
+export const Gid = s.brand(s.string, 'Gid');
+export type Gid = s.Infer<typeof Gid>;
+/** The \`Uid\` brand under another name: the same type, never its name. */
+export const OtherUid = Uid;
+export type OtherUid = s.Infer<typeof OtherUid>;
+/** A brand that is its own alias: the checker prints \`FactHash\` already. */
+export type FactHash = string & s.Brand<'FactHash'>;
+/** An alias of it: never overrides the checker's name. */
+export type Digest = FactHash;
 
 /** An array-root loss — \`namedSymbolName\` is \`Array\`, outside the predicate. */
 export const ArrSchema = s.array(s.object({ a: s.string }));
@@ -94,9 +107,12 @@ const CONSUMERS = `import * as s from '@fuzdev/fuz_schema/schema.ts';
 import {
 	ArrSchema,
 	Category,
+	Gid,
 	Kind,
 	Point,
 	Twin,
+	Uid,
+	type FactHash,
 	type NullablePoint,
 	type WithDefaultInput
 } from './schemas.js';
@@ -122,6 +138,12 @@ export const parseCategory = (input: unknown) => s.parse_or_throw(Category, inpu
 export const parseTwin = (input: unknown) => s.parse_or_throw(Twin, input);
 /** Array-root loss — outside the predicate, never recovers. */
 export const parseArr = (input: unknown) => s.parse_or_throw(ArrSchema, input);
+/** A non-generic brand alias at an inferred position — the checker's own name. */
+export const makeHash = (x: string) => x as FactHash;
+/** Inferred brand — the registry names it. */
+export const parseUid = (input: unknown) => s.parse_or_throw(Uid, input);
+/** Inferred nullable brand — the member reads by name. */
+export const parseGid = (input: unknown) => s.parse_or_throw(s.nullable(Gid), input);
 /** Inferred variable of a gated module's lost type — must not recover. */
 export const derivedGated = gatedSeed;
 
@@ -192,7 +214,7 @@ describe('alias registry over real fuz_schema', () => {
 			point.members.map((m) => m.name),
 			['x', 'y']
 		);
-		for (const name of ['WithDefault', 'Kind', 'Id', 'Uid', 'Category']) {
+		for (const name of ['WithDefault', 'Kind', 'Id', 'Uid', 'Gid', 'Category']) {
 			const decl = declOf(schemas, name);
 			assert(decl.kind === 'type', `expected a type declaration for ${name}`);
 			assert.strictEqual(decl.mergedValue, true, `expected ${name} merged`);
@@ -356,6 +378,45 @@ describe('alias registry over real fuz_schema', () => {
 	});
 });
 
+describe('renamed brands', () => {
+	test('a brand reads as its own alias at use sites, by the registry', () => {
+		const uid = declOf(consumers, 'parseUid');
+		assert(uid.kind === 'function', 'expected a function');
+		// the flat string keeps the checker's `Branded<string, "Uid">`
+		assert.strictEqual(uid.returnType, 'Branded<string, "Uid">');
+		assert.deepStrictEqual(uid.returnTypeInfo, schemaRef('Uid'));
+		const gid = declOf(consumers, 'parseGid');
+		assert(gid.kind === 'function', 'expected a function');
+		assert.deepStrictEqual(gid.returnTypeInfo, {
+			kind: 'union',
+			members: [schemaRef('Gid'), { kind: 'intrinsic', text: 'null' }]
+		});
+	});
+
+	test('an alias of a brand under another name never claims it', () => {
+		// `OtherUid` is the same type as `Uid` and sorts first, yet only the alias
+		// named by the brand's own literal registers
+		const uid = declOf(consumers, 'parseUid');
+		assert(uid.kind === 'function', 'expected a function');
+		assert.deepStrictEqual(uid.returnTypeInfo, schemaRef('Uid'));
+	});
+
+	test("a brand's own non-generic alias stays the checker's name", () => {
+		const hash = declOf(consumers, 'makeHash');
+		assert(hash.kind === 'function', 'expected a function');
+		assert.strictEqual(hash.returnType, 'FactHash');
+		// the intersection keeps the checker's alias; `Digest` never overrides it
+		assert(hash.returnTypeInfo?.kind === 'intersection', 'expected the intersection');
+		assert.strictEqual(hash.returnTypeInfo.alias, 'FactHash');
+	});
+
+	test('the declaration root documents its definition', () => {
+		const uid = declOf(schemas, 'Uid');
+		assert(uid.kind === 'type', 'expected a type declaration');
+		assert.strictEqual(uid.typeInfo?.kind, 'intersection');
+	});
+});
+
 describe('alias_lost diagnostic', () => {
 	test('fires exactly on the unrecoverable, non-excluded residue', () => {
 		// one loss in the corpus is neither registry-recoverable nor excluded:
@@ -363,8 +424,8 @@ describe('alias_lost diagnostic', () => {
 		// literal union, not a brand). Everything else self-heals or is excluded:
 		// recoverable losses (Point, WithDefault(+Input), NullablePoint, TwinA),
 		// the recoverable twins suppressed by type identity (PointOutput, TwinB),
-		// `one_of` literal unions (Kind), brand intersections (Uid, a
-		// `string & Brand<"Uid">`), array-root shapes outside the predicate (Arr),
+		// `one_of` literal unions (Kind), brands (Uid, Gid: registered, never
+		// alias-lost), array-root shapes outside the predicate (Arr),
 		// and `@nodocs` (Hidden). Exactly-one also locks the synthesis dedupe:
 		// the barrel's rename re-analyzes `Id`'s declaration and must not
 		// warn a second time

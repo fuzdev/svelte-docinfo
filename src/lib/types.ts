@@ -252,7 +252,11 @@ const SourceLine = s.pipe(s.number, s.safe_integer, s.min_value(1));
  * rendering; see `getTypeSignature`). The budget bites only on types whose
  * alias TypeScript dropped — an alias over an indexed access or conditional
  * (`z.infer<typeof S>`, valibot's `InferOutput`) carries no alias symbol, so
- * the checker expands its whole structure at every use.
+ * the checker expands its whole structure at every use. Terminal text is the
+ * checker's otherwise, with the optional widening stripped inside it as the
+ * tree strips it (an optional property's, parameter's, or tuple element's
+ * `| undefined`; properties not under `exactOptionalPropertyTypes`), so
+ * `{ a?: string; }` where the flat string prints `{ a?: string | undefined; }`.
  *
  * **Written-name recovery**: at each annotated position, each bare type
  * reference is resolved by checker type identity, and a type the checker has
@@ -289,7 +293,12 @@ const SourceLine = s.pipe(s.number, s.safe_integer, s.min_value(1));
  * **Registry recovery**: behind the written channel, unannotated positions
  * recover through the analyzed set's alias registry — any exported,
  * non-`@nodocs`, non-generic lost alias of an emitted module, matched by
- * checker type identity. A registry-recovered reference additionally carries
+ * checker type identity. A brand whose type the checker names by a generic's
+ * instantiation (`Branded<string, "Uuid">` for `type Uuid = Infer<typeof
+ * Uuid>`) recovers the same way, and through the written channel too, though
+ * the type has an alias; the registry takes only the alias named by the
+ * brand's own literal (`Uuid`), never another alias of the same type. A
+ * registry-recovered reference additionally carries
  * `module`, the declaring module's `ModuleJson.path` — provenance for
  * collision-exact linking, and always an emitted module (gated modules never
  * register), so a consumer lookup by `(module, name)` can't dangle. `module`

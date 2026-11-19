@@ -61,6 +61,7 @@ import {
 	isJavaScriptNode,
 	typeAliasTypeNode,
 	typeAliasTypeParameters,
+	registerExactOptionalChecker,
 	type AliasRegistry
 } from './typescript-extract-type-json.ts';
 import { createIsExternalFile, type IsExternalFile } from './typescript-program.ts';
@@ -172,20 +173,25 @@ export const createExtractContext = (
 	aliasRegistry: AliasRegistry | undefined,
 	isEmittedFile: IsEmittedFile = (file) => isSource(file, options),
 	fileExists: FileExists = ts.sys.fileExists
-): ExtractContext => ({
-	checker,
-	diagnostics,
-	isExternalFile: createIsExternalFile(options),
-	aliasRegistry,
-	exactOptionalPropertyTypes: !!program.getCompilerOptions().exactOptionalPropertyTypes,
-	isEmittedFile,
-	svelteFileStatus: (file) =>
-		program.getSourceFile(file + SVELTE_VIRTUAL_SUFFIX)
-			? 'virtual'
-			: fileExists(file)
-				? 'virtualless'
-				: 'missing'
-});
+): ExtractContext => {
+	const exactOptionalPropertyTypes = !!program.getCompilerOptions().exactOptionalPropertyTypes;
+	// the terminal-text printer reads it off the checker (`registerExactOptionalChecker`)
+	if (exactOptionalPropertyTypes) registerExactOptionalChecker(checker);
+	return {
+		checker,
+		diagnostics,
+		isExternalFile: createIsExternalFile(options),
+		aliasRegistry,
+		exactOptionalPropertyTypes,
+		isEmittedFile,
+		svelteFileStatus: (file) =>
+			program.getSourceFile(file + SVELTE_VIRTUAL_SUFFIX)
+				? 'virtual'
+				: fileExists(file)
+					? 'virtualless'
+					: 'missing'
+	};
+};
 
 /**
  * Whether the checker widened this optional *property* position with

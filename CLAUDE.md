@@ -45,7 +45,8 @@ topic guides and references; `tomes.ts` orders them). Examples: `examples/vite/`
     generic instantiations are `reference` nodes with `typeArgs`; other callables are
     `function`; a class's, enum's, or namespace's value side (`typeof A`) is terminal
     `other` text, never a `reference` to the instance type. Object literals and functions
-    stay terminal `text`, untruncated up to 1000
+    stay terminal `text` (the checker's, with the optional widening stripped inside,
+    `printTypeText`), untruncated up to 1000
     chars, then the checker's shortened rendering. Depth caps at 5, degrading to
     `{kind: 'other'}`.
   - **Written annotations** — where a site has a written annotation, the tree follows it
@@ -73,7 +74,12 @@ topic guides and references; `tomes.ts` orders them). Examples: `examples/vite/`
     by type identity against exported, non-`@nodocs`, non-generic lost aliases of emitted
     modules, so unannotated positions recover too; its hits carry `module`, always an
     emitted module. Never name what
-    the project didn't declare. Unrecovered losses emit `alias_lost`.
+    the project didn't declare. Unrecovered losses emit `alias_lost`. A brand the checker
+    names by a generic's instantiation (`Branded<string, "Uuid">` for
+    `type Uuid = Infer<typeof Uuid>`, `isGenericallyNamedBrand`) isn't lost, but recovers
+    the same way: the registry takes only the alias named by the brand's own literal
+    (`isRenamedBrand`), so `type MemberId` over the same brand never claims it, and a
+    brand's own non-generic alias (`type H = string & Brand<'H'>`) stays the checker's.
 - **Member projection** — type-alias and interface properties share
   `populatePropertyMember`: a callable becomes `kind: 'function'`, anything else gets
   `typeSignature` + `typeInfo`. A callable written as a property (`now: () => number`, or
@@ -587,7 +593,8 @@ shared doc fields (`docFields` in `types.ts`); `ParameterJson` carries none of `
 ### Module Paths in Printed Type Text
 
 The checker prints module objects as `typeof import("<absolute path>")`, which would leak
-local paths. `normalizeModulePathsInTypes` (`analyze-core.ts`) rewrites each path: an
+local paths. `normalizeModulePathsInTypes` (`analyze-core.ts`) rewrites each path, and drops the
+`resolution-mode` import attribute the checker adds from its context-free reading: an
 emitted module becomes its `ModuleJson.path` (usable as a lookup key), a package the tail
 after the last `node_modules/`, anything else `relative(projectRoot, …)`. Only paths naming
 a loaded file are rewritten, keys in `NON_TYPE_TEXT_KEYS` are skipped, and it runs as one

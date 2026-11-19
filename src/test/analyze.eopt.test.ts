@@ -332,3 +332,25 @@ describe('exactOptionalPropertyTypes via session compilerOptions', () => {
 		});
 	});
 });
+
+describe('exactOptionalPropertyTypes terminal text', () => {
+	test("keeps a property's written `undefined` and strips a parameter's widening", async () => {
+		const module = await analyzeEoptFile(
+			'src/lib/a.ts',
+			`export interface A {
+	o: { a?: string | undefined; b?: string; f: (x?: number) => void } | null;
+}`
+		);
+		const declaration = module.declarations[0];
+		assert(declaration?.kind === 'interface', 'expected an interface');
+		const member = declaration.members[0];
+		assert(member?.kind === 'variable', 'expected a variable member');
+		assert(member.typeInfo?.kind === 'union', 'expected a union');
+		const object = member.typeInfo.members[0];
+		assert(object?.kind === 'object', 'expected the object terminal');
+		assert.strictEqual(
+			object.text,
+			'{ a?: string | undefined; b?: string; f: (x?: number) => void; }'
+		);
+	});
+});

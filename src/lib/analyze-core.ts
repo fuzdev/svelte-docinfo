@@ -1083,11 +1083,24 @@ const createModulePathNormalizer = (
  */
 const replaceQuotedPaths = (text: string, rewrite: (printed: string) => string): string => {
 	if (!text.includes('"')) return text;
-	return text.replace(QUOTED_ABSOLUTE_PATH_RE, (match, path: string) => {
+	const rewritten = text.replace(QUOTED_ABSOLUTE_PATH_RE, (match, path: string) => {
 		const normalized = rewrite(path);
 		return normalized === path ? match : `"${normalized}"`;
 	});
+	return rewritten.includes('resolution-mode')
+		? rewritten.replace(RESOLUTION_MODE_ATTRIBUTE_RE, '')
+		: rewritten;
 };
+
+/**
+ * The import attribute the checker adds to a printed `typeof import("…")`
+ * (`, { with: { "resolution-mode": "import" } }`). Printing has no enclosing
+ * declaration, so the checker assumes a CommonJS importer and spells out the
+ * ES target's mode: it describes the printer's context, not the author's
+ * source, and only clutters the text.
+ */
+const RESOLUTION_MODE_ATTRIBUTE_RE =
+	/(?<=import\("[^"]*"), \{ (?:with|assert): \{ "resolution-mode": "(?:import|require)" \} \}/g;
 
 const rewriteTypeText = (value: unknown, rewrite: (printed: string) => string): void => {
 	if (Array.isArray(value)) {
@@ -1119,7 +1132,8 @@ const rewriteTypeText = (value: unknown, rewrite: (printed: string) => string): 
 
 /**
  * Normalize the absolute module paths TypeScript embeds in printed type text,
- * in place.
+ * in place, dropping the `resolution-mode` import attribute the checker adds
+ * beside them (`RESOLUTION_MODE_ATTRIBUTE_RE`).
  *
  * The checker prints a module object as `typeof import("<absolute path>")`,
  * which reaches output through every checker-printed field — `typeSignature`

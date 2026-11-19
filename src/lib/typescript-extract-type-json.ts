@@ -178,11 +178,145 @@ const MAX_TERMINAL_TEXT = 1000;
  * the budget). The flat type strings keep the default throughout — they are
  * the checker's canonical rendering.
  */
-const printType = (type: ts.Type, checker: ts.TypeChecker): string => {
+const printType = (type: ts.Type, checker: ts.TypeChecker, strip = true): string => {
 	// a generated alias's default rendering is its dead name, so expand it
 	if (hasGeneratedAlias(type)) return printAliasedType(type, checker);
-	const full = checker.typeToString(type, undefined, ts.TypeFormatFlags.NoTruncation);
-	return full.length <= MAX_TERMINAL_TEXT ? full : checker.typeToString(type);
+	const full = printTypeText(type, checker, { noTruncation: true, strip });
+	return full.length <= MAX_TERMINAL_TEXT
+		? full
+		: printTypeText(type, checker, { checkerDefaults: true, strip });
+};
+
+/**
+ * Checkers whose program sets `exactOptionalPropertyTypes`, where an optional
+ * property's `undefined` is author-written and the printer keeps it (see
+ * `optionalWidened` in `typescript-extract-shared.ts`). `createExtractContext`,
+ * which owns the option read, registers them; an unregistered checker prints
+ * with the strip, the compiler's default mode.
+ */
+const exactOptionalCheckers = new WeakSet<ts.TypeChecker>();
+
+/** Record that a checker's program sets `exactOptionalPropertyTypes` (see `exactOptionalCheckers`). */
+export const registerExactOptionalChecker = (checker: ts.TypeChecker): void => {
+	exactOptionalCheckers.add(checker);
+};
+
+const TEXT_PRINTER = ts.createPrinter({ removeComments: true });
+const PRINT_SOURCE_FILE = ts.createSourceFile('print.ts', '', ts.ScriptTarget.Latest);
+
+/** The checker's own cut for text printed without `NoTruncation` (twice `defaultMaximumTruncationLength`). */
+const DEFAULT_PRINT_CUT = 320;
+
+/**
+ * `checker.typeToString` with the optional widening stripped at every
+ * position inside the text, as the tree strips it: an optional property's,
+ * parameter's, or tuple element's `| undefined` goes (properties only when
+ * the checker widened them, so not under `exactOptionalPropertyTypes`).
+ * Builds the node as `typeToString` does (`typeToTypeNode` with the
+ * matching builder flags; `checkerDefaults` for the flags `typeToString`
+ * applies when given none) and prints it with comments removed, so the text
+ * is otherwise the same, the checker's structural elision (`... N more ...`)
+ * and its cut of text printed without `noTruncation` included (the cut
+ * doesn't read `noErrorTruncation`, which the checker's does). `strip: false`
+ * prints the checker's text, for comparisons against a flat string.
+ */
+const printTypeText = (
+	type: ts.Type,
+	checker: ts.TypeChecker,
+	options: {
+		noTruncation?: boolean;
+		inTypeAlias?: boolean;
+		checkerDefaults?: boolean;
+		strip?: boolean;
+	} = {}
+): string => {
+	const { noTruncation = false, inTypeAlias = false, checkerDefaults = false } = options;
+	let builderFlags = ts.NodeBuilderFlags.IgnoreErrors;
+	let formatFlags = ts.TypeFormatFlags.None;
+	if (noTruncation) {
+		builderFlags |= ts.NodeBuilderFlags.NoTruncation;
+		formatFlags |= ts.TypeFormatFlags.NoTruncation;
+	}
+	if (inTypeAlias) {
+		builderFlags |= ts.NodeBuilderFlags.InTypeAlias;
+		formatFlags |= ts.TypeFormatFlags.InTypeAlias;
+	}
+	if (checkerDefaults) {
+		builderFlags |=
+			ts.NodeBuilderFlags.AllowUniqueESSymbolType |
+			ts.NodeBuilderFlags.UseAliasDefinedOutsideCurrentScope;
+		formatFlags |=
+			ts.TypeFormatFlags.AllowUniqueESSymbolType |
+			ts.TypeFormatFlags.UseAliasDefinedOutsideCurrentScope;
+	}
+	const node = checker.typeToTypeNode(type, undefined, builderFlags);
+	if (!node || options.strip === false) return checker.typeToString(type, undefined, formatFlags);
+	const stripped = stripOptionalWidening(node, !exactOptionalCheckers.has(checker));
+	const text = TEXT_PRINTER.printNode(ts.EmitHint.Unspecified, stripped, PRINT_SOURCE_FILE);
+	return !noTruncation && text.length >= DEFAULT_PRINT_CUT
+		? text.slice(0, DEFAULT_PRINT_CUT - 3) + '...'
+		: text;
+};
+
+/**
+ * A printed type node without the optional-widening `undefined`: the
+ * `UndefinedKeyword` member leaves the union typing an optional parameter,
+ * named tuple member, or optional tuple element, and an optional property
+ * unless `stripProperties` is off. A union left with one member becomes that
+ * member, unparenthesized except as an optional tuple element (`(() => void)?`).
+ */
+const stripOptionalWidening = (root: ts.TypeNode, stripProperties: boolean): ts.TypeNode => {
+	const { factory } = ts;
+	const withoutUndefined = (type: ts.TypeNode, keepParens: boolean): ts.TypeNode => {
+		if (!ts.isUnionTypeNode(type)) return type;
+		const kept = type.types.filter((t) => t.kind !== ts.SyntaxKind.UndefinedKeyword);
+		if (kept.length === type.types.length || kept.length === 0) return type;
+		if (kept.length > 1) return factory.updateUnionTypeNode(type, factory.createNodeArray(kept));
+		const only = kept[0]!;
+		return !keepParens && ts.isParenthesizedTypeNode(only) ? only.type : only;
+	};
+	const transformer: ts.TransformerFactory<ts.TypeNode> = (context) => {
+		const visit = (node: ts.Node): ts.Node => {
+			const n = ts.visitEachChild(node, visit, context);
+			if (ts.isPropertySignature(n) && n.questionToken && n.type && stripProperties) {
+				const type = withoutUndefined(n.type, false);
+				return type === n.type
+					? n
+					: factory.updatePropertySignature(n, n.modifiers, n.name, n.questionToken, type);
+			}
+			if (ts.isParameter(n) && n.questionToken && n.type) {
+				const type = withoutUndefined(n.type, false);
+				return type === n.type
+					? n
+					: factory.updateParameterDeclaration(
+							n,
+							n.modifiers,
+							n.dotDotDotToken,
+							n.name,
+							n.questionToken,
+							type,
+							n.initializer
+						);
+			}
+			if (ts.isNamedTupleMember(n) && n.questionToken) {
+				const type = withoutUndefined(n.type, false);
+				return type === n.type
+					? n
+					: factory.updateNamedTupleMember(n, n.dotDotDotToken, n.name, n.questionToken, type);
+			}
+			if (ts.isOptionalTypeNode(n)) {
+				const inner = ts.isParenthesizedTypeNode(n.type) ? n.type.type : n.type;
+				const type = withoutUndefined(inner, true);
+				return type === inner ? n : factory.updateOptionalTypeNode(n, type);
+			}
+			return n;
+		};
+		return (node) => visit(node) as ts.TypeNode;
+	};
+	const result = ts.transform(root, [transformer]);
+	const [transformed] = result.transformed;
+	result.dispose();
+	return transformed ?? root;
 };
 
 /**
@@ -193,14 +327,10 @@ const printType = (type: ts.Type, checker: ts.TypeChecker): string => {
  * root still expands rather than printing its own name.
  */
 const printAliasedType = (type: ts.Type, checker: ts.TypeChecker): string => {
-	const full = checker.typeToString(
-		type,
-		undefined,
-		ts.TypeFormatFlags.NoTruncation | ts.TypeFormatFlags.InTypeAlias
-	);
+	const full = printTypeText(type, checker, { noTruncation: true, inTypeAlias: true });
 	return full.length <= MAX_TERMINAL_TEXT
 		? full
-		: checker.typeToString(type, undefined, ts.TypeFormatFlags.InTypeAlias);
+		: printTypeText(type, checker, { inTypeAlias: true });
 };
 
 /**
@@ -416,6 +546,36 @@ export const isLiteralOnlyUnion = (type: ts.Type): boolean =>
 export const isBrandLikeIntersection = (type: ts.Type): boolean =>
 	type.isIntersection() &&
 	type.types.some((t) => !!(t.flags & (INTRINSIC_FLAGS | ts.TypeFlags.Literal)));
+
+/**
+ * Whether a type is a brand the checker names by a generic's instantiation
+ * (`Branded<string, "Uuid">`, `Flavored<string, "Id">`): a brand-like
+ * intersection whose alias takes type arguments. The generic is the schema or
+ * brand library's, so the name says nothing of which brand it is; a
+ * non-generic alias (`type FactHash = string & Brand<'FactHash'>`) is the
+ * brand's own name, which the checker already prints and recovery never
+ * overrides.
+ */
+export const isGenericallyNamedBrand = (type: ts.Type): boolean =>
+	isBrandLikeIntersection(type) && (type.aliasTypeArguments?.length ?? 0) > 0;
+
+/**
+ * Whether a type alias names a brand the checker prints by its generic
+ * (`isGenericallyNamedBrand`): `type Uuid = Infer<typeof Uuid>` over a schema
+ * `brand(…)` computes to `Branded<string, "Uuid">`, so `Uuid` is nowhere in
+ * output. Not alias-lost (`isAliasLostType`), since the type has an alias;
+ * the registry takes it anyway. Only the alias whose name is the brand's own
+ * (a string-literal type argument equal to it) counts, so an alias of the
+ * brand under another name (`type MemberId = Infer<typeof MemberId>` over
+ * `meta(Uuid, …)`, the same type) never claims the brand's uses. An
+ * instantiation is one type per argument list, so the identity match claims
+ * exactly that brand.
+ *
+ * @param name - the alias's exported name
+ */
+export const isRenamedBrand = (type: ts.Type, name: string): boolean =>
+	isGenericallyNamedBrand(type) &&
+	type.aliasTypeArguments!.some((arg) => arg.isStringLiteral() && arg.value === name);
 
 /** A name registered for an alias-lost type — see `buildAliasRegistry` in `typescript-alias-registry.ts`. */
 export interface AliasRegistryEntry {
@@ -741,7 +901,9 @@ const createNameRecovery = (
  * The reference node recovered for a type the checker has no name for, or
  * `undefined`. Fires only at nameless positions — a type carrying an alias
  * symbol or a non-anonymous symbol is the checker's to name (never
- * overridden), and recovery substitutes the whole node rather than grafting a
+ * overridden, except a brand's alias when it is a generic's instantiation,
+ * which names the library's generic rather than the brand:
+ * `isGenericallyNamedBrand`), and recovery substitutes the whole node rather than grafting a
  * recovered name onto checker structure: where the checker dropped the alias
  * it expands the structure into the flat string anyway, so the tree's
  * contribution is the name the string lost.
@@ -767,9 +929,10 @@ const recoveredReference = (
 	memberSetEligible = false
 ): TypeJson | undefined => {
 	if (recovery.written === undefined && recovery.registry === undefined) return undefined;
-	if (linkableAliasSymbol(type) !== undefined || namedSymbolName(type) !== undefined) {
-		return undefined;
-	}
+	if (namedSymbolName(type) !== undefined) return undefined;
+	// a brand the checker names by its generic's instantiation recovers
+	// (`isGenericallyNamedBrand`)
+	if (linkableAliasSymbol(type) !== undefined && !isGenericallyNamedBrand(type)) return undefined;
 	const written = recovery.written?.(type);
 	if (written !== undefined) return { kind: 'reference', name: written };
 	const { registry } = recovery;
@@ -1652,7 +1815,7 @@ export const resolveTypeInfo = (
 	// stands against a flat string printing them, so the bare name says less
 	// (an empty-tuple default, `Snippet<[]>`, aside: every `children` prop has one)
 	if (node.kind === 'reference' && !node.typeArgs && ownAliasName === undefined) {
-		const printed = printType(target, checker);
+		const printed = printType(target, checker, false);
 		if (printed.startsWith(node.name + '<') && !printed.endsWith('<[]>')) return node;
 	}
 	// the flat string prints svelte2tsx's generated alias name, which nothing
@@ -2019,7 +2182,7 @@ const followWrittenAnnotation = (
 		if (isNamedReading(named)) return named;
 		// the flat sibling already prints a name (`SvelteHTMLElements['a']` as
 		// `HTMLAnchorAttributes`), which the absent tree defers to
-		if (!named && FLAT_NAME_MATCHER.test(printType(target, checker))) return undefined;
+		if (!named && FLAT_NAME_MATCHER.test(printType(target, checker, false))) return undefined;
 		return { kind: 'other', text: written.getText() };
 	}
 	if (isWrittenReference(written) || writtenArrayElement(written)) {
@@ -2039,7 +2202,7 @@ const followWrittenAnnotation = (
 		const named = reading();
 		if (named?.kind === 'reference' && named.module !== undefined) return named;
 		const info = resolveWrittenTypeInfo(node, ctx);
-		const flat = printType(target, checker).replace(/<\[\]>$/, '');
+		const flat = printType(target, checker, false).replace(/<\[\]>$/, '');
 		if (info?.kind === 'reference' && !info.typeArgs && info.name === flat) return undefined;
 		if (info || printsAsWritten(target, written, checker)) return info;
 		// a bare reference the flat sibling prints otherwise (`x: A` as
@@ -2076,7 +2239,8 @@ const printsAsWritten = (type: ts.Type, written: ts.TypeNode, checker: ts.TypeCh
 	// an empty-tuple default (`Snippet` printed `Snippet<[]>`, every `children`
 	// prop) says nothing the written name doesn't
 	return (
-		normalize(printType(type, checker)).replace(/<\[\]>$/, '') === normalize(written.getText())
+		normalize(printType(type, checker, false)).replace(/<\[\]>$/, '') ===
+		normalize(written.getText())
 	);
 };
 

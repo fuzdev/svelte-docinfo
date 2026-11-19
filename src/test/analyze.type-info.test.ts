@@ -927,6 +927,39 @@ export type O = { e?: E };`
 	});
 });
 
+describe('terminal text', () => {
+	test('drops the optional widening at every optional position inside', async () => {
+		const module = await analyzeFile(
+			'src/lib/a.ts',
+			`export interface A {
+	o: {
+		a?: string;
+		b?: string | null;
+		c?: () => void;
+		f: (x?: number, y?: { z?: boolean }) => void;
+		t: [first: string, second?: number];
+		u: [string, (() => void)?];
+	} | null;
+}`
+		);
+		const declaration = module.declarations[0];
+		assert(declaration?.kind === 'interface', 'expected an interface');
+		const member = declaration.members[0];
+		assert(member?.kind === 'variable', 'expected a variable member');
+		assert(member.typeInfo?.kind === 'union', 'expected a union');
+		const object = member.typeInfo.members[0];
+		assert(object?.kind === 'object', 'expected the object terminal');
+		assert.strictEqual(
+			object.text,
+			'{ a?: string; b?: string | null; c?: () => void; ' +
+				'f: (x?: number, y?: { z?: boolean; }) => void; ' +
+				't: [first: string, second?: number]; u: [string, (() => void)?]; }'
+		);
+		// the flat string stays the checker's rendering
+		assert.include(member.typeSignature, 'a?: string | undefined');
+	});
+});
+
 describe('callable classification', () => {
 	test('a named generic callable instantiation is a reference, not a function', async () => {
 		// `| null` keeps the property a variable member — a bare callable-typed

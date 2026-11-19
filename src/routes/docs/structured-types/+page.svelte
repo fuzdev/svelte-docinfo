@@ -109,7 +109,9 @@
 			<li>
 				Arrays and tuples carry <code>readonly</code>, and the optional-property
 				<code>undefined</code> is dropped, since <Code lang="ts" inline content="optional: true" />
-				says it.
+				says it. The <code>text</code> of a terminal node drops it too, at every optional property,
+				parameter, and tuple element inside (<Code lang="ts" inline content={'{ a?: string; }'} />),
+				so only the flat string prints <Code lang="ts" inline content="a?: string | undefined" />.
 			</li>
 		</ul>
 	</TomeSection>
@@ -125,6 +127,14 @@
 			name recovered by matching also carries <code>module</code>, the <code>ModuleJson.path</code>
 			declaring it, and wins over a written generic it stands for: a position written
 			<Code lang="ts" inline content={'z.infer<typeof S>'} /> still reads as <code>Foo</code>.
+		</p>
+		<p>
+			A brand loses its name another way: a schema library's brand computes to the library's own
+			generic (fuz_schema's <Code lang="ts" inline content={'Branded<string, "Uuid">'} />), which
+			the checker prints in place of <code>Uuid</code>. Matching recovers it the same way, so an
+			inferred position reads as <code>Uuid</code> beside the flat
+			<Code lang="ts" inline content={'Branded<string, "Uuid">'} />. Only the alias named by the
+			brand itself matches; another alias of the same brand doesn't take its uses.
 		</p>
 		<p>
 			An exported alias neither way recovers warns <code>alias_lost</code> (see

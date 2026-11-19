@@ -315,9 +315,10 @@
 							<Code lang="ts" inline content={'v.InferOutput<typeof S>'} />, and svelte-docinfo
 							can't <TomeLink slug="structured-types" hash="Lost-alias-names">recover it</TomeLink>.
 							Literal-only unions (<code>z.enum</code>, <code>v.picklist</code>) and brand
-							intersections don't warn, since they read fine expanded, and neither do
-							<code>@nodocs</code> aliases. <strong>Consequence:</strong> unannotated positions
-							document the alias's structure instead of its name. Where applicable, a nominal symbol
+							intersections don't warn, since they read fine expanded (and an exported brand
+							recovers its name by matching), and neither do <code>@nodocs</code> aliases.
+							<strong>Consequence:</strong> unannotated positions document the alias's structure
+							instead of its name. Where applicable, a nominal symbol
 							(<Code lang="ts" inline content={'interface Foo extends z.infer<typeof S> {}'} />)
 							restores it, and documents the inferred properties as its members.
 						</td>
