@@ -1,0 +1,1 @@
+export{t as component}from"../chunks/DRNH-k4I.js";
