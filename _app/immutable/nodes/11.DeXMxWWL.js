@@ -1,1 +1,0 @@
-export{t as component}from"../chunks/But_R-V6.js";
