@@ -1,0 +1,1 @@
+import{ft as e,lt as t}from"./CBSqT5U-.js";function n(n){let r=Symbol(),i=()=>{let e=t(r);return e===void 0?n?.():e};return{get:e=>{let t=i();if(t===void 0)throw Error(e??`context value is not set`);return t},get_maybe:i,set:(t=n?.())=>e(r,t)}}export{n as t};

@@ -1,1 +1,0 @@
-import{A as e,M as t,Q as n,ht as r,w as i}from"../chunks/6K4V7prx.js";var a=t(`<main class="svelte-1m7vjrr"><!></main>`);function o(t,o){var s=a(),c=n(s);i(c,()=>o.children),r(s),e(t,s)}export{o as component};

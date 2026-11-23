@@ -1,1 +1,0 @@
-export{t as component}from"../chunks/gX2ppppY.js";
