@@ -45,4 +45,4 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run setup-examples
-      - run: npx @fuzdev/gro check --workspace --build
+      - run: npx @fuzdev/gro check --workspace --build --lint

@@ -838,7 +838,7 @@ or one set with `gro task src/test/fixtures/ts/update.task.ts`.
 ## Development
 
 ```bash
-gro check     # typecheck, test, gen --check, format --check, lint
+gro check     # typecheck, test, gen --check, format --check
 gro test      # run tests
 gro gen       # run code generators
 ```
